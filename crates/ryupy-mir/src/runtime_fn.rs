@@ -106,6 +106,7 @@ pub enum RuntimeFn {
     /// 仅同一冻结(list,index)的CanRead真边且无潜在写入后调用。
     NumericListReadCheckedF64,
     /// 无逃逸循环累加器：一次holder分配、受守卫数值累加、出口物化。
+    RecordsTryIncrementMaterialized,
     NumericAccumulatorCreate,
     NumericAccumulatorAdd,
     NumericAccumulatorValue,

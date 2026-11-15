@@ -262,5 +262,9 @@ mod generator_state_tests;
 #[cfg(test)]
 mod records_increment_contract_tests;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "records-increment-experiment"))]
 mod records_increment_plan;
+#[cfg(any(test, feature = "records-increment-experiment"))]
+mod records_increment_guard;
+#[cfg(feature = "records-increment-experiment")]
+pub use records_increment_guard::apply_records_increment_experiment;

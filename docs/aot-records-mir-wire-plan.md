@@ -45,3 +45,22 @@
 无命名、非参数、每个仅一次定义且无窗口外使用。保留原receiver/key，不依赖名字匹配。
 EH、locals观察、cell、生成器及预算外函数拒绝。匹配表示可进入下一层guard设计，
 不是接线成功或收益证明。结构正例和篡改负例首先在隔离CI验证，再实施CFG拆分。
+
+## CFG实验切片（未验证）
+
+现已新增显式feature `records-increment-experiment` 暴露的实验函数；默认流水线、CLI均不调用。
+测试构建可直接运行它。只接受已通过计划器且从entry经普通Goto/Branch可达的块。
+逆序拆分每个窗口：原capture/box0前缀不动；新bool守卫true直接进入原后续块，false进入
+逐字保留的get/box1/add/set四语句，再跳入同一后续块。原terminator保持，第二次运行不再
+重写慢路。EH/locals等拒绝仍在；原key从未删除或替换。Runtime只用sealed PyDict门，失败不
+执行用户协议；子类原captured callable在失败CFG继续调用，异常不在helper内catch/重放。
+
+Runtime入口 `PyRecordsIncrement.TryMaterialized` 使用ConditionalWeakTable保存原已验证的
+StringPairAccess，避免每次new后重扫表；弱键不延长dict生命周期，仍按Version而非Count
+处理外部改动。缓存查找/首次分配的成本必须测量，不能继承此前host基准收益结论。
+新的托管ABI为bool(object,object)，不改native ABI。默认程序集可能携带未调用的引用，
+但默认MIR不会产生守卫调用。当前没有CLI选择入口，故还不是端到端产品接线可用版本。
+
+新增结构测试核原前缀/慢路/后续/终结器逐字保持、重复运行不重复接线、不可达拒绝及ABI
+错参/错结果类型。C#入口合同核身份/装箱、拒绝不执行协议、一次普通回退和缓存预算。
+CIL测试实发射并解析PE，核方法签名和调用。它们仍不能替代后续CP/JIT/AOT真实源码差分。

@@ -266,3 +266,55 @@ fn records_wire_plan_rejects_overwrite_escape_observer_and_wrong_target() {
         );
     }
 }
+
+#[test]
+fn records_guard_keeps_capture_and_original_fallback_cfg() {
+    let mut program = compile(include_str!("../../../tests/benchmarks/records.py"));
+    crate::passes::run_pipeline(&mut program, &crate::passes::default_pipeline()).unwrap();
+    let f = function(&program, "summarize");
+    let plans = crate::records_increment_plan::plans(f);
+    let p = &plans[0];
+    let block = p.block;
+    let prefix = format!("{:?}", &f.body.blocks[block].stmts[..p.start]);
+    let original = format!("{:?}", &f.body.blocks[block].stmts[p.start..p.start + 4]);
+    let tail = format!("{:?}", &f.body.blocks[block].stmts[p.start + 4..]);
+    let next = format!("{:?}", f.body.blocks[block].terminator);
+    assert_eq!(crate::records_increment_guard::apply_records_increment_experiment(&mut program), 1);
+    crate::validate::validate(&program).unwrap();
+    let f = function(&program, "summarize");
+    let source = &f.body.blocks[block];
+    assert_eq!(format!("{:?}", &source.stmts[..source.stmts.len() - 1]), prefix);
+    let Terminator::Branch { then_, else_, .. } = source.terminator else { panic!("guard branch"); };
+    assert_eq!(format!("{:?}", f.body.blocks[else_].stmts), original);
+    assert!(matches!(f.body.blocks[else_].terminator, Terminator::Goto(id) if id == then_));
+    assert_eq!(format!("{:?}", f.body.blocks[then_].stmts), tail);
+    assert_eq!(format!("{:?}", f.body.blocks[then_].terminator), next);
+    assert!(matches!(source.stmts.last(), Some(Statement::Assign { value: Rvalue::Call { callee: Callee::Runtime(RuntimeFn::RecordsTryIncrementMaterialized), .. }, .. })));
+    println!("records-guard structural-only: 1 guard, original four fallback statements, unchanged capture/key");
+    assert_eq!(crate::records_increment_guard::apply_records_increment_experiment(&mut program), 0);
+}
+
+#[test]
+fn records_guard_rejects_observation_unreachable_and_invalid_abi() {
+    let source = "def step(counts, user, action):\n    key = (user, action)\n    counts[key] = counts.get(key, 0) + 1\n    return key\n";
+    for mode in 0..4 {
+        let mut program = compile(source);
+        if mode < 2 {
+            let (_, f) = program.functions.iter_mut().find(|(_, f)| f.name == "step").unwrap();
+            if mode == 0 { f.body.locals[f.params[0]].is_cell = true; }
+            else { f.body.entry = f.body.blocks.alloc(BasicBlock { stmts: vec![], terminator: Terminator::Return(Some(Operand::Const(Constant::Null))) }); }
+            assert_eq!(crate::records_increment_guard::apply_records_increment_experiment(&mut program), 0);
+            continue;
+        }
+        assert_eq!(crate::records_increment_guard::apply_records_increment_experiment(&mut program), 1);
+        let (_, f) = program.functions.iter_mut().find(|(_, f)| f.name == "step").unwrap();
+        for (_, b) in f.body.blocks.iter_mut() {
+            for s in &mut b.stmts {
+                if let Statement::Assign { dest, value: Rvalue::Call { callee: Callee::Runtime(RuntimeFn::RecordsTryIncrementMaterialized), args } } = s {
+                    if mode == 2 { args.pop(); } else { f.body.locals[*dest].ty = MirType::Dynamic; }
+                }
+            }
+        }
+        assert!(crate::validate::validate(&program).is_err());
+    }
+}
