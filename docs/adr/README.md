@@ -109,3 +109,5 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 - [0197：布尔重复列表紧凑存储](0197-boolean-repeat-list-storage.md)（已接受，26项AOT配对、对象桥/搬迁及完整门禁通过）
 
 - [0198：生成器只读形参挂起写回消除](0198-generator-readonly-param-spills.md)（已接受，有限默认，完整AOT与门禁通过，收益及负结果分列）
+
+- [0199：sum精确整数原生累计](0199-sum-native-integer-accumulator.md)（已接受，真实AOT/混合域搬迁及完整门禁通过，性能负结果保留）

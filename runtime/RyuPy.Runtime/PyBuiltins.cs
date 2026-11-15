@@ -249,32 +249,8 @@ public static partial class PyOps
         return new PyZipIter(inputs);
     }
 
-    private static object BuiltinSum(object?[] args, string[] names, object?[] values)
-    {
-        RejectUnknownKeywords("sum", names, "start");
-        if (args.Length < 1)
-        {
-            throw new PyTypeError("sum expected at least 1 argument, got 0");
-        }
-        object? total = KeywordValue(names, values, "start") ?? 0L;
-        if (args.Length > 1 && Array.IndexOf(names, "start") < 0)
-        {
-            total = args[1];
-            if (args.Length > 2)
-            {
-                throw new PyTypeError("sum takes at most 2 arguments");
-            }
-        }
-        // 每次取值后立即相加，保留用户迭代/加法的交错、早停和活列表变更。
-        // 内部互操作仍可传入原生object数组；复用元组游标，无元素复制。
-        object? source = args[0] is object?[] array ? new PyTuple(array) : args[0];
-        IPyIterator iterator = PyIter.Create(source);
-        while (iterator.MoveNext())
-        {
-            total = Binary(Add, total ?? PyNone.Instance, iterator.Current() ?? PyNone.Instance);
-        }
-        return total ?? PyNone.Instance;
-    }
+    private static object BuiltinSum(object?[] args, string[] names, object?[] values) =>
+        BuiltinSumFast(args, names, values);
 
     private static object? BuiltinMinMax(
         string name,
