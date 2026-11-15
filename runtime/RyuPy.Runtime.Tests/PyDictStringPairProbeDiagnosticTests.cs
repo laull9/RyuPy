@@ -1,6 +1,7 @@
 // host层探针筛选：模拟源码每轮新tuple的get/整数累加/set；不是编译器或真实records性能验收。
 // 仅在无locals/身份观察、无用户回调的显式实验合同下使用探针，外部失效回原tuple路径。
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Xunit;
@@ -32,16 +33,19 @@ public sealed class PyDictStringPairProbeDiagnosticTests(ITestOutputHelper outpu
                 Assert.Equal(PyHash.TwoStringTupleHash(initial[0].First, "buy"), PyHash.TwoStringTupleHash(key.First, "buy"));
         Input[] inputs = Enumerable.Range(0, count)
             .Select(i => i % 100 < missPercent ? new Input("new" + i, "view") : initial[i % cardinality]).ToArray();
+        // 独立CLR oracle不经过PyDict/PyHash，防止两臂共享错误却彼此相等。
+        var expected = initial.ToDictionary(key => key, _ => 0L);
+        foreach (Input key in inputs) expected[key] = expected.GetValueOrDefault(key) + 1L;
 
         // 两臂均做完整预热；每个样本重建相同字典，避免之前的miss变成后续hit。
-        Sample warmA = Run(initial, inputs, false, invalidate), warmB = Run(initial, inputs, true, invalidate);
+        Sample warmA = Run(initial, inputs, false, invalidate, expected), warmB = Run(initial, inputs, true, invalidate, expected);
         Assert.Equal(warmA.Result, warmB.Result);
         var elapsedA = new double[rounds]; var elapsedB = new double[rounds];
         for (int round = 0; round < rounds; round++)
         {
             Sample a, b;
-            if (round % 2 == 0) { a = Run(initial, inputs, false, invalidate); b = Run(initial, inputs, true, invalidate); }
-            else { b = Run(initial, inputs, true, invalidate); a = Run(initial, inputs, false, invalidate); }
+            if (round % 2 == 0) { a = Run(initial, inputs, false, invalidate, expected); b = Run(initial, inputs, true, invalidate, expected); }
+            else { b = Run(initial, inputs, true, invalidate, expected); a = Run(initial, inputs, false, invalidate, expected); }
             Assert.Equal(a.Result, b.Result);
             Assert.Equal(invalidate ? count - count / 2 : 0, b.Fallbacks);
             elapsedA[round] = a.Milliseconds; elapsedB[round] = b.Milliseconds;
@@ -51,7 +55,8 @@ public sealed class PyDictStringPairProbeDiagnosticTests(ITestOutputHelper outpu
         output.WriteLine($"host-probe median A_ms={(elapsedA[2] + elapsedA[3]) / 2:F3} B_ms={(elapsedB[2] + elapsedB[3]) / 2:F3}; 仅host筛选，非NativeAOT产品结论");
     }
 
-    private static Sample Run(Input[] initial, Input[] inputs, bool probe, bool invalidate)
+    private static Sample Run(Input[] initial, Input[] inputs, bool probe, bool invalidate,
+        Dictionary<Input, long> expected)
     {
         var dict = new PyDict(); var access = new PyDict.StringPairAccess(dict); object zero = 0L;
         foreach (Input key in initial)
@@ -84,6 +89,22 @@ public sealed class PyDictStringPairProbeDiagnosticTests(ITestOutputHelper outpu
         }
         double elapsed = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.Equal(expected.Count + (invalidate ? 1 : 0), dict.Count);
+        long total = 0; int pairs = 0;
+        foreach (var (key, value) in dict.Entries())
+        {
+            if (key is string outside)
+            {
+                Assert.True(invalidate); Assert.Equal("outside", outside); Assert.Equal(0L, value);
+                continue;
+            }
+            var tuple = Assert.IsType<PyTuple>(key); Assert.Equal(2, tuple.Length);
+            var input = new Input(Assert.IsType<string>(tuple.Items[0]), Assert.IsType<string>(tuple.Items[1]));
+            Assert.True(expected.TryGetValue(input, out long wanted));
+            long actual = Assert.IsType<long>(value); Assert.Equal(wanted, actual);
+            total += actual; pairs++;
+        }
+        Assert.Equal(expected.Count, pairs); Assert.Equal((long)inputs.Length, total);
         // 完整键/值/顺序在计时外校验；不只用checksum隐藏缺键或排列错误。
         return new Sample(elapsed, allocated, fallbacks, PyRepr.Repr(dict));
     }
