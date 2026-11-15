@@ -1,0 +1,99 @@
+# 独立host归因门；不运行默认产品优化，不代表NativeAOT收益。
+name: Records attribution experiment
+on:
+  push:
+    branches: [work/records-attribution-ci-20261115]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  records-attribution:
+    if: github.ref == 'refs/heads/work/records-attribution-ci-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      MSBUILDDISABLENODEREUSE: '1'
+      DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+      UseSharedCompilation: 'false'
+    steps:
+      - name: Prepare isolated parent evidence directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          EVIDENCE="$RUNNER_TEMP/records-attribution-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          mkdir "$EVIDENCE"
+          printf 'EVIDENCE=%s\n' "$EVIDENCE" >> "$GITHUB_ENV"
+          printf 'run=%s attempt=%s\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" > "$EVIDENCE/run.txt"
+      - uses: actions/checkout@v4
+      - name: Freeze exact source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD | tee "$EVIDENCE/commit.txt"
+          test "$(cat "$EVIDENCE/commit.txt")" = "$GITHUB_SHA"
+          # 本地提交可经GitHub集成重建；仅剔除三个CI文件，核其余完整源码树。
+          export GIT_INDEX_FILE="$RUNNER_TEMP/records-attribution-source-index"
+          git read-tree HEAD
+          git update-index --force-remove .github/workflows/records-attribution-experiment.yml tests/perf/check_records_probe_evidence.py tests/perf/test_records_probe_evidence.py
+          git write-tree | tee "$EVIDENCE/source-tree.txt"
+          test "$(cat "$EVIDENCE/source-tree.txt")" = '7ab8452fc841dce63173d035c9e1875b7a6c06d9'
+          unset GIT_INDEX_FILE
+          printf '%s\n' '{"sdk":{"version":"10.0.403","rollForward":"disable","allowPrerelease":false}}' > global.json
+          cp global.json "$EVIDENCE/global.json"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - name: Verify SDK and evidence checker regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet --version | tee "$EVIDENCE/sdk.txt"
+          test "$(cat "$EVIDENCE/sdk.txt")" = '10.0.403'
+          dotnet --info > "$EVIDENCE/dotnet-info.txt"
+          python3 -B tests/perf/test_records_probe_evidence.py 2>&1 | tee "$EVIDENCE/contract-checker.log"
+          python3 -B tests/perf/test_records_attribution_evidence.py 2>&1 | tee "$EVIDENCE/attribution-checker.log"
+      - name: Build actual runtime tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet build runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj -c Release 2>&1 | tee "$EVIDENCE/build.log"
+      - name: Execute original fifteen safety contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet test runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj -c Release --no-build --no-restore --filter 'FullyQualifiedName~RyuPy.Runtime.Tests.PyDictStringPairProbeTests' --logger 'trx;LogFileName=records.trx' --logger 'console;verbosity=detailed' --results-directory "$EVIDENCE" 2>&1 | tee "$EVIDENCE/contracts.log"
+      - name: Validate original safety contract evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B tests/perf/check_records_probe_evidence.py "$EVIDENCE" "$GITHUB_SHA" 2>&1 | tee "$EVIDENCE/contracts-verification.log"
+      - name: Execute fused safety then twelve fresh attribution processes
+        shell: bash
+        run: |
+          set -euo pipefail
+          # 子目录必须不存在；归因driver独占创建，禁止复用旧TRX或旧日志。
+          test ! -e "$EVIDENCE/attribution"
+          test ! -L "$EVIDENCE/attribution"
+          python3 -B tests/perf/records_probe_attribution.py --expected-sha "$GITHUB_SHA" --output "$EVIDENCE/attribution" 2>&1 | tee "$EVIDENCE/attribution-driver.log"
+      - name: Independently recheck all thirteen processes and raw matrices
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B - "$EVIDENCE/attribution" "$GITHUB_SHA" <<'PY' 2>&1 | tee "$EVIDENCE/attribution-verification.log"
+          from pathlib import Path
+          import sys
+          sys.path.insert(0, 'tests/perf')
+          from check_records_attribution import verify_all
+          verify_all(Path(sys.argv[1]), sys.argv[2])
+          print('已核13个独立进程；12个诊断进程各72阶段样本，仅CLR host归因')
+          PY
+      - name: Upload raw evidence including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: records-attribution-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ env.EVIDENCE }}
+          if-no-files-found: error
+          retention-days: 14
