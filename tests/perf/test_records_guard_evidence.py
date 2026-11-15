@@ -50,7 +50,7 @@ class GuardEvidenceTests(unittest.TestCase):
             identities={}
             for key,blob in [('baseline',b'old'),('candidate',b'new-runtime')]:
                 (p/(key+'.dll')).write_bytes(blob)
-                identities[key]={'sha256':hashlib.sha256(blob).hexdigest(),'bytes':len(blob)}
+                identities[key]={'path':str(p/(key+'.dll')),'sha256':hashlib.sha256(blob).hexdigest(),'bytes':len(blob)}
             additions=['T:RyuPy.Runtime.PyRecordsIncrement:1048961:System.Object:',
                        'M:RyuPy.Runtime.PyRecordsIncrement:TryMaterialized:150:[0;0;2](Object,Object)->Boolean:']
             data={'baseline':str(p/'baseline.dll'),'candidate':str(p/'candidate.dll'),
@@ -74,7 +74,7 @@ class GuardEvidenceTests(unittest.TestCase):
                 with self.assertRaises(AssertionError):check()
                 (p/file).write_text(old)
             for key in ('baseline','candidate'):
-                for field,bad in [('sha256','0'*64),('bytes',999)]:
+                for field,bad in [('path','/wrong/elsewhere.dll'),('sha256','0'*64),('bytes',999)]:
                     old=identities[key][field];identities[key][field]=bad
                     with self.assertRaises(AssertionError):check()
                     identities[key][field]=old

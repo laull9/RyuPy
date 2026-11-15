@@ -111,7 +111,7 @@ jobs:
           assert len(baseline)==1
           shutil.copyfile(baseline[0],p/'baseline.dll')
           shutil.copyfile('runtime/RyuPy.Runtime/bin/Release/net10.0/RyuPy.Runtime.dll',p/'candidate.dll')
-          data={key:{'bytes':len((p/(key+'.dll')).read_bytes()),'sha256':hashlib.sha256((p/(key+'.dll')).read_bytes()).hexdigest()} for key in ('baseline','candidate')}
+          data={key:{'path':str(p/(key+'.dll')),'bytes':len((p/(key+'.dll')).read_bytes()),'sha256':hashlib.sha256((p/(key+'.dll')).read_bytes()).hexdigest()} for key in ('baseline','candidate')}
           (p/'assembly-identities.json').write_text(json.dumps(data,indent=2))
           PYCODE
       - name: Execute guard and exact increment ABI contracts

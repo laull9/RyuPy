@@ -69,11 +69,15 @@ def baseline(folder):
     identity=json.loads((folder/'assembly-identities.json').read_text())
     for key in ('baseline','candidate'):
         blob=(folder/(key+'.dll')).read_bytes()
-        assert identity[key]=={'sha256':hashlib.sha256(blob).hexdigest(),'bytes':len(blob)}
+        assert set(identity[key]) == {'path','sha256','bytes'}
+        assert identity[key]['sha256']==hashlib.sha256(blob).hexdigest() and identity[key]['bytes']==len(blob)
+        assert Path(identity[key]['path']).is_absolute() and Path(identity[key]['path']).name==key+'.dll'
+    assert Path(identity['baseline']['path']).parent == Path(identity['candidate']['path']).parent
     assert identity['baseline']['sha256']!=identity['candidate']['sha256']
     data=json.loads((folder/'baseline-abi.json').read_text())
     for key in ('baseline','candidate'):
-        assert Path(data[key]).resolve() == (folder/(key+'.dll')).resolve()
+        # 下载工件后的本地目录不同；绑定本次runner清单路径而非当前检查器目录。
+        assert data[key] == identity[key]['path']
         assert type(data[key+'Bytes']) is int and data[key+'Bytes'] == identity[key]['bytes']
     assert type(data['signatures']) is int and data['signatures']==1659
     assert data['expected']==data['actual']
