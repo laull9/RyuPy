@@ -352,13 +352,7 @@ public sealed partial class PyList
     public bool Contains(object? value) => IndexOf(value) >= 0;
 
     /// <summary><c>clear()</c>。</summary>
-    public void Clear()
-    {
-        // 清空不观察元素，无需为尚未物化的浮点槽创建对象；公开Items后的别名仍走原背板。
-        if (_booleans is { } b) b.Clear();
-        else if (_numeric is { } n) n.Clear();
-        else Items.Clear();
-    }
+    public void Clear() { if (_booleans is { } b) b.Clear(); else Items.Clear(); }
 
     /// <summary><c>reverse()</c>。</summary>
     public void Reverse()

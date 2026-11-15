@@ -1,8 +1,8 @@
 # 仅验证隔离数值列表候选，不修改dev，也不将Runtime合同当作AOT性能验收。
-name: Numeric list source AOT experiment
+name: Numeric reverse only source AOT experiment
 on:
   push:
-    branches: [ci/numeric-list-product-20261115]
+    branches: [ci/numeric-reverse-only-20261115]
 permissions:
   contents: read
 jobs:
@@ -66,6 +66,13 @@ jobs:
           set -euo pipefail
           cargo fmt --all --check
           NUMERIC_EVIDENCE="$EVIDENCE/structure" CARGO_TARGET_DIR="$RUNNER_TEMP/numeric-target" cargo test -p ryupy-driver --test numeric_list_lifecycle -- --ignored 2>&1 | tee "$EVIDENCE/structure.log"
+          CARGO_TARGET_DIR="$RUNNER_TEMP/numeric-target" make check DOTNET_TEST_ARGS="--logger 'trx;LogFileName=runtime.trx' --results-directory '$EVIDENCE/full'" 2>&1 | tee "$EVIDENCE/full-check.log"
+          dotnet test runtime/RyuPy.Runtime.Tests -c Release --filter FullyQualifiedName~PyNumericListReorderTests --logger 'trx;LogFileName=focused.trx' --results-directory "$EVIDENCE" 2>&1 | tee "$EVIDENCE/focused.log"
+          "$PYTHON" - <<'PY_CHECK'
+          import os, pathlib, xml.etree.ElementTree as E
+          rows = E.parse(pathlib.Path(os.environ["EVIDENCE"]) / "focused.trx").getroot().findall(".//{http://microsoft.com/schemas/VisualStudio/TeamTest/2010}UnitTestResult")
+          assert len(rows) == 5 and all(r.get("outcome") == "Passed" for r in rows)
+          PY_CHECK
           CARGO_TARGET_DIR="$RUNNER_TEMP/numeric-target" make build RELEASE_DIR="$RUNNER_TEMP/numeric-cli-candidate" 2>&1 | tee "$EVIDENCE/candidate-build.log"
           rm -rf -- "$RUNNER_TEMP/numeric-target"
       - name: 固定CP与双臂JIT AOT搬迁及四轮冷进程验证

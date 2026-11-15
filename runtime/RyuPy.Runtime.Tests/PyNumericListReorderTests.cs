@@ -1,4 +1,4 @@
-// 数值列表清空/反转不应先物化；合同覆盖缓存盒、浮点位模式及已公开背板别名。
+// 数值列表反转保留延迟物化；清空维持基线行为，核缓存盒、位模式及别名。
 using System.Collections;
 using System.Reflection;
 using RyuPy.Runtime;
@@ -60,16 +60,16 @@ public class PyNumericListReorderTests
     }
 
     [Fact]
-    public void ClearKeepsNumericStorageReusableWithoutMaterialization()
+    public void ClearKeepsBaselineMaterializationAndRefillSemantics()
     {
         var list = Numeric(1.5, 2.5);
         object? observed = list.GetItem(0);
-        IList storage = NumericStorage(list);
         list.Clear();
         Assert.Equal(0, list.Count);
-        Assert.Same(storage, NumericStorage(list));
+        Assert.Null(typeof(PyList).GetField("_numeric", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(list));
+        var published = list.Items;
         list.Clear(); list.Reverse();
-        Assert.Same(storage, NumericStorage(list));
+        Assert.Same(published, list.Items);
         PyNumericListOps.AppendF64(list, 7.5);
         Assert.True(PyNumericListOps.CanReadF64(list, 0L));
         Assert.Equal(7.5, PyNumericListOps.ReadF64(list, 0L));
