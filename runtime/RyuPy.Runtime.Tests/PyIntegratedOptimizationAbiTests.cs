@@ -40,4 +40,27 @@ public partial class PyTraceStateArtifactTests
         Assert.False(ExactIntegratedOptimizationIncrement(before, after.Append("未知成员").ToArray()));
         Assert.False(ExactIntegratedOptimizationIncrement([], IntegratedOptimizationPublicAdditions()));
     }
+
+    [Fact]
+    public void IntegratedHistoricalIncrementRejectsMissingChangedDuplicateAndUnknownMembers()
+    {
+        string[] before = Enumerable.Range(0, 1659).Select(index => "历史签名:" + index).ToArray();
+        string[] after = before.Concat(PyTraceStateV1ArtifactContract.PublicAdditions())
+            .Concat(SourcePublicAdditions()).Concat(MetadataPublicAdditions()).Concat(BuiltinPublicAdditions())
+            .Concat(XmlPublicAdditions()).Concat(DefaultSourcePublicAdditions()).Concat(LexicalClassFactoryPublicAdditions())
+            .Concat(DirectGlobalsPublicAdditions()).Concat(OrdinaryMiPublicAdditions()).Concat(RuntimeDerivedPublicAdditions())
+            .Concat(ResourceContextPublicAdditions()).Concat(NativeAbiPublicAdditions()).Concat(CompressionPublicAdditions())
+            .Concat(BinaryCryptoPublicAdditions()).Concat(ProviderPublicAdditions()).Concat(RecordsDevPublicAdditions())
+            .Concat(IntegratedOptimizationPublicAdditions()).ToArray();
+        Assert.True(PreservesIntegratedOptimizationBaselineAbi(before, after));
+        for (int index = 0; index < after.Length; index++)
+        {
+            Assert.False(PreservesIntegratedOptimizationBaselineAbi(before, after.Where((_, at) => at != index).ToArray()));
+            string[] changed = (string[])after.Clone(); changed[index] += "改签";
+            Assert.False(PreservesIntegratedOptimizationBaselineAbi(before, changed));
+        }
+        Assert.False(PreservesIntegratedOptimizationBaselineAbi(before, after.Append(after[0]).ToArray()));
+        Assert.False(PreservesIntegratedOptimizationBaselineAbi(before, after.Append("未知成员").ToArray()));
+    }
+
 }
