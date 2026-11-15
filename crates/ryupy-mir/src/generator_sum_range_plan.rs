@@ -15,18 +15,18 @@ enum Fact {
 }
 
 #[derive(Debug)]
-struct RangePlan {
+pub(super) struct RangePlan {
     guard_input: LocalId,
     iterator: LocalId,
     multiply: LocalId,
     yield_block: BlockId,
     resume: BlockId,
-    residents: FxHashSet<LocalId>,
+    pub(super) residents: FxHashSet<LocalId>,
 }
 
 // 这里只核对元数据内的数值ID记录；尚未绑定Program构建身份，不能用作产品证书。
 // 产品化必须用拥有式Prepared对象封装同一Program/元数据，不能接受自由组合。
-fn analyze_source(
+pub(super) fn analyze_source(
     program: &Program,
     deferred: &crate::generator_product::DeferredGenerators,
     function: FnId,

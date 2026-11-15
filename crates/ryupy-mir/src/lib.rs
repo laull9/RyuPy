@@ -263,3 +263,7 @@ mod generator_state_tests;
 mod generator_sum_plan;
 #[cfg(test)]
 mod generator_sum_range_plan;
+#[cfg(test)]
+mod generator_sum_fields;
+#[cfg(test)]
+mod generator_sum_prepared;
