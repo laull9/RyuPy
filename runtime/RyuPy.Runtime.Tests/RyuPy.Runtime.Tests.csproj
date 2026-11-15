@@ -7,6 +7,8 @@
     <IsPackable>false</IsPackable>
     <!-- 只在隔离probe测试构建启用，与ProjectReference的全局属性一致。 -->
     <DefineConstants Condition="'$(TraceAdapterTest)' == 'true'">$(DefineConstants);TRACE_ADAPTER_TEST</DefineConstants>
+    <!-- 真实冻结dev ABI门仅在专用CI显式编译；默认套件不追加跳过项。 -->
+    <DefineConstants Condition="'$(GeneratorAbiBaselineTest)' == 'true'">$(DefineConstants);GENERATOR_ABI_BASELINE_TEST</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
