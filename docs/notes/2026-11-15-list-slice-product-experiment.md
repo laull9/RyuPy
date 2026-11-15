@@ -38,7 +38,7 @@ ZIP SHA256 835706d1dccfb5474170f1aef896caa71ee39f9620f195111c1a86e9ed6de7cc已�
 
 ## 验收与后续
 
-新增9项C#合同与pending Python用例。当前仅本机CPython运行新源码成功，未执行C#、
+新增20项C#合同与pending Python用例（独审补齐long.Min/Max极端步长、空源、已缓存数值盒身份及非法边界不物化）。当前仅本机CPython运行新源码成功，未执行C#、
 CP/JIT/AOT差分，不能转正。需要完整make check、同次固定CPython差分、冻结旧新CLI
 独占原list_ops/全26项（包含matmul）、搬迁与既定桥接保护。此门满足后再决定产品启用。
 

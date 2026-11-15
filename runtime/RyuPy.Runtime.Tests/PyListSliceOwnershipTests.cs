@@ -101,4 +101,89 @@ public class PyListSliceOwnershipTests
         Assert.True(sourceIterator.MoveNext());
         Assert.Equal(4L, sourceIterator.Current());
     }
+    [Theory]
+    [InlineData(long.MinValue)]
+    [InlineData(long.MinValue + 1)]
+    [InlineData(long.MaxValue - 1)]
+    [InlineData(long.MaxValue)]
+    public void ExtremeStepsKeepTheSingleSelectedReference(long step)
+    {
+        object first = new object();
+        object last = new object();
+        var source = new PyList([first, null, last]);
+        var result = source.GetSlice(new PySlice(null, null, step));
+        Assert.Equal(1, result.Count);
+        Assert.Same(step > 0 ? first : last, result.GetItem(0));
+        var bounded = source.GetSlice(step > 0
+            ? new PySlice(long.MinValue, long.MaxValue, step)
+            : new PySlice(long.MaxValue, long.MinValue, step));
+        Assert.Equal(1, bounded.Count);
+        Assert.Same(result.GetItem(0), bounded.GetItem(0));
+        Assert.Equal(0, source.GetSlice(new PySlice(1L, 1L, step)).Count);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void EmptySourceRemainsIndependentAndDoesNotMaterialize(bool numeric)
+    {
+        var source = numeric ? Assert.IsType<PyList>(PyNumericListOps.Create()) : new PyList();
+        foreach (long step in new[] { 1L, -1L, long.MinValue, long.MaxValue })
+        {
+            var result = source.GetSlice(new PySlice(null, null, step));
+            Assert.Equal(0, result.Count);
+            result.Append(new object());
+            Assert.Equal(0, source.Count);
+            if (numeric)
+            {
+                Assert.NotNull(Field(source, "_numeric"));
+                Assert.Null(Field(source, "_items"));
+            }
+            else Assert.NotSame(source.Items, result.Items);
+        }
+    }
+
+    [Fact]
+    public void PreviouslyCachedNumericBoxSurvivesSliceMaterialization()
+    {
+        var source = Assert.IsType<PyList>(PyNumericListOps.Create());
+        PyNumericListOps.AppendF64(source, double.NaN);
+        PyNumericListOps.AppendF64(source, 1234.5);
+        object? cached = source.GetItem(0);
+        Assert.NotNull(Field(source, "_numeric"));
+        var reverse = source.GetSlice(new PySlice(null, null, -1L));
+        Assert.Null(Field(source, "_numeric"));
+        Assert.Same(cached, reverse.GetItem(-1));
+        Assert.Same(cached, source.GetItem(0));
+        Assert.Same(cached, source.GetSlice(new PySlice(0L, 1L, null)).GetItem(0));
+        reverse.SetItem(-1, null);
+        Assert.Same(cached, source.GetItem(0));
+    }
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(false, false)]
+    public void InvalidSliceBoundsDoNotMaterializeSpecialBacking(bool numeric, bool invalidStart)
+    {
+        PyList source;
+        string backing;
+        if (numeric)
+        {
+            source = Assert.IsType<PyList>(PyNumericListOps.Create());
+            PyNumericListOps.AppendF64(source, 123.5);
+            backing = "_numeric";
+        }
+        else
+        {
+            source = Assert.IsType<PyList>(PyOps.Binary(PyOps.Mul, new PyList([true]), 2L));
+            backing = "_booleans";
+        }
+        object? original = Field(source, backing);
+        var spec = invalidStart ? new PySlice("bad", null, null) : new PySlice(null, "bad", null);
+        Assert.Throws<PyTypeError>(() => source.GetSlice(spec));
+        Assert.Same(original, Field(source, backing));
+        Assert.Null(Field(source, "_items"));
+        Assert.Equal(numeric ? 1 : 2, source.Count);
+    }
 }

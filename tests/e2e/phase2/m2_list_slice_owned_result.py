@@ -31,3 +31,28 @@ try:
 except ValueError:
     print("zero step")
 print("slice identity and independence ok")
+
+# 极端步长只选首/末引用；空源与空窗口独立，避免整数步长溢出遗漏。
+first = [1]
+last = [3]
+values = [first, None, last]
+for step in [-9223372036854775808, -9223372036854775807, 9223372036854775806, 9223372036854775807]:
+    result = values[::step]
+    assert len(result) == 1
+    if step > 0:
+        assert result[0] is first
+    else:
+        assert result[0] is last
+    assert values[1:1:step] == []
+    empty_source = []
+    empty_result = empty_source[::step]
+    empty_result.append(first)
+    assert empty_source == []
+    print(len(result), len(empty_result))
+
+for invalid in [slice("bad", None), slice(None, "bad")]:
+    try:
+        flags[invalid]
+    except TypeError:
+        print("bad bound")
+assert flags == [True] * 20
