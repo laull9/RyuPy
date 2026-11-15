@@ -32,6 +32,8 @@ jobs:
           git rev-parse HEAD > "$RUNNER_TEMP/list-storage-evidence/commit.txt"
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           printf '%s\n' '隔离 C# 原型合同与暖进程存储筛选；不是产品 JIT/NativeAOT、CP 差分、list_ops 或性能收益验收。' > "$RUNNER_TEMP/list-storage-evidence/scope.txt"
+      - name: 自检证据门禁
+        run: python3 -B tests/perf/list-storage/test_check_evidence.py
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.403'
