@@ -38,7 +38,7 @@ jobs:
           git read-tree HEAD
           git update-index --force-remove .github/workflows/records-materialized-experiment.yml tests/perf/check_records_probe_evidence.py tests/perf/test_records_probe_evidence.py tests/perf/check_records_materialized.py tests/perf/test_records_materialized_evidence.py
           git write-tree | tee "$EVIDENCE/source-tree.txt"
-          test "$(cat "$EVIDENCE/source-tree.txt")" = 'b7d9b7438fddd7ccb79b85c0d5280f2e4e071c9c'
+          test "$(cat "$EVIDENCE/source-tree.txt")" = '7f03b8ff8a0897d78d418e4110ac8042429cb32b'
           unset GIT_INDEX_FILE
           printf '%s\n' '{"sdk":{"version":"10.0.403","rollForward":"disable","allowPrerelease":false}}' > global.json
           cp global.json "$EVIDENCE/global.json"
