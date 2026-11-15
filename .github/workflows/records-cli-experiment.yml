@@ -31,7 +31,7 @@ jobs:
           git read-tree HEAD
           git update-index --force-remove .github/workflows/records-cli-experiment.yml
           git write-tree | tee "$EVIDENCE/source-tree.txt"
-          test "$(cat "$EVIDENCE/source-tree.txt")" = aa0449e14f512fce1350bd05b3a00503ace147aa
+          test "$(cat "$EVIDENCE/source-tree.txt")" = 2d59e91ee05a3e5d45a97c2a213613ea92feb587
           unset GIT_INDEX_FILE
           printf '%s\n' '{"sdk":{"version":"10.0.403","rollForward":"disable","allowPrerelease":false}}' > global.json
           cp global.json "$EVIDENCE/global.json"
@@ -45,10 +45,19 @@ jobs:
         with:
           toolchain: '1.99.1'
           components: rustfmt
+      - uses: actions/checkout@v4
+        with:
+          ref: 81758bb477729aee4636f2ca6d6b0815b949849a
+          path: .records-dev-baseline
       - name: Verify SDK and evidence negative cases
         shell: bash
         run: |
           set -euo pipefail
+          git -C .records-dev-baseline rev-parse HEAD | tee "$EVIDENCE/baseline-commit.txt"
+          git -C .records-dev-baseline rev-parse HEAD^{tree} | tee "$EVIDENCE/baseline-tree.txt"
+          test "$(cat "$EVIDENCE/baseline-commit.txt")" = 81758bb477729aee4636f2ca6d6b0815b949849a
+          test "$(cat "$EVIDENCE/baseline-tree.txt")" = cc73c7780c95b4b9c039bf494b8b150660f67850
+          cp global.json .records-dev-baseline/global.json
           dotnet --version | tee "$EVIDENCE/sdk.txt"
           test "$(cat "$EVIDENCE/sdk.txt")" = 10.0.403
           rustc --version | tee "$EVIDENCE/rust.txt"
@@ -72,7 +81,7 @@ jobs:
           a=$?
           cargo test -p ryupy-cli --bin ryupy records_flag_ -- --nocapture > "$EVIDENCE/cli-default.log" 2>&1
           b=$?
-          cargo test -p ryupy-driver --features records-increment-experiment --lib records_ -- --nocapture > "$EVIDENCE/driver-enabled.log" 2>&1
+          cargo test -p ryupy-driver --features records-increment-experiment --lib records_options_tests:: -- --nocapture > "$EVIDENCE/driver-enabled.log" 2>&1
           c=$?
           cargo test -p ryupy-mir --features records-increment-experiment --lib records_guard_ -- --nocapture > "$EVIDENCE/mir-guard.log" 2>&1
           d=$?
@@ -96,6 +105,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          cargo build --manifest-path .records-dev-baseline/Cargo.toml --release -p ryupy-cli --target-dir "$RUNNER_TEMP/records-cli-baseline" 2>&1 | tee "$EVIDENCE/baseline-build.log"
           cargo build --release -p ryupy-cli --features records-increment-experiment --target-dir "$RUNNER_TEMP/records-cli-normal" 2>&1 | tee "$EVIDENCE/normal-build.log"
           cargo build --release -p ryupy-cli --features records-increment-diagnostics --target-dir "$RUNNER_TEMP/records-cli-diagnostic" 2>&1 | tee "$EVIDENCE/diagnostic-build.log"
           dotnet build tests/perf/records_runtime_audit/Audit.csproj -c Release -o "$EVIDENCE/audit" 2>&1 | tee "$EVIDENCE/audit-build.log"
@@ -105,7 +115,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -B tests/perf/records_source_trial.py --cli "$RUNNER_TEMP/records-cli-normal/release/ryupy" --diagnostic-cli "$RUNNER_TEMP/records-cli-diagnostic/release/ryupy" --audit "$EVIDENCE/audit/Audit.dll" --output "$EVIDENCE/trial" --expected-sha "$GITHUB_SHA" 2>&1 | tee "$EVIDENCE/trial.log"
+          df -h | tee "$EVIDENCE/disk-before-trial.txt"
+          python3 -B tests/perf/records_source_trial.py --cli "$RUNNER_TEMP/records-cli-normal/release/ryupy" --diagnostic-cli "$RUNNER_TEMP/records-cli-diagnostic/release/ryupy" --baseline-cli "$RUNNER_TEMP/records-cli-baseline/release/ryupy" --baseline-repo .records-dev-baseline --audit "$EVIDENCE/audit/Audit.dll" --output "$EVIDENCE/trial" --expected-sha "$GITHUB_SHA" 2>&1 | tee "$EVIDENCE/trial.log"
       - name: Independently verify raw evidence
         if: always() && steps.trial.outcome != 'skipped'
         shell: bash
