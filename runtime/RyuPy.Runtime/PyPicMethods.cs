@@ -46,6 +46,8 @@ public static partial class PyPic
             }
             return CallMethodSlow(site, instance, name, classVersion, ArgFor(site, 0));
         }
+        // 精确sealed容器无法覆盖方法；固定零参入口省去scratch及通用属性/参数分派。
+        if (Enabled && obj is PyList exactList && name == "pop") return exactList.Pop();
         object?[] fallback = (uint)site < MaxSites ? ArgFor(site, 0) : PyOps.EmptyArray();
         return CallMethodFallback(site, obj, name, fallback);
     }
@@ -66,6 +68,16 @@ public static partial class PyPic
             object?[] args = ArgFor(site, 1);
             args[0] = a0;
             return CallMethodSlow(site, instance, name, classVersion, args);
+        }
+        // 单一语法实参仍可能是*标记；只有普通值才能直接进入原容器正文。
+        if (Enabled && !PyOps.IsStarredArgument(a0))
+        {
+            if (obj is PyList exactList && name == "append")
+            { exactList.Append(a0); return PyNone.Instance; }
+            if (obj is PyDict exactDict && name == "get")
+                return exactDict.GetOrDefault(a0, PyNone.Instance);
+            if (obj is PySet exactSet && name == "add")
+            { exactSet.Add(a0); return PyNone.Instance; }
         }
         object?[] fallbackArgs = ArgFor(site, 1);
         fallbackArgs[0] = a0;
@@ -91,6 +103,10 @@ public static partial class PyPic
             args[1] = a1;
             return CallMethodSlow(site, instance, name, classVersion, args);
         }
+        // get的缺省值保留原引用；用户hash/eq由原GetOrDefault执行，支持重入。
+        if (Enabled && obj is PyDict exactDict && name == "get"
+            && !PyOps.IsStarredArgument(a0) && !PyOps.IsStarredArgument(a1))
+            return exactDict.GetOrDefault(a0, a1);
         object?[] fallbackArgs = ArgFor(site, 2);
         fallbackArgs[0] = a0;
         fallbackArgs[1] = a1;

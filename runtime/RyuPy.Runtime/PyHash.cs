@@ -115,6 +115,11 @@ public static partial class PyHash
         {
             return string.Equals(sa0, sb0, StringComparison.Ordinal);
         }
+        // 精确tuple没有可覆盖的外层协议；元素仍逐个走身份/完整Equal，保留回调顺序。
+        // 直接数组索引避免IReadOnlyList接口访问；派生tuple继续走下面的原协议路径。
+        if (a is PyTuple exactLeft && a.GetType() == typeof(PyTuple)
+            && b is PyTuple exactRight && b.GetType() == typeof(PyTuple))
+            return ReferenceEquals(a, b) || ExactTupleEqual(exactLeft.Items, exactRight.Items);
         if ((a is PyStringInstance || b is PyStringInstance)
             && PyStringLayout.TryGet(a, out string subleft) && PyStringLayout.TryGet(b, out string subright))
             return string.Equals(subleft, subright, StringComparison.Ordinal);

@@ -374,6 +374,11 @@ D001 接受生命周期模型差异，不自动接受任何 `__del__` / weakref 
 [ADR-0200](adr/0200-guarded-list-false-loop.md)，平台与性能实测见
 [验收报告](aot-guarded-list-loop-optimization.md)。
 
+精确tuple数组比较、小参数内建容器方法直达和精确long富比较采用类型守卫，保留元素回调、
+派生布局、参数展开与foreign回退；tuple共同前缀副作用修复见semantics §4.23。
+[ADR-0201](adr/0201-exact-builtin-hot-dispatch.md)与[验收报告](aot-hotspot-dispatch-optimization.md)
+记录逐切片及最终全量结果，不新增项目兼容覆盖计数。
+
 ## 拒绝与报错
 
 静态可确定的不支持能力报告源码 `Diagnostic`。运行时才能知道的缺失属性、模块或非法操作，
