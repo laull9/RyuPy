@@ -76,7 +76,7 @@ jobs:
         timeout-minutes: 70
         run: |
           set -euo pipefail
-          (cd "$BASE"; CARGO_TARGET_DIR="$RUNNER_TEMP/target-base" make check) 2>&1 | tee "$EVIDENCE/base-check.log"
+          (cd "$BASE"; CARGO_TARGET_DIR="$RUNNER_TEMP/target-base" make check DOTNET_TEST_ARGS="--logger 'trx;LogFileName=base-runtime.trx' --logger 'console;verbosity=normal' --results-directory '$EVIDENCE'") 2>&1 | tee "$EVIDENCE/base-check.log"
           (cd "$BASE"; CARGO_TARGET_DIR="$RUNNER_TEMP/target-base" make build RELEASE_DIR="$RUNNER_TEMP/frozen-base") 2>&1 | tee "$EVIDENCE/base-build.log"
           # 只清理本job独占的可重建Cargo输出；冻结CLI已内嵌自己的运行时。
           rm -rf -- "$RUNNER_TEMP/target-base"
@@ -85,7 +85,7 @@ jobs:
         timeout-minutes: 70
         run: |
           set -euo pipefail
-          CARGO_TARGET_DIR="$RUNNER_TEMP/target-candidate" make check 2>&1 | tee "$EVIDENCE/candidate-check.log"
+          CARGO_TARGET_DIR="$RUNNER_TEMP/target-candidate" make check DOTNET_TEST_ARGS="--logger 'trx;LogFileName=candidate-runtime.trx' --logger 'console;verbosity=normal' --results-directory '$EVIDENCE'" 2>&1 | tee "$EVIDENCE/candidate-check.log"
           dotnet test runtime/RyuPy.Runtime.Tests -c Release --filter 'FullyQualifiedName~PyListSliceOwnershipTests' --logger 'trx;LogFileName=slice.trx' --results-directory "$EVIDENCE" 2>&1 | tee "$EVIDENCE/slice-tests.log"
           "$PYTHON" -B tests/perf/list-product/verify.py trx "$EVIDENCE/slice.trx"
           CARGO_TARGET_DIR="$RUNNER_TEMP/target-candidate" make build RELEASE_DIR="$RUNNER_TEMP/frozen-candidate" 2>&1 | tee "$EVIDENCE/candidate-build.log"
