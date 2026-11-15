@@ -239,6 +239,8 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         res.push_method_reference(method_ref! { static void @pyops_type::SetAdd(object, object) });
     let set_extend = res
         .push_method_reference(method_ref! { static void @pyops_type::SetExtend(object, object) });
+    let guarded_list_set_false_loop = res.push_method_reference(
+        method_ref! { static object @pyops_type::GuardedListSetFalseLoop(object, object, object, object) });
     let list_append = res
         .push_method_reference(method_ref! { static void @pyops_type::ListAppend(object, object) });
     let list_extend = res
@@ -525,6 +527,7 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         arg_error,
         star_arg,
         format_value,
+        guarded_list_set_false_loop,
         list_append,
         set_add,
         set_extend,

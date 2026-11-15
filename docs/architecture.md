@@ -253,3 +253,7 @@ ExplicitOnly/AOT/fixed关闭，完整同源门待验，不能以部署或helper�
 
 PyList内部布尔背板仅用于单元素bool的正次重复新结果，物化后永久object模式；
 Count保持原有object/数值热路优先，迭代与桥接的存储边界见[ADR-0197](adr/0197-boolean-repeat-list-storage.md)。
+
+MIR的GuardedListLoop只匹配已闭合的局部计数器False写入循环，调用单一Runtime守卫ABI，
+null失败边返回原CFG；运行时封装精确long与PyList背板，后端仅发射固定签名。
+静态活性、正常溢出及资源失败取舍见[ADR-0200](adr/0200-guarded-list-false-loop.md)。

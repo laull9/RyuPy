@@ -631,6 +631,22 @@ CPython会调用一次该方法后使用它返回的整数。原始回调修改s
 未捕获throw注入在旧/新AOT均出现生成器line0，CPython3.12为yield行；这一行号欠账后续修复。
 性能及有限准入见[ADR-0198](adr/0198-generator-readonly-param-spills.md)。
 
+### 4.21 精确列表布尔写入快循环
+
+闭合、无观察点的局部`while j <= bound`布尔写入可在精确long/列表/范围守卫后合并执行。
+零轮、非long、协议对象、越界及数值背板保留原循环，正溢出返回准确BigInteger终值。
+资源耗尽可能在最终装箱而非逐次步进发生，此时j尚未发布且行号停留while预头；这一低影响
+分配失败诊断取舍见[ADR-0200](adr/0200-guarded-list-false-loop.md)。普通结果、身份与协议顺序保留。
+
+### 4.22 未捕获异常的既有诊断差异
+
+原生列表越界赋值当前输出`IndexError: list index out of range`，CPython3.12.13为
+`IndexError: list assignment index out of range`。`mark(flags,0,2,1)`写入长度2列表时，
+错误前两个False写入、退出码与异常类型一致；外层try/finally打印列表的未捕获路径中，
+当前原生stderr还缺少CPython的回溯帧。ADR-0200旧新冻结AOT完整双流相同，这两项既有诊断
+欠账继续待修；另一个未绑定局部用例的异常消息正确，原生stderr也缺少CP回溯帧。
+本次性能优化保留原错误路径。
+
 ## 5. 模块与入口
 
 - 顶层语句按顺序组成隐式 `main`，入口模块名为 `__main__`；模块顶层代码编译成独立的初始化函数，由运行时导入机制触发，**编译期不执行副作用**。

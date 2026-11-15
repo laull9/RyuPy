@@ -1,5 +1,9 @@
 # 整数下标优化：实际热点与实施准入
 
+后续实施（2026-11-15）：最小ABI完整循环方案已验收，真实筛法收益已复现，完整结果登记于
+[实现报告](aot-guarded-list-loop-optimization.md)和[ADR-0200](adr/0200-guarded-list-false-loop.md)。
+下文保留上一轮交接时的规划与审查过程。
+
 状态：待实施规划；sum已完成验收，本轮按用户要求交接后停止。本文无产品改动或候选收益验收。
 固定sieve源的i/j处于Dynamic上下文；j += i通过动态整数加法生成对象，随后下标再解包。
 只加I64下标ABI不能消除其生产端装箱。动态字面量也已由build_literal/boxed_const变为Dynamic，

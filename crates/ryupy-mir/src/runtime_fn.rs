@@ -269,6 +269,8 @@ pub enum RuntimeFn {
     CallMethod,
     /// `PyOps.ListAppend(list, item)`：星号字面量的增量构建。
     ListAppend,
+    /// 精确列表/整数守卫的完整False写入循环；失败返回CLR null。
+    GuardedListSetFalseLoop,
     /// `PyOps.SetAdd(object, object)` / `SetExtend(object, object)`：按求值顺序修改集合。
     SetAdd,
     SetExtend,

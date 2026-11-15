@@ -10,6 +10,9 @@
 
 use crate::mir::{Function, Program};
 
+mod guarded_list_loop;
+#[cfg(test)]
+mod guarded_list_loop_tests;
 mod observer;
 pub use observer::{PipelineEvent, PipelineObserver, PipelinePhase, PipelineStep};
 #[cfg(test)]
@@ -148,6 +151,9 @@ pub fn pipeline_with_foreach_options(
         passes.push(PipelinePass::Function(Box::new(NumericAccumulator)));
     }
     passes.push(PipelinePass::Function(Box::new(StringAccumulator)));
+    passes.push(PipelinePass::Function(Box::new(
+        guarded_list_loop::GuardedListLoop,
+    )));
     passes.push(PipelinePass::Function(Box::new(TupleScalar)));
     passes.push(PipelinePass::Function(Box::new(DeadValues)));
     passes.push(PipelinePass::Function(Box::new(IntervalNarrow)));

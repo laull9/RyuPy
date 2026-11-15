@@ -5,7 +5,14 @@
 用户授权 GPT 6.1 Sol 主代理与三名 Gemini 3.8 Flash 协作；运行速度优先，
 逐项对照固定 CPython 的速度与内存，按真实数据决定取舍。
 
-本轮已按用户要求收尾并停止；[交接报告](docs/aot-performance-handoff-2026-11-15.md)记录已验收实现、剩余差距及下一轮准入。
+上一轮已交接；用户于2026-11-15授权继续。当前推进受守卫的筛法内层循环竖切，
+[交接报告](docs/aot-performance-handoff-2026-11-15.md)保留上一轮结论。
+
+- [x] 精确列表False写入与整数步进完整快循环：6项MIR/7项Runtime、CP/JIT/NativeAOT删除输入搬迁、
+  NumPy2.3.5回退、26项配对及完整make check通过（C#3167，MIR377，e2e475）。
+  sieve重点140.26→26.43ms、RSS23.94→19.08MiB，分配减少104334096字节；
+  全量速度13/26、RSS4/26、同时3/26达CP。不利样本与既有错误消息/栈欠账见
+  [验收报告](docs/aot-guarded-list-loop-optimization.md)及ADR-0200。
 
 - [x] 修复 `make bench-aot` 现代 CLI 布局识别；直接脚本墙钟、无插桩 RSS 与独立统计轮分列。
   子代理完成 26 项冻结产物初测及复测，主代理发现并修复旧 CLI 复用、双流/统计失败漏检、

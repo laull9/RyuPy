@@ -288,6 +288,7 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         | RuntimeFn::ContextMethod
         | RuntimeFn::SetAdd
         | RuntimeFn::SetExtend
+        | RuntimeFn::GuardedListSetFalseLoop
         | RuntimeFn::ListAppend
         | RuntimeFn::ListExtend
         | RuntimeFn::UnpackSequence

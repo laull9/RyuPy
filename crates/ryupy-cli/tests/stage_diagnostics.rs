@@ -237,6 +237,7 @@ fn assert_pass_markers(output: &Output) {
         "dead_values",
         "numeric_accumulator",
         "string_accumulator",
+        "guarded_list_loop",
         "tuple_scalar",
         "dead_values",
         "interval_narrow",

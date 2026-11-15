@@ -20,7 +20,8 @@ pub(super) fn fixed_abi(callee: RuntimeFn) -> bool {
     }
     matches!(
         callee,
-        RuntimeFn::DynRichCompareValue
+        RuntimeFn::GuardedListSetFalseLoop
+            | RuntimeFn::DynRichCompareValue
             | RuntimeFn::InstanceClassGuard
             | RuntimeFn::InstanceClassCellGuard
             | RuntimeFn::InstanceRelativeImport
@@ -158,6 +159,7 @@ pub(super) fn validate_call(
                 MirType::Dynamic,
                 MirType::Dynamic,
             ]),
+            RuntimeFn::GuardedListSetFalseLoop => Some(&[const { MirType::Dynamic }; 4]),
             RuntimeFn::NumericListCreate => Some(&[]),
             RuntimeFn::NumericListAppendF64 => Some(&[MirType::Dynamic, MirType::F64]),
             RuntimeFn::NumericListPeekList
@@ -347,7 +349,8 @@ pub(super) fn validate_destination(
             RuntimeFn::TraceAdapterExplicit => Some(MirType::Dynamic),
             RuntimeFn::ModuleFile => Some(MirType::Str),
             RuntimeFn::TracePushWithOrigin => Some(MirType::I64),
-            RuntimeFn::InstanceRelativeImport
+            RuntimeFn::GuardedListSetFalseLoop
+            | RuntimeFn::InstanceRelativeImport
             | RuntimeFn::InstanceRelativeImportAttr
             | RuntimeFn::InstanceDirectGlobals
             | RuntimeFn::InstanceLoadName
@@ -471,6 +474,7 @@ pub(super) fn validate_eval(func: &Function, value: &Rvalue, errors: &mut Vec<St
                     | RuntimeFn::NumericListReadCheckedF64
                     | RuntimeFn::NumericListReadF64
                     | RuntimeFn::NumericAccumulatorCreate
+                    | RuntimeFn::GuardedListSetFalseLoop
                     | RuntimeFn::NumericAccumulatorValue
                     | RuntimeFn::ValidateOrdinaryBase
                     | RuntimeFn::TypedDictBegin
