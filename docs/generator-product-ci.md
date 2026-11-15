@@ -1,6 +1,6 @@
 # 生成器消费融合独立产品验证
 
-候选源 `6bc254c9ea24a7138d5d320dc0618033612549ff`，默认关闭
+候选源 `636e92e9e0c950c7d175dce9a1f061d0d0ad7795`，默认关闭
 `generator-sum-experiment`。独立CI分支，不随产品合入默认workflow。
 测试实际提交以工件candidate.txt及Actions head为准；当前文档不是通过报告。
 
