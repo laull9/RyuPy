@@ -38,9 +38,7 @@ internal static class PyListRootMethods
             case "append": list.Append(args[0]); break;
             case "extend": PyOps.ExtendList(list, args[0]); break;
             case "insert":
-                long index = Integer(args[0], false);
-                // clamp 在窄化之前，避免现有 Insert 对负宽整数的 int 截断。
-                list.Items.Insert((int)(index < 0 ? Math.Max(0, index + list.Count) : Math.Min(index, list.Count)), args[1]);
+                list.Insert(PyListInsertIndex.Convert(args[0]), args[1]);
                 break;
             case "index":
                 long start = args.Length > 1 ? Integer(args[1], true) : 0;

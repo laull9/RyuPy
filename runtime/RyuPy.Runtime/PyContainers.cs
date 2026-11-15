@@ -293,9 +293,11 @@ public sealed partial class PyList
     /// <param name="value">元素。</param>
     public void Insert(long index, object? value)
     {
-        int position = index < 0
-            ? Math.Max(0, Items.Count + (int)index)
-            : (int)Math.Min(index, Items.Count);
+        // 必须先在long范围内归一化再窄化；负大下标先转int会回绕到错误位置。
+        int count = Count;
+        int position = (int)(index < 0
+            ? Math.Max(0L, index + count)
+            : Math.Min(index, (long)count));
         Items.Insert(position, value);
     }
 

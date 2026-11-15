@@ -365,7 +365,7 @@ public static partial class PyOps
         {
             throw new PyTypeError("insert() takes exactly 2 arguments");
         }
-        list.Insert(ToIndex(args[0], "insert"), args[1]);
+        list.Insert(PyListInsertIndex.Convert(args[0]), args[1]);
         return PyNone.Instance;
     }
 
