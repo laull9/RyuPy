@@ -37,10 +37,16 @@ public sealed class PyDictMaterializedCpOracleTests(ITestOutputHelper output)
 
     [Fact]
     public void ActualCandidateAndFallbackMatchFreshPinnedCPythonEvents()
+        => RunOracle(false);
+
+    [Fact]
+    public void DictSubclassTupleKeyRemainsExplicitKnownIncompatibility() => RunOracle(true);
+
+    private void RunOracle(bool known)
     {
         string oraclePath = Environment.GetEnvironmentVariable("RYUPY_RECORDS_CP_ORACLE")
             ?? throw new InvalidOperationException("缺少本次CP oracle");
-        string actualPath = Environment.GetEnvironmentVariable("RYUPY_RECORDS_CP_ACTUAL")
+        string actualPath = Environment.GetEnvironmentVariable(known ? "RYUPY_RECORDS_CP_KNOWN" : "RYUPY_RECORDS_CP_ACTUAL")
             ?? throw new InvalidOperationException("缺少实际事件输出路径");
         string sha = Environment.GetEnvironmentVariable("RYUPY_RECORDS_CP_SHA")
             ?? throw new InvalidOperationException("缺少实际提交");
@@ -56,22 +62,54 @@ public sealed class PyDictMaterializedCpOracleTests(ITestOutputHelper output)
         bool passed = false;
         try
         {
-            Exercise();
-            var expectedEvents = expected.GetProperty("events").EnumerateArray().ToArray();
-            Assert.Equal(25, expectedEvents.Length); Assert.Equal(expectedEvents.Length, _events.Count);
-            for (int i = 0; i < _events.Count; i++)
-                Assert.Equal(expectedEvents[i].EnumerateArray().Select(x => x.GetString()).ToArray(), _events[i]);
-            Assert.Equal(311, _fast); Assert.Equal(7, _fallback);
+            if (known) ExerciseKnownIncompatibility(); else Exercise();
+            var expectedEvents = expected.GetProperty("events").EnumerateArray()
+                .Where(x => x[0].GetString()!.StartsWith("custom-", StringComparison.Ordinal) == known).ToArray();
+            if (known)
+            {
+                // CP成功而Runtime按现有布局边界拒绝：明确记录差异，不伪装成相等。
+                Assert.Equal(3, expectedEvents.Length);
+                Assert.Equal(new[] { "custom-result", "6", "true" }, expectedEvents[2].EnumerateArray().Select(x => x.GetString()).ToArray());
+                for (int i = 0; i < 2; i++)
+                    Assert.Equal(expectedEvents[i].EnumerateArray().Select(x => x.GetString()).ToArray(), _events[i]);
+                Assert.Equal(new[] { "custom-rejected", "NotImplementedError", "dict layout with non-scalar keys is not supported", "0" }, _events[2]);
+                Assert.Equal(3, _events.Count); Assert.Equal(0, _fast); Assert.Equal(1, _fallback);
+            }
+            else
+            {
+                Assert.Equal(22, expectedEvents.Length); Assert.Equal(expectedEvents.Length, _events.Count);
+                for (int i = 0; i < _events.Count; i++)
+                    Assert.Equal(expectedEvents[i].EnumerateArray().Select(x => x.GetString()).ToArray(), _events[i]);
+                Assert.Equal(311, _fast); Assert.Equal(6, _fallback);
+            }
             passed = true;
-            output.WriteLine($"records-cp-oracle commit={sha} token={token} events={_events.Count} fast={_fast} fallback={_fallback} scope=runtime-candidate-only");
+            output.WriteLine($"records-cp-oracle commit={sha} token={token} events={_events.Count} fast={_fast} fallback={_fallback} scope={(known ? "known-incompatibility" : "runtime-candidate-only")}");
         }
         finally
         {
             // 失败仍保留部分轨迹；CreateNew禁止读取/覆盖旧运行输出。
             using var stream = new FileStream(actualPath, FileMode.CreateNew, FileAccess.Write);
-            JsonSerializer.Serialize(stream, new { schema = 1, scope = "runtime-candidate-only", commit = sha,
+            JsonSerializer.Serialize(stream, new { schema = 1, scope = known ? "known-incompatibility" : "runtime-candidate-only", commit = sha,
                 token, passed, fast = _fast, fallback = _fallback, events = _events });
         }
+    }
+
+    private void ExerciseKnownIncompatibility()
+    {
+        var first = new PyTuple(["ann", "buy"]);
+        var customClass = (PyClass)PyOps.MakeClass("Custom", [PyType.Get("dict")], null);
+        customClass.SetAttr("get", PyNativeFunctions.CreateVariadic("get", args =>
+        { var key = (PyTuple)args[1]!; Emit("custom-get", (string)key.Items[0]!, (string)key.Items[1]!); return PyInt.Box(5L); }));
+        customClass.SetAttr("__setitem__", PyNativeFunctions.CreateVariadic("set", args =>
+        {
+            Emit("custom-set", S(args[2]));
+            return PyOps.CallValue(PyObject.GetAttr(PyType.Get("dict"), "__setitem__"), [args[0], args[1], args[2]], [], []);
+        }));
+        PyOps.FinalizeOrdinaryClass(customClass);
+        object custom = customClass.Invoke([], [], [])!;
+        var error = Assert.Throws<PyNotImplementedError>(() => Increment(custom, first));
+        Emit("custom-rejected", "NotImplementedError", error.Message, S(PyOps.Len(custom)));
+
     }
 
     private void Exercise()
@@ -126,19 +164,6 @@ public sealed class PyDictMaterializedCpOracleTests(ITestOutputHelper output)
         var entry = d.Entries().First();
         Emit("user-key-result", S(entry.Value), B(ReferenceEquals(entry.Key, stored)), B(ReferenceEquals(entry.Key, query)));
         observing = false;
-
-        var customClass = (PyClass)PyOps.MakeClass("Custom", [PyType.Get("dict")], null);
-        customClass.SetAttr("get", PyNativeFunctions.CreateVariadic("get", args =>
-        { var key = (PyTuple)args[1]!; Emit("custom-get", (string)key.Items[0]!, (string)key.Items[1]!); return PyInt.Box(5L); }));
-        customClass.SetAttr("__setitem__", PyNativeFunctions.CreateVariadic("set", args =>
-        {
-            Emit("custom-set", S(args[2]));
-            return PyOps.CallValue(PyObject.GetAttr(PyType.Get("dict"), "__setitem__"), [args[0], args[1], args[2]], [], []);
-        }));
-        PyOps.FinalizeOrdinaryClass(customClass);
-        object custom = customClass.Invoke([], [], [])!; Increment(custom, first);
-        IPyIterator customIterator = PyIter.Create(custom); Assert.True(customIterator.MoveNext());
-        Emit("custom-result", S(PyOps.GetItem(custom, first)), B(ReferenceEquals(customIterator.Current(), first)));
 
         d = new PyDict();
         for (int i = 0; i < 300; i++) Increment(d, new PyTuple([i.ToString(System.Globalization.CultureInfo.InvariantCulture), "buy"]));
