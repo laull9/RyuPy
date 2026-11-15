@@ -26,7 +26,7 @@ def run(command, evidence, name, cwd=None, env=None, timeout=180, allowed_exit=(
     (evidence / (name + ".command.json")).write_text(json.dumps(command))
     rss = evidence / (name + ".rss-kib")
     try:
-        result = subprocess.run(["/usr/bin/time", "-f", "%M", "-o", str(rss), *command],
+        result = subprocess.run(["/usr/bin/time", "-q", "-f", "%M", "-o", str(rss), *command],
                                 cwd=cwd, env=env, capture_output=True, timeout=timeout)
     except subprocess.TimeoutExpired as error:
         (evidence / (name + ".stdout")).write_bytes(error.stdout or b"")

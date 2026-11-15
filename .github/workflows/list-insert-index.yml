@@ -96,6 +96,7 @@ jobs:
       - name: 固定CP与基线回归重现及候选JIT AOT搬迁
         run: |
           set -euo pipefail
+          "$PYTHON" -B tests/perf/list-insert/test_validate.py
           "$PYTHON" -B tests/perf/list-insert/validate.py "$EVIDENCE/product" --old "$RUNNER_TEMP/numeric-cli-base/ryupy" --new "$RUNNER_TEMP/numeric-cli-candidate/ryupy" 2>&1 | tee "$EVIDENCE/product.log"
       - uses: actions/upload-artifact@v4
         if: always()
