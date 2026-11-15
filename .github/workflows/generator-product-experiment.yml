@@ -35,6 +35,9 @@ jobs:
           echo "DOTNET_INSTALL_DIR=$RUNNER_TEMP/generator-product-dotnet" >> "$GITHUB_ENV"
           git rev-parse HEAD > "$EVIDENCE/candidate.txt"
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          # 旧失败提交可能不再是任何远端分支祖先，显式获取精确对象；失败不得跳过原输入门。
+          git fetch --no-tags origin 4d831f4de3ff10033bd63e774067a6f82980e283
+          test "$(git rev-parse FETCH_HEAD)" = 4d831f4de3ff10033bd63e774067a6f82980e283
           git worktree add --detach "$RUNNER_TEMP/generator-fixed-dev" 81758bb477729aee4636f2ca6d6b0815b949849a
           git -C "$RUNNER_TEMP/generator-fixed-dev" rev-parse HEAD > "$EVIDENCE/fixed-dev.txt"
           df -h > "$EVIDENCE/disk-before.txt"

@@ -41,7 +41,8 @@ job350分钟；检查60、MIR35、冻结45、原输入定位10、语义35、性�
 ## 原始重绑定输入的历史基线定位
 
 保留原失败输入字节，与已运行的远端4d831f4d中的旧pending源码即时git show逐字节核对。
-另构建固定dev81758bb4，不能用当前off臂替代。先采集CP/dev-JIT/off-JIT/on-JIT四路
+准备阶段显式fetch精确旧失败提交并核FETCH_HEAD，不能假定全历史checkout包含不可达对象；
+fetch失败直接停止，不跳过门。另构建固定dev81758bb4，不能用当前off臂替代。先采集CP/dev-JIT/off-JIT/on-JIT四路
 完整退出码和双流；dev若成功而候选失败直接硬失败。仅当dev恰为登记的sum未绑定
 NotImplementedError、退出1且stdout空，两候选逐字节完全一致，才登记为1个独立未支持
 输入。这不计入普通语义通过。若dev或任何候选发生其他结果，失败并重新调查/分类。
