@@ -2,13 +2,13 @@
 name: Generator MIR prepared experiment
 on:
   push:
-    branches: [work/generator-mir-reachable-ci-20261115]
+    branches: [ci/generator-mir-reachable-20261115]
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   generator-mir:
-    if: github.ref == 'refs/heads/work/generator-mir-reachable-ci-20261115'
+    if: github.ref == 'refs/heads/ci/generator-mir-reachable-20261115'
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     env:
