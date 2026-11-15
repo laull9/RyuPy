@@ -22,7 +22,9 @@ fn reachable(f: &Function) -> FxHashSet<BlockId> {
     let mut seen = FxHashSet::default();
     let mut pending = vec![f.body.entry];
     while let Some(id) = pending.pop() {
-        if !seen.insert(id) { continue; }
+        if !seen.insert(id) {
+            continue;
+        }
         match f.body.blocks[id].terminator {
             Terminator::Goto(next) => pending.push(next),
             Terminator::Branch { then_, else_, .. } => pending.extend([then_, else_]),
@@ -35,10 +37,23 @@ fn reachable(f: &Function) -> FxHashSet<BlockId> {
 fn expand(f: &mut Function, plan: Plan) {
     let tail = f.body.blocks[plan.block].stmts.split_off(plan.start + 4);
     let original = f.body.blocks[plan.block].stmts.split_off(plan.start);
-    let terminator = std::mem::replace(&mut f.body.blocks[plan.block].terminator, Terminator::Unreachable);
-    let continuation = f.body.blocks.alloc(BasicBlock { stmts: tail, terminator });
-    let fallback = f.body.blocks.alloc(BasicBlock { stmts: original, terminator: Terminator::Goto(continuation) });
-    let condition = f.body.locals.alloc(LocalDecl { ty: MirType::Bool, name: None, is_cell: false });
+    let terminator = std::mem::replace(
+        &mut f.body.blocks[plan.block].terminator,
+        Terminator::Unreachable,
+    );
+    let continuation = f.body.blocks.alloc(BasicBlock {
+        stmts: tail,
+        terminator,
+    });
+    let fallback = f.body.blocks.alloc(BasicBlock {
+        stmts: original,
+        terminator: Terminator::Goto(continuation),
+    });
+    let condition = f.body.locals.alloc(LocalDecl {
+        ty: MirType::Bool,
+        name: None,
+        is_cell: false,
+    });
     f.body.blocks[plan.block].stmts.push(Statement::Assign {
         dest: condition,
         value: Rvalue::Call {
@@ -47,6 +62,8 @@ fn expand(f: &mut Function, plan: Plan) {
         },
     });
     f.body.blocks[plan.block].terminator = Terminator::Branch {
-        cond: Operand::Local(condition), then_: continuation, else_: fallback,
+        cond: Operand::Local(condition),
+        then_: continuation,
+        else_: fallback,
     };
 }
