@@ -2,7 +2,7 @@
 name: Product list slice isolated validation
 on:
   push:
-    branches: [work/list-slice-product-ci-20261115]
+    branches: [ci/list-slice-product-20261115]
 permissions:
   contents: read
 concurrency:
