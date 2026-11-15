@@ -1,4 +1,4 @@
-# 跨模块工厂：两个独立genexpr迫使链接器重映射各自普通/批量resume身份。
+# 跨模块工厂：三个独立genexpr迫使链接器重映射各自普通/批量resume身份。
 def positive():
     return (x * 2 for x in range(6))
 
