@@ -43,3 +43,14 @@ host 两轮预热、平衡 AB/BA 顺序、同一进程原始 ticks/分配字节�
 阶段计时仍是筛选器而非相同机器码：slice候选含PySlice.Indices，连续臂GetRange不含
 Python切片协议；两臂追加/复制方法和分支也不同。保留这些差异，不将阶段差值直接
 等同于“分段复制单一机制”的因果收益。每次阶段结束在计时外校验结果引用与顺序。
+
+## 独立 CI（不可合入默认分支）
+
+`work/list-storage-ci-20261115` 专用 `list-storage-experiment.yml` 只监听该分支 push，
+不修改默认 CI、不执行 Rust/全仓构建。隔离安装并核验实际 SDK 10.0.403；Release
+编译定向 C# 合同，再单独编译/运行 host。必须有至少 26 个真实通过的合同与双臂三阶段各
+10 个完整样本，防止零测试成功。工件以实际 checkout SHA 和运行尝试编号命名，包含
+SDK 信息、TRX、构建与运行日志和原始 JSON，失败时同样保存已有证据。产物不进 Git。
+
+该流程只能验收实验候选，不是产品默认背板、CPython 差分、原始 list_ops、NativeAOT
+或全仓 make check。共享 runner 的同进程筛选数据只能用于候选取舍，不保证应用收益。
