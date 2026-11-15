@@ -1,0 +1,78 @@
+# 仅结构原型门；与Runtime专项及默认产品CI分离。
+name: Generator MIR prepared experiment
+on:
+  push:
+    branches: [work/generator-mir-v2-ci-20261115]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  generator-mir:
+    if: github.ref == 'refs/heads/work/generator-mir-v2-ci-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+      CARGO_TERM_COLOR: never
+      INSTA_UPDATE: 'no'
+      MSBUILDDISABLENODEREUSE: '1'
+      DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+      UseSharedCompilation: 'false'
+    steps:
+      - name: Prepare isolated evidence directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          EVIDENCE="$RUNNER_TEMP/generator-mir-v2-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          mkdir -p "$EVIDENCE"
+          printf 'EVIDENCE=%s\n' "$EVIDENCE" >> "$GITHUB_ENV"
+          printf 'run=%s attempt=%s\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" > "$EVIDENCE/run.txt"
+      - uses: actions/checkout@v4
+      - name: Freeze exact source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD | tee "$EVIDENCE/commit.txt"
+          test "$(cat "$EVIDENCE/commit.txt")" = "$GITHUB_SHA"
+          # GitHub集成可重建SHA；剥离本验证三文件后核完整产品源码树。
+          export GIT_INDEX_FILE="$RUNNER_TEMP/generator-mir-v2-source-index"
+          git read-tree HEAD
+          git update-index --force-remove .github/workflows/generator-mir-prepared-experiment.yml tests/perf/check_generator_mir_ci.py tests/perf/test_generator_mir_ci.py
+          git write-tree | tee "$EVIDENCE/source-tree.txt"
+          test "$(cat "$EVIDENCE/source-tree.txt")" = '20fb2ff351ff9ae88645d91d7b7833e8bb8fc15c'
+          unset GIT_INDEX_FILE
+          printf '%s\n' '{"sdk":{"version":"10.0.403","rollForward":"disable","allowPrerelease":false}}' > global.json
+          cp global.json "$EVIDENCE/global.json"
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
+        with:
+          components: rustfmt
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - name: Verify actual toolchains
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustc --version | tee "$EVIDENCE/rustc.txt"
+          grep -E '^rustc 1\.99\.1 ' "$EVIDENCE/rustc.txt"
+          cargo --version | tee "$EVIDENCE/cargo.txt"
+          rustfmt --version | tee "$EVIDENCE/rustfmt.txt"
+          dotnet --version | tee "$EVIDENCE/sdk.txt"
+          test "$(cat "$EVIDENCE/sdk.txt")" = '10.0.403'
+          dotnet --info > "$EVIDENCE/dotnet-info.txt"
+      - name: Check evidence validator
+        run: python3 -B tests/perf/test_generator_mir_ci.py
+      - name: Run formatting and focused then full MIR library tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          # 三阶段独立执行，格式失败仍收集结构测试结果；总状态保持失败。
+          python3 -B tests/perf/check_generator_mir_ci.py "$EVIDENCE" 2>&1 | tee "$EVIDENCE/driver.log"
+      - name: Upload raw evidence including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generator-mir-v2-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ env.EVIDENCE }}
+          if-no-files-found: error
+          retention-days: 14
