@@ -64,6 +64,16 @@ public partial class PyTraceStateArtifactTests
     {
         string[] actual = PublicAbi(typeof(RyuPy.Runtime.PyRecordsIncrement).Assembly.Location);
         AssertPublishedAbiSignatures(actual);
+        Assert.Contains(RecordsProbePublicAdditions()[0], actual);
+        Assert.True(typeof(RyuPy.Runtime.PyDictStringPair).IsNotPublic);
+        Assert.True(typeof(RyuPy.Runtime.PyKeyComparer).IsPublic);
+        Assert.True(typeof(RyuPy.Runtime.PyKeyComparer).IsSealed);
+        Assert.Contains(typeof(System.Collections.Generic.IEqualityComparer<object>), typeof(RyuPy.Runtime.PyKeyComparer).GetInterfaces());
+        var alternate = typeof(RyuPy.Runtime.PyKeyComparer).GetMethods(System.Reflection.BindingFlags.Instance
+            | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)
+            .Where(method => method.Name.Contains("IAlternateEqualityComparer", StringComparison.Ordinal)).ToArray();
+        Assert.Equal(3, alternate.Length);
+        Assert.All(alternate, method => Assert.True(method.IsPrivate));
         bool Ours(string item) => item.Contains("RyuPy.Runtime.PyRecordsIncrement", StringComparison.Ordinal);
         Assert.Equal(RecordsGuardPublicAdditions().Order(StringComparer.Ordinal),
             actual.Where(Ours).Order(StringComparer.Ordinal));
