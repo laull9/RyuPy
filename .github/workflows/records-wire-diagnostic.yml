@@ -27,7 +27,7 @@ jobs:
           git read-tree HEAD
           git update-index --force-remove .github/workflows/records-wire-diagnostic.yml
           git write-tree | tee "$EVIDENCE/source-tree.txt"
-          test "$(cat "$EVIDENCE/source-tree.txt")" = '56c079dfd864ad65145164df4f4fbbf5fc67af0e'
+          test "$(cat "$EVIDENCE/source-tree.txt")" = 'e463c776b0e3bfe1e7dceac996c1a316d3179bd2'
           unset GIT_INDEX_FILE
           printf '%s\n' '{"sdk":{"version":"10.0.403","rollForward":"disable","allowPrerelease":false}}' > global.json
       - uses: actions/setup-dotnet@v4
@@ -48,7 +48,8 @@ jobs:
           cargo fmt --all --check > "$EVIDENCE/fmt.log" 2>&1
           fmt=$?
           rustfmt --edition 2024 --emit stdout crates/ryupy-mir/src/records_increment_contract_tests.rs > "$EVIDENCE/formatted.rs" 2>&1
-          cargo test -p ryupy-mir --lib records_wire_diagnostic_preserves_actual_before_and_after_mir -- --nocapture > "$EVIDENCE/diagnostic.log" 2>&1
+          rustfmt --edition 2024 --emit stdout crates/ryupy-mir/src/records_increment_plan.rs > "$EVIDENCE/plan-formatted.rs" 2>&1
+          cargo test -p ryupy-mir --lib records_wire_ -- --nocapture > "$EVIDENCE/diagnostic.log" 2>&1
           focused=$?
           cargo test -p ryupy-mir --lib > "$EVIDENCE/full.log" 2>&1
           full=$?
@@ -65,9 +66,12 @@ jobs:
           p=Path(sys.argv[1])
           assert json.loads((p/'exits.json').read_text())==dict(fmt=0,focused=0,full=0)
           text=(p/'diagnostic.log').read_text()
-          assert re.search(r'test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured;',text)
+          assert re.search(r'test result: ok\. 3 passed; 0 failed; 0 ignored; 0 measured;',text)
           name='records_increment_contract_tests::records_wire_diagnostic_preserves_actual_before_and_after_mir'
           assert len(re.findall(r'^test '+re.escape(name)+r' \.\.\. ok$',text,re.M))==1
+          for case in ('records_wire_plan_matches_only_closed_capture_window','records_wire_plan_rejects_overwrite_escape_observer_and_wrong_target'):
+              assert len(re.findall(r'^test records_increment_contract_tests::'+case+r' \.\.\. ok$',text,re.M))==1
+          assert 'records-wire plan-only Plan {' in text
           for label in ('records','visible-key','callback-addend','observed-locals'):
               for phase in ('before','after'):
                   begin=f'records-wire begin {label} {phase}'
@@ -76,7 +80,7 @@ jobs:
                   body=text.split(begin)[1].split(end)[0]
                   assert all(word in body for word in ('Function {','DynCallMethod','captured:','DynBinary','SetItem'))
           full=(p/'full.log').read_text()
-          assert re.search(r'test result: ok\. 391 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out;',full)
+          assert re.search(r'test result: ok\. 393 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out;',full)
           ignored=set(re.findall(r'^test ([\w:]+) \.\.\. ignored',full,re.M))
           assert ignored=={'trace_frame_tests::original_frames_has_pc_partitioned_retry_frame_obligations','trace_frame_tests::renamed_generator_and_factory_alias_keep_frame_proof','trace_frame_tests::repeated_actual_match_block_converges_without_epoch_growth','trace_frame_dataflow::tests::actual_mir_diamond_reaches_fixed_point'}
           print('source-diagnostic-only: 4 fixtures x before/after; no rewrite or product optimization claim')
