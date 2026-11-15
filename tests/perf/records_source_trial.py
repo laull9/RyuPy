@@ -25,7 +25,7 @@ def trace(payload,token,counts):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    for name in ('cli','diagnostic-cli','output'):parser.add_argument('--'+name,type=Path,required=True)
+    for name in ('cli','diagnostic-cli','audit','output'):parser.add_argument('--'+name,type=Path,required=True)
     parser.add_argument('--expected-sha',required=True)
     args=parser.parse_args();out=args.output.resolve()
     assert not out.is_relative_to(ROOT) and not out.exists()
@@ -75,6 +75,14 @@ def main():
                     if enabled:command.append('--experimental-records-increment')
                     if backend=='aot':command.append('--aot')
                     build=run(label+'-build',command)
+                    runtime_dlls=sorted(directory.rglob('RyuPy.Runtime.dll'))
+                    assert runtime_dlls, (label,'no actual Runtime PE retained for audit')
+                    audits=[]
+                    for index,dll in enumerate(runtime_dlls):
+                        audit_label=f'{label}-runtime-audit-{index}'
+                        audit=run(audit_label,['dotnet',args.audit.resolve(),dll,'diagnostic' if arm=='diagnostic' else 'normal'])
+                        payload=json.loads(audit[0]);assert payload['sha256']==sha(dll)
+                        audits.append({'label':audit_label,'path':str(dll.relative_to(out)),'sha256':sha(dll)})
                     if backend=='aot':
                         entry=verified_native(directory,Benchmark(case,source),build[1].decode(),mode='standalone')
                         manifest=json.loads((entry.parent/MANIFEST_NAME).read_text())
@@ -90,7 +98,7 @@ def main():
                     if arm=='diagnostic':trace(json.loads(trace_path.read_text()),token,counts)
                     else:assert not trace_path.exists(), 'normal/performance artifact unexpectedly contains diagnostics'
                     info['arms'][arm+'-'+backend]={'entry_sha256':sha(entry),'output_matches_expected':True,'diagnostic':arm=='diagnostic',
-                        'entry_path':str(entry.relative_to(out)), 'trace_token':token if arm=='diagnostic' else None}
+                        'runtime_audits':audits, 'entry_path':str(entry.relative_to(out)), 'trace_token':token if arm=='diagnostic' else None}
                     if arm!='diagnostic':commands[arm+'-'+backend]=command
             if case=='performance':
                 commands['cp']=[sys.executable,'-B',source]

@@ -40,6 +40,10 @@ class EvidenceTests(unittest.TestCase):
                     label=case+'-'+arm;row(label+'-build');row(label+'-execute',expected)
                     (root/label).write_bytes(b'assembly');diagnostic=arm.startswith('diagnostic-')
                     info['arms'][arm]=dict(entry_path=label,entry_sha256=hashlib.sha256(b'assembly').hexdigest(),output_matches_expected=True,diagnostic=diagnostic,trace_token='a'*32 if diagnostic else None)
+                    audit_label=label+'-runtime-audit-0'
+                    digest=hashlib.sha256(b'assembly').hexdigest()
+                    row(audit_label,json.dumps(dict(mode='diagnostic' if diagnostic else 'normal',sha256=digest,fields=['DiagnosticsReady','_diagnosticFast','_diagnosticFallback'] if diagnostic else [],methods=['RegisterDiagnostics','Observe'] if diagnostic else ['TryMaterialized'])).encode())
+                    info['arms'][arm]['runtime_audits']=[dict(label=audit_label,path=label,sha256=digest)]
                     if diagnostic:(root/(label+'-trace.json')).write_text(json.dumps(dict(schema=1,scope='records-compiled-guard-diagnostic',token='a'*32,fast=counts[0],fallback=counts[1])))
                 if case=='performance':
                     order=['cp','control-jit','enabled-jit','control-aot','enabled-aot']

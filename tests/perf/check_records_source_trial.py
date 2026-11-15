@@ -42,6 +42,18 @@ def verify(root,sha):
             assert entry.is_relative_to(root.resolve()) and entry.is_file()
             assert hashlib.sha256(entry.read_bytes()).hexdigest()==item['entry_sha256']
             diagnostic=arm.startswith('diagnostic-')
+            assert item['runtime_audits']
+            for audit in item['runtime_audits']:
+                payload,stderr=output(audit['label']);assert not stderr
+                metadata=json.loads(payload);dll=(root/audit['path']).resolve()
+                assert dll.is_relative_to(root.resolve()) and dll.is_file()
+                assert metadata['sha256']==audit['sha256']==hashlib.sha256(dll.read_bytes()).hexdigest()
+                assert metadata['mode']==('diagnostic' if diagnostic else 'normal')
+                for name in ('DiagnosticsReady','_diagnosticFast','_diagnosticFallback'):
+                    assert (name in metadata['fields']) is diagnostic
+                for name in ('RegisterDiagnostics','Observe'):
+                    assert (name in metadata['methods']) is diagnostic
+                if not diagnostic:assert set(metadata['methods']) <= {'.cctor','TryMaterialized'}
             assert item['diagnostic'] is diagnostic and item['output_matches_expected'] is True
             if diagnostic:
                 token=item['trace_token'];assert len(token)==32 and all(c in '0123456789abcdef' for c in token)
