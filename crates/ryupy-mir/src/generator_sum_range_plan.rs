@@ -27,8 +27,8 @@ fn analyze(f: &Function, declared_input: LocalId) -> Option<RangePlan> {
     if !crate::generator_state_analysis::eligible(f) || f.params.first() != Some(&declared_input) {
         return None;
     }
-    // 非SSA函数只接受每个局部单个静态定义点；控制流支配证明还须在发射前完成。
-    // 此原型输出候选，不是允许发射的最终证明，不向产品lowering暴露。
+    // 非SSA函数只接受每个局部单个静态定义点，并证明它支配所有实际读取。
+    // 此原型仍需运行时真实类型守卫，不向产品lowering暴露。
     let mut definitions = FxHashSet::default();
     for (_, block) in f.body.blocks.iter() {
         for statement in &block.stmts {
@@ -38,6 +38,9 @@ fn analyze(f: &Function, declared_input: LocalId) -> Option<RangePlan> {
                 }
             }
         }
+    }
+    if !dominates_all_reads(f) {
+        return None;
     }
     let mut facts = FxHashMap::default();
     facts.insert(declared_input, Fact::GuardedRangeCursor);
@@ -93,6 +96,78 @@ fn analyze(f: &Function, declared_input: LocalId) -> Option<RangePlan> {
     }
     let (yield_block, resume) = edge?;
     Some(RangePlan { guard_input: declared_input, iterator: iterator?, multiply: multiply?, yield_block, resume })
+}
+
+// 保守的全CFG支配检查：单一静态赋值不能自动证明循环首次读取已经初始化。
+fn dominates_all_reads(f: &Function) -> bool {
+    use crate::local_access::{statement_reads, terminator_reads};
+    let next = |term: &Terminator| -> Vec<BlockId> {
+        match term {
+            Terminator::Goto(id) => vec![*id],
+            Terminator::Branch { then_, else_, .. } => vec![*then_, *else_],
+            Terminator::Suspend { resume, .. } => vec![*resume],
+            _ => vec![],
+        }
+    };
+    let mut reachable = FxHashSet::default();
+    let mut queue = vec![f.body.entry];
+    while let Some(id) = queue.pop() {
+        if reachable.insert(id) {
+            queue.extend(next(&f.body.blocks[id].terminator));
+        }
+    }
+    let mut predecessors: FxHashMap<BlockId, Vec<BlockId>> = FxHashMap::default();
+    for &id in &reachable {
+        for target in next(&f.body.blocks[id].terminator) {
+            predecessors.entry(target).or_default().push(id);
+        }
+    }
+    let mut dom: FxHashMap<BlockId, FxHashSet<BlockId>> = reachable
+        .iter()
+        .map(|id| (*id, if *id == f.body.entry { FxHashSet::from_iter([*id]) } else { reachable.clone() }))
+        .collect();
+    let mut converged = false;
+    for _ in 0..=reachable.len() {
+        let mut changed = false;
+        for &id in &reachable {
+            if id == f.body.entry { continue; }
+            let Some(previous) = predecessors.get(&id) else { return false; };
+            let mut common = reachable.clone();
+            for predecessor in previous {
+                common.retain(|item| dom[predecessor].contains(item));
+            }
+            common.insert(id);
+            if dom[&id] != common {
+                dom.insert(id, common);
+                changed = true;
+            }
+        }
+        if !changed { converged = true; break; }
+    }
+    if !converged { return false; }
+    let mut definitions = FxHashMap::default();
+    for &id in &reachable {
+        for (index, statement) in f.body.blocks[id].stmts.iter().enumerate() {
+            if let Statement::Assign { dest, .. } = statement {
+                definitions.insert(*dest, (id, index));
+            }
+        }
+    }
+    for &id in &reachable {
+        let block = &f.body.blocks[id];
+        for (at, reads) in block.stmts.iter().map(statement_reads)
+            .chain(std::iter::once(terminator_reads(&block.terminator))).enumerate()
+        {
+            for local in reads {
+                if f.params.contains(&local) { continue; }
+                let Some(&(definition, index)) = definitions.get(&local) else { return false; };
+                if !dom[&id].contains(&definition) || definition == id && index >= at {
+                    return false;
+                }
+            }
+        }
+    }
+    true
 }
 
 fn fact(value: &Operand, facts: &FxHashMap<LocalId, Fact>) -> Option<Fact> {
@@ -160,4 +235,25 @@ fn callbacks_closure_and_multiple_cursors_remain_rejected() {
             assert!(analyze(&program.functions[function], input).is_none());
         }
     }
+}
+
+
+#[test]
+fn single_static_definition_does_not_authorize_read_before_definition() {
+    let (mut program, deferred) = super::generator_sum_plan::high_with_sources(
+        "g = (x * 2 for x in range(4))\n"
+    );
+    let (function, input) = deferred.comprehension_inputs[0];
+    assert!(analyze(&program.functions[function], input).is_some());
+    let f = &mut program.functions[function];
+    for (_, block) in f.body.blocks.iter_mut() {
+        if let Some(index) = block.stmts.iter().position(|s| matches!(s,
+            Statement::Assign { value: Rvalue::DynBinary { .. }, .. }))
+        {
+            let multiply = block.stmts.remove(index);
+            block.stmts.insert(0, multiply);
+            break;
+        }
+    }
+    assert!(analyze(f, input).is_none());
 }

@@ -187,8 +187,8 @@ residents，拒绝共享resume、字段资格失败、未知语句、动态协�
 test-only `DeferredGenerators.comprehension_inputs`从HIR的`is_generator && is_comprehension`
 和现有FnId映射登记隐式输入LocalId，不通过`<genexpr>`或`.0`名字授予资格。
 `generator_sum_range_plan.rs`从此证据建立显式单游标候选：guard_input、迭代器定义、乘法
-定义、yield块及resume块。当前只做单静态定义和事实收敛，**尚缺逐使用点的支配证明，
-因此只是候选，不是允许发射的证书**；编译器默认不含此模块。
+定义、yield块及resume块。当前检查单静态定义、CFG支配/块内定义先于使用及事实收敛，但**运行时guard和后端
+发射尚未接入，因此只是关闭态候选，不是产品证书**；编译器默认不含此模块。
 
 运行时guard必须作用于工厂已求值/绑定的真实输入对象，精确类型为密封`PyRangeIter`。
 `PyRangeIter`自身实现IPyIterator，PyIter.Create返回同一实例；不得创建新range或新游标。
@@ -210,3 +210,7 @@ sum自身的加法溢出另走同一pending-current边，由外层原Binary精�
 不能使用上次预算/复制的counter。本轮补充手写pending：range替换及零预消费、创建后
 重绑、部分消费/外部消费原游标、用户乘法回调、乘法与累计各自正负溢出、消费者回调推进
 游标后恢复。当前只运行CP输入，不算RyuPy兼容或融合通过。
+
+候选额外加入全CFG支配收敛，包含Suspend的resume边；预算不收敛即拒绝。每个非参数
+局部的定义必须支配全部读取，同块还须严格在读取之前。测试故意把乘法移到IterValue
+之前，证明“只有一个静态定义”不等于安全事实。此检查仍未在本环境编译运行，不记通过。
