@@ -57,3 +57,29 @@ flags、limit、i整个循环不变，j单一定义链且无中途观察。
 应精确构造最终BigInteger并退出，不执行截断后的比较。结束物化j一次，别名仍指向原不可变值。
 必须审查是否有外部locals/traceback观察或跨块活性使上述延迟写回不成立；有疑点拒绝匹配。
 该收窄计划仍无实现、无收益保证；审查后再决定是否实施。
+
+## 异构审查后的主代理核实
+
+审查有条件支持上述语义范围；以下源码事实作为实施依据：
+- `operations.rs` 的 `DynOp::Le.code()` 确为4，`expr_ops::compare_values` 发射
+  `DynRichCompareValue` 后由条件位置转Bool。匹配使用枚举code与真实管线测试，不散落魔数。
+- MIR `Body` 没有 `function_locals` 字段；它属于HIR。MIR准入应仿照既有累加器扫描
+  FunctionLocalsValidate/Ensure/Sync调用，并排除env/cell/EH/Suspend/MakeGenerator/product。
+- while原始构建为条件/体/else/exit，体直接回条件，不能照搬ForRange五块latch模板。
+  SimplifyCfg可合并空else；识别当前默认优化阶段真实输出，允许非entry嵌套预头。
+- 异构列表仍是合法精确PyList，字典也可能合法支持整数赋值，不能写成必抛TypeError的负例。
+  非匹配路径应同次CP差分其真实行为，用户对象的__le__/__setitem__/__iadd__次数及顺序不得改变。
+- 原溢出样例limit=long.Max不满足limit<Count，无法覆盖快路。应使用短列表、j=1、limit=1、
+  step=long.Max，快路一次合法写后得到9223372036854775808；并保留守卫失败的大bound测试。
+- PyList数值背板写bool可能经Items物化分配；因此“无分配/无任何异常”不是一般PyList的事实。
+  首次仅限紧凑bool或普通object背板，或明确沿既有存储物化合同并在ADR登记资源失败边界。
+
+## 最小ABI的运行时完整循环备选
+
+可评估一个内部编译器ABI `GuardedListSetFalseLoop(list, start, bound, step) -> object?`：
+Runtime内部逐层类型/值域/存储守卫，失败返回null且无写入，成功执行完整原生long循环，
+返回规范最终整数（溢出用既有任意精度加法）；整数结果永不null，因此无需新建结果对象或out ABI。
+MIR保留全部静态准入证明，在原preheader接一个调用与null分支：失败原cond，成功赋j后原正常出口。
+这将类型守卫、Count和原生下标细节封装在Runtime，不需分别新增多个类型检测/Count/SetItem ABI。
+它仍是完整热点切片，必须确认调用前读取局部不提前触发LoadChecked/协议、副作用不重复、
+内部原生循环不丢常用观察与错误位置；未通过该备选的审查前不实施。
