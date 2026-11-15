@@ -64,12 +64,12 @@ public partial class PyTraceStateArtifactTests
             candidate, candidateArchive = archiveName, candidateBytes = candidateBytes.LongLength,
             candidateSha256 = Convert.ToHexString(SHA256.HashData(candidateBytes)).ToLowerInvariant(),
             oldSignatures = before.Length, candidateSignatures = after.Length,
-            additions = GeneratorSumPublicAdditions(),
+            additions = IntegratedOptimizationPublicAdditions(),
             removed = before.Except(after).ToArray(), added = after.Except(before).ToArray(),
-            expected = before.Concat(GeneratorSumPublicAdditions()).Order(StringComparer.Ordinal).ToArray(), actual = after,
-            scope = "冻结dev公开ABI字段逐项保留及精确8条增量；不替代更早1659历史基线测试"
+            expected = before.Concat(IntegratedOptimizationPublicAdditions()).Order(StringComparer.Ordinal).ToArray(), actual = after,
+            scope = "冻结dev公开ABI字段逐项保留及精确11条增量；不替代更早1659历史基线测试"
         });
-        Assert.True(ExactGeneratorIncrement(before, after), "冻结dev ABI不是精确8条增量，见真实PE证据。");
+        Assert.True(ExactIntegratedOptimizationIncrement(before, after), "冻结dev ABI不是精确11条增量，见真实PE证据。");
     }
 
 #endif

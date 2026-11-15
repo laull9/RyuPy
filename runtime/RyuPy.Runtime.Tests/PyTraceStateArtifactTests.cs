@@ -137,7 +137,6 @@ public partial class PyTraceStateArtifactTests
             expected, actual = after, baselineBytes = new FileInfo(baseline!).Length, candidateBytes = new FileInfo(candidate).Length,
             scope = "固定1659历史ABI逐字段保留，逐条追加既有冷合同与中性provider合同；不覆盖默认参数和常量" });
         Assert.True(PreservesIntegratedOptimizationBaselineAbi(before, after), "历史ABI、既有冷合同或中性provider手写精确增量不符；见baseline-abi.json。");
->>>>>>> d45aa0e28fcd3a7b4f999e8529baad238aea33fb
     }
 
     internal static bool PreservesProviderBaselineAbi(string[] before, string[] after)
