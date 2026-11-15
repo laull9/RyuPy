@@ -37,3 +37,11 @@
 5. 同runner随机或交替顺序控制/实验，至少6对独立进程，固定输入和输出校验，报告原始样本、
    中位数、分配和启动成本；分开records完整程序与聚合循环，不把冷进程当暖态。
 6. 新实验未通过真实差分、性能及独审前不进入默认dev流水线。
+
+## 只读matcher原型
+
+`records_increment_plan`仅以cfg(test)编译，不注册pass，不改CFG。它从实际记录的连续八句
+(snapshot/is_module/capture/box0/get/box1/add/set)要求精确操作数相等，七个临时量唯一、
+无命名、非参数、每个仅一次定义且无窗口外使用。保留原receiver/key，不依赖名字匹配。
+EH、locals观察、cell、生成器及预算外函数拒绝。匹配表示可进入下一层guard设计，
+不是接线成功或收益证明。结构正例和篡改负例首先在隔离CI验证，再实施CFG拆分。

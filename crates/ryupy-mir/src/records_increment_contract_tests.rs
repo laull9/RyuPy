@@ -133,3 +133,53 @@ fn records_wire_diagnostic_preserves_actual_before_and_after_mir() {
         println!("records-wire end {label} after");
     }
 }
+
+#[test]
+fn records_wire_plan_matches_only_closed_capture_window() {
+    let mut program = compile(include_str!("../../../tests/benchmarks/records.py"));
+    crate::passes::run_pipeline(&mut program, &crate::passes::default_pipeline()).unwrap();
+    let f = function(&program, "summarize");
+    let plans = crate::records_increment_plan::plans(f);
+    assert_eq!(plans.len(), 1);
+    let plan = &plans[0];
+    assert_eq!(f.body.locals[plan.receiver].name.as_deref(), Some("counts"));
+    assert_eq!(f.body.locals[plan.key].name.as_deref(), Some("key"));
+    println!("records-wire plan-only {plan:?}; no rewrite");
+    for (source, expected) in [
+        ("def step(counts, user, action):\n    key = (user, action)\n    counts[key] = counts.get(key, 0) + 1\n    return key\n", 1),
+        ("def step(counts, user, action):\n    key = (user, action)\n    counts[key] = counts.get(key, 0) + 1\n    return locals()\n", 0),
+        ("def step(counts, key, change):\n    counts[key] = counts.get(key, 0) + change()\n", 0),
+        ("def step(counts, key):\n    counts[key] = counts.get(key, 1) + 1\n", 0),
+        ("def step(counts, key):\n    counts[key] = counts.get(key, 0) + 2\n", 0),
+        ("def step(counts, key):\n    try:\n        counts[key] = counts.get(key, 0) + 1\n    except Exception:\n        pass\n", 0),
+    ] {
+        let program = compile(source);
+        assert_eq!(crate::records_increment_plan::plans(function(&program, "step")).len(), expected, "{source}");
+    }
+}
+
+#[test]
+fn records_wire_plan_rejects_overwrite_escape_observer_and_wrong_target() {
+    for mode in 0..6 {
+        let mut program = compile("def step(counts, user, action):\n    key = (user, action)\n    counts[key] = counts.get(key, 0) + 1\n    return key\n");
+        let (_, f) = program.functions.iter_mut().find(|(_, f)| f.name == "step").unwrap();
+        let plans = crate::records_increment_plan::plans(f);
+        assert_eq!(plans.len(), 1);
+        let p = &plans[0];
+        let Statement::Assign { dest: target, .. } = f.body.blocks[p.block].stmts[p.start - 2] else { panic!("capture assignment"); };
+        let Statement::Assign { dest: updated, .. } = f.body.blocks[p.block].stmts[p.start + 2] else { panic!("add assignment"); };
+        match mode {
+            0 => f.body.blocks[p.block].stmts.insert(p.start, Statement::Assign { dest: target, value: Rvalue::Use(Operand::Local(p.receiver)) }),
+            1 => f.body.blocks[p.block].stmts.push(Statement::Eval(Rvalue::Use(Operand::Local(updated)))),
+            2 => f.body.blocks[p.block].stmts.insert(p.start + 1, Statement::Line(99)),
+            3 => {
+                let Statement::Eval(Rvalue::Call { args, .. }) = &mut f.body.blocks[p.block].stmts[p.start + 3] else { panic!("set call"); };
+                args[0] = Operand::Local(p.key);
+            }
+            4 => f.body.locals[p.key].is_cell = true,
+            5 => f.body.blocks[p.block].terminator = Terminator::Return(Some(Operand::Local(target))),
+            _ => unreachable!(),
+        }
+        assert!(crate::records_increment_plan::plans(f).is_empty(), "mode {mode}");
+    }
+}

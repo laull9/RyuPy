@@ -261,3 +261,6 @@ mod generator_state_tests;
 
 #[cfg(test)]
 mod records_increment_contract_tests;
+
+#[cfg(test)]
+mod records_increment_plan;
