@@ -1,0 +1,61 @@
+# 隔离探针验收；不修改日常CI，不代表MIR或NativeAOT性能验收。
+name: Records probe experiment
+on:
+  push:
+    branches: [work/records-probe-ci-20261115]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  records-probe:
+    if: github.ref == 'refs/heads/work/records-probe-ci-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      MSBUILDDISABLENODEREUSE: '1'
+      DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+      UseSharedCompilation: 'false'
+      EVIDENCE: ${{ runner.temp }}/records-probe
+    steps:
+      - uses: actions/checkout@v4
+      - name: Freeze evidence identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$EVIDENCE"
+          git rev-parse HEAD | tee "$EVIDENCE/commit.txt"
+          test "$(cat "$EVIDENCE/commit.txt")" = "$GITHUB_SHA"
+          git merge-base --is-ancestor 9f8668ae08fdfedd04a394b26a92b72781c8ce54 HEAD
+          printf '%s\n' '{"sdk":{"version":"10.0.403","rollForward":"disable","allowPrerelease":false}}' > global.json
+          cp global.json "$EVIDENCE/global.json"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - name: Verify SDK and compile actual runtime tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet --version | tee "$EVIDENCE/sdk.txt"
+          test "$(cat "$EVIDENCE/sdk.txt")" = '10.0.403'
+          dotnet --info > "$EVIDENCE/dotnet-info.txt"
+          dotnet build runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj -c Release 2>&1 | tee "$EVIDENCE/build.log"
+      - name: Execute all records probe cases and diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet test runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj -c Release --no-build --no-restore --filter 'FullyQualifiedName~RyuPy.Runtime.Tests.PyDictStringPairProbeTests' --logger 'trx;LogFileName=records.trx' --logger 'console;verbosity=detailed' --results-directory "$EVIDENCE" 2>&1 | tee "$EVIDENCE/test.log"
+      - name: Reject missing skipped or incomplete evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$EVIDENCE"
+          python3 -B tests/perf/check_records_probe_evidence.py "$EVIDENCE" "$GITHUB_SHA" 2>&1 | tee "$EVIDENCE/verification.log"
+      - name: Upload raw evidence including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: records-probe-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/records-probe
+          if-no-files-found: error
+          retention-days: 14
