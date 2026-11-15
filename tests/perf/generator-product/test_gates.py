@@ -8,10 +8,52 @@ from unittest.mock import patch
 import mir_gate
 import semantic
 import performance_gate
+import runtime_gate
+import xml.etree.ElementTree as ET
 from aot_pair_evidence import cleanup_case, require_space, save_manifest
 
 
 class Gates(unittest.TestCase):
+    def test_runtime_exact_contracts_executions_and_summaries(self):
+        ns='http://microsoft.com/schemas/VisualStudio/TeamTest/2010'
+        def tag(name):return '{'+ns+'}'+name
+        root=ET.Element(tag('TestRun'));results=ET.SubElement(root,tag('Results'))
+        definitions=ET.SubElement(root,tag('TestDefinitions'))
+        families={runtime_gate.PREFIX+n:c for n,c in runtime_gate.CONTRACTS.items()}
+        families.update(runtime_gate.TRACE_CONTRACTS)
+        families.update({n:1 for n in runtime_gate.COMPILED})
+        for family,count in sorted(families.items()):
+            for variant in range(count):
+                index=len(results);testid=str(index);execution='run-'+testid
+                name=family+(f'(case: {variant})' if count>1 else '')
+                ET.SubElement(results,tag('UnitTestResult'),testId=testid,executionId=execution,testName=name,outcome='Passed')
+                definition=ET.SubElement(definitions,tag('UnitTest'),id=testid)
+                ET.SubElement(definition,tag('Execution'),id=execution)
+                cls,method=family.rsplit('.',1)
+                ET.SubElement(definition,tag('TestMethod'),className=cls,name=method)
+        summary=ET.SubElement(root,tag('ResultSummary'),outcome='Completed')
+        ET.SubElement(summary,tag('Counters'),total=str(len(results)),executed=str(len(results)),passed=str(len(results)),notExecuted='0',failed='0')
+        with tempfile.TemporaryDirectory() as temp:
+            path=Path(temp)/'runtime.trx'
+            def check(tree):
+                ET.ElementTree(tree).write(path)
+                runtime_gate.check(path,'full');runtime_gate.compiled(path)
+            check(root)
+            mutations=[]
+            bad=copy.deepcopy(root);bad[0][0].set('executionId','wrong');mutations.append(bad)
+            bad=copy.deepcopy(root);bad.append(copy.deepcopy(summary));mutations.append(bad)
+            bad=copy.deepcopy(root);bad[2].append(copy.deepcopy(summary[0]));mutations.append(bad)
+            bad=copy.deepcopy(root)
+            for r in bad[0]:
+                if r.get('testName') in runtime_gate.COMPILED:r.set('outcome','NotExecuted');break
+            mutations.append(bad)
+            bad=copy.deepcopy(root)
+            for r in bad[0]:
+                if r.get('testName') in runtime_gate.COMPILED:r.set('testName',r.get('testName')+'Wrong');break
+            mutations.append(bad)
+            for bad in mutations:
+                with self.assertRaises(AssertionError):check(bad)
+
     def test_mir_default_feature_and_missing(self):
         for feature in (False, True):
             names = mir_gate.EXPECTED | (mir_gate.FEATURE if feature else set())

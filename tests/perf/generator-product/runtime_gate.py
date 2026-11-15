@@ -46,12 +46,20 @@ def check(path: Path, mode: str) -> None:
     definition_ids = [d.attrib["id"] for d in definitions]
     assert len(set(definition_ids)) == len(definition_ids), "测试定义 ID 重复"
     identities = {}
+    executions = {}
     for definition in definitions:
+        execution = definition.find("t:Execution", ns)
+        assert execution is not None and execution.get("id"), "缺少定义执行ID"
+        executions[definition.attrib["id"]] = execution.attrib["id"]
         method = definition.find("t:TestMethod", ns)
         assert method is not None
         identities[definition.attrib["id"]] = (
             method.attrib["className"].split(",", 1)[0] + "." + method.attrib["name"])
+    assert set(ids) == set(definition_ids), "结果与定义集合不一致"
+    execution_ids = [r.get("executionId") for r in results]
+    assert all(execution_ids) and len(set(execution_ids)) == len(execution_ids), "执行ID为空或重复"
     for result in results:
+        assert result.attrib["executionId"] == executions[result.attrib["testId"]], "执行ID与定义不符"
         assert identities[result.attrib["testId"]] == result.attrib["testName"].split("(", 1)[0], "测试源码身份不符"
     skipped = [r for r in results if r.attrib["outcome"] == "NotExecuted"]
     passed = [r for r in results if r.attrib["outcome"] == "Passed"]
@@ -59,9 +67,13 @@ def check(path: Path, mode: str) -> None:
     skip_names = [identities[r.attrib["testId"]] for r in skipped]
     assert len(set(skip_names)) == len(skip_names), "白名单跳过重复"
     assert not skipped if mode == "focused" else set(skip_names) <= ALLOWED_SKIPS, "存在未授权跳过"
-    summary = root.find("t:ResultSummary", ns)
+    summaries = root.findall("t:ResultSummary", ns)
+    assert len(summaries) == 1, "缺少或重复汇总"
+    summary = summaries[0]
     assert summary is not None and summary.attrib["outcome"] == "Completed"
-    counters = summary.find("t:Counters", ns)
+    counter_nodes = summary.findall("t:Counters", ns)
+    assert len(counter_nodes) == 1, "缺少或重复计数"
+    counters = counter_nodes[0]
     assert counters is not None, "缺失汇总"
     # 固定 Microsoft.NET.Test.Sdk/VSTest 17.14.1 的 TRX logger：
     # total 包含跳过，executed=passed+failed；summary.notExecuted 固定为0，
