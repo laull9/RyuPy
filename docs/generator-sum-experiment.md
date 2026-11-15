@@ -1,8 +1,8 @@
 # 生成器消费融合接线候选
 
 本候选接续已通过的25项MIR结构原型，但不是其自然晋升。`generator-sum-experiment`
-Cargo feature默认关闭，CLI→driver→MIR显式传播；尚待真实编译、普通CP差分、独立已知差异
-与同机性能验收。用户dev不因此变更。
+Cargo feature默认关闭，CLI→driver→MIR显式传播；首轮真实编译、普通CP差分、独立已知差异
+与单轮同机性能验证已通过，但不足以默认启用。用户dev不因此变更。
 
 ## 首次接线边界
 
@@ -31,11 +31,24 @@ Cargo feature默认关闭，CLI→driver→MIR显式传播；尚待真实编译�
 
 只有以上证据闭合并审查结果后，才讨论默认启用、更多消费者或消盒扩展。
 
-## 首轮真实差分阻碍（待基线定性）
+## 首轮真实差分阻碍（已固定基线取证）
 
 原模块级重绑定输入在候选关闭feature的JIT上于首个sum调用报
 `NotImplementedError: builtin fallback for unbound module name 'sum' is not supported`。
-原输入原样保留为`tests/fixtures/generator_sum/original_module_rebinding.py`，必须用固定
-81758bb dev构建对同输入的CP/JIT行为取证，再与候选关闭/开启feature分别比较，未取证前
-不能归类为既有差异或忽略。普通差分改为函数参数先绑定后重绑定，继续覆盖替换实际sum/range，
+原输入原样保留为`tests/fixtures/generator_sum/original_module_rebinding.py`，已在run 43699236478用固定
+81758bb477729aee4636f2ca6d6b0815b949849a dev、候选关闭/开启feature三臂逐字比较：
+三臂均以相同错误失败，CP正常完成，故是已有未支持项，而非普通兼容通过。普通差分改为函数参数先绑定后重绑定，继续覆盖替换实际sum/range，
 不以该拆分代表模块级行为已通过。
+
+## 下一轮隔离验证
+
+- `cross_module/main.py`从独立producer取得三个生成器工厂，在consumer中消费；核跨模块
+  FnId重映射、部分消费、耗尽、普通list消费、乘法/累计溢出与关闭。固定CP即时oracle，
+  feature off/on的JIT、NativeAOT及搬迁分别比较完整退出码与双流。清单必须包含三个源模块，
+  off无批量委托，on精确三个不同批量目标；不以同模块结构断言替代真实链接执行。
+- feature-on完整workspace检查另跑，不能以28项MIR定向测试代替完整产品套件。
+- 历史ABI以固定来源dev现构DLL对照，保全源码身份、DLL散列与实际测试证据，不能冒称
+  任意历史发行DLL均兼容；新公开成员只能精确八项。
+- 更多轮同runner重建配对，平衡构建/执行先后顺序；保留原26项回退和新进程/输出成本限制。
+  第一轮genexpr_sum约1.85倍、generators约1.21倍仅为该次观察，分配各增加152字节，
+  不代表消盒、普通for/yield-from改善或暖态内核收益。
