@@ -30,3 +30,12 @@ Cargo feature默认关闭，CLI→driver→MIR显式传播；尚待真实编译�
    程序输出、SDK清单和实际发射入口必须保留。新进程wall、共享runner噪声不是暖态内核结论。
 
 只有以上证据闭合并审查结果后，才讨论默认启用、更多消费者或消盒扩展。
+
+## 首轮真实差分阻碍（待基线定性）
+
+原模块级重绑定输入在候选关闭feature的JIT上于首个sum调用报
+`NotImplementedError: builtin fallback for unbound module name 'sum' is not supported`。
+原输入原样保留为`tests/fixtures/generator_sum/original_module_rebinding.py`，必须用固定
+81758bb dev构建对同输入的CP/JIT行为取证，再与候选关闭/开启feature分别比较，未取证前
+不能归类为既有差异或忽略。普通差分改为函数参数先绑定后重绑定，继续覆盖替换实际sum/range，
+不以该拆分代表模块级行为已通过。

@@ -46,12 +46,15 @@ class Iterator:
         print("next", self.i)
         return self.i
 print("custom", sum(x * 2 for x in Iterator()))
-original_range = range
-range = lambda n: Iterator()
-print("rebound-range", sum(x * 2 for x in range(100)))
-range = original_range
-original_sum = sum
-sum = lambda iterable: list(iterable)
-print("rebound-sum", sum(x * 2 for x in range(3)))
-sum = original_sum
-print("normal", sum(x * 2 for x in range(3)))
+# 参数先绑定后重绑定：独立于模块未绑定名称fallback能力，仍覆盖消费者/游标替换。
+def binding_probe(sum, range):
+    original_range = range
+    range = lambda n: Iterator()
+    print("rebound-range", sum(x * 2 for x in range(100)))
+    range = original_range
+    original_sum = sum
+    sum = lambda iterable: list(iterable)
+    print("rebound-sum", sum(x * 2 for x in range(3)))
+    sum = original_sum
+    print("normal", sum(x * 2 for x in range(3)))
+binding_probe(sum, range)
