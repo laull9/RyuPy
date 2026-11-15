@@ -204,6 +204,7 @@ pub(crate) fn build_program_mode(
             hir_fn.name.as_str().to_string()
         };
         let mir_fn = Function {
+            is_comprehension: hir_fn.is_comprehension && !hir_fn.is_generator,
             module_state: None,
             instance_capabilities: Default::default(),
             module_state_source: None,

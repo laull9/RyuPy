@@ -4,7 +4,7 @@
 //! 1. 真实 pipeline（parse -> lower -> check -> build -> validate）完整打通；
 //! 2. 原始推导式基准（comprehensions.py）中的全部三个 `<listcomp>` 均成功应用 ListAppend 直调，
 //!    私有函数内部的 DynCallMethod("append") 彻底消除；
-//! 3. 伴随的 dict 推导式与 set 推导式（.add / 下标赋值）不受影响，保持原路径；
+//! 3. set推导式同样使用私有收集器直调，dict下标赋值保留原路径；
 //! 4. 用户级普通 `list.append` 与自定义类的 `append` 方法调用严格排除，不误入私有直调；
 //! 5. 负例 Guard：非位置参数、重赋值、cell 逃逸或伪造初始化的 local 严格拒绝直调，并保留有效 MIR。
 
@@ -108,7 +108,7 @@ fn test_original_benchmark_comprehensions_list_comp_direct_append() {
         );
     }
 
-    // 3. 检查集合推导式 <setcomp> 依然存在且保持原有的 add 路径（未被误拦截）
+    // 3. 集合收集器复用同一来源/单一定义证明，省去方法查找。
     let setcomps: Vec<&Function> = program
         .functions
         .iter()
@@ -116,11 +116,9 @@ fn test_original_benchmark_comprehensions_list_comp_direct_append() {
         .filter(|f| f.name.as_str() == "<setcomp>")
         .collect();
     assert_eq!(setcomps.len(), 1, "应当存在 1 个 <setcomp>");
+    assert_eq!(count_runtime_calls(setcomps[0], RuntimeFn::SetAdd), 1);
     let set_add_calls = count_dyn_method_calls(setcomps[0], "add");
-    assert_eq!(
-        set_add_calls, 1,
-        "<setcomp> 内部应保留 DynCallMethod('add')"
-    );
+    assert_eq!(set_add_calls, 0, "<setcomp> 内部使用私有SetAdd");
 }
 
 #[test]

@@ -292,6 +292,11 @@ pub enum RuntimeFn {
     IterNextOk,
     /// `PyOps.IterValue(object) -> object`：取当前元素。
     IterValue,
+    /// 精确enumerate立即解包：守卫后分别取得索引盒与底层当前值。
+    MakeComprehensionList,
+    IsEnumerateIterator,
+    EnumerateCurrentIndex,
+    EnumerateCurrentValue,
     /// `PyOps.ArraySet(object, long, object)`：写数组元素。
     ArraySet,
     /// `PyOps.ArrayGet(object, long) -> object`：读数组元素。

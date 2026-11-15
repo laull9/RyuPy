@@ -1,4 +1,4 @@
-//! 列表推导式编译器私有 collector 的 ListAppend 直调优化。
+//! 列表/集合推导式私有收集器直调；依据显式合成来源、单一定义与不逃逸证明。
 //!
 //! 在 HIR 降级阶段（`comprehensions.rs:lower_comprehension_body`），对于 ListComp：
 //! 1. 为推导式结果分配不可被用户源码拼写的局部变量 `.result`；
@@ -40,8 +40,10 @@ impl ExprBuilder<'_> {
         args: &[CallArg],
         call_ty: &Ty,
     ) -> Option<Operand> {
-        // 1. 方法名必须是 "append"
-        if name != "append" {
+        // 1. 只接收列表append或集合add。
+        if (name != "append" && name != "add")
+            || (name == "add" && self.trace_expressions.is_some())
+        {
             return None;
         }
 
@@ -53,12 +55,18 @@ impl ExprBuilder<'_> {
             return None;
         };
 
-        // 3. 核对当前函数来源：必须是编译器合成的 <listcomp> 隐式嵌套函数
+        // 3. 显式合成来源是权威；名称、种类和定义信息共同检查载体一致性。
         let hir_fn = &self.hir.functions[self.current_hir_fn];
-        if hir_fn.kind != FunctionKind::Nested {
+        if !hir_fn.is_comprehension || hir_fn.kind != FunctionKind::Nested {
             return None;
         }
-        if hir_fn.name.as_str() != "<listcomp>" {
+        if hir_fn.name.as_str()
+            != if name == "append" {
+                "<listcomp>"
+            } else {
+                "<setcomp>"
+            }
+        {
             return None;
         }
         if hir_fn.definition.is_some() {
@@ -103,8 +111,10 @@ impl ExprBuilder<'_> {
             return None;
         }
         let init_expr = &hir_fn.body.exprs[*init_val];
-        let ExprKind::List(items) = &init_expr.kind else {
-            return None;
+        let items = match &init_expr.kind {
+            ExprKind::List(items) if name == "append" => items,
+            ExprKind::Set(items) if name == "add" => items,
+            _ => return None,
         };
         if !items.is_empty() {
             return None;
@@ -139,9 +149,13 @@ impl ExprBuilder<'_> {
         let elt_ty = self.ty_of(elt_expr);
         let elt_obj = self.coerce(elt_op, &elt_ty, &MirType::Dynamic);
 
-        // 发射 ListAppend 直调语句
+        // 发射已证明私有容器的直调，集合仍在SetAdd中执行真实hash/eq。
         self.push_stmt(Statement::Eval(Rvalue::Call {
-            callee: Callee::Runtime(RuntimeFn::ListAppend),
+            callee: Callee::Runtime(if name == "append" {
+                RuntimeFn::ListAppend
+            } else {
+                RuntimeFn::SetAdd
+            }),
             args: vec![receiver_obj, elt_obj],
         }));
 

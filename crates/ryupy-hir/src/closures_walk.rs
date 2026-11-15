@@ -239,6 +239,7 @@ fn register_discovered(
             nested_def_names.insert(range, name.clone());
         }
         let child = functions.alloc(Function {
+            is_comprehension: false,
             definition: None,
             name,
             kind: FunctionKind::Nested,

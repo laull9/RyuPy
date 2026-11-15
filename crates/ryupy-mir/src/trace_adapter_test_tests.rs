@@ -32,6 +32,7 @@ fn valid(runtime: RuntimeFn, args: Vec<Operand>, ret: MirType, eval: bool, array
     });
     let mut functions = Arena::default();
     let entry = functions.alloc(Function {
+        is_comprehension: false,
         module_state: None,
         instance_capabilities: Default::default(),
         module_state_source: None,

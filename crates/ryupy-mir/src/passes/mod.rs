@@ -10,10 +10,15 @@
 
 use crate::mir::{Function, Program};
 
+mod enumerate_scalar;
 mod guarded_list_loop;
 #[cfg(test)]
 mod guarded_list_loop_tests;
 mod observer;
+mod scalar_region;
+mod scalar_region_expand;
+#[cfg(test)]
+mod scalar_region_tests;
 pub use observer::{PipelineEvent, PipelineObserver, PipelinePhase, PipelineStep};
 #[cfg(test)]
 mod observer_tests;
@@ -156,7 +161,13 @@ pub fn pipeline_with_foreach_options(
     )));
     passes.push(PipelinePass::Function(Box::new(TupleScalar)));
     passes.push(PipelinePass::Function(Box::new(DeadValues)));
+    passes.push(PipelinePass::Function(Box::new(
+        enumerate_scalar::EnumerateScalar,
+    )));
     passes.push(PipelinePass::Function(Box::new(IntervalNarrow)));
+    passes.push(PipelinePass::Function(Box::new(
+        scalar_region::ScalarRegion,
+    )));
     // 配对测量未支持默认替换；两实验复用相同matcher与守卫，避免误归因收益。
     if scalar_slp || experimental_packed_slp {
         passes.push(PipelinePass::Function(Box::new(FloatSlp {

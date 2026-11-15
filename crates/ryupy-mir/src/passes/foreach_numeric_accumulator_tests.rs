@@ -107,6 +107,7 @@ fn sample() -> (Program, FnId, [BlockId; 6], [LocalId; 9]) {
     blocks[e].terminator = Terminator::Return(Some(local(result)));
     let mut functions = Arena::default();
     let function = functions.alloc(Function {
+        is_comprehension: false,
         module_state: None,
         instance_capabilities: Default::default(),
         module_state_source: None,

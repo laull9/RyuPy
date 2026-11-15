@@ -83,6 +83,7 @@ pub(crate) fn link_with_origins(
         let mut fn_map: FxHashMap<FnId, FnId> = FxHashMap::default();
         for (old, func) in program.functions.iter() {
             let new_id = functions.alloc(Function {
+                is_comprehension: func.is_comprehension,
                 module_state: func.module_state,
                 instance_capabilities: func.instance_capabilities,
                 module_state_source: func.module_state_source,

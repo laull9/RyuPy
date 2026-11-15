@@ -161,6 +161,8 @@ pub struct DynamicFunctionOrigin {
 
 #[derive(Debug)]
 pub struct Function {
+    /// 前端显式登记的急切推导式来源；优化不按函数名识别。
+    pub is_comprehension: bool,
     /// 实例入口的显式state参数；Python参数元数据不包含此槽。
     pub module_state: Option<LocalId>,
     /// 环境local的可信来源，与module_state同时存在。

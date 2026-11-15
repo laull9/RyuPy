@@ -247,12 +247,6 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         .push_method_reference(method_ref! { static void @pyops_type::ListExtend(object, object) });
     let (unpack_check, unpack_sequence, unpack_ex) =
         crate::unpack_refs::build(res, pyops_type.clone());
-    let iter_start =
-        res.push_method_reference(method_ref! { static object @pyops_type::IterStart(object) });
-    let iter_next_ok =
-        res.push_method_reference(method_ref! { static bool @pyops_type::IterNextOk(object) });
-    let iter_value =
-        res.push_method_reference(method_ref! { static object @pyops_type::IterValue(object) });
     // ── 对象协议（M2.2 最小集）──
     let pyrepr_ref = res.push_type_reference(type_ref! { RyuPy.Runtime.PyRepr in #ryupy_runtime });
     let pyrepr_type: MethodType = BaseType::class(pyrepr_ref).into();
@@ -440,6 +434,7 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         function_objects: crate::function_refs::FunctionRefs::build(res, ryupy_runtime),
         delegation: crate::generator_refs::DelegateRefs::build(res, ryupy_runtime),
         generators: crate::generator_refs::GeneratorRefs::build(res, ryupy_runtime),
+        iteration: crate::iteration_refs::build(res, pyops_type.clone()),
         origins: crate::origin_refs::OriginRefs::build(res, traceback_type.clone()),
         prepare_method,
         context_method,
@@ -535,9 +530,6 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         unpack_check,
         unpack_sequence,
         unpack_ex,
-        iter_start,
-        iter_next_ok,
-        iter_value,
         make_class,
         set_attr,
         del_attr,

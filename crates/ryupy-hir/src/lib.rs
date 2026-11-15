@@ -48,6 +48,7 @@ mod lexical_class_registry;
 mod lexical_private;
 pub mod lower;
 mod lower_fn;
+mod lower_stmt_helpers;
 pub use lexical_class_lower::LexicalBinding;
 pub use lexical_class_registry::LexicalClassDefinition;
 #[cfg(test)]

@@ -94,6 +94,8 @@ pub struct Module {
 
 #[derive(Debug)]
 pub struct Function {
+    /// 合成推导式来源，和用户def/lambda分开登记。
+    pub is_comprehension: bool,
     /// 真实源码定义来源；隐式函数保持未知。
     pub definition: Option<crate::DefinitionInfo>,
     pub name: Name,

@@ -9,6 +9,7 @@ use rustc_hash::FxHashMap;
 use ryupy_mir::{Constant as MirConstant, GlobalId, RuntimeFn};
 
 pub struct RuntimeRefs {
+    pub(crate) iteration: crate::iteration_refs::IterationRefs,
     pub(crate) trace_product: Option<crate::trace_product_refs::TraceProductRefs>,
     pub(crate) deletions: Option<crate::module_deletion_refs::DeletionRefs>,
     pub(crate) owned_functions: Option<crate::owned_function_refs::OwnedFunctionRefs>,
@@ -134,9 +135,6 @@ pub struct RuntimeRefs {
     pub unpack_check: MethodRefIndex,
     pub unpack_sequence: MethodRefIndex,
     pub unpack_ex: MethodRefIndex,
-    pub iter_start: MethodRefIndex,
-    pub iter_next_ok: MethodRefIndex,
-    pub iter_value: MethodRefIndex,
     // ── 类与属性协议（M2.5 / M2.6）──
     pub make_class: MethodRefIndex,
     pub set_attr: MethodRefIndex,
@@ -227,9 +225,13 @@ pub(crate) fn runtime_method(callee: RuntimeFn, refs: &RuntimeRefs) -> MethodRef
         RuntimeFn::UnpackCheck => refs.unpack_check,
         RuntimeFn::UnpackSequence => refs.unpack_sequence,
         RuntimeFn::UnpackEx => refs.unpack_ex,
-        RuntimeFn::IterStart => refs.iter_start,
-        RuntimeFn::IterNextOk => refs.iter_next_ok,
-        RuntimeFn::IterValue => refs.iter_value,
+        RuntimeFn::IterStart => refs.iteration.iter_start,
+        RuntimeFn::IterNextOk => refs.iteration.iter_next_ok,
+        RuntimeFn::IterValue => refs.iteration.iter_value,
+        RuntimeFn::MakeComprehensionList => refs.iteration.comp_list,
+        RuntimeFn::IsEnumerateIterator => refs.iteration.enumerate_exact,
+        RuntimeFn::EnumerateCurrentIndex => refs.iteration.enumerate_index,
+        RuntimeFn::EnumerateCurrentValue => refs.iteration.enumerate_value,
         RuntimeFn::MakeClass => refs.make_class,
         RuntimeFn::PrepareOrdinaryMiClass => refs.classes.prepare_ordinary_mi,
         RuntimeFn::PrepareRuntimeDerivedClass => refs.classes.prepare_runtime_derived,

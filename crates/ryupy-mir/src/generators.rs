@@ -336,6 +336,7 @@ fn lower_one(
     let module_state = function.module_state;
     let closure_environment = function.env;
     let resume = program.functions.alloc(Function {
+        is_comprehension: false,
         module_state,
         instance_capabilities: capabilities,
         module_state_source: module_state.map(|state| crate::InstanceStateSource::GeneratorFrame {

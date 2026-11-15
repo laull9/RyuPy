@@ -240,7 +240,9 @@ fn assert_pass_markers(output: &Output) {
         "guarded_list_loop",
         "tuple_scalar",
         "dead_values",
+        "enumerate_scalar",
         "interval_narrow",
+        "scalar_region",
         "float_chain",
     ];
     let actual: Vec<_> = text

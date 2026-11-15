@@ -37,6 +37,7 @@ fn function(name: &str) -> Function {
         terminator: Terminator::Return(None),
     });
     Function {
+        is_comprehension: false,
         module_state: None,
         instance_capabilities: Default::default(),
         module_state_source: None,

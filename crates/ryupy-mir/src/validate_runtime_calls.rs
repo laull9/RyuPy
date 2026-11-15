@@ -20,7 +20,11 @@ pub(super) fn fixed_abi(callee: RuntimeFn) -> bool {
     }
     matches!(
         callee,
-        RuntimeFn::GeneratorStateData
+        RuntimeFn::MakeComprehensionList
+            | RuntimeFn::IsEnumerateIterator
+            | RuntimeFn::EnumerateCurrentIndex
+            | RuntimeFn::EnumerateCurrentValue
+            | RuntimeFn::GeneratorStateData
             | RuntimeFn::GeneratorStateGetPC
             | RuntimeFn::GeneratorStateSetPC
             | RuntimeFn::GuardedListSetFalseLoop
@@ -162,9 +166,12 @@ pub(super) fn validate_call(
                 MirType::Dynamic,
                 MirType::Dynamic,
             ]),
-            RuntimeFn::GeneratorStateData | RuntimeFn::GeneratorStateGetPC => {
-                Some(&[MirType::Dynamic])
-            }
+            RuntimeFn::MakeComprehensionList
+            | RuntimeFn::IsEnumerateIterator
+            | RuntimeFn::EnumerateCurrentIndex
+            | RuntimeFn::EnumerateCurrentValue
+            | RuntimeFn::GeneratorStateData
+            | RuntimeFn::GeneratorStateGetPC => Some(&[MirType::Dynamic]),
             RuntimeFn::GeneratorStateSetPC => Some(&[MirType::Dynamic, MirType::I64]),
             RuntimeFn::GuardedListSetFalseLoop => Some(&[const { MirType::Dynamic }; 4]),
             RuntimeFn::NumericListCreate => Some(&[]),
@@ -354,6 +361,10 @@ pub(super) fn validate_destination(
         let expected = match runtime {
             #[cfg(feature = "trace-adapter-test")]
             RuntimeFn::TraceAdapterExplicit => Some(MirType::Dynamic),
+            RuntimeFn::IsEnumerateIterator => Some(MirType::Bool),
+            RuntimeFn::MakeComprehensionList
+            | RuntimeFn::EnumerateCurrentIndex
+            | RuntimeFn::EnumerateCurrentValue => Some(MirType::Dynamic),
             RuntimeFn::GeneratorStateGetPC => Some(MirType::I64),
             RuntimeFn::GeneratorStateData => Some(MirType::Dynamic),
             RuntimeFn::ModuleFile => Some(MirType::Str),
@@ -495,6 +506,10 @@ pub(super) fn validate_eval(func: &Function, value: &Rvalue, errors: &mut Vec<St
                     | RuntimeFn::NumericListReadCheckedF64
                     | RuntimeFn::NumericListReadF64
                     | RuntimeFn::NumericAccumulatorCreate
+                    | RuntimeFn::MakeComprehensionList
+                    | RuntimeFn::IsEnumerateIterator
+                    | RuntimeFn::EnumerateCurrentIndex
+                    | RuntimeFn::EnumerateCurrentValue
                     | RuntimeFn::GeneratorStateData
                     | RuntimeFn::GeneratorStateGetPC
                     | RuntimeFn::GuardedListSetFalseLoop

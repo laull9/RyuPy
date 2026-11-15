@@ -13,7 +13,10 @@
   [实施路线](docs/aot-architecture-performance-plan.md)已登记；字段驻留生成器（ADR-0202）默认启用，
   5项结构/4项Runtime、完整make check、CP/JIT/AOT删除输入搬迁、NumPy及26项保护通过。
   原始generators全量耗时-22.23%，独立10轮-26.29%，分配/RSS基本持平；
-  [验收记录](docs/aot-generator-state-optimization.md)。消费者融合与其他三项架构切片待实施。
+  [生成器验收](docs/aot-generator-state-optimization.md)。推导式标量区、enumerate分量消除及私有构造器
+  默认启用；完整门禁、AOT删除输入/NumPy及26项保护通过，原始推导式全量与重点耗时约-25.4%，
+  RSS46.81→38.52MiB、分配减少26.1%；[推导式验收](docs/aot-comprehension-region-optimization.md)。
+  消费者融合、records及list_ops架构切片待实施。
 
 - [x] 精确列表False写入与整数步进完整快循环：6项MIR/7项Runtime、CP/JIT/NativeAOT删除输入搬迁、
   NumPy2.3.5回退、26项配对及完整make check通过（C#3167，MIR377，e2e475）。

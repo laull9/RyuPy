@@ -221,6 +221,7 @@ fn test_typed_param_rejected() {
 
     let mut functions = la_arena::Arena::default();
     let gen_id = functions.alloc(Function {
+        is_comprehension: false,
         module_state: None,
         instance_capabilities: Default::default(),
         module_state_source: None,
@@ -422,6 +423,7 @@ fn test_safety_gates_and_hidden_parameters() {
     };
 
     let function = Function {
+        is_comprehension: false,
         module_state: None,
         instance_capabilities: Default::default(),
         module_state_source: None,

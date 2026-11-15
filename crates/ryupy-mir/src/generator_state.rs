@@ -195,6 +195,7 @@ pub(crate) fn lower(program: &mut Program, id: FnId) -> bool {
     let parameters = f.params.clone();
     let origin = f.dynamic_origin.map(|o| Operand::Local(o.owner));
     let resume_function = Function {
+        is_comprehension: false,
         module_state: None,
         module_state_source: None,
         instance_capabilities: f.instance_capabilities,

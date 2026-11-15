@@ -35,6 +35,7 @@ mod emission_report_tests;
 mod function_refs;
 mod generator_refs;
 mod instance_refs;
+mod iteration_refs;
 mod lexical_super;
 #[cfg(test)]
 mod lexical_super_tests;

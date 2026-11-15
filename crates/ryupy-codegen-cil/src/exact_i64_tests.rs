@@ -19,6 +19,7 @@ pub(super) fn local(locals: &mut Arena<LocalDecl>, ty: MirType) -> LocalId {
 
 pub(super) fn function(name: &str, body: Body, params: Vec<LocalId>, ret: MirType) -> Function {
     Function {
+        is_comprehension: false,
         name: name.into(),
         codegen_name: name.into(),
         source_file: "exact_i64.py".into(),

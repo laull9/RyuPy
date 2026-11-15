@@ -248,6 +248,7 @@ mod ordinary_mi_tests;
 mod private_comp_append;
 #[cfg(test)]
 mod private_comp_append_tests;
+mod private_comp_capacity;
 
 mod generator_state;
 mod generator_state_analysis;

@@ -25,6 +25,7 @@ impl Function {
     /// 空程序兜底用；正常流程不会使用。
     pub(super) fn placeholder() -> Self {
         Self {
+            is_comprehension: false,
             module_state: None,
             instance_capabilities: Default::default(),
             module_state_source: None,

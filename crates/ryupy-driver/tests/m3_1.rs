@@ -126,7 +126,7 @@ fn snapshot_m3_1_dict_set() {
                 "fn <setcomp>",
                 "MakeDict",
                 "SetItem",
-                "const \"add\"",
+                "SetAdd",
             ],
             Stage::Cil => &[
                 "PyOps.MakeDict",

@@ -305,6 +305,10 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         | RuntimeFn::UnpackCheck
         | RuntimeFn::IterStart
         | RuntimeFn::IterNextOk
+        | RuntimeFn::MakeComprehensionList
+        | RuntimeFn::IsEnumerateIterator
+        | RuntimeFn::EnumerateCurrentIndex
+        | RuntimeFn::EnumerateCurrentValue
         | RuntimeFn::IterValue
         | RuntimeFn::MakeClass
         | RuntimeFn::PrepareOrdinaryMiClass

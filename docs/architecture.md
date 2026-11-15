@@ -80,9 +80,12 @@ ryupy-e2e（仅测试）─► ryupy-driver
   标记隐式函数为生成器并复用 M3.2 状态机，最左 iterable 的立即求值边界不变。
   MIR以合成来源、精确空列表初始化与单一定义证明私有list收集器后，直接调用既有ListAppend，
   保留独立作用域和求值顺序；普通方法路径不变，见 [ADR-0196](adr/0196-private-list-comprehension-append.md)。
+  HIR/MIR显式保存合成推导式来源，支持有守卫整数标量区、立即enumerate分量消除，
+  私有set直调及有界range容量；出口保留原盒和单次物化，见[ADR-0203](adr/0203-comprehension-scalar-regions.md)。
 
 - M3.2 由 `generator_scan.rs` 判定含不可达 yield 的当前函数，排除嵌套作用域；生成器强制 Dynamic。
-  MIR `generators.rs` 将 Suspend 转工厂与恢复 CFG，显式保存局部到每实例 object[]；
+  MIR先选择字段驻留状态机（ADR-0202），原生PC/字段保留长期局部，匿名临时只在跨暂停时驻留；
+  复杂协议继续由`generators.rs`将Suspend转工厂与恢复CFG，显式保存局部到每实例object[]；
   已证明只读形参省去冗余挂起写回，恢复读取保留，EH/product及定义覆盖门禁见ADR-0198；
   CIL 仅绑定静态恢复委托，`PyGenerator` 管理运行 / 终止、重入与每次恢复的 traceback。
   `generator_exceptions.rs` 将原Region变为逻辑handler表，恢复函数只有单outer catch；

@@ -70,6 +70,7 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
     if let FnSource::Def(def) = &source {
         crate::closures_decl::validate_declarations(file, def, diagnostics);
     }
+    let is_comprehension = matches!(&source, FnSource::Comprehension(_));
     let is_generator = match &source {
         FnSource::Def(def) => crate::generator_scan::analyze(file, &def.body, diagnostics),
         FnSource::Comprehension(comp) => {
@@ -437,6 +438,7 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
         }
     }
     functions[func_id].docstring = docstring;
+    functions[func_id].is_comprehension = is_comprehension;
     functions[func_id].is_generator = is_generator;
     functions[func_id].params = params;
     functions[func_id].ret = ret;

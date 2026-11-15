@@ -60,6 +60,7 @@ fn sample() -> (Function, [BlockId; 5], [LocalId; 3]) {
     blocks[exit].terminator = Terminator::Return(Some(Operand::Local(total)));
     (
         Function {
+            is_comprehension: false,
             module_state: None,
             instance_capabilities: Default::default(),
             module_state_source: None,

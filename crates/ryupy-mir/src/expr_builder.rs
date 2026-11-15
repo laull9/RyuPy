@@ -123,6 +123,9 @@ impl<'a> ExprBuilder<'a> {
     }
 
     fn build_expr_inner(&mut self, expr_id: ExprId) -> Operand {
+        if let Some(value) = self.private_comp_capacity(expr_id) {
+            return value;
+        }
         let hir_body = &self.hir.functions[self.current_hir_fn].body;
         let expr = &hir_body.exprs[expr_id];
         match &expr.kind {

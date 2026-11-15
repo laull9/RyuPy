@@ -253,6 +253,7 @@ fn declare(p: &mut ryupy_mir::LinkedProgram, plan: &BindingPlan) -> Vec<FixedI32
         terminator: Terminator::Return(None),
     });
     let initializer = p.functions.alloc(Function {
+        is_comprehension: false,
         module_state: None,
         instance_capabilities: Default::default(),
         module_state_source: None,
