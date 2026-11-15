@@ -1,0 +1,228 @@
+# 实际运行时候选对固定CP事件；不是默认MIR命中，也不是NativeAOT验证。
+name: Records isolated CFG guard experiment
+on:
+  push:
+    branches: [work/records-guard-ci-20261115]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  records-guard:
+    if: github.ref == 'refs/heads/work/records-guard-ci-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+      MSBUILDDISABLENODEREUSE: '1'
+      DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+      UseSharedCompilation: 'false'
+    steps:
+      - name: Prepare fresh evidence directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          EVIDENCE="$RUNNER_TEMP/records-guard-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          mkdir "$EVIDENCE"
+          printf 'EVIDENCE=%s\n' "$EVIDENCE" >> "$GITHUB_ENV"
+          printf 'run=%s attempt=%s\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" > "$EVIDENCE/run.txt"
+      - uses: actions/checkout@v4
+      - name: Freeze exact source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD | tee "$EVIDENCE/commit.txt"
+          test "$(cat "$EVIDENCE/commit.txt")" = "$GITHUB_SHA"
+          export GIT_INDEX_FILE="$RUNNER_TEMP/records-guard-source-index"
+          git read-tree HEAD
+          git update-index --force-remove .github/workflows/records-guard-experiment.yml tests/perf/check_records_probe_evidence.py tests/perf/check_records_materialized.py tests/perf/check_records_guard.py tests/perf/test_records_guard_evidence.py
+          git write-tree | tee "$EVIDENCE/source-tree.txt"
+          test "$(cat "$EVIDENCE/source-tree.txt")" = 'a8ac55259d89ba962e60adf8dd186895acdd1980'
+          unset GIT_INDEX_FILE
+          printf '%s\n' '{"sdk":{"version":"10.0.403","rollForward":"disable","allowPrerelease":false}}' > global.json
+          cp global.json "$EVIDENCE/global.json"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - uses: actions/setup-python@v5
+        id: python
+        with:
+          python-version-file: tests/pinned-python.txt
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
+        with:
+          toolchain: '1.99.1'
+          components: rustfmt
+      - uses: actions/checkout@v4
+        with:
+          ref: bd5d7dbe1f09bd3ba649e9b1c1928845784e4fe8
+          path: .records-historical-baseline
+      - name: Verify toolchains and checker negative cases
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet --version | tee "$EVIDENCE/sdk.txt"
+          test "$(cat "$EVIDENCE/sdk.txt")" = '10.0.403'
+          dotnet --info > "$EVIDENCE/dotnet-info.txt"
+          python3 --version | tee "$EVIDENCE/python.txt"
+          python3 -B -c 'import sys; assert sys.version_info[:3] == (3,12,13)'
+          python3 -B tests/perf/test_records_cp_oracle.py 2>&1 | tee "$EVIDENCE/checker-selftest.log"
+          python3 -B tests/perf/test_records_guard_evidence.py 2>&1 | tee "$EVIDENCE/guard-checker-selftest.log"
+      - name: Generate fresh actual CPython oracle
+        shell: bash
+        run: |
+          set -euo pipefail
+          token=$(python3 -B -c 'import secrets; print(secrets.token_hex(16))')
+          printf 'RYUPY_RECORDS_CP_TOKEN=%s\n' "$token" >> "$GITHUB_ENV"
+          printf '%s\n' "$token" > "$EVIDENCE/token.txt"
+          python3 -B tests/perf/records_materialized_cp_oracle.py --output "$EVIDENCE/oracle.json" --expected-sha "$GITHUB_SHA" --token "$token" 2>&1 | tee "$EVIDENCE/cp-oracle.log"
+      - name: Build default tests and prove the oracle fact is excluded
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet build runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj -c Release 2>&1 | tee "$EVIDENCE/default-build.log"
+          dotnet test runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj -c Release --no-build --no-restore --list-tests 2>&1 | tee "$EVIDENCE/default-tests.log"
+          python3 -B - "$EVIDENCE/default-tests.log" <<'PY'
+          from pathlib import Path
+          import sys
+          text = Path(sys.argv[1]).read_text()
+          assert 'PyDictMaterializedIncrementTests.MissingKeyStoresTheCallerTupleWhileHitKeepsTheOlderTuple' in text
+          assert 'PyDictMaterializedCpOracleTests' not in text
+          PY
+      - name: Build explicitly opted in oracle test
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet build runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj -c Release -p:RecordsCpOracleTest=true 2>&1 | tee "$EVIDENCE/oracle-build.log"
+      - name: Build exact historical runtime independently
+        id: baseline
+        if: always() && steps.build.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git -C .records-historical-baseline rev-parse HEAD | tee "$EVIDENCE/baseline-commit.txt"
+          git -C .records-historical-baseline rev-parse HEAD^{tree} | tee "$EVIDENCE/baseline-tree.txt"
+          test "$(cat "$EVIDENCE/baseline-commit.txt")" = bd5d7dbe1f09bd3ba649e9b1c1928845784e4fe8
+          test "$(cat "$EVIDENCE/baseline-tree.txt")" = aff0fc2cf409551b5287c638cefe131a1ddd0e1f
+          dotnet build .records-historical-baseline/runtime/RyuPy.Runtime/RyuPy.Runtime.csproj -c Release --artifacts-path "$EVIDENCE/baseline-artifacts" 2>&1 | tee "$EVIDENCE/baseline-build.log"
+          python3 - "$EVIDENCE" <<'PYCODE'
+          import hashlib,json,shutil,sys
+          from pathlib import Path
+          p=Path(sys.argv[1]);baseline=list((p/'baseline-artifacts/bin/RyuPy.Runtime').glob('**/RyuPy.Runtime.dll'))
+          assert len(baseline)==1
+          shutil.copyfile(baseline[0],p/'baseline.dll')
+          shutil.copyfile('runtime/RyuPy.Runtime/bin/Release/net10.0/RyuPy.Runtime.dll',p/'candidate.dll')
+          data={key:{'bytes':len((p/(key+'.dll')).read_bytes()),'sha256':hashlib.sha256((p/(key+'.dll')).read_bytes()).hexdigest()} for key in ('baseline','candidate')}
+          (p/'assembly-identities.json').write_text(json.dumps(data,indent=2))
+          PYCODE
+      - name: Execute guard and exact increment ABI contracts
+        if: always() && steps.build.outcome == 'success'
+        shell: bash
+        run: |
+          set +e
+          set -uo pipefail
+          dotnet test runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj -c Release -p:RecordsCpOracleTest=true --no-build --no-restore --filter 'FullyQualifiedName~RyuPy.Runtime.Tests.PyRecordsIncrementGuardTests' --logger 'trx;LogFileName=guard.trx' --results-directory "$EVIDENCE" 2>&1 | tee "$EVIDENCE/guard.log"
+          first=$?
+          dotnet test runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj -c Release -p:RecordsCpOracleTest=true --no-build --no-restore --filter 'FullyQualifiedName~RyuPy.Runtime.Tests.PyTraceStateArtifactTests.RecordsGuard' --logger 'trx;LogFileName=abi.trx' --results-directory "$EVIDENCE" 2>&1 | tee "$EVIDENCE/abi.log"
+          second=$?
+          test "$first" = 0 && test "$second" = 0
+      - name: Execute real historical baseline ABI gate
+        if: always() && steps.baseline.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          export RYUPY_TRACE_BASELINE_DLL="$EVIDENCE/baseline.dll"
+          export RYUPY_TRACE_CANDIDATE_DLL="$EVIDENCE/candidate.dll"
+          export RYUPY_TRACE_EVIDENCE_DIR="$EVIDENCE"
+          dotnet test runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj -c Release -p:RecordsCpOracleTest=true --no-build --no-restore --filter 'FullyQualifiedName=RyuPy.Runtime.Tests.PyTraceStateArtifactTests.ProducedAssemblyPreservesEveryBaselinePublicSignature' --logger 'trx;LogFileName=baseline.trx' --results-directory "$EVIDENCE" 2>&1 | tee "$EVIDENCE/baseline-test.log"
+      - name: Execute original fifteen contracts
+        if: always() && steps.build.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet test runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj -c Release -p:RecordsCpOracleTest=true --no-build --no-restore --filter 'FullyQualifiedName~RyuPy.Runtime.Tests.PyDictStringPairProbeTests' --logger 'trx;LogFileName=records.trx' --logger 'console;verbosity=detailed' --results-directory "$EVIDENCE" 2>&1 | tee "$EVIDENCE/original.log"
+      - name: Execute eleven materialized contracts
+        if: always() && steps.build.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet test runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj -c Release -p:RecordsCpOracleTest=true --no-build --no-restore --filter 'FullyQualifiedName~RyuPy.Runtime.Tests.PyDictMaterializedIncrementTests' --logger 'trx;LogFileName=materialized.trx' --logger 'console;verbosity=detailed' --results-directory "$EVIDENCE" 2>&1 | tee "$EVIDENCE/materialized.log"
+      - name: Execute actual candidate and fallback against CPython events
+        if: always() && steps.build.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e "$EVIDENCE/actual.json"
+          export RYUPY_RECORDS_CP_ORACLE="$EVIDENCE/oracle.json"
+          export RYUPY_RECORDS_CP_ACTUAL="$EVIDENCE/actual.json"
+          export RYUPY_RECORDS_CP_SHA="$GITHUB_SHA"
+          dotnet test runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj -c Release -p:RecordsCpOracleTest=true --no-build --no-restore --filter 'FullyQualifiedName=RyuPy.Runtime.Tests.PyDictMaterializedCpOracleTests.ActualCandidateAndFallbackMatchFreshPinnedCPythonEvents' --logger 'trx;LogFileName=oracle-test.trx' --logger 'console;verbosity=detailed' --results-directory "$EVIDENCE" 2>&1 | tee "$EVIDENCE/oracle-test.log"
+      - name: Record separate known dict subclass tuple incompatibility
+        if: always() && steps.build.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e "$EVIDENCE/known.json"
+          export RYUPY_RECORDS_CP_ORACLE="$EVIDENCE/oracle.json"
+          export RYUPY_RECORDS_CP_KNOWN="$EVIDENCE/known.json"
+          export RYUPY_RECORDS_CP_SHA="$GITHUB_SHA"
+          dotnet test runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj -c Release -p:RecordsCpOracleTest=true --no-build --no-restore --filter 'FullyQualifiedName=RyuPy.Runtime.Tests.PyDictMaterializedCpOracleTests.DictSubclassTupleKeyRemainsExplicitKnownIncompatibility' --logger 'trx;LogFileName=known.trx' --logger 'console;verbosity=detailed' --results-directory "$EVIDENCE" 2>&1 | tee "$EVIDENCE/known.log"
+      - name: Independently verify original and materialized contracts
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B - "$EVIDENCE" "$GITHUB_SHA" <<'PY' 2>&1 | tee "$EVIDENCE/contracts-verification.log"
+          from pathlib import Path
+          import sys, xml.etree.ElementTree as ET
+          sys.path.insert(0, 'tests/perf')
+          from check_records_probe_evidence import verify
+          from check_records_materialized import check_cs
+          print(verify(Path(sys.argv[1]),sys.argv[2]))
+          print(check_cs(ET.parse(Path(sys.argv[1])/'materialized.trx').getroot()))
+          PY
+      - name: Independently verify CP and actual events and real test identity
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B tests/perf/check_records_cp_oracle.py "$EVIDENCE" "$GITHUB_SHA" "$RYUPY_RECORDS_CP_TOKEN" 2>&1 | tee "$EVIDENCE/oracle-verification.log"
+      - name: Build feature and verify Rust MIR and emitted PE
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          set -uo pipefail
+          rustc --version > "$EVIDENCE/rustc.txt"
+          cargo fmt --all --check > "$EVIDENCE/fmt.log" 2>&1
+          fmt=$?
+          mkdir "$EVIDENCE/formatted"
+          for file in crates/ryupy-mir/src/{lib.rs,records_increment_contract_tests.rs,records_increment_guard.rs,runtime_fn.rs,validate_runtime_calls.rs} crates/ryupy-codegen-cil/src/{lib.rs,records_guard_tests.rs,accumulator_refs.rs,stackify_runtime.rs}; do
+            dest="$EVIDENCE/formatted/${file//\//_}"
+            rustfmt --edition 2024 --emit stdout --config skip_children=true "$file" > "$dest" 2>&1
+          done
+          cargo check -p ryupy-mir --features records-increment-experiment > "$EVIDENCE/feature.log" 2>&1
+          feature=$?
+          cargo test -p ryupy-mir --lib records_guard_ -- --nocapture > "$EVIDENCE/guard-mir.log" 2>&1
+          mir=$?
+          cargo test -p ryupy-mir --lib > "$EVIDENCE/mir-full.log" 2>&1
+          full=$?
+          cargo test -p ryupy-codegen-cil --lib records_guard_ -- --nocapture > "$EVIDENCE/guard-cil.log" 2>&1
+          cil=$?
+          cargo test -p ryupy-codegen-cil --lib > "$EVIDENCE/cil-full.log" 2>&1
+          cil_full=$?
+          printf '{"fmt":%s,"mir":%s,"full":%s,"cil":%s,"cil_full":%s,"feature":%s}\n' "$fmt" "$mir" "$full" "$cil" "$cil_full" "$feature" > "$EVIDENCE/rust-exits.json"
+          test "$fmt$mir$full$cil$cil_full$feature" = 000000
+      - name: Verify isolated guard evidence no source AOT claim
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B tests/perf/check_records_guard.py "$EVIDENCE" "$GITHUB_SHA" 2>&1 | tee "$EVIDENCE/guard-verification.log"
+      - name: Upload all raw evidence including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: records-guard-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ env.EVIDENCE }}
+          if-no-files-found: error
+          retention-days: 14
