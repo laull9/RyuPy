@@ -96,3 +96,40 @@ fn local_observation_does_not_authorize_discarding_the_key() {
     );
     has_increment_spelling(function(&program, "step"));
 }
+
+#[test]
+fn records_wire_diagnostic_preserves_actual_before_and_after_mir() {
+    let fixtures = [
+        (
+            "records",
+            include_str!("../../../tests/benchmarks/records.py"),
+            "summarize",
+        ),
+        (
+            "visible-key",
+            "def step(counts, user, action):\n    key = (user, action)\n    counts[key] = counts.get(key, 0) + 1\n    return key\n",
+            "step",
+        ),
+        (
+            "receiver-rebind",
+            "def step(counts, key, change):\n    counts[key] = counts.get(key, 0) + change()\n    return counts\n",
+            "step",
+        ),
+        (
+            "observed-locals",
+            "def step(counts, user, action):\n    key = (user, action)\n    counts[key] = counts.get(key, 0) + 1\n    return locals()\n",
+            "step",
+        ),
+    ];
+    for (label, source, name) in fixtures {
+        let mut program = compile(source);
+        println!("records-wire begin {label} before");
+        println!("{:#?}", function(&program, name));
+        println!("records-wire end {label} before");
+        crate::passes::run_pipeline(&mut program, &crate::passes::default_pipeline())
+            .expect("既有默认流水线仍须验证合法");
+        println!("records-wire begin {label} after");
+        println!("{:#?}", function(&program, name));
+        println!("records-wire end {label} after");
+    }
+}
