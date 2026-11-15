@@ -35,7 +35,7 @@ jobs:
           git read-tree HEAD
           git update-index --force-remove .github/workflows/records-cp-oracle-experiment.yml tests/perf/check_records_probe_evidence.py tests/perf/check_records_materialized.py
           git write-tree | tee "$EVIDENCE/source-tree.txt"
-          test "$(cat "$EVIDENCE/source-tree.txt")" = '265145d1c57314bfc56b3da1b96b3134bddb9aad'
+          test "$(cat "$EVIDENCE/source-tree.txt")" = '03875c5ad5705a22a3637d1697e7c5b7d0138430'
           unset GIT_INDEX_FILE
           printf '%s\n' '{"sdk":{"version":"10.0.403","rollForward":"disable","allowPrerelease":false}}' > global.json
           cp global.json "$EVIDENCE/global.json"
@@ -105,6 +105,16 @@ jobs:
           export RYUPY_RECORDS_CP_ACTUAL="$EVIDENCE/actual.json"
           export RYUPY_RECORDS_CP_SHA="$GITHUB_SHA"
           dotnet test runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj -c Release -p:RecordsCpOracleTest=true --no-build --no-restore --filter 'FullyQualifiedName=RyuPy.Runtime.Tests.PyDictMaterializedCpOracleTests.ActualCandidateAndFallbackMatchFreshPinnedCPythonEvents' --logger 'trx;LogFileName=oracle-test.trx' --logger 'console;verbosity=detailed' --results-directory "$EVIDENCE" 2>&1 | tee "$EVIDENCE/oracle-test.log"
+      - name: Record separate known dict subclass tuple incompatibility
+        if: always() && steps.build.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e "$EVIDENCE/known.json"
+          export RYUPY_RECORDS_CP_ORACLE="$EVIDENCE/oracle.json"
+          export RYUPY_RECORDS_CP_KNOWN="$EVIDENCE/known.json"
+          export RYUPY_RECORDS_CP_SHA="$GITHUB_SHA"
+          dotnet test runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj -c Release -p:RecordsCpOracleTest=true --no-build --no-restore --filter 'FullyQualifiedName=RyuPy.Runtime.Tests.PyDictMaterializedCpOracleTests.DictSubclassTupleKeyRemainsExplicitKnownIncompatibility' --logger 'trx;LogFileName=known.trx' --logger 'console;verbosity=detailed' --results-directory "$EVIDENCE" 2>&1 | tee "$EVIDENCE/known.log"
       - name: Independently verify original and materialized contracts
         if: always()
         shell: bash
