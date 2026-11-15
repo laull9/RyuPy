@@ -151,10 +151,9 @@ fn analyze_explained(f: &Function, declared_input: LocalId) -> Result<RangePlan,
                             callee: Callee::Runtime(RuntimeFn::IterStart),
                             ..
                         }
-                    ) {
-                        if iterator.replace(*dest).is_some() {
-                            return Err(format!("多游标定义，位置 {id:?}:{position}"));
-                        }
+                    ) && iterator.replace(*dest).is_some()
+                    {
+                        return Err(format!("多游标定义，位置 {id:?}:{position}"));
                     }
                     if matches!(value, Rvalue::DynBinary { .. })
                         && multiply.replace(*dest).is_some()

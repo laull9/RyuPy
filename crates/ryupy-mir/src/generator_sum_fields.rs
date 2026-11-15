@@ -7,6 +7,12 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 type Check<T> = Result<T, &'static str>;
 
+// 字段号与其所属载体共同构成同一布局证据，避免读取核验时分开传递。
+struct ReadLayout<'a> {
+    slots: &'a FxHashMap<LocalId, u32>,
+    payload: LocalId,
+}
+
 pub(super) struct Snapshot {
     pub(super) function: FnId,
     locals: Vec<(LocalId, LocalDecl)>,
@@ -263,6 +269,10 @@ impl Snapshot {
         }) {
             return Err("新增基本块未被完整派发证明覆盖");
         }
+        let layout = ReadLayout {
+            slots: &slots,
+            payload: *payload,
+        };
         let mut read_temporaries = FxHashSet::default();
         for (id, original) in &self.blocks {
             let lowered = &f.body.blocks[*id];
@@ -296,8 +306,7 @@ impl Snapshot {
                     lowered,
                     &mut at,
                     statement_reads(statement),
-                    &slots,
-                    *payload,
+                    &layout,
                     &mut read_temporaries,
                 )?;
                 let mut expected = statement.clone();
@@ -325,8 +334,7 @@ impl Snapshot {
                 lowered,
                 &mut at,
                 terminator_reads(&original.terminator),
-                &slots,
-                *payload,
+                &layout,
                 &mut read_temporaries,
             )?;
             let mut terminator = original.terminator.clone();
@@ -366,10 +374,10 @@ impl Snapshot {
         block: &BasicBlock,
         at: &mut usize,
         reads: FxHashSet<LocalId>,
-        slots: &FxHashMap<LocalId, u32>,
-        payload: LocalId,
+        layout: &ReadLayout<'_>,
         temporaries: &mut FxHashSet<LocalId>,
     ) -> Check<FxHashMap<LocalId, LocalId>> {
+        let ReadLayout { slots, payload } = layout;
         let mut reads: Vec<_> = reads
             .into_iter()
             .filter(|id| slots.contains_key(id))
@@ -384,7 +392,7 @@ impl Snapshot {
             else {
                 return Err("真实读取未经过已证明字段");
             };
-            if *obj != Operand::Local(payload)
+            if *obj != Operand::Local(*payload)
                 || *field != slots[&local]
                 || f.body.locals[*dest].ty != f.body.locals[local].ty
                 || self.locals.iter().any(|(old, _)| old == dest)
