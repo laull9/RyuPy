@@ -27,7 +27,10 @@ pub(crate) fn finish_build(
             .filter(|(_, f)| f.is_generator && f.is_comprehension)
             .filter_map(|(id, _)| {
                 let function = functions[&id];
-                program.functions[function].params.first().map(|input| (function, *input))
+                program.functions[function]
+                    .params
+                    .first()
+                    .map(|input| (function, *input))
             })
             .collect(),
         functions: hir

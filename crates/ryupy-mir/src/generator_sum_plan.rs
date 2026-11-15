@@ -69,8 +69,8 @@ fn analyze(function: &Function) -> Result<Plan, Refusal> {
     if yields.is_empty() {
         return Err(Refusal::MissingYield);
     }
-    let residents = crate::generator_state_analysis::residents(function)
-        .ok_or(Refusal::LivenessBudget)?;
+    let residents =
+        crate::generator_state_analysis::residents(function).ok_or(Refusal::LivenessBudget)?;
     Ok(Plan { yields, residents })
 }
 
@@ -94,8 +94,10 @@ fn pure(function: &Function, value: &Rvalue) -> bool {
     match value {
         Rvalue::Use(value) => operand(value),
         Rvalue::Box { value, from } => {
-            matches!(from, MirType::I64 | MirType::F64 | MirType::Bool | MirType::Str)
-                && operand(value)
+            matches!(
+                from,
+                MirType::I64 | MirType::F64 | MirType::Bool | MirType::Str
+            ) && operand(value)
         }
         Rvalue::Binary { lhs, rhs, .. } => scalar(function, lhs) && scalar(function, rhs),
         Rvalue::Unary { operand, .. } => scalar(function, operand),
@@ -103,13 +105,15 @@ fn pure(function: &Function, value: &Rvalue) -> bool {
         Rvalue::Call {
             callee: Callee::Runtime(rt),
             args,
-        } => matches!(
-            rt,
-            RuntimeFn::DynNone
-                | RuntimeFn::TracePush
-                | RuntimeFn::TracePushWithOrigin
-                | RuntimeFn::TracePopTo
-        ) && args.iter().all(operand),
+        } => {
+            matches!(
+                rt,
+                RuntimeFn::DynNone
+                    | RuntimeFn::TracePush
+                    | RuntimeFn::TracePushWithOrigin
+                    | RuntimeFn::TracePopTo
+            ) && args.iter().all(operand)
+        }
         // 特别拒绝DynBinary/DynCompare/DynTruthy、通用迭代和Unbox；它们可能调用用户协议。
         // 尚无精确range来源证明，因此不能凭yield的表面算术形状开放原genexpr基准。
         _ => false,
@@ -121,7 +125,9 @@ fn high(source: &str) -> (Program, Vec<FnId>) {
     (program, plan.functions().to_vec())
 }
 
-pub(super) fn high_with_sources(source: &str) -> (Program, crate::generator_product::DeferredGenerators) {
+pub(super) fn high_with_sources(
+    source: &str,
+) -> (Program, crate::generator_product::DeferredGenerators) {
     let mut db = ryupy_base::SourceDb::default();
     let file = db.add("sum-plan.py", source);
     let (ast, errors) = ryupy_syntax::parse(file, source);
@@ -206,19 +212,40 @@ fn original_three_sources_record_distinct_blocking_instructions() {
         })
     };
     let count = function("count_up");
-    assert!(has(count, |v| matches!(v, Rvalue::DynBinary { op: DynOp::Add, inplace: true, .. })));
+    assert!(has(count, |v| matches!(
+        v,
+        Rvalue::DynBinary {
+            op: DynOp::Add,
+            inplace: true,
+            ..
+        }
+    )));
     for runtime in [RuntimeFn::DynRichCompareValue, RuntimeFn::DynTruthy] {
         assert!(count.body.blocks.iter().any(|(_, b)| b.stmts.iter().any(|s|
             matches!(s, Statement::Assign { value: Rvalue::Call { callee: Callee::Runtime(rt), .. }, .. } if *rt == runtime))));
     }
     let chained = function("chained");
     assert!(chained.body.blocks.iter().any(|(_, b)| matches!(
-        b.terminator, Terminator::Suspend { delegated: true, .. }
+        b.terminator,
+        Terminator::Suspend {
+            delegated: true,
+            ..
+        }
     )));
-    assert!(has(chained, |v| matches!(v, Rvalue::GeneratorDelegateStep { .. })));
+    assert!(has(chained, |v| matches!(
+        v,
+        Rvalue::GeneratorDelegateStep { .. }
+    )));
     let expression = function("<genexpr>");
-    assert!(has(expression, |v| matches!(v, Rvalue::DynBinary { op: DynOp::Mul, .. })));
-    for runtime in [RuntimeFn::IterStart, RuntimeFn::IterNextOk, RuntimeFn::IterValue] {
+    assert!(has(expression, |v| matches!(
+        v,
+        Rvalue::DynBinary { op: DynOp::Mul, .. }
+    )));
+    for runtime in [
+        RuntimeFn::IterStart,
+        RuntimeFn::IterNextOk,
+        RuntimeFn::IterValue,
+    ] {
         assert!(expression.body.blocks.iter().any(|(_, b)| b.stmts.iter().any(|s|
             matches!(s, Statement::Assign { value: Rvalue::Call { callee: Callee::Runtime(rt), .. }, .. } if *rt == runtime))));
     }
