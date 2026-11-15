@@ -38,12 +38,52 @@ def roles(manifest, candidate, cross=False):
             matches = [x for x in sources if Path(x['logical_source']).name == filename]
             assert len(matches) == 1, '缺失或重复真实源模块'
             item = matches[0]
-            source = ROOT/'tests/fixtures/generator_sum/cross_module'/filename
-            assert item['compiled_text_sha256'] == hashlib.sha256(source.read_bytes()).hexdigest(), '清单编译文本不属于本次源输入'
+            assert item['compiled_text_sha256'] == '', '当前清单文本hash合同应为空，输入身份另行外部封存'
+            logical = 'entry/main.py' if filename == 'main.py' else 'modules/'+filename
+            module = '__main__' if filename == 'main.py' else filename[:-3]
+            assert item['logical_source'] == logical and item['module_name'] == module, '源码与逻辑模块映射错误'
             assert modules[item['module_id']]['name'] == item['module_name'], '源模块与链接模块身份不符'
             source_ids.append(item['module_id'])
         assert len(set(source_ids)) == 3, '不同源码模块不可复用身份'
     return len(hits)
+
+
+CROSS_FILES = ('main.py', 'producer.py', 'consumer.py')
+
+
+def seal_inputs(folder, cli, backend):
+    """外部输入证据，不能称为编译器自证；固定git字节并在构建后复核。"""
+    folder.mkdir(parents=True, exist_ok=False)
+    head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+    tree = subprocess.check_output(['git', 'rev-parse', 'HEAD^{tree}'], cwd=ROOT, text=True).strip()
+    records = []
+    for name in CROSS_FILES:
+        source = ROOT/'tests/fixtures/generator_sum/cross_module'/name
+        data = source.read_bytes()
+        assert data == subprocess.check_output(['git', 'show', head+':'+source.relative_to(ROOT).as_posix()], cwd=ROOT)
+        (folder/name).write_bytes(data)
+        records.append({'path': str(source), 'archive': name, 'sha256': hashlib.sha256(data).hexdigest(), 'bytes': len(data)})
+    data = {'evidence_kind': 'external-input-not-compiler-self-attestation', 'head': head, 'tree': tree,
+            'backend': backend, 'entry': records[0]['path'], 'sources': records,
+            'cli': str(cli.resolve()), 'cli_sha256': hashlib.sha256(cli.read_bytes()).hexdigest()}
+    (folder/'inputs.json').write_text(json.dumps(data, indent=2))
+    return data
+
+
+def verify_inputs(folder, data):
+    assert subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip() == data['head']
+    assert subprocess.check_output(['git', 'rev-parse', 'HEAD^{tree}'], cwd=ROOT, text=True).strip() == data['tree']
+    assert hashlib.sha256(Path(data['cli']).read_bytes()).hexdigest() == data['cli_sha256']
+    for item in data['sources']:
+        archived = (folder/item['archive']).read_bytes()
+        assert Path(item['path']).read_bytes() == archived, '构建期间源输入改变'
+        assert len(archived) == item['bytes'] and hashlib.sha256(archived).hexdigest() == item['sha256']
+    command = json.loads((folder/'command.json').read_text())
+    argv = command['command']
+    assert command['cwd'] == str(ROOT) and Path(argv[0]).resolve() == Path(data['cli'])
+    assert argv[1:3] == ['build', data['entry']] and argv[3] == '-o'
+    assert argv[5:] == (['--aot', '--native'] if data['backend'] == 'aot' else ['--native'])
+    (folder/'verified-after-build.json').write_text(json.dumps(data, indent=2))
 
 
 def main():
@@ -78,7 +118,12 @@ def main():
                 for backend in ('jit', 'aot'):
                     arm = name+'-'+label+'-'+backend; work = owned/arm; work.mkdir()
                     require_space(owned, 4*1024**3)
-                    exe, _, error, status = measure.build_case(ROOT, cli, bench, work, backend=backend)
+                    sealed = output/'inputs'/arm
+                    inputs = seal_inputs(sealed, cli, backend) if name == 'cross' else None
+                    exe, _, error, status = measure.build_case(ROOT, cli, bench, work, backend=backend,
+                        command_evidence=sealed/'command.json' if inputs else None)
+                    if inputs:
+                        verify_inputs(sealed, inputs)
                     (output/(arm+'-build.log')).write_text(error)
                     assert exe is not None, (arm, status, error)
                     count = None

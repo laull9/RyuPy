@@ -79,9 +79,10 @@ class Gates(unittest.TestCase):
         sources=[];modules=[]
         for index,name in enumerate(('main.py','producer.py','consumer.py')):
             path=semantic.ROOT/'tests/fixtures/generator_sum/cross_module'/name
-            sources.append({'module_id':index,'module_name':name[:-3],'logical_source':name,
-                            'compiled_text_sha256':hashlib.sha256(path.read_bytes()).hexdigest()})
-            modules.append({'id':index,'name':name[:-3]})
+            sources.append({'module_id':index,'module_name':'__main__' if index == 0 else name[:-3],
+                            'logical_source':('entry/' if index == 0 else 'modules/')+name,
+                            'compiled_text_sha256':''})
+            modules.append({'id':index,'name':'__main__' if index == 0 else name[:-3]})
         data={'sources':sources,'modules':modules,'emitted_delegate_references':[
             {'role':'generator_sum_resume','target':{'token':i}} for i in range(3)]}
         with tempfile.TemporaryDirectory() as temp:
@@ -92,8 +93,43 @@ class Gates(unittest.TestCase):
             with self.assertRaises(AssertionError):check(bad)
             bad=copy.deepcopy(data);bad['emitted_delegate_references'][0]['target']={'token':1}
             with self.assertRaises(AssertionError):check(bad)
+            bad=copy.deepcopy(data);bad['sources'][0]['logical_source']='wrong/main.py'
+            with self.assertRaises(AssertionError):check(bad)
+            bad=copy.deepcopy(data);bad['sources'].pop()
+            with self.assertRaises(AssertionError):check(bad)
             bad=copy.deepcopy(data);bad['modules'][1]['name']='wrong'
             with self.assertRaises(AssertionError):check(bad)
+
+    def test_external_inputs_detect_mutation_and_wrong_command(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp)/'repo';root.mkdir()
+            fixture=root/'tests/fixtures/generator_sum/cross_module';fixture.mkdir(parents=True)
+            for name in semantic.CROSS_FILES:(fixture/name).write_bytes(name.encode())
+            cli=root/'cli';cli.write_bytes(b'fake cli')
+            def git(args, **kwargs):
+                if args[1]=='show':return Path(root/args[2].split(':',1)[1]).read_bytes()
+                return 'fixed-ref\n'
+            with patch.object(semantic,'ROOT',root),patch.object(semantic.subprocess,'check_output',side_effect=git):
+                folder=Path(temp)/'seal';data=semantic.seal_inputs(folder,cli,'aot')
+                cmd={'command':[str(cli),'build',str(fixture/'main.py'),'-o','output','--aot','--native'],'cwd':str(root)}
+                (folder/'command.json').write_text(json.dumps(cmd));semantic.verify_inputs(folder,data)
+                (fixture/'producer.py').write_bytes(b'tampered')
+                with self.assertRaises(AssertionError):semantic.verify_inputs(folder,data)
+                (fixture/'producer.py').write_bytes(b'producer.py')
+                cmd['command'][2]=str(fixture/'consumer.py');(folder/'command.json').write_text(json.dumps(cmd))
+                with self.assertRaises(AssertionError):semantic.verify_inputs(folder,data)
+                (folder/'consumer.py').unlink()
+                with self.assertRaises(FileNotFoundError):semantic.verify_inputs(folder,data)
+
+    def test_balanced_roles_respect_normalized_arms(self):
+        for name in ('generators','genexpr_sum','ordinary_for','delegated_for'):
+            for enabled in (False,True):
+                hits=[{'role':'generator_sum_resume','target':{'token':1}}] if enabled and name in ('generators','genexpr_sum') else []
+                data={'emitted_delegate_references':hits};balanced.batch_roles(data,enabled,name)
+                bad=copy.deepcopy(data)
+                if hits:bad['emitted_delegate_references']=[]
+                else:bad['emitted_delegate_references']=[{'role':'generator_sum_resume','target':{}}]
+                with self.assertRaises(AssertionError):balanced.batch_roles(bad,enabled,name)
 
     def test_actual_feature_resolve(self):
         data={'packages':[{'name':n,'id':n} for n in ('ryupy-driver','ryupy-mir','ryupy-e2e')],
@@ -119,7 +155,8 @@ class Gates(unittest.TestCase):
                                      'stats':{a:{'main_ms':1,'alloc_bytes':1} for a in ('A','B')}})
                         for arm in ('A','B'):
                             m=folder/'manifests'/name/arm/'ryupy-artifact.json';m.parent.mkdir(parents=True)
-                            m.write_text(json.dumps({'toolchain':{'sdk_version':'10.0.403','target_framework_major':10}}))
+                            hits=[{'role':'generator_sum_resume','target':{'token':1}}] if arm == ('A' if index%2==0 else 'B') and name in ('generators','genexpr_sum') else []
+                            m.write_text(json.dumps({'toolchain':{'sdk_version':'10.0.403','target_framework_major':10},'emitted_delegate_references':hits}))
                     old,new=('on','off') if index%2==0 else ('off','on')
                     (folder/'paired.json').write_text(json.dumps({'old':f'/tmp/frozen-{old}/ryupy','new':f'/tmp/frozen-{new}/ryupy',
                                                                  'runs':12,'warmup':1,'rows':rows}))

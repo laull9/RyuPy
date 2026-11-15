@@ -13,6 +13,13 @@ ROOT = Path(__file__).resolve().parents[3]
 EXPECTED = {'original':{'generators'},'generator-consumers':{'ordinary_for','delegated_for','genexpr_sum'}}
 
 
+def batch_roles(manifest, enabled, name):
+    hits = [r for r in manifest['emitted_delegate_references'] if r['role'] == 'generator_sum_resume']
+    expected = 1 if enabled and name in ('generators', 'genexpr_sum') else 0
+    assert len(hits) == expected, '逐轮真实委托发射与归一化off/on臂不符'
+    assert all(r['target'] is not None for r in hits)
+
+
 def verify(root):
     result = {}
     for index in (1,2,3,4):
@@ -34,6 +41,7 @@ def verify(root):
                     assert row['free_bytes_before_build'][arm]>=4*1024**3
                     assert {'main_ms','alloc_bytes'}<=row['stats'][arm].keys()
                     m=json.loads((folder/'manifests'/row['name']/arm/'ryupy-artifact.json').read_text())
+                    batch_roles(m, arm == on, row['name'])
                     assert m['toolchain']['sdk_version']=='10.0.403' and m['toolchain']['target_framework_major']==10
                 samples={label:[s['ms'] for s in row['samples'][arm]] for label,arm in [('off',off),('on',on),('CP','CP')]}
                 med={label:statistics.median(values) for label,values in samples.items()}

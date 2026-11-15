@@ -87,3 +87,12 @@ CLI身份规范化off/on。四轮48新进程样本只有4次独立构建，分�
 Python门按固定工件相对布局离线重定位两DLL，重算两hash/字节数并核frozen manifest、
 精确8增量和全部签名，不依赖runner已消失的绝对路径。复制失败或缺工件直接失败。
 这仍仅验证固定dev公开ABI保留与该8项增量，古老1659条专项保持原skip状态。
+
+
+跨模块输入证据修正：当前产品manifest的compiled_text_sha256按既有合同为空，不提供
+编译器内部文本自证。CI不改产品hash实现：四个cross编译臂分别在构建前归档3个原文件，
+逐字核固定HEAD源blob，绑定HEAD/tree、CLI绝对路径/SHA256、实际build命令、cwd和入口。
+构建后重核源/CLI字节和源树未变，保留外部输入归档及核验记录。manifest另外严格核
+entry/main.py→__main__及两个modules路径→对应模块、独立模块ID和on三distinct target。
+这仅证明送入编译器的输入身份，不冒称内部编译文本hash或运行快路命中。
+平衡四轮每例再核归一化off零委托；on仅generators/genexpr_sum各一委托，其余零。
