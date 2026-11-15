@@ -2,21 +2,29 @@
 name: Records probe experiment
 on:
   push:
-    branches: [ci/records-probe-20261115]
+    branches: [work/records-probe-ci-20261115]
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   records-probe:
-    if: github.ref == 'refs/heads/ci/records-probe-20261115'
+    if: github.ref == 'refs/heads/work/records-probe-ci-20261115'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
       MSBUILDDISABLENODEREUSE: '1'
       DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
       UseSharedCompilation: 'false'
-      EVIDENCE: ${{ runner.temp }}/records-probe
     steps:
+      # jobs.env没有runner上下文；先在shell建立目录，再跨步骤传递路径。
+      - name: Prepare isolated evidence directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          EVIDENCE="$RUNNER_TEMP/records-probe-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          mkdir -p "$EVIDENCE"
+          printf 'EVIDENCE=%s\n' "$EVIDENCE" >> "$GITHUB_ENV"
+          printf 'run=%s attempt=%s\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" > "$EVIDENCE/run.txt"
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -66,6 +74,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: records-probe-${{ github.sha }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/records-probe
+          path: ${{ env.EVIDENCE }}
           if-no-files-found: error
           retention-days: 14
