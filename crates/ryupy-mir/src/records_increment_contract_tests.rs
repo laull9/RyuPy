@@ -111,7 +111,7 @@ fn records_wire_diagnostic_preserves_actual_before_and_after_mir() {
             "step",
         ),
         (
-            "receiver-rebind",
+            "callback-addend",
             "def step(counts, key, change):\n    counts[key] = counts.get(key, 0) + change()\n    return counts\n",
             "step",
         ),
