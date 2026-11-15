@@ -15,6 +15,7 @@
 公开可变 List 完整构建后才发布，之后永久保持同一 List，外部长度/元素变更即时可见。
 精确 self-extend 固定入口长度，分段复制支持重叠；slice 为独立槽但保留元素引用。
 活迭代每次读当前长度，耗尽不复活。一般枚举失败保留已提交前缀。
+新增唯一引用正负步长跨段/越界/空切片，活迭代跨物化与删除、clear后复用合同。
 Python iter/length_hint/异常链仍归原协议负责；原型不是这些协议的替代实现。
 
 ## 可重现验证
@@ -24,8 +25,8 @@ dotnet test runtime/RyuPy.Runtime.Tests --filter FullyQualifiedName~PySegmentedL
 dotnet run -c Release --project tests/perf/list-storage/host -- 10 > /tmp/list-storage-samples.json
 ```
 
-host 两轮预热、平衡 AB/BA 顺序、同一进程原始 ticks/分配字节。只筛选引用
-append+slice+extend，源盒在计时外，同进程暖态、GC在计时外、不报告臂间RSS。
+host 两轮预热、平衡 AB/BA 顺序、同一进程原始 ticks/分配字节。分别记录 append（30万项）、slice（200次500项）、extend（2000次1000项）
+的原始样本，不用混合总耗时做阶段归因。源盒、源容器、GC及逐项身份校验在计时外，同进程暖态、GC在计时外、不报告臂间RSS。
 它不是 CP/JIT/AOT 对比，不代表原始 list_ops 加速。不要以此替代完整 NativeAOT 验收。
 
 ## 下一阶段准入
@@ -38,3 +39,7 @@ append+slice+extend，源盒在计时外，同进程暖态、GC在计时外、�
 5. 冻结旧新CLI跑原始 list_ops、全26项、独占配对与分配/RSS，最后 make check；通过再决定默认。
 
 这不是完整存储改造交付，也没有性能收益结论。
+
+阶段计时仍是筛选器而非相同机器码：slice候选含PySlice.Indices，连续臂GetRange不含
+Python切片协议；两臂追加/复制方法和分支也不同。保留这些差异，不将阶段差值直接
+等同于“分段复制单一机制”的因果收益。每次阶段结束在计时外校验结果引用与顺序。

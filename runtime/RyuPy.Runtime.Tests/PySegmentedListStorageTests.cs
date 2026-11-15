@@ -126,4 +126,72 @@ public class PySegmentedListStorageTests
         Assert.Equal(2098, target.Count);
         for (int i = 0; i < source.Count; i++) Assert.Same(source[i], target[i + 37]);
     }
+    [Theory]
+    [InlineData(1000, 2070, 3, 1000, 357)]
+    [InlineData(2070, 1000, -3, 2070, 357)]
+    [InlineData(-1, -2051, -1, 3078, 2050)]
+    [InlineData(-9999, 9999, 2, 0, 1540)]
+    [InlineData(9999, -9999, -2, 3078, 1540)]
+    [InlineData(100, 10, 1, 0, 0)]
+    [InlineData(-9999, -9998, 1, 0, 0)]
+    [InlineData(9999, 10000, 1, 0, 0)]
+    public void UniqueSliceElementsExposeCrossSegmentOrdering(
+        long start, long stop, long step, int expectedStart, int expectedCount)
+    {
+        var list = new PySegmentedListStorage();
+        var values = Enumerable.Range(0, 3079).Select(_ => new object()).ToArray();
+        list.Extend(values);
+        var slice = list.Slice(new PySlice(start, stop, step));
+        Assert.Equal(expectedCount, slice.Count);
+        for (int i = 0; i < expectedCount; i++)
+            Assert.Same(values[expectedStart + i * (int)step], slice[i]);
+        Assert.True(list.IsSegmented);
+        Assert.Throws<PyValueError>(() => list.Slice(new PySlice(null, null, 0L)));
+    }
+
+    [Fact]
+    public void LiveIteratorTracksDeletionAcrossMaterialization()
+    {
+        var list = new PySegmentedListStorage();
+        var values = Enumerable.Range(0, 1030).Select(_ => new object()).ToArray();
+        list.Extend(values);
+        using var iterator = list.GetEnumerator();
+        for (int i = 0; i < 1023; i++)
+        {
+            Assert.True(iterator.MoveNext());
+            Assert.Same(values[i], iterator.Current);
+        }
+        var exported = list.Materialize();
+        // 删除已消费项使后续槽左移；游标不重置，所以跳过原1023项。
+        exported.RemoveAt(0);
+        Assert.True(iterator.MoveNext());
+        Assert.Same(values[1024], iterator.Current);
+        object marker = new object();
+        exported[1024] = marker;
+        Assert.True(iterator.MoveNext());
+        Assert.Same(marker, iterator.Current);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ClearThenReuseRetainsModeAndLiveCursorPosition(bool materialize)
+    {
+        var list = new PySegmentedListStorage();
+        for (int i = 0; i < 2050; i++) list.Append(new object());
+        var exported = materialize ? list.Materialize() : null;
+        using var iterator = list.GetEnumerator();
+        Assert.True(iterator.MoveNext());
+        list.Clear();
+        Assert.Equal(0, list.Count);
+        Assert.Throws<PyIndexError>(() => list.Pop());
+        var values = Enumerable.Range(0, 2051).Select(_ => new object()).ToArray();
+        list.Extend(values);
+        // 尚未再次恢复过的游标仍在位置1，不会因clear自动封死。
+        Assert.True(iterator.MoveNext());
+        Assert.Same(values[1], iterator.Current);
+        for (int i = 0; i < values.Length; i++) Assert.Same(values[i], list[i]);
+        Assert.Equal(!materialize, list.IsSegmented);
+        if (materialize) Assert.Same(exported, list.Materialize());
+    }
 }
