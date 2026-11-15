@@ -21,6 +21,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- 隔离存储原型只进入测试程序集，不改变产品布局或热路。 -->
+    <Compile Include="../../tests/perf/list-storage/PySegmentedListStorage.cs" Link="Experiments/PySegmentedListStorage.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\RyuPy.Runtime\RyuPy.Runtime.csproj" />
   </ItemGroup>
 
