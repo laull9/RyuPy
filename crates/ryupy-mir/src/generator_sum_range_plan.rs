@@ -24,6 +24,7 @@ pub(super) struct RangePlan {
     pub(super) residents: FxHashSet<LocalId>,
 }
 
+#[cfg(feature = "generator-sum-experiment")]
 impl RangePlan {
     // 首次接线进一步要求yield直接发布已核验的乘法结果及原恢复边，不接别名扩展形状。
     pub(super) fn direct_yield(&self, function: &Function) -> bool {
