@@ -48,6 +48,17 @@ fn analyze_explained(f: &Function, declared_input: LocalId) -> Result<RangePlan,
     if !crate::generator_state_analysis::eligible(f) || f.params.first() != Some(&declared_input) {
         return Err("字段资格或输入参数不匹配".to_owned());
     }
+    // 降级器仍为全函数暂停边分配恢复PC；不可达的额外Suspend也会改变状态机布局。
+    // 因而只忽略普通死尾块的定义，不能把额外暂停边视为无影响数据。
+    let suspend_count = f
+        .body
+        .blocks
+        .iter()
+        .filter(|(_, block)| matches!(block.terminator, Terminator::Suspend { .. }))
+        .count();
+    if suspend_count != 1 {
+        return Err("全函数必须恰有一个暂停边".to_owned());
+    }
     let reachable = reachable_blocks(f).ok_or_else(|| "不可识别的控制流".to_owned())?;
     // 非SSA函数只接受每个局部单个静态定义点，并证明它支配所有实际读取。
     // 此原型仍需运行时真实类型守卫，不向产品lowering暴露。
@@ -207,7 +218,11 @@ fn reachable_blocks(f: &Function) -> Option<FxHashSet<BlockId>> {
     let mut reachable = FxHashSet::default();
     let mut queue = vec![f.body.entry];
     while let Some(id) = queue.pop() {
-        let (_, block) = f.body.blocks.iter().find(|(candidate, _)| *candidate == id)?;
+        let (_, block) = f
+            .body
+            .blocks
+            .iter()
+            .find(|(candidate, _)| *candidate == id)?;
         if !reachable.insert(id) {
             continue;
         }
