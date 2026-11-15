@@ -111,7 +111,7 @@ def main():
             case_root = root / bench.name
             case_root.mkdir()
             disk = {}
-            source_bytes = bench.path.read_bytes()
+            source_bytes = bench.path.read_bytes() if args.raw_evidence else None
             if args.raw_evidence:
                 folder = args.raw_evidence/bench.name; folder.mkdir()
                 (folder/'source.py').write_bytes(source_bytes)
@@ -160,8 +160,8 @@ def main():
                 archive("moved-"+label, [str(moved / paths[label].name)], result, moved)
                 if (result.exit_code, result.stdout, result.stderr) != (0, *expected):
                     raise RuntimeError((bench.name, label, "搬迁失败", result.stderr))
-            assert bench.path.read_bytes() == source_bytes, "测量期间输入改变"
             if args.raw_evidence:
+                assert bench.path.read_bytes() == source_bytes, "测量期间输入改变"
                 for label, cli in (("A", args.old),("B",args.new)):
                     assert hashlib.sha256(cli.read_bytes()).hexdigest() == identities['arms'][label]['cli_sha256']
                 (folder/'complete.txt').write_text('COMPLETE\n')

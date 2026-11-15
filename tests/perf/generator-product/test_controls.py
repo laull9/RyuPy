@@ -3,10 +3,41 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
+from types import SimpleNamespace
+import sys
 import controls
+sys.path.insert(0,str(controls.balanced.ROOT/"tests/perf"))
+import aot_hotspot_pair as pair
 
 
 class Controls(unittest.TestCase):
+    def test_opt_in_capture_path_executes_44_raw_results(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);source=root/'case.py';source.write_bytes(b'print(1)')
+            raw=root/'raw';raw.mkdir();cli=root/'cli';cli.write_bytes(b'fake')
+            args=SimpleNamespace(old=cli,new=cli,python=Path('/python'),output=root/'paired.json',
+                raw_evidence=raw,manifest_evidence=None,min_free_gib=0,cleanup_completed=True,
+                balanced_order=True,runs=12)
+            bench=SimpleNamespace(name='case',path=source)
+            def build(repo,cli,bench,work,**kwargs):
+                work.mkdir(parents=True);exe=work/'case';exe.write_bytes(b'fake native')
+                kwargs['command_evidence'].write_text(json.dumps({'command':[str(cli),'build',str(source),'-o',str(work),'--aot','--native']}))
+                return exe,1,'','ok'
+            def run(command,env,cwd,stats):
+                return SimpleNamespace(stdout=b'1\n',stderr=b'',exit_code=0,wall_ms=1,max_rss_bytes=2,
+                                       stats={'main_ms':1,'alloc_bytes':2} if stats else {})
+            with patch.object(pair,'arguments',return_value=(args,[bench])), \
+                 patch.object(pair.subprocess,'run',return_value=SimpleNamespace(stdout='3.12.13\n')), \
+                 patch.object(pair.measure,'build_case',side_effect=build), \
+                 patch.object(pair.measure,'run_once',side_effect=run), \
+                 patch.object(pair.measure,'get_safe_external_dir',return_value=root):
+                pair.main()
+            self.assertEqual(len(list((raw/'case').glob('*.stdout'))),44)
+            self.assertEqual(len(list((raw/'case').glob('*.stderr'))),44)
+            data=json.loads((args.output).read_text());self.assertEqual(len(data['rows'][0]['samples']['A']),12)
+            self.assertEqual((raw/'case/complete.txt').read_text(),'COMPLETE\n')
+
     def test_all_raw_streams_samples_and_identity(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);identity={'inputs':{},'cli':{x:{'path':f'/frozen-{x}/ryupy','sha256':'b'*64} for x in ('off','on')}}
