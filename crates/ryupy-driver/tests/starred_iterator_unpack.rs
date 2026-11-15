@@ -273,22 +273,26 @@ def paused(target, values):
     }
     let paused = functions(&mir, "paused");
     assert_eq!(paused.len(), 2, "{mir}");
-    assert!(paused[0].contains("MakeGenerator") && !paused[0].contains("UnpackEx"));
+    assert!(paused[0].contains("MakeStateGenerator") && !paused[0].contains("UnpackEx"));
     let slots = frozen_slots(paused[1], 1, 1);
-    for slot in slots {
-        assert!(
-            paused[1]
-                .lines()
-                .any(|line| line.contains("RuntimeFn::ArraySet(")
-                    && line.ends_with(&format!(", {slot});"))),
-            "{}",
-            paused[1]
-        );
-        assert!(
-            paused[1].contains(&format!("{slot} = RuntimeFn::ArrayGet(")),
-            "{}",
-            paused[1]
-        );
+    // 仅最后一个解包值跨yield；前两个已经完成赋值，保持本次恢复内的临时。
+    let last = slots.last().unwrap();
+    let store = paused[1]
+        .lines()
+        .find(|line| {
+            line.trim()
+                .split_once(" = ")
+                .is_some_and(|(lhs, rhs)| lhs.contains('.') && rhs == format!("{last};"))
+        })
+        .unwrap();
+    let field = store.trim().split_once(" = ").unwrap().0;
+    assert!(paused[1].contains(&format!(" = {field};")), "{}", paused[1]);
+    for slot in &slots[..slots.len() - 1] {
+        assert!(!paused[1].lines().any(|line| {
+            line.trim()
+                .split_once(" = ")
+                .is_some_and(|(lhs, rhs)| lhs.contains('.') && rhs == format!("{slot};"))
+        }));
     }
     let swap = function(&mir, "swap");
     for forbidden in [

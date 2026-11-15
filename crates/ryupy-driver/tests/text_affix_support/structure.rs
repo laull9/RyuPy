@@ -179,7 +179,9 @@ fn prepared(program: &LinkedProgram) {
     assert_eq!(bodies.len(), 2);
     let factory = bodies
         .iter()
-        .find(|(_, func)| rvalues(func).any(|value| matches!(value, Rvalue::MakeGenerator { .. })))
+        .find(|(_, func)| {
+            rvalues(func).any(|value| matches!(value, Rvalue::MakeStateGenerator { .. }))
+        })
         .unwrap()
         .1;
     assert_eq!(calls(factory, RuntimeFn::PrepareMethod), 0);
@@ -209,7 +211,33 @@ fn prepared(program: &LinkedProgram) {
     let input = local(&args[0]);
     assert_eq!(resume.params.len(), 1);
     let frame = resume.params[0];
-    let slot = i64::from(saved.into_raw().into_u32()) + 4;
+    let (payload, slot) = resume
+        .body
+        .blocks
+        .iter()
+        .flat_map(|(_, b)| &b.stmts)
+        .find_map(|s| match s {
+            Statement::Assign {
+                dest,
+                value: Rvalue::GetField { obj, field },
+            } if *dest == saved => Some((obj.clone(), *field)),
+            _ => None,
+        })
+        .expect("暂停后从字段读取绑定结果");
+    let stored = resume
+        .body
+        .blocks
+        .iter()
+        .flat_map(|(_, b)| &b.stmts)
+        .find_map(|s| match s {
+            Statement::SetField {
+                obj,
+                field,
+                value: Operand::Local(id),
+            } if *obj == payload && *field == slot => Some(*id),
+            _ => None,
+        })
+        .expect("暂停前发布绑定结果");
     assert_eq!(calls(resume, RuntimeFn::GeneratorInput), 1);
     assert!(resume.body.blocks.iter().any(|(_, block)| {
         let input_at = block.stmts.iter().position(|stmt| matches!(stmt,
@@ -220,10 +248,6 @@ fn prepared(program: &LinkedProgram) {
             if local(callee) == saved && local(&args[0]) == input));
         matches!((input_at, call_at), (Some(before), Some(after)) if before < after)
     }));
-    assert!(resume.body.blocks[resume.body.entry].stmts.iter().any(|stmt| matches!(stmt,
-        Statement::Assign { dest, value: Rvalue::Call { callee: Callee::Runtime(RuntimeFn::ArrayGet), args } }
-        if *dest == saved && matches!(args.as_slice(), [Operand::Local(id), Operand::Const(Constant::I64(index))] if *id == frame && *index == slot))));
-    // 不能只证明“有spill”：绑定结果必须先写入真实saved局部，再于首次yield前spill。
     assert!(resume.body.blocks.iter().any(|(_, block)| {
         if !matches!(&block.terminator, ryupy_mir::Terminator::Return(Some(_))) {
             return false;
@@ -240,9 +264,9 @@ fn prepared(program: &LinkedProgram) {
                     if receiver.is_some_and(|(_, value)| matches!(&args[0], Operand::Local(actual) if *actual == value))
                     && matches!(&args[1], Operand::Const(Constant::Str(name)) if name == "startswith") => prepared = Some((position, *dest)),
                 Statement::Assign { dest, value: Rvalue::Use(Operand::Local(id)) }
-                    if *dest == saved && prepared.is_some_and(|(_, target)| *id == target) => saved_at = Some(position),
-                Statement::Eval(Rvalue::Call { callee: Callee::Runtime(RuntimeFn::ArraySet), args })
-                    if matches!(args.as_slice(), [Operand::Local(actual), Operand::Const(Constant::I64(index)), Operand::Local(id)] if *actual == frame && *index == slot && *id == saved) => spilled_at = Some(position),
+                    if *dest == stored && prepared.is_some_and(|(_, target)| *id == target) => saved_at = Some(position),
+                Statement::SetField { obj, field, value: Operand::Local(id) }
+                    if *obj == payload && *field == slot && *id == stored => spilled_at = Some(position),
                 _ => {}
             }
         }

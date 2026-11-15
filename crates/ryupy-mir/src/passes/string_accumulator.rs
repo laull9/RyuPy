@@ -36,7 +36,7 @@ impl MirPass for StringAccumulator {
             }
             block.stmts.iter().any(|stmt| match stmt {
                 Statement::Assign { value, .. } | Statement::Eval(value) => match value {
-                    Rvalue::MakeGenerator { .. } => true,
+                    Rvalue::MakeGenerator { .. } | Rvalue::MakeStateGenerator { .. } => true,
                     Rvalue::Call {
                         callee: Callee::Runtime(rt),
                         ..

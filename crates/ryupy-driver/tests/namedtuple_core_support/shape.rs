@@ -160,7 +160,8 @@ fn verify(
             assert!(traces(function, RuntimeFn::TracePush).is_empty());
             let generators: Vec<_> = rvalues(function)
                 .filter_map(|value| match value {
-                    Rvalue::MakeGenerator { origin, .. } => Some(origin),
+                    Rvalue::MakeGenerator { origin, .. }
+                    | Rvalue::MakeStateGenerator { origin, .. } => Some(origin),
                     _ => None,
                 })
                 .collect();

@@ -76,6 +76,10 @@ pub const EXCEPTION_TYPE_NAMES: &[&str] = &[
 /// `RyuPy.Runtime` 中的静态方法。新增条目时同步修改 C# 侧与 codegen 的引用表。
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum RuntimeFn {
+    /// 字段状态机载体及原生PC；控制对象只在编译器恢复入口内使用。
+    GeneratorStateData,
+    GeneratorStateGetPC,
+    GeneratorStateSetPC,
     /// 真实实例字典名称读取、写入与执行来源。
     InstanceLoadName,
     InstanceStoreName,

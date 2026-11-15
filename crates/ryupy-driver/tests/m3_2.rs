@@ -20,12 +20,16 @@ fn snapshot_m3_2_basic() {
             ],
             Stage::Types => &["[Dynamic]: [Dynamic] -> Dynamic"],
             Stage::Mir => &[
-                "MakeGenerator(values",
+                "MakeStateGenerator(values",
                 "GeneratorInput",
-                "ArrayGet",
+                "GeneratorStateData",
                 "branch ",
             ],
-            Stage::Cil => &["PyOps.GeneratorInput", "PyOps.ArraySet", "PyOps.ArrayGet"],
+            Stage::Cil => &[
+                "PyOps.GeneratorInput",
+                "PyOps.GeneratorStateSetPC",
+                "PyOps.GeneratorStateGetPC",
+            ],
             _ => unreachable!("测试只列出已约定阶段"),
         };
         for token in required {
@@ -130,10 +134,13 @@ fn snapshot_m3_2_return_value() {
     .unwrap();
     let mut session = Session::default();
     let output = dump(&mut session, &path, Stage::Mir).expect("完成边应保留返回值");
-    assert!(output.contains("MakeGenerator(values"), "{output}");
+    assert!(output.contains("MakeStateGenerator(values"), "{output}");
     assert!(output.contains("GeneratorInput"), "{output}");
     assert!(output.contains("box<I64>(const 9_i64)"), "{output}");
-    assert!(output.contains("box<I64>(const -1_i64)"), "{output}");
+    assert!(
+        output.contains("const -1_i64") && output.contains("GeneratorStateSetPC"),
+        "{output}"
+    );
     std::fs::remove_file(path).unwrap();
 }
 
@@ -147,8 +154,16 @@ fn snapshot_m3_2_send() {
         let output = dump(&mut session, &path, stage).expect("yield表达式应有恢复接收槽");
         let required: &[&str] = match stage {
             Stage::Hir => &["value = (yield 1)", "return value"],
-            Stage::Mir => &["MakeGenerator(echo", "GeneratorInput", "ArrayGet"],
-            Stage::Cil => &["PyOps.GeneratorInput", "PyOps.ArraySet", "PyOps.ArrayGet"],
+            Stage::Mir => &[
+                "MakeStateGenerator(echo",
+                "GeneratorInput",
+                "GeneratorStateData",
+            ],
+            Stage::Cil => &[
+                "PyOps.GeneratorInput",
+                "PyOps.GeneratorStateSetPC",
+                "PyOps.GeneratorStateGetPC",
+            ],
             _ => unreachable!("测试只列出已约定阶段"),
         };
         for token in required {
@@ -203,7 +218,7 @@ fn snapshot_prepared_dataclass_runtime_support() {
     // M3.6默认数据类改为完整运行时对象；旧E0305边界已由真实差分解除。
     let output = dump(&mut session, &path, Stage::Mir).expect("运行时数据类支持暂停实参");
     assert!(output.contains("ApplyDataclass"), "{output}");
-    assert!(output.contains("MakeGenerator(g"), "{output}");
+    assert!(output.contains("MakeStateGenerator(g"), "{output}");
     assert!(output.contains("GeneratorInput"), "{output}");
     assert!(output.contains("dyn.call"), "{output}");
     std::fs::remove_file(path).unwrap();

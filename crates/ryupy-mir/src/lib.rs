@@ -248,3 +248,12 @@ mod ordinary_mi_tests;
 mod private_comp_append;
 #[cfg(test)]
 mod private_comp_append_tests;
+
+mod generator_state;
+mod generator_state_analysis;
+mod generator_state_validate;
+mod link_values;
+mod local_access;
+
+#[cfg(test)]
+mod generator_state_tests;

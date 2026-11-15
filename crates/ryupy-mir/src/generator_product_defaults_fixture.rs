@@ -21,7 +21,7 @@ impl Fixture {
         let (hir, types) = frontend(SOURCE);
         let mut plan = generator_product::DeferredGenerators::default();
         let (mut program, exports, errors) =
-            build::build_program_mode(&hir, &types, None, Some(&mut plan));
+            build::build_program_mode(&hir, &types, None, Some(&mut plan), true);
         assert!(errors.is_empty());
         passes::run_pipeline_high(
             &mut program,

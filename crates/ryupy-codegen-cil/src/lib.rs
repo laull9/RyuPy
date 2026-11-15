@@ -236,3 +236,5 @@ mod explicit_super_pe_tests;
 
 #[cfg(test)]
 mod lexical_class_abi_tests;
+
+mod generator_state_emit;

@@ -8,9 +8,12 @@
 上一轮已交接；用户于2026-11-15授权继续。已完成筛法循环及三项热点分派优化，当前转向四项高差距工作负载的架构改造，
 [交接报告](docs/aot-performance-handoff-2026-11-15.md)保留上一轮结论。
 
-- [ ] **架构级主线（用户最新要求）**：四项高差距工作负载转向类型化执行区、逃逸与物化合同，
+- [~] **架构级主线（用户最新要求）**：四项高差距工作负载转向类型化执行区、逃逸与物化合同，
   先生成器状态机，继而推导式；records布局/聚合键探针与list_ops分段/紧凑存储分别验收。
-  [实施路线](docs/aot-architecture-performance-plan.md)已登记；尚未实现，不再以分派微调作为主要推进方式。
+  [实施路线](docs/aot-architecture-performance-plan.md)已登记；字段驻留生成器（ADR-0202）默认启用，
+  5项结构/4项Runtime、完整make check、CP/JIT/AOT删除输入搬迁、NumPy及26项保护通过。
+  原始generators全量耗时-22.23%，独立10轮-26.29%，分配/RSS基本持平；
+  [验收记录](docs/aot-generator-state-optimization.md)。消费者融合与其他三项架构切片待实施。
 
 - [x] 精确列表False写入与整数步进完整快循环：6项MIR/7项Runtime、CP/JIT/NativeAOT删除输入搬迁、
   NumPy2.3.5回退、26项配对及完整make check通过（C#3167，MIR377，e2e475）。

@@ -54,7 +54,7 @@ fn snapshot_unpack_before_ordered_leaf_stores() {
                 assert_eq!(bind.matches("RuntimeFn::UnpackEx").count(), 1);
                 assert!(bind[starred..].contains("const \"rest\""));
                 assert!(starred < bind.rfind("RuntimeFn::SetAttr").unwrap());
-                assert!(output.contains("MakeGenerator(paused"));
+                assert!(output.contains("MakeStateGenerator(paused"));
                 let resume = output.rsplit("fn paused(").next().unwrap();
                 assert!(
                     resume.find("RuntimeFn::GeneratorInput").unwrap()

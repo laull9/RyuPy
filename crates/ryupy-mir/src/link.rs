@@ -11,13 +11,13 @@
 //!
 //! 函数体内部的局部变量 ID 属于函数自己的 arena，不需要改写。
 
+use crate::link_values::remap_rvalue;
 use la_arena::Arena;
 use rustc_hash::FxHashMap;
 
 use crate::mir::{
-    BasicBlock, Body, Callee, ClassDef, ClassDefId, FnId, Function, GlobalDecl, GlobalId,
-    LinkedProgram, LocalDecl, MirType, ModuleDef, ModuleId, Operand, Program, Rvalue, Statement,
-    Terminator,
+    BasicBlock, Body, ClassDef, ClassDefId, FnId, Function, GlobalDecl, GlobalId, LinkedProgram,
+    LocalDecl, MirType, ModuleDef, ModuleId, Operand, Program, Statement, Terminator,
 };
 
 /// 一个模块的元信息（由 driver 从模块图提供）。
@@ -161,6 +161,7 @@ pub(crate) fn link_with_origins(
                     .map(|(name, ty)| (name.clone(), remap_type(ty, &class_map)))
                     .collect(),
                 is_value_type: cls.is_value_type,
+                is_generator_state: cls.is_generator_state,
                 is_dataclass: cls.is_dataclass,
                 base: cls.base.map(|b| class_map[&b]),
                 builtin_base: cls.builtin_base.clone(),
@@ -310,7 +311,7 @@ pub(crate) fn link_with_origins(
     }
 }
 
-fn remap_type(ty: &MirType, class_map: &FxHashMap<ClassDefId, ClassDefId>) -> MirType {
+pub(super) fn remap_type(ty: &MirType, class_map: &FxHashMap<ClassDefId, ClassDefId>) -> MirType {
     match ty {
         MirType::Class(id) => MirType::Class(class_map.get(id).copied().unwrap_or(*id)),
         other => other.clone(),
@@ -394,7 +395,7 @@ fn remap_terminator(term: &Terminator, global_map: &FxHashMap<GlobalId, GlobalId
     }
 }
 
-fn remap_operand(op: &Operand, global_map: &FxHashMap<GlobalId, GlobalId>) -> Operand {
+pub(super) fn remap_operand(op: &Operand, global_map: &FxHashMap<GlobalId, GlobalId>) -> Operand {
     match op {
         Operand::Local(_) | Operand::Const(_) => op.clone(),
         Operand::Global(gid) => Operand::Global(global_map[gid]),
@@ -404,167 +405,6 @@ fn remap_operand(op: &Operand, global_map: &FxHashMap<GlobalId, GlobalId>) -> Op
                 .map(|item| remap_operand(item, global_map))
                 .collect(),
         ),
-    }
-}
-
-fn remap_rvalue(
-    value: &Rvalue,
-    fn_map: &FxHashMap<FnId, FnId>,
-    class_map: &FxHashMap<ClassDefId, ClassDefId>,
-    global_map: &FxHashMap<GlobalId, GlobalId>,
-) -> Rvalue {
-    match value {
-        Rvalue::Use(op) => Rvalue::Use(remap_operand(op, global_map)),
-        Rvalue::Binary { op, lhs, rhs } => Rvalue::Binary {
-            op: *op,
-            lhs: remap_operand(lhs, global_map),
-            rhs: remap_operand(rhs, global_map),
-        },
-        Rvalue::Unary { op, operand } => Rvalue::Unary {
-            op: *op,
-            operand: remap_operand(operand, global_map),
-        },
-        Rvalue::Cast { kind, operand } => Rvalue::Cast {
-            kind: *kind,
-            operand: remap_operand(operand, global_map),
-        },
-        Rvalue::Call { callee, args } => Rvalue::Call {
-            callee: match callee {
-                Callee::Fn(id) => Callee::Fn(fn_map[id]),
-                Callee::Runtime(rt) => Callee::Runtime(*rt),
-            },
-            args: args.iter().map(|a| remap_operand(a, global_map)).collect(),
-        },
-        Rvalue::NewObject { class, args } => Rvalue::NewObject {
-            class: class_map[class],
-            args: args.iter().map(|a| remap_operand(a, global_map)).collect(),
-        },
-        Rvalue::GetField { obj, field } => Rvalue::GetField {
-            obj: remap_operand(obj, global_map),
-            field: *field,
-        },
-        Rvalue::Box { value, from } => Rvalue::Box {
-            value: remap_operand(value, global_map),
-            from: remap_type(from, class_map),
-        },
-        Rvalue::IsVector128Supported => Rvalue::IsVector128Supported,
-        Rvalue::VectorPackF64 { low, high } => Rvalue::VectorPackF64 {
-            low: remap_operand(low, global_map),
-            high: remap_operand(high, global_map),
-        },
-        Rvalue::VectorBinaryF64 { op, lhs, rhs } => Rvalue::VectorBinaryF64 {
-            op: *op,
-            lhs: remap_operand(lhs, global_map),
-            rhs: remap_operand(rhs, global_map),
-        },
-        Rvalue::VectorLaneF64 { value, lane } => Rvalue::VectorLaneF64 {
-            value: remap_operand(value, global_map),
-            lane: *lane,
-        },
-        Rvalue::IsBoxedF64 { value } => Rvalue::IsBoxedF64 {
-            value: remap_operand(value, global_map),
-        },
-        Rvalue::UnboxExactF64 { value } => Rvalue::UnboxExactF64 {
-            value: remap_operand(value, global_map),
-        },
-        Rvalue::IsBoxedI64 { value } => Rvalue::IsBoxedI64 {
-            value: remap_operand(value, global_map),
-        },
-        Rvalue::UnboxExactI64 { value } => Rvalue::UnboxExactI64 {
-            value: remap_operand(value, global_map),
-        },
-        Rvalue::Unbox { value, to } => Rvalue::Unbox {
-            value: remap_operand(value, global_map),
-            to: remap_type(to, class_map),
-        },
-        Rvalue::DynBinary {
-            op,
-            lhs,
-            rhs,
-            inplace,
-        } => Rvalue::DynBinary {
-            op: *op,
-            lhs: remap_operand(lhs, global_map),
-            rhs: remap_operand(rhs, global_map),
-            inplace: *inplace,
-        },
-        Rvalue::DynCompare { op, lhs, rhs } => Rvalue::DynCompare {
-            op: *op,
-            lhs: remap_operand(lhs, global_map),
-            rhs: remap_operand(rhs, global_map),
-        },
-        Rvalue::DynUnary { op, operand } => Rvalue::DynUnary {
-            op: *op,
-            operand: remap_operand(operand, global_map),
-        },
-        Rvalue::DynTruthy { value } => Rvalue::DynTruthy {
-            value: remap_operand(value, global_map),
-        },
-        Rvalue::CallWithArgs {
-            callee,
-            prefix,
-            args,
-        } => Rvalue::CallWithArgs {
-            callee: *callee,
-            prefix: prefix
-                .iter()
-                .map(|a| remap_operand(a, global_map))
-                .collect(),
-            args: args.iter().map(|a| remap_operand(a, global_map)).collect(),
-        },
-        Rvalue::InstanceZeroCall { callee, frame } => Rvalue::InstanceZeroCall {
-            callee: remap_operand(callee, global_map),
-            frame: *frame,
-        },
-        Rvalue::DynCallValue { callee, args } => Rvalue::DynCallValue {
-            callee: remap_operand(callee, global_map),
-            args: args.iter().map(|a| remap_operand(a, global_map)).collect(),
-        },
-        Rvalue::DynCallMethod {
-            captured,
-            obj,
-            name,
-            args,
-        } => Rvalue::DynCallMethod {
-            captured: captured
-                .as_ref()
-                .map(|value| remap_operand(value, global_map)),
-            obj: remap_operand(obj, global_map),
-            name: name.clone(),
-            args: args.iter().map(|a| remap_operand(a, global_map)).collect(),
-        },
-        Rvalue::GeneratorDelegateStep { delegate } => Rvalue::GeneratorDelegateStep {
-            delegate: remap_operand(delegate, global_map),
-        },
-        Rvalue::MakeGenerator {
-            resume,
-            frame,
-            origin,
-        } => Rvalue::MakeGenerator {
-            resume: fn_map[resume],
-            origin: origin.as_ref().map(|op| remap_operand(op, global_map)),
-            frame: frame
-                .iter()
-                .map(|op| remap_operand(op, global_map))
-                .collect(),
-        },
-        Rvalue::MakeFunction {
-            instance_context,
-            func,
-            env,
-            defaults,
-        } => Rvalue::MakeFunction {
-            instance_context: instance_context
-                .as_ref()
-                .map(|op| remap_operand(op, global_map)),
-            func: fn_map[func],
-            env: env.iter().map(|a| remap_operand(a, global_map)).collect(),
-            defaults: defaults
-                .iter()
-                .map(|a| remap_operand(a, global_map))
-                .collect(),
-        },
-        Rvalue::CatchException => Rvalue::CatchException,
     }
 }
 

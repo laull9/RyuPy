@@ -34,28 +34,28 @@ fn run(function: &mut Function, direct: bool) {
                     matches!(
                         statement,
                         Statement::Assign {
-                            value: Rvalue::MakeGenerator { .. },
+                            value: Rvalue::MakeGenerator { .. } | Rvalue::MakeStateGenerator { .. },
                             ..
-                        } | Statement::Eval(Rvalue::MakeGenerator { .. })
-                            | Statement::Assign {
-                                value: Rvalue::Call {
-                                    callee: Callee::Runtime(
-                                        RuntimeFn::FunctionLocalsValidate
-                                            | RuntimeFn::FunctionLocalsEnsure
-                                            | RuntimeFn::FunctionLocalsSync,
-                                    ),
-                                    ..
-                                },
-                                ..
-                            }
-                            | Statement::Eval(Rvalue::Call {
+                        } | Statement::Eval(
+                            Rvalue::MakeGenerator { .. } | Rvalue::MakeStateGenerator { .. }
+                        ) | Statement::Assign {
+                            value: Rvalue::Call {
                                 callee: Callee::Runtime(
                                     RuntimeFn::FunctionLocalsValidate
                                         | RuntimeFn::FunctionLocalsEnsure
                                         | RuntimeFn::FunctionLocalsSync,
                                 ),
                                 ..
-                            })
+                            },
+                            ..
+                        } | Statement::Eval(Rvalue::Call {
+                            callee: Callee::Runtime(
+                                RuntimeFn::FunctionLocalsValidate
+                                    | RuntimeFn::FunctionLocalsEnsure
+                                    | RuntimeFn::FunctionLocalsSync,
+                            ),
+                            ..
+                        })
                     )
                 })
         })

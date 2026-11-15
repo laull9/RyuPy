@@ -214,6 +214,7 @@ fn modules_nested_functions_generators_and_registered_factories_match_real_pe() 
             codegen_name: format!("Exception{registered}"),
             fields: vec![],
             is_value_type: false,
+            is_generator_state: false,
             is_dataclass: false,
             base: None,
             builtin_base: Some("ValueError".into()),

@@ -20,7 +20,10 @@ pub(super) fn fixed_abi(callee: RuntimeFn) -> bool {
     }
     matches!(
         callee,
-        RuntimeFn::GuardedListSetFalseLoop
+        RuntimeFn::GeneratorStateData
+            | RuntimeFn::GeneratorStateGetPC
+            | RuntimeFn::GeneratorStateSetPC
+            | RuntimeFn::GuardedListSetFalseLoop
             | RuntimeFn::DynRichCompareValue
             | RuntimeFn::InstanceClassGuard
             | RuntimeFn::InstanceClassCellGuard
@@ -159,6 +162,10 @@ pub(super) fn validate_call(
                 MirType::Dynamic,
                 MirType::Dynamic,
             ]),
+            RuntimeFn::GeneratorStateData | RuntimeFn::GeneratorStateGetPC => {
+                Some(&[MirType::Dynamic])
+            }
+            RuntimeFn::GeneratorStateSetPC => Some(&[MirType::Dynamic, MirType::I64]),
             RuntimeFn::GuardedListSetFalseLoop => Some(&[const { MirType::Dynamic }; 4]),
             RuntimeFn::NumericListCreate => Some(&[]),
             RuntimeFn::NumericListAppendF64 => Some(&[MirType::Dynamic, MirType::F64]),
@@ -347,6 +354,8 @@ pub(super) fn validate_destination(
         let expected = match runtime {
             #[cfg(feature = "trace-adapter-test")]
             RuntimeFn::TraceAdapterExplicit => Some(MirType::Dynamic),
+            RuntimeFn::GeneratorStateGetPC => Some(MirType::I64),
+            RuntimeFn::GeneratorStateData => Some(MirType::Dynamic),
             RuntimeFn::ModuleFile => Some(MirType::Str),
             RuntimeFn::TracePushWithOrigin => Some(MirType::I64),
             RuntimeFn::GuardedListSetFalseLoop
@@ -390,6 +399,15 @@ pub(super) fn validate_destination(
             errors.push(format!("函数 `{}` 的运行时ABI返回槽类型错误", func.name));
         }
     }
+    if matches!(value, Rvalue::MakeStateGenerator { .. })
+        && crate::validate::local_decl(&func.body.locals, dest)
+            .is_some_and(|l| l.ty != MirType::Dynamic)
+    {
+        errors.push(format!(
+            "函数 `{}` 的字段生成器结果必须是Dynamic",
+            func.name
+        ));
+    }
     if matches!(
         value,
         Rvalue::Call {
@@ -412,6 +430,9 @@ pub(super) fn validate_destination(
 
 /// 运行时返回值必须消费；这是既有 Eval 规则的等价归拢，仅新增星号入口。
 pub(super) fn validate_eval(func: &Function, value: &Rvalue, errors: &mut Vec<String>) {
+    if matches!(value, Rvalue::MakeStateGenerator { .. }) {
+        errors.push(format!("函数 `{}` 的字段生成器返回值必须消费", func.name));
+    }
     if let Rvalue::Call {
         callee: Callee::Runtime(runtime),
         ..
@@ -474,6 +495,8 @@ pub(super) fn validate_eval(func: &Function, value: &Rvalue, errors: &mut Vec<St
                     | RuntimeFn::NumericListReadCheckedF64
                     | RuntimeFn::NumericListReadF64
                     | RuntimeFn::NumericAccumulatorCreate
+                    | RuntimeFn::GeneratorStateData
+                    | RuntimeFn::GeneratorStateGetPC
                     | RuntimeFn::GuardedListSetFalseLoop
                     | RuntimeFn::NumericAccumulatorValue
                     | RuntimeFn::ValidateOrdinaryBase

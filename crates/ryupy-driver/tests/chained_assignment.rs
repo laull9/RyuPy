@@ -63,7 +63,7 @@ fn snapshot_shared_value_and_suspended_target_order() {
                         && integers.contains("_1 = _2;")
                         && integers.contains("RuntimeFn::IsSame")
                 );
-                assert!(output.contains("MakeGenerator(paused"));
+                assert!(output.contains("MakeStateGenerator(paused"));
                 let resume = output.rsplit("fn paused(").next().unwrap();
                 assert!(
                     resume.find("RuntimeFn::GeneratorInput").unwrap()

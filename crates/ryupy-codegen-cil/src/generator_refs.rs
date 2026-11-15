@@ -3,6 +3,10 @@
 use dotnetdll::prelude::*;
 
 pub(crate) struct GeneratorRefs {
+    pub state_ctor: MethodRefIndex,
+    pub state_data: MethodRefIndex,
+    pub state_pc: MethodRefIndex,
+    pub state_set_pc: MethodRefIndex,
     pub resume_ctor: MethodRefIndex,
     pub ctor: MethodRefIndex,
     pub ctor_with_origin: MethodRefIndex,
@@ -20,6 +24,18 @@ impl GeneratorRefs {
         let ops = res.push_type_reference(type_ref! { RyuPy.Runtime.PyOps in #runtime });
         let ops: MethodType = BaseType::class(ops).into();
         Self {
+            state_ctor: res.push_method_reference(method_ref! {
+                void @generator::.ctor(@resume, object, long, string, string, object)
+            }),
+            state_data: res.push_method_reference(
+                method_ref! { static object @ops::GeneratorStateData(object) },
+            ),
+            state_pc: res.push_method_reference(
+                method_ref! { static long @ops::GeneratorStateGetPC(object) },
+            ),
+            state_set_pc: res.push_method_reference(
+                method_ref! { static void @ops::GeneratorStateSetPC(object, long) },
+            ),
             resume_ctor: res
                 .push_method_reference(method_ref! { void @resume::.ctor(object, nint) }),
             // 无来源的手工MIR保留既有四参ABI，真实工厂显式传同一个owner引用。

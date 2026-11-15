@@ -130,7 +130,8 @@ fn validate_stage(
                             value,
                             Rvalue::Call {
                                 callee: Callee::Runtime(
-                                    RuntimeFn::NumericAccumulatorAdd
+                                    RuntimeFn::GeneratorStateSetPC
+                                        | RuntimeFn::NumericAccumulatorAdd
                                         | RuntimeFn::CheckGlobalBound
                                         | RuntimeFn::TraceCheckDepth
                                 ),
@@ -320,6 +321,9 @@ fn validate_rvalue(
     errors: &mut Vec<String>,
 ) {
     match rvalue {
+        Rvalue::MakeStateGenerator { .. } => crate::generator_state_validate::validate_creation(
+            program, func, block_id, rvalue, errors,
+        ),
         Rvalue::Use(op) => validate_operand(program, func, block_id, op, errors),
         Rvalue::GeneratorDelegateStep { delegate } => {
             validate_operand(program, func, block_id, delegate, errors);

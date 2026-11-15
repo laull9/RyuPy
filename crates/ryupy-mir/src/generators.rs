@@ -27,7 +27,7 @@ pub(crate) fn lower_with_trace(
         .collect()
 }
 
-fn empty_body() -> Body {
+pub(super) fn empty_body() -> Body {
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
         stmts: Vec::new(),

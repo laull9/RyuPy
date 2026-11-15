@@ -1,4 +1,4 @@
-//! 生成器只读形参优化测试。
+//! 旧数组后备路径的只读形参合同；默认字段状态机由generator_state_tests单独验证。
 //!
 //! 验证：
 //! 1. 结构断言：原始 count_up(n) 的 Dynamic 形参 n 命中只读形参集合，在 Suspend 时消除冗余 ArraySet 写回；
@@ -21,7 +21,7 @@ fn compile(source: &str) -> (Program, FnId, FnId) {
     assert!(diags.is_empty(), "HIR 降低失败: {diags:?}");
     let (types, diags) = ryupy_ty::check_module(&hir);
     assert!(diags.is_empty(), "类型检查失败: {diags:?}");
-    let (program, _, diags) = crate::build_program(&hir, &types);
+    let (program, _, diags) = crate::build::build_program_with_origins(&hir, &types, None);
     assert!(diags.is_empty(), "MIR 构建失败: {diags:?}");
 
     let mut factory_id = None;

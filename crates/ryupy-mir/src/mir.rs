@@ -117,6 +117,8 @@ pub struct ClassDef {
     /// ADR-0009 之后 `frozen=True` 也不再使用 .NET 值类型：值拷贝会破坏 Python 的
     /// 对象身份，因此 `is_value_type` 保留字段但当前恒为 `false`。
     pub is_value_type: bool,
+    /// 编译器私有生成器字段载体，不注册为Python类。
+    pub is_generator_state: bool,
     pub is_dataclass: bool,
     /// 用户类继承链（单继承）；`None` 表示直接继承 `object`。
     pub base: Option<ClassDefId>,
@@ -332,6 +334,13 @@ pub enum Constant {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Rvalue {
+    /// 创建字段驻留状态生成器；payload是编译器私有引用类型，PC独立为原生整数。
+    MakeStateGenerator {
+        resume: FnId,
+        payload: Operand,
+        initial_pc: i64,
+        origin: Option<Operand>,
+    },
     /// 生成器降级前的委托推进；降级时补帧参数，返回是否产出。
     GeneratorDelegateStep {
         delegate: Operand,

@@ -40,7 +40,7 @@ pub fn build_program(
     hir: &Module,
     types: &ModuleTypes,
 ) -> (Program, Vec<crate::mir::ModuleExport>, Vec<Diagnostic>) {
-    build_program_with_origins(hir, types, None)
+    crate::generator_state::build_program(hir, types)
 }
 
 pub(crate) fn build_program_with_origins(
@@ -48,7 +48,7 @@ pub(crate) fn build_program_with_origins(
     types: &ModuleTypes,
     origins: Option<&mut crate::trace_lowering::LoweringOrigins>,
 ) -> (Program, Vec<crate::mir::ModuleExport>, Vec<Diagnostic>) {
-    build_program_mode(hir, types, origins, None)
+    build_program_mode(hir, types, origins, None, false)
 }
 
 pub(crate) fn build_program_mode(
@@ -56,6 +56,7 @@ pub(crate) fn build_program_mode(
     types: &ModuleTypes,
     mut origins: Option<&mut crate::trace_lowering::LoweringOrigins>,
     deferred: Option<&mut crate::generator_product::DeferredGenerators>,
+    trace_product: bool,
 ) -> (Program, Vec<crate::mir::ModuleExport>, Vec<Diagnostic>) {
     let mut functions = Arena::default();
     let mut classes = Arena::default();
@@ -93,6 +94,7 @@ pub(crate) fn build_program_mode(
             codegen_name: cls.name.as_str().to_string(),
             fields,
             is_value_type: false,
+            is_generator_state: false,
             is_dataclass: cls.is_dataclass
                 && (cls.decorated_binding.is_none() && !cls.runtime_dataclass),
             base: None,
@@ -278,7 +280,7 @@ pub(crate) fn build_program_mode(
         if origins.is_some() {
             builder.trace_expressions = Some(Vec::new());
         }
-        builder.trace_product = deferred.is_some();
+        builder.trace_product = trace_product;
         // 建立 HIR 局部变量 → MIR 局部变量映射。
         // 被 nested 函数捕获的名字（cell，M3.0）在槽位里存 `object[1]`，
         // 必须用 Dynamic 表示；读写都经过运行时 cell 协议。

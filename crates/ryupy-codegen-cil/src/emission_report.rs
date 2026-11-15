@@ -178,10 +178,15 @@ pub(crate) fn collect(
                 .flat_map(|(_, block)| &block.stmts)
                 .filter_map(|statement| match statement {
                     Statement::Assign {
-                        value: Rvalue::MakeGenerator { resume, .. },
+                        value:
+                            Rvalue::MakeGenerator { resume, .. }
+                            | Rvalue::MakeStateGenerator { resume, .. },
                         ..
                     }
-                    | Statement::Eval(Rvalue::MakeGenerator { resume, .. }) => Some(*resume),
+                    | Statement::Eval(
+                        Rvalue::MakeGenerator { resume, .. }
+                        | Rvalue::MakeStateGenerator { resume, .. },
+                    ) => Some(*resume),
                     _ => None,
                 })
         })

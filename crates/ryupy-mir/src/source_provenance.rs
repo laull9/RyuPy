@@ -345,7 +345,8 @@ fn check_frame(
                     markers += 1;
                 }
                 Statement::Assign {
-                    value: Rvalue::MakeGenerator { origin, .. },
+                    value:
+                        Rvalue::MakeGenerator { origin, .. } | Rvalue::MakeStateGenerator { origin, .. },
                     ..
                 } => {
                     if function
@@ -454,6 +455,9 @@ pub(crate) fn operands(value: &Rvalue) -> Vec<&Operand> {
             ..
         } => env.iter().chain(defaults).chain(instance_context).collect(),
         Rvalue::MakeGenerator { frame, origin, .. } => frame.iter().chain(origin).collect(),
+        Rvalue::MakeStateGenerator {
+            payload, origin, ..
+        } => std::iter::once(payload).chain(origin).collect(),
         Rvalue::InstanceZeroCall { callee, .. } => vec![callee],
         Rvalue::CatchException | Rvalue::IsVector128Supported => vec![],
     }

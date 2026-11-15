@@ -1,7 +1,7 @@
 # 四项高差距工作负载的架构优化路线
 
-状态：2026-11-15用户要求转向架构级优化；本文为实施合同，产品尚未实现这些新架构。
-当前产品基线45bfabda，既有结果见[aot-hotspot-dispatch-optimization.md](aot-hotspot-dispatch-optimization.md)。
+状态：2026-11-15用户要求转向架构级优化；本文为实施合同。G首切字段驻留状态机已默认落地；其余架构切片待实施。
+本路线初始产品基线45bfabda，既有结果见[aot-hotspot-dispatch-optimization.md](aot-hotspot-dispatch-optimization.md)。
 
 ## 判断与共同基础
 
@@ -35,6 +35,10 @@ generators、comprehensions、records和list_ops继续作为固定原始输入�
    已存在的盒必须保留原引用。资源耗尽时点若改变，单独ADR登记。
 
 ## G：生成器状态机与消费融合
+
+进展：字段驻留首切已通过完整门禁、CP/JIT/NativeAOT删除输入搬迁、NumPy和原始26项。
+生成器完整原程序全量耗时-22.23%，重点10轮-26.29%；分配与RSS基本持平。
+实现边界及下一步见[验收记录](aot-generator-state-optimization.md)。
 
 首切用编译器生成的状态机载体替换全局部object[]搬运：PC采用原生整数，长期局部直接驻留
 字段，短命临时只存在于本次恢复调用；每个恢复入口有显式live-in与异常边证明。

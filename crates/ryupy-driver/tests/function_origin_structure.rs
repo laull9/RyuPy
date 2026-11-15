@@ -309,38 +309,51 @@ fn assert_direct_origin(program: &Program) {
 fn assert_generator_origin(program: &Program) {
     let factory = function(program, "stream").1;
     let owner = factory.dynamic_origin.unwrap().owner;
-    let (resume, frame, origin) = unique(
+    let (resume, payload, origin) = unique(
         rvalues(factory).filter_map(|value| match value {
-            Rvalue::MakeGenerator {
+            Rvalue::MakeStateGenerator {
                 resume,
-                frame,
+                payload,
                 origin,
-            } => Some((*resume, frame, origin)),
+                ..
+            } => Some((*resume, payload, origin)),
             _ => None,
         }),
-        "生成器持有实际owner",
+        "字段生成器持有实际owner",
     );
     assert_eq!(local(origin.as_ref().unwrap()), owner);
-    let slot = owner.into_raw().into_u32() as usize + 4;
-    assert_eq!(local(&frame[slot]), owner);
+    let (class, args) = unique(
+        rvalues(factory).filter_map(|value| match value {
+            Rvalue::NewObject { class, args } => Some((*class, args)),
+            _ => None,
+        }),
+        "私有字段载体",
+    );
+    assert_eq!(
+        factory.body.locals[local(payload)].ty,
+        MirType::Class(class)
+    );
+    let slot = program.classes[class]
+        .fields
+        .iter()
+        .position(|(name, _)| *name == format!("slot{}", owner.into_raw().into_u32()))
+        .unwrap();
+    assert_eq!(local(&args[slot]), owner, "工厂捕获本次函数实例");
     let resume = &program.functions[resume];
     assert!(resume.dynamic_origin.is_none() && resume.signature_global.is_none());
     assert_eq!(resume.params.len(), 1);
-    let frame = resume.params[0];
-    assert_eq!(resume.body.locals[frame].ty, MirType::Dynamic);
+    assert_eq!(resume.body.locals[resume.params[0]].ty, MirType::Dynamic);
     assert!(trace_calls(resume, RuntimeFn::TracePush).is_empty());
     assert!(trace_calls(resume, RuntimeFn::TracePushWithOrigin).is_empty());
-    let (_, restored, args) = unique(resume.body.blocks.iter().flat_map(|(_, block)| assigned_calls(&block.stmts, Callee::Runtime(RuntimeFn::ArrayGet))).filter(|(_, _, args)|
-        matches!(args.get(1), Some(Operand::Const(Constant::I64(index))) if *index == slot as i64)), "恢复owner槽");
-    assert_eq!(restored, owner);
-    assert_eq!(local(&args[0]), frame);
-    let saves: Vec<_> = trace_calls(resume, RuntimeFn::ArraySet).into_iter().filter(|args|
-        matches!(args.get(1), Some(Operand::Const(Constant::I64(index))) if *index == slot as i64)).collect();
-    assert_eq!(saves.len(), 2, "两次yield都保存owner");
-    for args in saves {
-        assert_eq!(local(&args[0]), frame);
-        assert_eq!(local(&args[2]), owner);
-    }
+    assert!(trace_calls(resume, RuntimeFn::ArrayGet).is_empty());
+    assert!(trace_calls(resume, RuntimeFn::ArraySet).is_empty());
+    assert_eq!(trace_calls(resume, RuntimeFn::GeneratorStateData).len(), 1);
+    // owner从工厂起驻留；暂停边不重复保存，生命周期由PyGenerator的origin合同管理。
+    assert!(!resume.body.blocks.iter().any(|(_, b)| {
+        b.stmts
+            .iter()
+            .any(|s| matches!(s, Statement::SetField { field, .. } if *field == slot as u32))
+    }));
 }
 fn assert_dynamic_cil(linked: &ryupy_mir::LinkedProgram, cil: &str) {
     for name in ["target", "nested", "stream"] {
@@ -402,16 +415,16 @@ fn assert_dynamic_cil(linked: &ryupy_mir::LinkedProgram, cil: &str) {
         code.iter().enumerate().filter(|(_, instruction)| {
             instruction.starts_with("NewObject(") && instruction.contains("PyGenerator..ctor(")
         }),
-        "五参生成器构造",
+        "字段生成器六参构造",
     );
-    assert!(ctor.ends_with(", object[], string, string, object))"));
+    assert!(ctor.ends_with(", object, long, string, string, object))"));
     assert_eq!(
         code[at - 1],
         format!("LoadArgument({})", factory.params.len() - 1)
     );
     let resume = unique(
         rvalues(factory).filter_map(|value| match value {
-            Rvalue::MakeGenerator { resume, .. } => Some(*resume),
+            Rvalue::MakeStateGenerator { resume, .. } => Some(*resume),
             _ => None,
         }),
         "链接后resume",

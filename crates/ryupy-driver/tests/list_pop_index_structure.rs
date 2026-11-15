@@ -202,7 +202,9 @@ fn assert_paused(program: &Program) {
     assert_eq!(bodies.len(), 2);
     let factory = bodies
         .iter()
-        .find(|(_, func)| rvalues(func).any(|value| matches!(value, Rvalue::MakeGenerator { .. })))
+        .find(|(_, func)| {
+            rvalues(func).any(|value| matches!(value, Rvalue::MakeStateGenerator { .. }))
+        })
         .unwrap()
         .1;
     assert_eq!(runtime_calls(factory, RuntimeFn::PrepareMethod), 0);
@@ -244,13 +246,34 @@ fn assert_paused(program: &Program) {
             if local(callee) == saved && matches!(args.as_slice(), [Operand::Local(id)] if *id == argument)));
         matches!((input_at, call_at), (Some(input), Some(call)) if input < call)
     }));
-    let slot = i64::from(saved.into_raw().into_u32()) + 4;
-    // 每次恢复先在入口reload同一frame槽，再进入状态分派及实际调用。
-    assert!(resume.body.blocks[resume.body.entry].stmts.iter().any(|stmt| matches!(stmt,
-        Statement::Assign { dest, value: Rvalue::Call { callee: Callee::Runtime(RuntimeFn::ArrayGet), args } }
-        if *dest == saved && matches!(args.as_slice(), [Operand::Local(id), Operand::Const(Constant::I64(index))] if *id == frame && *index == slot))));
-    // 当前源唯一yield 1：同一返回块先读holder.value、绑定、保存，再spill实际callee。
-    // 所有原locals都会spill，所以只有“存在ArraySet”不足以证明暂停前已经初始化。
+    let (payload, slot) = resume
+        .body
+        .blocks
+        .iter()
+        .flat_map(|(_, b)| &b.stmts)
+        .find_map(|s| match s {
+            Statement::Assign {
+                dest,
+                value: Rvalue::GetField { obj, field },
+            } if *dest == saved => Some((obj.clone(), *field)),
+            _ => None,
+        })
+        .expect("暂停后从字段读取绑定结果");
+    let stored = resume
+        .body
+        .blocks
+        .iter()
+        .flat_map(|(_, b)| &b.stmts)
+        .find_map(|s| match s {
+            Statement::SetField {
+                obj,
+                field,
+                value: Operand::Local(id),
+            } if *obj == payload && *field == slot => Some(*id),
+            _ => None,
+        })
+        .expect("暂停前发布绑定结果");
+    // 当前源唯一yield 1：同一返回块先读holder.value、绑定、保存，再发布实际callee字段。
     assert!(resume.body.blocks.iter().any(|(_, block)| {
         let ryupy_mir::Terminator::Return(Some(Operand::Local(yielded))) = &block.terminator else { return false };
         if !block.stmts.iter().any(|stmt| matches!(stmt,
@@ -269,9 +292,9 @@ fn assert_paused(program: &Program) {
                     if receiver.is_some_and(|(_, id)| matches!(&args[0], Operand::Local(actual) if *actual == id))
                     && matches!(&args[1], Operand::Const(Constant::Str(name)) if name == "pop") => prepared = Some((position, *dest)),
                 Statement::Assign { dest, value: Rvalue::Use(Operand::Local(id)) }
-                    if *dest == saved && prepared.is_some_and(|(_, prepared)| *id == prepared) => saved_at = Some(position),
-                Statement::Eval(Rvalue::Call { callee: Callee::Runtime(RuntimeFn::ArraySet), args })
-                    if matches!(args.as_slice(), [Operand::Local(actual_frame), Operand::Const(Constant::I64(index)), Operand::Local(id)] if *actual_frame == frame && *index == slot && *id == saved) => spilled_at = Some(position),
+                    if *dest == stored && prepared.is_some_and(|(_, prepared)| *id == prepared) => saved_at = Some(position),
+                Statement::SetField { obj, field, value: Operand::Local(id) }
+                    if *obj == payload && *field == slot && *id == stored => spilled_at = Some(position),
                 _ => {}
             }
         }

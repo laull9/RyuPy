@@ -101,6 +101,15 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         }
         RuntimeFn::GeneratorInput => ins.push(Instruction::call(ctx.runtime_refs.generators.input)),
         RuntimeFn::GeneratorRetry => ins.push(Instruction::call(ctx.runtime_refs.generators.retry)),
+        RuntimeFn::GeneratorStateData => {
+            ins.push(Instruction::call(ctx.runtime_refs.generators.state_data))
+        }
+        RuntimeFn::GeneratorStateGetPC => {
+            ins.push(Instruction::call(ctx.runtime_refs.generators.state_pc))
+        }
+        RuntimeFn::GeneratorStateSetPC => {
+            ins.push(Instruction::call(ctx.runtime_refs.generators.state_set_pc))
+        }
         RuntimeFn::ArrayGet => ins.push(Instruction::call(ctx.runtime_refs.array_get)),
         RuntimeFn::ArraySet => ins.push(Instruction::call(ctx.runtime_refs.array_set)),
         RuntimeFn::NumericListCreate => {

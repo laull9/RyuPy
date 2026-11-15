@@ -1,14 +1,15 @@
+// Python可见生成器及其生命周期；同时支持旧数组帧和编译器生成的字段驻留状态。
 using System;
 
 namespace RyuPy.Runtime;
 
-/// <summary>恢复编译器生成的状态机；返回本次 yield 的值，完成状态由帧首槽指示。</summary>
-/// <param name="frame">每实例独立的状态及局部变量数组。</param>
+/// <summary>恢复编译器生成的状态机；返回本次 yield 的值，完成状态由控制载体的PC指示。</summary>
+/// <param name="frame">每实例独立的数组帧或字段状态控制载体。</param>
 public delegate object? PyResume(object frame);
 
 /// <summary>普通 yield 的惰性迭代器；暂停期间不占用运行时 traceback 帧。</summary>
 /// <remarks>
-/// 首槽为 boxed long 程序计数器，非负数表示可恢复，-1 表示完成。
+/// 字段状态采用原生long PC；旧数组首槽为boxed long。非负数可恢复，-1表示完成。
 /// 槽 1 为发送值，槽 2 为注入异常，槽 3 为逻辑异常路由暂存；局部值从槽 4 开始。
 /// 恢复循环吞掉内部 Retry 哨兵；只有真正 yield 才返回给调用者。
 /// </remarks>
@@ -16,6 +17,7 @@ public sealed class PyGenerator : IPyIterator
 {
     private PyResume? _resume;
     private object?[]? _frame;
+    private PyGeneratorState? _state;
     private readonly string _source;
     private readonly string _name;
     // 保存真实源函数，不快照module值；结束时清除，暂停时仍需保留身份。
@@ -45,6 +47,17 @@ public sealed class PyGenerator : IPyIterator
         _context = _contextRoot;
     }
 
+    /// <summary>字段状态机入口；载体由编译器生成，旧数组构造器继续支持复杂协议。</summary>
+    public PyGenerator(PyResume resume, object payload, long pc, string source, string name, object? origin)
+    {
+        _resume = resume;
+        _state = new PyGeneratorState(payload, pc);
+        _source = source;
+        _name = name;
+        _origin = origin;
+        _context = _contextRoot;
+    }
+
     /// <summary>执行到下一个 yield 或完成；None 是合法产出，不是耗尽哨兵。</summary>
     public bool MoveNext() => MoveNextCore(PyNone.Instance, out _);
 
@@ -53,7 +66,7 @@ public sealed class PyGenerator : IPyIterator
     {
         returnValue = null;
         if (_running) throw new PyValueError("generator already executing");
-        if (_frame is null) return false;
+        if (_frame is null && _state is null) return false;
         // 首次非 None 发送只是调用错误，不启动也不关闭生成器。
         if (!_started && sentValue is not (null or PyNone))
             throw new PyTypeError("can't send non-None value to a just-started generator");
@@ -68,10 +81,19 @@ public sealed class PyGenerator : IPyIterator
             depth = _origin is null ? PyTraceback.PushFrame(_source, _name)
                 : PyTraceback.PushFrameWithOrigin(_source, _name, _origin);
             if (PyTraceProduct.Enabled) PyTraceProduct.EnterGenerator(depth);
-            var frame = _frame;
+            object frame = (object?)_state ?? _frame!;
             if (ReadState(frame) == -1) { Finish(); return false; }
-            frame[1] = sentValue ?? PyNone.Instance;
-            frame[2] = injected;
+            if (frame is PyGeneratorState state)
+            {
+                state.Sent = sentValue ?? PyNone.Instance;
+                state.Injected = injected;
+            }
+            else
+            {
+                var slots = (object?[])frame;
+                slots[1] = sentValue ?? PyNone.Instance;
+                slots[2] = injected;
+            }
             // 新建生成器 throw 不执行函数体，连内部 try/finally 也尚未进入。
             if (!_started && injected is not null)
             {
@@ -128,7 +150,7 @@ public sealed class PyGenerator : IPyIterator
         {
             if (depth != 0 && PyTraceProduct.Enabled) PyTraceProduct.LeaveGenerator(depth);
             if (depth != 0) PyTraceback.PopTo(depth);
-            _context = _frame is null ? _contextRoot : PyErrors.ContextNode;
+            _context = _frame is null && _state is null ? _contextRoot : PyErrors.ContextNode;
             _contextRoot.Parent = null;
             PyErrors.ContextNode = caller;
             _running = false;
@@ -160,7 +182,7 @@ public sealed class PyGenerator : IPyIterator
     {
         if (_running) throw new PyValueError("generator already executing");
         PyBaseException error = NormalizeThrown(exception);
-        if (_frame is null) throw PyErrors.Prepare(error);
+        if (_frame is null && _state is null) throw PyErrors.Prepare(error);
         if (MoveNextCore(PyNone.Instance, out object? value, error)) return Current();
         throw new PyStopIteration(value);
     }
@@ -169,7 +191,7 @@ public sealed class PyGenerator : IPyIterator
     public object Close()
     {
         if (_running) throw new PyValueError("generator already executing");
-        if (_frame is null) return PyNone.Instance;
+        if (_frame is null && _state is null) return PyNone.Instance;
         if (!_started) { Finish(); return PyNone.Instance; }
         try
         {
@@ -231,8 +253,14 @@ public sealed class PyGenerator : IPyIterator
         return Next(null, false);
     }
 
-    private static long ReadState(object?[] frame)
+    private static long ReadState(object storage)
     {
+        if (storage is PyGeneratorState typed)
+        {
+            if (typed.PC < -1) throw new PyRuntimeError("invalid generator frame state");
+            return typed.PC;
+        }
+        var frame = (object?[])storage;
         if (frame.Length < 4 || frame[0] is not long state || state < -1)
             throw new PyRuntimeError("invalid generator frame state");
         return state;
@@ -243,6 +271,8 @@ public sealed class PyGenerator : IPyIterator
         // 清空引用槽，避免已耗尽对象继续保活局部变量、闭包和恢复委托。
         if (_frame is not null) Array.Clear(_frame);
         _frame = null;
+        _state?.Clear();
+        _state = null;
         _resume = null;
         _origin = null;
         _current = null;

@@ -121,7 +121,7 @@ fn build_resolution_core(
     );
     let mut class_defs: Vec<(ryupy_mir::ClassDefId, TypeIndex)> = Vec::new();
     for (cls_id, cls) in program.classes.iter() {
-        if !cls.is_dataclass {
+        if !cls.is_dataclass && !cls.is_generator_state {
             continue;
         }
         let type_idx = res.push_type_definition(TypeDefinition::new(

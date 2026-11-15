@@ -62,7 +62,8 @@ impl ProgramPass for LeafInline {
                             matches!(
                                 s,
                                 Statement::Assign {
-                                    value: Rvalue::MakeGenerator { .. },
+                                    value: Rvalue::MakeGenerator { .. }
+                                        | Rvalue::MakeStateGenerator { .. },
                                     ..
                                 }
                             )

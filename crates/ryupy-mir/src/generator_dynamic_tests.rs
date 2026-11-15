@@ -58,6 +58,7 @@ fn generated(program: &Program) -> (&Function, usize) {
         .flat_map(|(_, function)| assignments(function))
         .filter_map(|(_, value)| match value {
             Rvalue::MakeGenerator { resume, frame, .. } => Some((*resume, frame.len() - 4)),
+            Rvalue::MakeStateGenerator { resume, .. } => Some((*resume, 0)),
             _ => None,
         })
         .collect();
@@ -219,9 +220,12 @@ fn current_control_structures_do_not_enter_dynamic_generator_dispatch() {
         "def ordinary(kind):\n    try:\n        raise ValueError('x')\n    except kind:\n        return 1\n",
     );
     assert!(program.functions.iter().all(|(_, function)| {
-        assignments(function)
-            .iter()
-            .all(|(_, value)| !matches!(value, Rvalue::MakeGenerator { .. }))
+        assignments(function).iter().all(|(_, value)| {
+            !matches!(
+                value,
+                Rvalue::MakeGenerator { .. } | Rvalue::MakeStateGenerator { .. }
+            )
+        })
     }));
     assert!(
         program.functions.iter().any(|(_, function)| {

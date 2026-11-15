@@ -24,7 +24,7 @@ impl High {
         let mut origins = LoweringOrigins::default();
         let mut plan = generator_product::DeferredGenerators::default();
         let (mut program, exports, errors) =
-            build::build_program_mode(&hir, &types, Some(&mut origins), Some(&mut plan));
+            build::build_program_mode(&hir, &types, Some(&mut origins), Some(&mut plan), true);
         assert!(errors.is_empty());
         let initialization = Initialization::expected(&hir, &origins, &program, &exports).unwrap();
         passes::run_pipeline_high(

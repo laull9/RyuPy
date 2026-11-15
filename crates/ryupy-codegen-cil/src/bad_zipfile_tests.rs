@@ -10,6 +10,7 @@ fn bad_zipfile_is_real_clr_catch_and_generated_subclass_base() {
         codegen_name: "ArchiveError".into(),
         fields: vec![],
         is_value_type: false,
+        is_generator_state: false,
         is_dataclass: false,
         base: None,
         builtin_base: Some("zipfile.BadZipFile".into()),

@@ -129,7 +129,7 @@ pub fn prepare_high<O: crate::passes::PipelineObserver>(
     let mut origins = crate::trace_lowering::LoweringOrigins::default();
     let mut plan = DeferredGenerators::default();
     let (mut program, exports, diagnostics) =
-        crate::build::build_program_mode(hir, types, Some(&mut origins), Some(&mut plan));
+        crate::build::build_program_mode(hir, types, Some(&mut origins), Some(&mut plan), true);
     if diagnostics.iter().any(ryupy_base::Diagnostic::is_error) {
         return Err(Failure::Diagnostics(diagnostics));
     }

@@ -14,7 +14,7 @@ fn graph() -> Program {
     let (hir, types) = frontend("pass\n");
     let mut plan = generator_product::DeferredGenerators::default();
     let (mut program, _, diagnostics) =
-        build::build_program_mode(&hir, &types, None, Some(&mut plan));
+        build::build_program_mode(&hir, &types, None, Some(&mut plan), true);
     assert!(diagnostics.is_empty());
     assert!(plan.functions().is_empty());
     let function = &mut program.functions[program.entry];

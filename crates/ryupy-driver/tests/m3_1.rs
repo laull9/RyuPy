@@ -161,12 +161,16 @@ fn snapshot_m3_1_generator_expression() {
                 "if (x Gt 1):",
             ],
             Stage::Mir => &[
-                "MakeGenerator(<genexpr>",
+                "MakeStateGenerator(<genexpr>",
                 "GeneratorInput",
-                "ArraySet",
-                "ArrayGet",
+                "GeneratorStateSetPC",
+                "GeneratorStateData",
             ],
-            Stage::Cil => &["PyOps.GeneratorInput", "PyOps.ArraySet", "PyOps.ArrayGet"],
+            Stage::Cil => &[
+                "PyOps.GeneratorInput",
+                "PyOps.GeneratorStateSetPC",
+                "PyOps.GeneratorStateGetPC",
+            ],
             _ => unreachable!("测试只列出已约定阶段"),
         };
         for token in required {

@@ -11,6 +11,7 @@ impl ClassDef {
             codegen_name: String::new(),
             fields: Vec::new(),
             is_value_type: false,
+            is_generator_state: false,
             is_dataclass: false,
             base: None,
             builtin_base: None,

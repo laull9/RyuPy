@@ -60,6 +60,7 @@ fn serialized_warning_constructor_defers_message_policy_to_runtime() {
         codegen_name: "ProjectWarning".into(),
         fields: vec![],
         is_value_type: false,
+        is_generator_state: false,
         is_dataclass: false,
         base: None,
         builtin_base: Some("UserWarning".into()),

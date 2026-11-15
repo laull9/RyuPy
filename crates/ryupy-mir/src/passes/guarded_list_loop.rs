@@ -20,7 +20,7 @@ impl MirPass for GuardedListLoop {
             || f.body.blocks.iter().any(|(_, b)| {
                 matches!(b.terminator, Terminator::Suspend { .. }) || b.stmts.iter().any(|s| {
                     matches!(s, Statement::Assign { value, .. } | Statement::Eval(value)
-                        if matches!(value, Rvalue::MakeGenerator { .. }) || matches!(value,
+                        if matches!(value, Rvalue::MakeGenerator { .. } | Rvalue::MakeStateGenerator { .. }) || matches!(value,
                             Rvalue::Call { callee: Callee::Runtime(RuntimeFn::FunctionLocalsValidate
                                 | RuntimeFn::FunctionLocalsEnsure | RuntimeFn::FunctionLocalsSync), .. }) || matches!(value,
                             Rvalue::Call { callee: Callee::Runtime(rt), .. } if crate::trace_product_abi::signature(*rt).is_some()))

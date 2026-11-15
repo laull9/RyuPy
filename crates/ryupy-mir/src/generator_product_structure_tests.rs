@@ -8,7 +8,8 @@ use rustc_hash::FxHashMap;
 fn lowered() -> (Program, Source, FxHashMap<String, GlobalId>) {
     let (hir, types) = frontend(B);
     let mut plan = generator_product::DeferredGenerators::default();
-    let (mut program, _, errors) = build::build_program_mode(&hir, &types, None, Some(&mut plan));
+    let (mut program, _, errors) =
+        build::build_program_mode(&hir, &types, None, Some(&mut plan), true);
     assert!(errors.is_empty());
     let contract =
         crate::generator_product_trace::Contract::capture(&program, plan.functions()).unwrap();
@@ -219,7 +220,8 @@ fn high_contract_rejects_extra_push_and_pure_control_overwrite() {
     for pure in [false, true] {
         let (hir, types) = frontend(B);
         let mut plan = generator_product::DeferredGenerators::default();
-        let (mut program, _, _) = build::build_program_mode(&hir, &types, None, Some(&mut plan));
+        let (mut program, _, _) =
+            build::build_program_mode(&hir, &types, None, Some(&mut plan), true);
         let contract =
             crate::generator_product_trace::Contract::capture(&program, plan.functions()).unwrap();
         let function = &mut program.functions[plan.functions()[0]];

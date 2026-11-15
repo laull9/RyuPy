@@ -83,7 +83,8 @@ fn original_constructor_field_inputs_are_whole_product_rejections() {
 fn high_and_low_validation_are_distinct_and_dead_yield_keeps_real_generator_identity() {
     let (hir, types) = frontend(A);
     let mut plan = DeferredGenerators::default();
-    let (mut high, _, diagnostics) = build::build_program_mode(&hir, &types, None, Some(&mut plan));
+    let (mut high, _, diagnostics) =
+        build::build_program_mode(&hir, &types, None, Some(&mut plan), true);
     assert!(diagnostics.is_empty());
     assert!(validate::validate_high(&high, plan.functions()).is_ok());
     assert!(validate::validate(&high).is_err());

@@ -218,6 +218,16 @@ fn format_operand(op: &Operand) -> String {
 
 fn format_rvalue(rval: &Rvalue, program: &Program) -> String {
     match rval {
+        Rvalue::MakeStateGenerator {
+            resume,
+            payload,
+            initial_pc,
+            ..
+        } => format!(
+            "MakeStateGenerator({}, {}, pc={initial_pc})",
+            program.functions[*resume].name,
+            format_operand(payload)
+        ),
         Rvalue::Use(op) => format_operand(op),
         Rvalue::GeneratorDelegateStep { delegate } => {
             format!("DelegateStep({})", format_operand(delegate))

@@ -19,6 +19,7 @@ use crate::stackify_refs::{boxed_literal_key, emit_box, runtime_method};
 /// 嵌套调用的额外深度已经包含在各自的实参计数里，这里不重复累加。
 pub(crate) fn rvalue_arg_count(value: &Rvalue) -> usize {
     match value {
+        Rvalue::MakeStateGenerator { .. } => 8,
         Rvalue::InstanceZeroCall { .. } => 6,
         Rvalue::Call { args, .. } | Rvalue::NewObject { args, .. } => args.len(),
         // MakeFunction 的数组逐元素发射，加上构造函数的其余实参
@@ -429,6 +430,19 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
             ins.push(Instruction::LoadNull);
             ins.push(Instruction::Throw);
         }
+        Rvalue::MakeStateGenerator {
+            resume,
+            payload,
+            initial_pc,
+            origin,
+        } => crate::generator_state_emit::emit(
+            *resume,
+            payload,
+            *initial_pc,
+            origin.as_ref(),
+            ins,
+            ctx,
+        ),
         Rvalue::MakeGenerator {
             resume,
             frame,

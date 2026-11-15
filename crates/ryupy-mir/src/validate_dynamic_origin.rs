@@ -83,7 +83,9 @@ pub(crate) fn validate(program: &Program, errors: &mut Vec<String>) {
                             errors
                                 .push(format!("函数 `{}` 压帧必须传实际owner参数", function.name));
                         }
-                        Rvalue::MakeGenerator { origin: value, .. } if !matches!(value, Some(Operand::Local(owner)) if *owner == origin.owner) =>
+                        Rvalue::MakeGenerator { origin: value, .. }
+                        | Rvalue::MakeStateGenerator { origin: value, .. }
+                            if !matches!(value, Some(Operand::Local(owner)) if *owner == origin.owner) =>
                         {
                             errors.push(format!(
                                 "函数 `{}` 的生成器必须持有实际owner参数",
