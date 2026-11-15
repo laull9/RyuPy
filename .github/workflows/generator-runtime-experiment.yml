@@ -2,7 +2,7 @@
 name: Generator runtime isolated experiment
 on:
   push:
-    branches: [work/generator-runtime-ci-20261115]
+    branches: [ci/generator-runtime-fix-20261115]
 permissions:
   contents: read
 concurrency:
