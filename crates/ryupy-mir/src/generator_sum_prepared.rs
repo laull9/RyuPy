@@ -180,3 +180,75 @@ fn factory_input_and_function_origin_are_checked_from_actual_operands() {
         assert!(source.verify(&program).is_err());
     }
 }
+
+#[test]
+fn inserted_dispatch_goto_must_not_hide_a_side_effect() {
+    for with_effect in [false, true] {
+        let (mut program, snapshots) = original().lower_owned().unwrap();
+        let source = &snapshots[0];
+        source.verify(&program).unwrap();
+        let id = resume(&program, source.function);
+        let f = &mut program.functions[id];
+        let previous = f.body.blocks[f.body.entry].terminator.clone();
+        let inserted = f.body.blocks.alloc(BasicBlock {
+            stmts: if with_effect {
+                vec![Statement::Eval(Rvalue::Call { callee: Callee::Runtime(RuntimeFn::DynBuiltin),
+                    args: vec![Operand::Const(Constant::Str("print".to_owned())),
+                        Operand::Array(vec![Operand::Const(Constant::Str("unexpected".to_owned()))]),
+                        Operand::Array(vec![]), Operand::Array(vec![])] })]
+            } else { vec![] },
+            terminator: previous,
+        });
+        f.body.blocks[f.body.entry].terminator = Terminator::Goto(inserted);
+        if with_effect { assert!(source.verify(&program).is_err()); }
+        else { source.verify(&program).unwrap(); }
+    }
+}
+
+#[test]
+fn merging_two_field_read_targets_and_rewriting_the_operation_is_rejected() {
+    let (mut program, deferred) = super::generator_sum_plan::high_with_sources(
+        "def g(a, b):\n    yield a + b\n"
+    );
+    let function = deferred.functions()[0];
+    let residents = crate::generator_state_analysis::residents(&program.functions[function]).unwrap();
+    let source = Snapshot::capture(&program, function, residents);
+    assert!(crate::generator_state::lower(&mut program, function));
+    source.verify(&program).unwrap();
+    let id = resume(&program, function);
+    let f = &mut program.functions[id];
+    let mut merged = false;
+    for (_, block) in f.body.blocks.iter_mut() {
+        let Some(operation) = block.stmts.iter().position(|statement| matches!(statement,
+            Statement::Assign { value: Rvalue::DynBinary { .. }, .. })) else { continue; };
+        assert!(operation >= 2);
+        let first = match &block.stmts[operation - 2] {
+            Statement::Assign { dest, value: Rvalue::GetField { .. } } => *dest,
+            _ => panic!("双参数动态运算前必须读取第一个实际字段"),
+        };
+        let second = match &mut block.stmts[operation - 1] {
+            Statement::Assign { dest, value: Rvalue::GetField { .. } } => {
+                let previous = *dest; *dest = first; previous
+            }
+            _ => panic!("双参数动态运算前必须读取第二个实际字段"),
+        };
+        // 旧检查器的两个源local→同一个dest映射会同步期待这个错误运算，因而漏检。
+        let map = rustc_hash::FxHashMap::from_iter([(second, first)]);
+        crate::local_access::rewrite_statement(&mut block.stmts[operation], &map);
+        merged = true;
+        break;
+    }
+    assert!(merged);
+    assert!(source.verify(&program).is_err());
+}
+
+#[test]
+fn extra_uncovered_dispatch_block_is_not_silently_ignored() {
+    let (mut program, snapshots) = original().lower_owned().unwrap();
+    let source = &snapshots[0];
+    let id = resume(&program, source.function);
+    program.functions[id].body.blocks.alloc(BasicBlock {
+        stmts: vec![], terminator: Terminator::Return(Some(Operand::Const(Constant::None))),
+    });
+    assert!(source.verify(&program).is_err());
+}

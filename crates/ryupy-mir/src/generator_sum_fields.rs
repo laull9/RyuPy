@@ -122,7 +122,22 @@ impl Snapshot {
                 targets.push((resume, input));
             }
         }
-        for (target, _) in &targets { self.check_dispatch(f, *pc, *target)?; }
+        // 新增控制/读取临时必须各有唯一静态定义，不能合并两个字段值或覆盖frame参数。
+        let mut new_definitions = FxHashSet::default();
+        for (_, block) in f.body.blocks.iter() {
+            for statement in &block.stmts {
+                if let Statement::Assign { dest, .. } = statement
+                    && !self.locals.iter().any(|(old, _)| old == dest)
+                    && (f.params.contains(dest) || !new_definitions.insert(*dest))
+                { return Err("新增临时重复定义或覆盖恢复参数"); }
+            }
+        }
+        let mut dispatch_blocks = FxHashSet::default();
+        for (target, _) in &targets { self.check_dispatch(f, *pc, *target, &mut dispatch_blocks)?; }
+        if f.body.blocks.iter().any(|(id, _)| !self.blocks.iter().any(|(source, _)| *source == id)
+            && !dispatch_blocks.contains(&id))
+        { return Err("新增基本块未被完整派发证明覆盖"); }
+        let mut read_temporaries = FxHashSet::default();
         for (id, original) in &self.blocks {
             let lowered = &f.body.blocks[*id];
             let mut at = 0;
@@ -137,7 +152,7 @@ impl Snapshot {
             }
             for statement in &original.stmts {
                 if trace_removed(statement) { continue; }
-                let map = self.check_reads(f, lowered, &mut at, statement_reads(statement), &slots, *payload)?;
+                let map = self.check_reads(f, lowered, &mut at, statement_reads(statement), &slots, *payload, &mut read_temporaries)?;
                 let mut expected = statement.clone();
                 rewrite_statement(&mut expected, &map);
                 if lowered.stmts.get(at) != Some(&expected) { return Err("原语句读取被错误重写"); }
@@ -150,7 +165,7 @@ impl Snapshot {
                     at += 1;
                 }
             }
-            let map = self.check_reads(f, lowered, &mut at, terminator_reads(&original.terminator), &slots, *payload)?;
+            let map = self.check_reads(f, lowered, &mut at, terminator_reads(&original.terminator), &slots, *payload, &mut read_temporaries)?;
             let mut terminator = original.terminator.clone();
             rewrite_terminator(&mut terminator, &map);
             let expected = match terminator {
@@ -171,7 +186,7 @@ impl Snapshot {
     }
 
     fn check_reads(&self, f: &Function, block: &BasicBlock, at: &mut usize, reads: FxHashSet<LocalId>,
-        slots: &FxHashMap<LocalId, u32>, payload: LocalId) -> Check<FxHashMap<LocalId, LocalId>> {
+        slots: &FxHashMap<LocalId, u32>, payload: LocalId, temporaries: &mut FxHashSet<LocalId>) -> Check<FxHashMap<LocalId, LocalId>> {
         let mut reads: Vec<_> = reads.into_iter().filter(|id| slots.contains_key(id)).collect();
         reads.sort_by_key(|id| id.into_raw().into_u32());
         let mut map = FxHashMap::default();
@@ -181,6 +196,7 @@ impl Snapshot {
             if *obj != Operand::Local(payload) || *field != slots[&local]
                 || f.body.locals[*dest].ty != f.body.locals[local].ty
                 || self.locals.iter().any(|(old, _)| old == dest)
+                || f.params.contains(dest) || !temporaries.insert(*dest)
             { return Err("字段读取映射/类型/临时身份错误"); }
             map.insert(local, *dest);
             *at += 1;
@@ -188,16 +204,20 @@ impl Snapshot {
         Ok(map)
     }
 
-    fn check_dispatch(&self, f: &Function, pc: LocalId, target: BlockId) -> Check<()> {
+    fn check_dispatch(&self, f: &Function, pc: LocalId, target: BlockId, visited: &mut FxHashSet<BlockId>) -> Check<()> {
         let mut block = f.body.entry;
         let value = i64::from(target.into_raw().into_u32());
         for _ in 0..=f.body.blocks.len() {
             if self.blocks.iter().any(|(id, _)| *id == block) {
                 return if block == target { Ok(()) } else { Err("PC派发到错误原块") };
             }
-            let b = &f.body.blocks[block];
+            visited.insert(block);
+            let Some((_, b)) = f.body.blocks.iter().find(|(id, _)| *id == block) else { return Err("派发目标不在函数内"); };
             block = match &b.terminator {
-                Terminator::Goto(next) => *next,
+                Terminator::Goto(next) => {
+                    if block != f.body.entry && !b.stmts.is_empty() { return Err("新增Goto派发块含未批准语句"); }
+                    *next
+                },
                 Terminator::Branch { cond: Operand::Local(condition), then_, else_ } => {
                     let [Statement::Assign { dest, value: Rvalue::Binary { op: BinOp::Eq, lhs: Operand::Local(read_pc), rhs: Operand::Const(Constant::I64(expected)) } }] = b.stmts.as_slice()
                         else { return Err("PC分派不是显式比较"); };
