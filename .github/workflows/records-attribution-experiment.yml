@@ -2,13 +2,13 @@
 name: Records attribution experiment
 on:
   push:
-    branches: [work/records-attribution-ci-20261115]
+    branches: [ci/records-attribution-20261115]
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   records-attribution:
-    if: github.ref == 'refs/heads/work/records-attribution-ci-20261115'
+    if: github.ref == 'refs/heads/ci/records-attribution-20261115'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
