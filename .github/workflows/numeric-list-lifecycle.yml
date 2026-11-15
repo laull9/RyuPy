@@ -15,6 +15,7 @@ jobs:
       DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
       UseSharedCompilation: 'false'
       PYTHONDONTWRITEBYTECODE: '1'
+      DOTNET_INSTALL_DIR: ${{ runner.temp }}/numeric-list-dotnet
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -39,8 +40,14 @@ jobs:
           echo "RYUPY_FOREACH_PYTHON=$FIXED_PYTHON" >> "$GITHUB_ENV"
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           git rev-parse HEAD HEAD^{tree} > "$RUNNER_TEMP/numeric-list-evidence/source.txt"
-          test "$(dotnet --version)" = 10.0.403
+          # 独立安装目录避免runner自带较新SDK被默认选择，保留门禁失败时的实际版本。
           dotnet --info > "$RUNNER_TEMP/numeric-list-evidence/dotnet.txt"
+          dotnet --version | tee "$RUNNER_TEMP/numeric-list-evidence/sdk.txt"
+          test "$(readlink -f "$(command -v dotnet)")" = "$DOTNET_INSTALL_DIR/dotnet"
+          test "$(dotnet --version)" = 10.0.403
+          for key in DOTNET DOTNET_HOST_PATH; do echo "$key=$DOTNET_INSTALL_DIR/dotnet" >> "$GITHUB_ENV"; done
+          for key in DOTNET_ROOT DOTNET_ROOT_X64; do echo "$key=$DOTNET_INSTALL_DIR" >> "$GITHUB_ENV"; done
+          echo "DOTNET_MULTILEVEL_LOOKUP=0" >> "$GITHUB_ENV"
           "$FIXED_PYTHON" -c 'import sys; assert sys.version_info[:3] == (3,12,13); print(sys.version)' > "$RUNNER_TEMP/numeric-list-evidence/python.txt"
           sudo apt-get update
           sudo apt-get install -y clang zlib1g-dev patchelf binutils
