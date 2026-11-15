@@ -14,7 +14,7 @@ sys.path.insert(0,str(ROOT/'tests'))
 from benchlib.artifact import verified_native, MANIFEST_NAME
 from benchlib.suite import Benchmark
 
-CASES={'contracts':(3,4),'known_subclass':(0,1),'performance':(200000,0)}
+CASES={'contracts':(3,4),'callbacks':(0,3),'known_subclass':(0,1),'performance':(200000,0)}
 KNOWN=b'custom-get ann buy\ncustom-set 6\nknown-rejection dict layout with non-scalar keys is not supported 0\n'
 
 
@@ -84,11 +84,13 @@ def main():
                     else:
                         entry=directory/(case+'.dll');assert entry.is_file();command=['dotnet',entry]
                     extra={};trace_path=out/(label+'-trace.json');token=secrets.token_hex(16)
-                    if arm=='diagnostic':extra={'RYUPY_RECORDS_GUARD_TRACE':str(trace_path),'RYUPY_RECORDS_GUARD_TOKEN':token}
+                    extra={'RYUPY_RECORDS_GUARD_TRACE':str(trace_path),'RYUPY_RECORDS_GUARD_TOKEN':token}
                     actual=run(label+'-execute',command,extra)
                     assert actual[:2]==(expected,b''),(label,'output mismatch')
                     if arm=='diagnostic':trace(json.loads(trace_path.read_text()),token,counts)
-                    info['arms'][arm+'-'+backend]={'entry_sha256':sha(entry),'output_matches_expected':True,'diagnostic':arm=='diagnostic'}
+                    else:assert not trace_path.exists(), 'normal/performance artifact unexpectedly contains diagnostics'
+                    info['arms'][arm+'-'+backend]={'entry_sha256':sha(entry),'output_matches_expected':True,'diagnostic':arm=='diagnostic',
+                        'entry_path':str(entry.relative_to(out)), 'trace_token':token if arm=='diagnostic' else None}
                     if arm!='diagnostic':commands[arm+'-'+backend]=command
             if case=='performance':
                 commands['cp']=[sys.executable,'-B',source]
