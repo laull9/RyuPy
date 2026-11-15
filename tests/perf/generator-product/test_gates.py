@@ -136,13 +136,27 @@ class Gates(unittest.TestCase):
 
     def test_actual_abi_artifact_is_required(self):
         with tempfile.TemporaryDirectory() as temp:
-            root=Path(temp);(root/'pe').mkdir();path=root/'pe/generator-frozen-dev-abi.json'
+            evidence=Path(temp);root=evidence/'check-off';(root/'pe').mkdir(parents=True)
+            path=root/'pe/generator-frozen-dev-abi.json'
+            frozen=evidence/'frozen-dev-abi';dll=frozen/'build/bin/RyuPy.Runtime/release/RyuPy.Runtime.dll'
+            dll.parent.mkdir(parents=True);dll.write_bytes(b'mocked baseline bytes, not PE')
+            loaded=root/'pe/generator-loaded-candidate.dll';loaded.write_bytes(b'mocked loaded bytes, not PE')
             additions=[str(i) for i in range(8)];actual=['old']+additions
             data={'commit':'81758bb477729aee4636f2ca6d6b0815b949849a','sdk':'10.0.403',
                   'oldSignatures':1,'candidateSignatures':9,'additions':additions,'removed':[],
-                  'added':additions,'expected':actual,'actual':actual,'sha256':'a'*64,'candidateSha256':'b'*64}
+                  'added':additions,'expected':actual,'actual':actual,
+                  'sha256':hashlib.sha256(dll.read_bytes()).hexdigest(),
+                  'candidateSha256':hashlib.sha256(loaded.read_bytes()).hexdigest(),
+                  'baseline':str(dll),'baselineManifest':str(frozen/'manifest.json'),'baselineBytes':dll.stat().st_size,
+                  'candidate':'/runner/candidate.dll','candidateArchive':loaded.name,'candidateBytes':loaded.stat().st_size}
+            manifest={'commit':data['commit'],'sdk':data['sdk'],'configuration':'Release',
+                      'dll':str(dll),'sha256':data['sha256'],'bytes':data['baselineBytes']}
+            (frozen/'manifest.json').write_text(json.dumps(manifest))
             path.write_text(json.dumps(data));runtime_gate.historical_artifact(root)
-            data['removed']=['old'];path.write_text(json.dumps(data))
+            for key,value in [('removed',['old']),('candidateArchive','../../outside'),('baselineBytes',1),('sha256','f'*64)]:
+                bad=copy.deepcopy(data);bad[key]=value;path.write_text(json.dumps(bad))
+                with self.assertRaises(AssertionError):runtime_gate.historical_artifact(root)
+            path.write_text(json.dumps(data));loaded.write_bytes(b'changed')
             with self.assertRaises(AssertionError):runtime_gate.historical_artifact(root)
             path.unlink()
             with self.assertRaises(FileNotFoundError):runtime_gate.historical_artifact(root)

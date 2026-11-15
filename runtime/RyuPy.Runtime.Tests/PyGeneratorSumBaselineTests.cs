@@ -46,12 +46,23 @@ public partial class PyTraceStateArtifactTests
         Assert.Equal(hash, Convert.ToHexString(SHA256.HashData(beforeBytes)).ToLowerInvariant());
         string candidate = typeof(PyGenerator).Assembly.Location;
         Assert.NotEqual(Path.GetFullPath(baseline), Path.GetFullPath(candidate));
+        byte[] candidateBytes = File.ReadAllBytes(candidate);
+        string evidence = Environment.GetEnvironmentVariable("RYUPY_TRACE_EVIDENCE_DIR")
+            ?? throw new InvalidOperationException("历史ABI门必须提供证据目录");
+        Directory.CreateDirectory(evidence);
+        const string archiveName = "generator-loaded-candidate.dll";
+        // 归档实际加载的程序集，不猜测bin/Release另一份输出；新文件防止混入旧轮工件。
+        using (var archive = new FileStream(Path.Combine(evidence, archiveName), FileMode.CreateNew, FileAccess.Write))
+            archive.Write(candidateBytes);
         string[] before = PublicAbi(baseline), after = PublicAbi(candidate);
         // 防止读取过程中共享输出被另一构建覆盖；比较的必须是manifest所指同一DLL。
         Assert.Equal(beforeBytes, File.ReadAllBytes(baseline));
+        Assert.Equal(candidateBytes, File.ReadAllBytes(candidate));
         Evidence("generator-frozen-dev-abi.json", new {
             commit = GeneratorBaselineCommit, sdk = "10.0.403", baseline, sha256 = hash,
-            candidate, candidateSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(candidate))).ToLowerInvariant(),
+            baselineManifest = Path.GetFullPath(manifestPath), baselineBytes = beforeBytes.LongLength,
+            candidate, candidateArchive = archiveName, candidateBytes = candidateBytes.LongLength,
+            candidateSha256 = Convert.ToHexString(SHA256.HashData(candidateBytes)).ToLowerInvariant(),
             oldSignatures = before.Length, candidateSignatures = after.Length,
             additions = GeneratorSumPublicAdditions(),
             removed = before.Except(after).ToArray(), added = after.Except(before).ToArray(),

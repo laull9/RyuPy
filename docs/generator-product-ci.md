@@ -79,3 +79,11 @@ CLI身份规范化off/on。四轮48新进程样本只有4次独立构建，分�
 第二轮步骤预算：依赖15+旧ABI15+两态完整70+MIR20+冻结30+原输入10+语义35+
 原26/3保护70+平衡70=335分钟，job350分钟。任何未完成都按失败保留证据，
 不能以较早轮次数据替代缺失部分。真实运行前必须独审；本地轻测不是产品通过。
+
+
+历史ABI工件补强：测试从typeof(PyGenerator).Assembly.Location读取实际loaded DLL，
+先用CreateNew归档到各态pe/generator-loaded-candidate.dll，再提取实际PE签名，并核读取
+前后字节未变化。JSON绑定原loaded路径、归档名称、字节数、SHA256与固定dev manifest。
+Python门按固定工件相对布局离线重定位两DLL，重算两hash/字节数并核frozen manifest、
+精确8增量和全部签名，不依赖runner已消失的绝对路径。复制失败或缺工件直接失败。
+这仍仅验证固定dev公开ABI保留与该8项增量，古老1659条专项保持原skip状态。
