@@ -2,7 +2,7 @@
 name: List storage isolated experiment
 on:
   push:
-    branches: [work/list-storage-ci-20261115]
+    branches: [ci/list-storage-candidate-20261115]
 permissions:
   contents: read
 concurrency:
