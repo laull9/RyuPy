@@ -73,3 +73,29 @@ B仅4.312–4.352ms。交错顺序没有消除A的明显顺序关联，配对改
 
 结论：保留实验。确认临时分配减少；拒绝稳定加速或默认准入结论。先拆解guard/双重探测
 成本与运行时阶段影响，再用原程序独占NativeAOT配对、26项保护和搬迁门决定产品接线。
+
+## 后续候选与可执行归因门（待运行）
+
+新增独立 `PyDictProbeAttributionTests`，每个场景单独Fact，便于新testhost进程隔离。
+12阶段：域guard、tuple分配并volatile写入静态sink、tuple/pair哈希、原索引tuple查找、
+alternate lookup缓存/每次取得、完整dict/probe get、tuple/probe/fused聚合。
+索引反射仅在计时外，查询tuple与表内键不同实体。阶段各自计时，不能把两个阶段差值
+当成精确开销；allocation包含强制逃逸写入，不是纯allocator指令成本。
+每阶段记录Gen0/1/2次数和累计GC暂停差值；这些是进程GC观测，不是线程独占因果归因。
+
+`TryIncrementDiscardedKey`仅实验：完整域守卫后单次查找，精确long加一；缺键物化并插入，
+非long/long.MaxValue/域失败返回false且不修改。没有接入任何MIR；必须证明逻辑key完全
+不可观察（含循环退出）才可使用。不能将它用于需要保留每次查询tuple身份的普通API。
+原有实体键仍共享，测试覆盖插入/覆盖身份、溢出、bool及异构失效。没有更改原Get/Set行为。
+
+先固定SDK10.0.403构建Release测试项目，再执行：
+
+```bash
+python3 -B tests/perf/records_probe_attribution.py --output "$RUNNER_TEMP/records-attribution"
+```
+
+脚本对32/4096/碰撞场景分别创建新testhost进程，以默认/关闭tiering和正/反初始阶段顺序
+交叉共12个进程，另有1个融合安全测试进程。每诊断进程12阶段×6轮，阶段顺序逐轮交替；
+不依赖测试发现顺序，不在同一JIT进程切换设置。每次计时外用独立计数公式校验键序和总值。
+测试结果、逐轮观测及TRX保存在仓库外；退出码、1例通过和72条阶段样本均需成立。
+这些控制仍不构成NativeAOT产品性能准入；所有新代码尚待真实编译和执行。

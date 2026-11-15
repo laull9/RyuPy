@@ -39,7 +39,7 @@ public sealed partial class PyDict
         private long _checkedVersion = -1;
         private bool _safe;
 
-        private bool CheckDomain()
+        internal bool CheckDomain()
         {
             if (!ReferenceEquals(owner._index.Comparer, PyKeyComparer.Instance)) return false;
             if (_checkedVersion == owner.Version) return _safe;
@@ -80,6 +80,23 @@ public sealed partial class PyDict
             // 既有域已证明，新键仍是精确string对，整个插入不可能调用用户代码。
             // 承接自身写入的证明（包括墓碑整理），而非下一次扫描增长后的整张表。
             // 外部写入仍使Version不相等，不能通过此处自动接受。
+            _checkedVersion = owner.Version;
+            return true;
+        }
+
+        // 仅实验：逻辑tuple键必须已证明完全不可观察（包括循环退出），否则不得使用。
+        // 精确long默认零并加一，单次查找；溢出/非long只拒绝，不写入或调用用户代码。
+        internal bool TryIncrementDiscardedKey(string first, string second)
+        {
+            if (!CheckDomain()) return false;
+            if (owner._index.GetAlternateLookup<PyDictStringPair>()
+                .TryGetValue(new(first, second), out int slot))
+            {
+                if (owner._values[slot] is not long current || current == long.MaxValue) return false;
+                owner._values[slot] = current + 1L;
+                return true;
+            }
+            owner.Set(new PyTuple([first, second]), 1L);
             _checkedVersion = owner.Version;
             return true;
         }
