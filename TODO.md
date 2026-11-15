@@ -5,6 +5,8 @@
 用户授权 GPT 6.1 Sol 主代理与三名 Gemini 3.8 Flash 协作；运行速度优先，
 逐项对照固定 CPython 的速度与内存，按真实数据决定取舍。
 
+本轮已按用户要求收尾并停止；[交接报告](docs/aot-performance-handoff-2026-11-15.md)记录已验收实现、剩余差距及下一轮准入。
+
 - [x] 修复 `make bench-aot` 现代 CLI 布局识别；直接脚本墙钟、无插桩 RSS 与独立统计轮分列。
   子代理完成 26 项冻结产物初测及复测，主代理发现并修复旧 CLI 复用、双流/统计失败漏检、
   比较协议和路径边界，20 项工具测试通过；主代理对修订入口独占全套复验26/26通过，优化前几何平均0.86×，完整make check退出0。
@@ -29,8 +31,10 @@
 - [x] sum精确整数原生累计：20项C#、CP/JIT/AOT/异常/搬迁、NumPy回退、26项及重点10轮、完整门禁通过。
   重点generators333.08→306.97ms，分配减少23999616字节；保护项不利结果与取舍见ADR-0199。
 - [~] 随包 CPython、真实 NumPy 与联合应用性能配对；固定NumPy2.3.5短样例的CP/provider NativeAOT成对复验通过，
-  完整联合应用及长任务稳态待测，保留同版本、退出码及双流校验。
+  本轮7程序探索性测量/搬迁完成；CP入口与观测方法限制见[审定结果](docs/aot-cpython-bridge-measurement-results.md)。
+  完整联合应用及严格长任务稳态仍待测，保留同版本、退出码及双流校验。
 - [ ] 单文件首次/重复解包、standalone 与进程树内存分别验收；缓存与执行替换先定义交付生命周期。
+  [设计复核](docs/aot-onefile-optimization-plan.md)：默认资源写入隔离保留；共享缓存、运行租约和有界回收尚待确定。
 - [ ] 每个竖切完成即时 CPython 差分、真实 AOT A/B 与搬迁，最终全套复测、`make check` 后提交推送。
 
 调查与边界见 [编译器候选](docs/aot-compiler-optimization-plan.md)、
