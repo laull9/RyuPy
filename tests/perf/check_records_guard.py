@@ -72,7 +72,13 @@ def baseline(folder):
         assert identity[key]=={'sha256':hashlib.sha256(blob).hexdigest(),'bytes':len(blob)}
     assert identity['baseline']['sha256']!=identity['candidate']['sha256']
     data=json.loads((folder/'baseline-abi.json').read_text())
-    assert data['signatures']==1659 and data['expected']==data['actual']
+    for key in ('baseline','candidate'):
+        assert Path(data[key]).resolve() == (folder/(key+'.dll')).resolve()
+        assert type(data[key+'Bytes']) is int and data[key+'Bytes'] == identity[key]['bytes']
+    assert type(data['signatures']) is int and data['signatures']==1659
+    assert data['expected']==data['actual']
+    assert len(data['actual']) == data['candidateSignatures']
+    assert len(set(data['actual'])) == len(data['actual'])
     assert data['recordsGuardAdditions']==[
         'T:RyuPy.Runtime.PyRecordsIncrement:1048961:System.Object:',
         'M:RyuPy.Runtime.PyRecordsIncrement:TryMaterialized:150:[0;0;2](Object,Object)->Boolean:']
