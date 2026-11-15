@@ -67,9 +67,33 @@ def validate(text, focused):
     return {'passed': passed, 'ignored': sorted(allowed_ignored), 'filtered': filtered}
 
 
+
+DIAGNOSTIC = 'generator_sum_range_plan::original_genexpr_has_a_single_cursor_candidate_not_a_product_proof'
+
+
+def validate_diagnostic(text):
+    # 诊断失败也必须证明实际执行的是指定唯一测试，拒绝空跑或错误筛选。
+    rows = re.findall(r'^test ([\w:]+) \.\.\. (ok|FAILED|ignored)\b', text, re.M)
+    # nocapture的panic可插入测试名称与最终FAILED之间，单线程时允许该libtest格式。
+    if not rows:
+        names = re.findall(r'^test ([\w:]+) \.\.\. ', text, re.M)
+        if names == [DIAGNOSTIC] and re.search(r'^FAILED$', text, re.M):
+            rows = [(DIAGNOSTIC, 'FAILED')]
+    assert len(rows) == 1 and rows[0][0] == DIAGNOSTIC and rows[0][1] in ('ok', 'FAILED'), '单项诊断未实际执行或筛选错误'
+    summaries = re.findall(r'^test result: (ok|FAILED)\. (\d+) passed; (\d+) failed; (\d+) ignored; (\d+) measured; (\d+) filtered out;', text, re.M)
+    assert len(summaries) == 1, '单项诊断缺少或重复汇总'
+    status, passed, failed, ignored, measured, _ = summaries[0]
+    expected = (1, 0) if rows[0][1] == 'ok' else (0, 1)
+    assert (int(passed), int(failed)) == expected and int(ignored) == int(measured) == 0
+    assert status == ('ok' if expected[0] else 'FAILED')
+    return {'diagnostic_test': DIAGNOSTIC, 'diagnostic_outcome': rows[0][1],
+            'diagnostic_log': 'diagnostic.log'}
+
+
 def run(folder):
     stages = [
         ('fmt', ['cargo', 'fmt', '--all', '--check']),
+        ('diagnostic', ['cargo', 'test', '--locked', '-p', 'ryupy-mir', '--lib', DIAGNOSTIC, '--', '--exact', '--nocapture', '--test-threads=1']),
         ('focused', ['cargo', 'test', '--locked', '-p', 'ryupy-mir', '--lib', 'generator_sum_', '--', '--nocapture', '--test-threads=1']),
         ('full', ['cargo', 'test', '--locked', '-p', 'ryupy-mir', '--lib']),
     ]
@@ -83,8 +107,10 @@ def run(folder):
                     log.write(line)
                     print(line, end='', flush=True)
                 result['exit_code'] = process.wait()
+            if name == 'diagnostic':
+                result.update(validate_diagnostic((folder / 'diagnostic.log').read_text()))
             assert result['exit_code'] == 0, '命令退出非零'
-            if name != 'fmt':
+            if name not in ('fmt', 'diagnostic'):
                 result.update(validate((folder / (name + '.log')).read_text(), name == 'focused'))
             result['ok'] = True
         except Exception as error:

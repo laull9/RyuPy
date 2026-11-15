@@ -1,6 +1,6 @@
 """MIR证据解析器的合成正反例，不等同于真实Rust验证。"""
 import unittest
-from check_generator_mir_ci import EXPECTED, IGNORED, validate
+from check_generator_mir_ci import EXPECTED, IGNORED, DIAGNOSTIC, validate, validate_diagnostic
 
 
 def log(focused=True):
@@ -14,6 +14,15 @@ def log(focused=True):
 
 
 class EvidenceTests(unittest.TestCase):
+    def test_exact_diagnostic_pass_and_refusal(self):
+        for success in (True, False):
+            prefix = f'test {DIAGNOSTIC} ... '
+            text = (prefix+'ok\n' if success else prefix+'\nthread panicked: 未批准终结符\nFAILED\n')
+            text += f'test result: {"ok" if success else "FAILED"}. {int(success)} passed; {int(not success)} failed; 0 ignored; 0 measured; 426 filtered out;'
+            self.assertEqual(validate_diagnostic(text)['diagnostic_outcome'], 'ok' if success else 'FAILED')
+            for bad in ('', text.replace(DIAGNOSTIC, 'wrong::test'), text.replace('0 ignored', '1 ignored')):
+                with self.assertRaises(AssertionError): validate_diagnostic(bad)
+
     def test_valid_focused_and_full(self):
         self.assertEqual(validate(log(), True)['passed'], len(EXPECTED))
         self.assertEqual(validate(log(False), False)['ignored'], sorted(IGNORED))

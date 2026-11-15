@@ -39,7 +39,7 @@ jobs:
           git read-tree HEAD
           git update-index --force-remove .github/workflows/generator-mir-prepared-experiment.yml tests/perf/check_generator_mir_ci.py tests/perf/test_generator_mir_ci.py
           git write-tree | tee "$EVIDENCE/source-tree.txt"
-          test "$(cat "$EVIDENCE/source-tree.txt")" = '20fb2ff351ff9ae88645d91d7b7833e8bb8fc15c'
+          test "$(cat "$EVIDENCE/source-tree.txt")" = 'ac94560456b57860f1a7f13a321c18c7062cdd93'
           unset GIT_INDEX_FILE
           printf '%s\n' '{"sdk":{"version":"10.0.403","rollForward":"disable","allowPrerelease":false}}' > global.json
           cp global.json "$EVIDENCE/global.json"
@@ -62,11 +62,11 @@ jobs:
           dotnet --info > "$EVIDENCE/dotnet-info.txt"
       - name: Check evidence validator
         run: python3 -B tests/perf/test_generator_mir_ci.py
-      - name: Run formatting and focused then full MIR library tests
+      - name: Run formatting exact refusal diagnostic focused and full MIR tests
         shell: bash
         run: |
           set -euo pipefail
-          # 三阶段独立执行，格式失败仍收集结构测试结果；总状态保持失败。
+          # 四阶段独立执行，格式失败仍收集结构测试结果；总状态保持失败。
           python3 -B tests/perf/check_generator_mir_ci.py "$EVIDENCE" 2>&1 | tee "$EVIDENCE/driver.log"
       - name: Upload raw evidence including failures
         if: always()
