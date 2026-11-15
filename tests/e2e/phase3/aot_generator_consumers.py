@@ -219,3 +219,81 @@ try:
     g.throw(ValueError("escape"))
 except ValueError as error:
     print("throw escape", str(error), events, next(g, "done"))
+
+# range名称可以重绑定；资格必须来自实际游标，不得跳过创建/取迭代器副作用。
+events = []
+original_range = range
+
+
+class LoggedIterator:
+    def __init__(self):
+        self.index = 0
+
+    def __iter__(self):
+        events.append("iter")
+        return self
+
+    def __next__(self):
+        if self.index == 3:
+            events.append("done")
+            raise StopIteration
+        value = self.index
+        self.index += 1
+        events.append(value)
+        return value
+
+
+def substituted_range(n):
+    events.append(n)
+    return LoggedIterator()
+
+
+range = substituted_range
+g = (x * 2 for x in range(3))
+print("range creation", events)
+print("range fallback", sum(g), events)
+range = original_range
+
+# 真实range游标也可能已消费且有外部别名；批量路径必须推进原游标，不从start重建。
+cursor = iter(range(5))
+g = (x * 2 for x in cursor)
+print("cursor skip", next(cursor))
+print("cursor first", next(g))
+print("cursor skip again", next(cursor))
+print("cursor remaining", sum(g), next(cursor, "done"))
+
+# 非原生数值的乘法可能回调，表面x*2不是纯运算证明。
+events = []
+
+
+class Multiplier:
+    def __mul__(self, other):
+        events.append(other)
+        return 11
+
+
+print("multiply fallback", sum(x * 2 for x in [1, Multiplier(), 3]), events)
+
+# 创建后重绑range不改变已经捕获的游标。
+g = (x * 2 for x in range(4))
+range = substituted_range
+print("range rebound later", sum(g))
+range = original_range
+
+# 乘法溢出和sum累加溢出是两条不同回退边，不能互相替代。
+print("multiply positive overflow", sum(x * 2 for x in range(4611686018427387904, 4611686018427387906)))
+print("multiply negative overflow", sum(x * 2 for x in range(-4611686018427387905, -4611686018427387903)))
+print("sum positive overflow", sum(x * 2 for x in range(4611686018427387902, 4611686018427387904)))
+print("sum negative overflow", sum(x * 2 for x in range(-4611686018427387904, -4611686018427387902)))
+
+# 消费者回调可以推进同一原游标；返回原生long后重新进入批量也必须从真实当前位置继续。
+cursor = iter(range(5))
+
+
+class CursorStart:
+    def __add__(self, value):
+        print("callback cursor", value, next(cursor))
+        return 10
+
+
+print("callback remaining", sum((x * 2 for x in cursor), CursorStart()))

@@ -117,6 +117,11 @@ fn pure(function: &Function, value: &Rvalue) -> bool {
 }
 
 fn high(source: &str) -> (Program, Vec<FnId>) {
+    let (program, plan) = high_with_sources(source);
+    (program, plan.functions().to_vec())
+}
+
+pub(super) fn high_with_sources(source: &str) -> (Program, crate::generator_product::DeferredGenerators) {
     let mut db = ryupy_base::SourceDb::default();
     let file = db.add("sum-plan.py", source);
     let (ast, errors) = ryupy_syntax::parse(file, source);
@@ -129,7 +134,7 @@ fn high(source: &str) -> (Program, Vec<FnId>) {
     let (program, _, errors) =
         crate::build::build_program_mode(&hir, &types, None, Some(&mut deferred), false);
     assert!(errors.is_empty(), "{errors:?}");
-    (program, deferred.functions().to_vec())
+    (program, deferred)
 }
 
 #[test]
@@ -180,4 +185,41 @@ fn original_workload_is_not_claimed_without_range_and_dynamic_proofs() {
             .iter()
             .all(|id| analyze(&program.functions[*id]).is_err())
     );
+}
+
+#[test]
+fn original_three_sources_record_distinct_blocking_instructions() {
+    let (program, generators) = high(include_str!("../../../tests/benchmarks/generators.py"));
+    let function = |name: &str| {
+        generators
+            .iter()
+            .map(|id| &program.functions[*id])
+            .find(|f| f.name == name)
+            .unwrap()
+    };
+    let has = |f: &Function, check: fn(&Rvalue) -> bool| {
+        f.body.blocks.iter().any(|(_, b)| {
+            b.stmts.iter().any(|s| match s {
+                Statement::Assign { value, .. } | Statement::Eval(value) => check(value),
+                _ => false,
+            })
+        })
+    };
+    let count = function("count_up");
+    assert!(has(count, |v| matches!(v, Rvalue::DynBinary { op: DynOp::Add, inplace: true, .. })));
+    for runtime in [RuntimeFn::DynRichCompareValue, RuntimeFn::DynTruthy] {
+        assert!(count.body.blocks.iter().any(|(_, b)| b.stmts.iter().any(|s|
+            matches!(s, Statement::Assign { value: Rvalue::Call { callee: Callee::Runtime(rt), .. }, .. } if *rt == runtime))));
+    }
+    let chained = function("chained");
+    assert!(chained.body.blocks.iter().any(|(_, b)| matches!(
+        b.terminator, Terminator::Suspend { delegated: true, .. }
+    )));
+    assert!(has(chained, |v| matches!(v, Rvalue::GeneratorDelegateStep { .. })));
+    let expression = function("<genexpr>");
+    assert!(has(expression, |v| matches!(v, Rvalue::DynBinary { op: DynOp::Mul, .. })));
+    for runtime in [RuntimeFn::IterStart, RuntimeFn::IterNextOk, RuntimeFn::IterValue] {
+        assert!(expression.body.blocks.iter().any(|(_, b)| b.stmts.iter().any(|s|
+            matches!(s, Statement::Assign { value: Rvalue::Call { callee: Callee::Runtime(rt), .. }, .. } if *rt == runtime))));
+    }
 }

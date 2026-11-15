@@ -173,3 +173,40 @@ residents，拒绝共享resume、字段资格失败、未知语句、动态协�
 标量/局部移动/装箱。该白名单尚不证明原始generators中的range与动态操作，因此有明确
 负断言要求原程序各生成器全部拒绝，不宣称已有原基准命中。待结构测试实际编译通过、
 精确range来源与观察证明补齐后才接产品lowering；现阶段没有产品开关可误启用。
+
+## 精确range候选的闭环与失败回退（尚未产品接线）
+
+原始三源拒绝点由构建器源码及新增高层结构断言登记，仍须CI运行确认：
+
+| 原源 | 高层MIR阻断 | 本切片能否覆盖 |
+| --- | --- | --- |
+| count_up | DynRichCompareValue/DynTruthy的动态比较及DynBinary(Add,inplace) | 否，普通for另需消费者执行区 |
+| chained | GeneratorDelegateStep与delegated Suspend，未通过字段资格 | 否，完整委托协议单独证明 |
+| genexpr | 隐式`.0`上的IterStart/IterNextOk/IterValue与DynBinary(Mul) | 只有新增真实游标guard及精确整数事实后可能覆盖 |
+
+test-only `DeferredGenerators.comprehension_inputs`从HIR的`is_generator && is_comprehension`
+和现有FnId映射登记隐式输入LocalId，不通过`<genexpr>`或`.0`名字授予资格。
+`generator_sum_range_plan.rs`从此证据建立显式单游标候选：guard_input、迭代器定义、乘法
+定义、yield块及resume块。当前只做单静态定义和事实收敛，**尚缺逐使用点的支配证明，
+因此只是候选，不是允许发射的证书**；编译器默认不含此模块。
+
+运行时guard必须作用于工厂已求值/绑定的真实输入对象，精确类型为密封`PyRangeIter`。
+`PyRangeIter`自身实现IPyIterator，PyIter.Create返回同一实例；不得创建新range或新游标。
+不看range函数名，不重新执行工厂/iter，不执行任何MoveNext；guard失败就不附能力，
+原普通恢复入口完整接管。不能先进入MoveNextCore再用pending-current假冒guard失败，
+否则首次启动时点和当前元素会出错。
+
+该guard只证明迭代协议封闭、不调用用户代码，不证明数值范围。IterValue仍读同一个
+原游标，结果是精确long；boxed常量2也是精确long，故乘法可以保留原内建整数路径，
+却不能标记其结果恒为long。原`PyInt.MultiplyI64`的BigInteger升级必须保留；乘法升级后
+正常发布当前yield/resident再回sum外域，既不能丢弃本项，也不能把它重做成long乘法。
+sum自身的加法溢出另走同一pending-current边，由外层原Binary精确加一次。
+
+首切不改`PyRangeIter.MoveNext`，其已有long步进极值边界不因sealed类型而消失，不能宣称
+完整CP范围兼容；如果以后做原生计数或闭式预求和，必须另有Int128边界与整数升级证明。
+
+生产者纯区不得有用户回调、cell/global观察或未知协议。消费者回调仍在暂停态执行，
+可以通过别名推进原游标或控制生成器；再次进入批量必须读取当前PC和原游标真实位置，
+不能使用上次预算/复制的counter。本轮补充手写pending：range替换及零预消费、创建后
+重绑、部分消费/外部消费原游标、用户乘法回调、乘法与累计各自正负溢出、消费者回调推进
+游标后恢复。当前只运行CP输入，不算RyuPy兼容或融合通过。

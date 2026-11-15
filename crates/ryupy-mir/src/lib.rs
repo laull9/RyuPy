@@ -261,3 +261,5 @@ mod generator_state_tests;
 // 批量sum准入仍处于独审/CI原型阶段，生产构建不包含该计划或启用开关。
 #[cfg(test)]
 mod generator_sum_plan;
+#[cfg(test)]
+mod generator_sum_range_plan;
