@@ -5,8 +5,9 @@ from pathlib import Path
 import sys
 import xml.etree.ElementTree as ET
 
-# 对应当前 PyGeneratorSumTests 的 13 方法、16 个参数化实例。
+# 对应当前 PyGeneratorSumTests 的 14 方法、17 个参数化实例。
 CONTRACTS = {
+    "ExperimentalCapabilityDoesNotAddPublicAbi": 1,
     "LongRunUsesOneResumeAndDiscardsReturnValue": 1,
     "EmptyPreservesStartAndZeroStillMakesResultDirty": 1,
     "OverflowItemIsAddedExactlyOnce": 2,
@@ -22,6 +23,10 @@ CONTRACTS = {
     "ProducerErrorRestoresCallerContextAndReleasesCapability": 1,
 }
 PREFIX = "RyuPy.Runtime.Tests.PyGeneratorSumTests."
+TRACE_CONTRACTS = {
+    "RyuPy.Runtime.Tests.PyTraceStateArtifactTests.GeneratorSumBridgeRejectsWrongSignatureAndExtraAuthority": 1,
+    "RyuPy.Runtime.Tests.PyTraceStateArtifactTests.ActualPeRejectsGeneratorSumAuthorityAndFinallyOrderChanges": 2,
+}
 # 属性名不是测试身份：精确映射源码中的类与方法，不允许同类其他测试跳过。
 ALLOWED_SKIPS = {
     "RyuPy.Runtime.Tests.PyTextDedentInitializationTests.FreshProcessContract",
@@ -71,13 +76,18 @@ def check(path: Path, mode: str) -> None:
     families = Counter(name[len(PREFIX):].split("(", 1)[0] for name in focused)
     assert families == CONTRACTS, f"定向合同族不完整：{families}"
     if mode == "focused":
-        assert len(results) == 16, "定向套件混入其他测试"
+        assert len(results) == 17, "定向套件混入其他测试"
     else:
+        trace_names = [r.attrib["testName"] for r in passed
+                       if identities[r.attrib["testId"]] in TRACE_CONTRACTS]
+        assert len(set(trace_names)) == len(trace_names), "PE 合同实例重复"
+        trace_families = Counter(name.split("(", 1)[0] for name in trace_names)
+        assert trace_families == TRACE_CONTRACTS, "实际 PE 变异与桥签名合同未全部执行"
         # 全套无过滤命令负责完整发现；门禁另防意外只执行定向套件，并记录实际数。
         assert any(not r.attrib["testName"].startswith(PREFIX) for r in passed), \
             "全套没有任何非定向通过测试"
     print(f"{mode}: {len(results)} 个记录，{len(passed)} 通过，{len(skipped)} 个白名单跳过；"
-          "包含 13 方法/16 实例生成器合同。")
+          "包含 14 方法/17 实例生成器合同。")
     for name in skip_names:
         print("未验证专项：" + name)
 

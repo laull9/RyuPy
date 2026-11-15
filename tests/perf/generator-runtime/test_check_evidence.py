@@ -5,7 +5,7 @@ import tempfile
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from check_evidence import ALLOWED_SKIPS, CONTRACTS, PREFIX, check
+from check_evidence import ALLOWED_SKIPS, CONTRACTS, PREFIX, TRACE_CONTRACTS, check
 
 
 class EvidenceTests(unittest.TestCase):
@@ -21,7 +21,7 @@ class EvidenceTests(unittest.TestCase):
                 ET.SubElement(results, "UnitTestResult", testId=f"{family}-{i}",
                               testName=name, outcome="Passed")
         summary = ET.SubElement(self.root, "ResultSummary", outcome="Completed")
-        ET.SubElement(summary, "Counters", total="16", executed="16", passed="16", failed="0")
+        ET.SubElement(summary, "Counters", total="17", executed="17", passed="17", failed="0")
 
     def verify(self, mode="focused"):
         # 模拟 VSTest 的定义表，将结果 testId 映射到实际类/方法身份。
@@ -40,11 +40,29 @@ class EvidenceTests(unittest.TestCase):
         ET.ElementTree(self.root).write(self.path)
         check(self.path, mode)
 
+    def add_trace(self):
+        for family, count in TRACE_CONTRACTS.items():
+            for i in range(count):
+                ET.SubElement(self.root[0], "UnitTestResult", testId=f"{family}-{i}",
+                              testName=family + (f"(case: {i})" if count > 1 else ""), outcome="Passed")
+        self.root[1][0].set("total", str(len(self.root[0])))
+        self.root[1][0].set("executed", "20")
+        self.root[1][0].set("passed", "20")
+
+    def test_nonfocused_without_pe_is_rejected(self):
+        ET.SubElement(self.root[0], "UnitTestResult", testId="other", testName="Other.Test", outcome="Passed")
+        for field in ("total", "executed", "passed"): self.root[1][0].set(field, "18")
+        with self.assertRaises(AssertionError): self.verify("full")
+
+    def test_partial_pe_is_rejected(self):
+        self.add_trace()
+        self.root[0].remove(self.root[0][-1])
+        for field in ("total", "executed", "passed"): self.root[1][0].set(field, "19")
+        with self.assertRaises(AssertionError): self.verify("full")
+
     def test_valid_focused_and_full(self):
         self.verify()
-        ET.SubElement(self.root[0], "UnitTestResult", testId="other", testName="Other.Test", outcome="Passed")
-        for field in ("total", "executed", "passed"):
-            self.root[1][0].set(field, "17")
+        self.add_trace()
         self.verify("full")
 
     def test_full_rejects_focused_only(self):
@@ -56,7 +74,7 @@ class EvidenceTests(unittest.TestCase):
 
     def test_repeated_record(self):
         first = copy.deepcopy(self.root[0][0])
-        self.root[0][:] = [copy.deepcopy(first) for _ in range(16)]
+        self.root[0][:] = [copy.deepcopy(first) for _ in range(17)]
         with self.assertRaises(AssertionError): self.verify()
 
     def test_missing_family(self):
@@ -68,7 +86,7 @@ class EvidenceTests(unittest.TestCase):
             with self.subTest(field=field):
                 self.root[1][0].set(field, "15")
                 with self.assertRaises(AssertionError): self.verify()
-                self.root[1][0].set(field, "16")
+                self.root[1][0].set(field, "17")
 
     def test_failed_result(self):
         self.root[0][0].set("outcome", "Failed")
@@ -78,14 +96,12 @@ class EvidenceTests(unittest.TestCase):
         for index, name in enumerate(names):
             ET.SubElement(self.root[0], "UnitTestResult", testId=f"skip-{index}",
                           testName=name, outcome="NotExecuted")
-        self.root[1][0].set("total", str(16 + len(names)))
+        self.root[1][0].set("total", str(17 + len(names)))
         self.root[1][0].set("notExecuted", str(len(names)))
 
     def test_two_allowed_skips(self):
         self.add_skips(sorted(ALLOWED_SKIPS))
-        ET.SubElement(self.root[0], "UnitTestResult", testId="other", testName="Other.Test", outcome="Passed")
-        for field, value in (("total", "19"), ("executed", "17"), ("passed", "17")):
-            self.root[1][0].set(field, value)
+        self.add_trace()
         self.verify("full")
 
     def test_focused_plus_two_skips_is_not_full(self):
