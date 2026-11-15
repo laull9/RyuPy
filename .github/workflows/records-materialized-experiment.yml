@@ -86,6 +86,7 @@ jobs:
         if: always() && steps.tools.outcome == 'success'
         shell: bash
         run: |
+          set +e
           set -uo pipefail
           cargo fmt --all --check 2>&1 | tee "$EVIDENCE/fmt.log"
           fmt=${PIPESTATUS[0]}
