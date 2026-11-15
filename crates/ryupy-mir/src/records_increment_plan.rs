@@ -19,7 +19,12 @@ pub(crate) fn plans(f: &Function) -> Vec<Plan> {
         || !f.body.source_handler_contracts.is_empty()
         || f.body.locals.len() > 512
         || f.body.blocks.len() > 128
-        || f.body.blocks.iter().map(|(_, b)| b.stmts.len()).sum::<usize>() > 4096
+        || f.body
+            .blocks
+            .iter()
+            .map(|(_, b)| b.stmts.len())
+            .sum::<usize>()
+            > 4096
         || f.body.locals.iter().any(|(_, l)| l.is_cell)
         || f.body.blocks.iter().any(|(_, b)| {
             matches!(b.terminator, Terminator::Suspend { .. })
@@ -66,48 +71,115 @@ fn assignment(s: &Statement) -> Option<(LocalId, &Rvalue)> {
 
 fn candidate(f: &Function, block: BlockId, start: usize) -> Option<Plan> {
     let statements = &f.body.blocks[block].stmts;
-    let (snapshot, Rvalue::Use(Operand::Local(receiver))) = assignment(&statements[start - 4])? else {
+    let (snapshot, Rvalue::Use(Operand::Local(receiver))) = assignment(&statements[start - 4])?
+    else {
         return None;
     };
-    let (flag, Rvalue::Call { callee: Callee::Runtime(RuntimeFn::IsModule), args: flag_args }) = assignment(&statements[start - 3])? else {
+    let (
+        flag,
+        Rvalue::Call {
+            callee: Callee::Runtime(RuntimeFn::IsModule),
+            args: flag_args,
+        },
+    ) = assignment(&statements[start - 3])?
+    else {
         return None;
     };
-    let (target, Rvalue::Call { callee: Callee::Runtime(RuntimeFn::CaptureModuleTarget), args: capture_args }) = assignment(&statements[start - 2])? else {
+    let (
+        target,
+        Rvalue::Call {
+            callee: Callee::Runtime(RuntimeFn::CaptureModuleTarget),
+            args: capture_args,
+        },
+    ) = assignment(&statements[start - 2])?
+    else {
         return None;
     };
-    let (zero, Rvalue::Box { value: Operand::Const(Constant::I64(0)), from: MirType::I64 }) = assignment(&statements[start - 1])? else {
+    let (
+        zero,
+        Rvalue::Box {
+            value: Operand::Const(Constant::I64(0)),
+            from: MirType::I64,
+        },
+    ) = assignment(&statements[start - 1])?
+    else {
         return None;
     };
-    let (old, Rvalue::DynCallMethod { captured: Some(captured), obj, name, args }) = assignment(&statements[start])? else {
+    let (
+        old,
+        Rvalue::DynCallMethod {
+            captured: Some(captured),
+            obj,
+            name,
+            args,
+        },
+    ) = assignment(&statements[start])?
+    else {
         return None;
     };
-    let (one, Rvalue::Box { value: Operand::Const(Constant::I64(1)), from: MirType::I64 }) = assignment(&statements[start + 1])? else {
+    let (
+        one,
+        Rvalue::Box {
+            value: Operand::Const(Constant::I64(1)),
+            from: MirType::I64,
+        },
+    ) = assignment(&statements[start + 1])?
+    else {
         return None;
     };
-    let (updated, Rvalue::DynBinary { op: DynOp::Add, lhs, rhs, inplace: false }) = assignment(&statements[start + 2])? else {
+    let (
+        updated,
+        Rvalue::DynBinary {
+            op: DynOp::Add,
+            lhs,
+            rhs,
+            inplace: false,
+        },
+    ) = assignment(&statements[start + 2])?
+    else {
         return None;
     };
-    let Statement::Eval(Rvalue::Call { callee: Callee::Runtime(RuntimeFn::SetItem), args: set_args }) = &statements[start + 3] else {
+    let Statement::Eval(Rvalue::Call {
+        callee: Callee::Runtime(RuntimeFn::SetItem),
+        args: set_args,
+    }) = &statements[start + 3]
+    else {
         return None;
     };
-    let [Operand::Local(key), default] = args.as_slice() else { return None; };
+    let [Operand::Local(key), default] = args.as_slice() else {
+        return None;
+    };
     if flag_args != &[Operand::Local(snapshot)]
-        || capture_args != &[Operand::Local(snapshot), Operand::Const(Constant::Str("get".into()))]
+        || capture_args
+            != &[
+                Operand::Local(snapshot),
+                Operand::Const(Constant::Str("get".into())),
+            ]
         || captured != &Operand::Local(flag)
         || obj != &Operand::Local(target)
         || name != "get"
         || default != &Operand::Local(zero)
         || lhs != &Operand::Local(old)
         || rhs != &Operand::Local(one)
-        || set_args != &[Operand::Local(*receiver), Operand::Local(*key), Operand::Local(updated)]
+        || set_args
+            != &[
+                Operand::Local(*receiver),
+                Operand::Local(*key),
+                Operand::Local(updated),
+            ]
     {
         return None;
     }
     let temps = [snapshot, flag, target, zero, old, one, updated];
     let unique: FxHashSet<_> = temps.into_iter().collect();
-    if unique.len() != temps.len() || unique.contains(receiver) || unique.contains(key)
-        || f.body.locals[*receiver].ty != MirType::Dynamic || f.body.locals[*key].ty != MirType::Dynamic
-        || temps.iter().any(|id| f.params.contains(id) || f.body.locals[*id].name.is_some())
+    if unique.len() != temps.len()
+        || unique.contains(receiver)
+        || unique.contains(key)
+        || f.body.locals[*receiver].ty != MirType::Dynamic
+        || f.body.locals[*key].ty != MirType::Dynamic
+        || temps
+            .iter()
+            .any(|id| f.params.contains(id) || f.body.locals[*id].name.is_some())
     {
         return None;
     }
@@ -121,14 +193,27 @@ fn candidate(f: &Function, block: BlockId, start: usize) -> Option<Plan> {
                 if let Statement::Assign { dest, .. } = statement {
                     if *dest == temp {
                         definitions += 1;
-                        if !inside { return None; }
+                        if !inside {
+                            return None;
+                        }
                     }
                 }
-                if !inside && statement_reads(statement).contains(&temp) { return None; }
+                if !inside && statement_reads(statement).contains(&temp) {
+                    return None;
+                }
             }
-            if terminator_reads(&body.terminator).contains(&temp) { return None; }
+            if terminator_reads(&body.terminator).contains(&temp) {
+                return None;
+            }
         }
-        if definitions != 1 { return None; }
+        if definitions != 1 {
+            return None;
+        }
     }
-    Some(Plan { block, start, receiver: *receiver, key: *key })
+    Some(Plan {
+        block,
+        start,
+        receiver: *receiver,
+        key: *key,
+    })
 }

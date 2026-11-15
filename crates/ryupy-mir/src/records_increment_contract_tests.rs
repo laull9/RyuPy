@@ -146,38 +146,88 @@ fn records_wire_plan_matches_only_closed_capture_window() {
     assert_eq!(f.body.locals[plan.key].name.as_deref(), Some("key"));
     println!("records-wire plan-only {plan:?}; no rewrite");
     for (source, expected) in [
-        ("def step(counts, user, action):\n    key = (user, action)\n    counts[key] = counts.get(key, 0) + 1\n    return key\n", 1),
-        ("def step(counts, user, action):\n    key = (user, action)\n    counts[key] = counts.get(key, 0) + 1\n    return locals()\n", 0),
-        ("def step(counts, key, change):\n    counts[key] = counts.get(key, 0) + change()\n", 0),
-        ("def step(counts, key):\n    counts[key] = counts.get(key, 1) + 1\n", 0),
-        ("def step(counts, key):\n    counts[key] = counts.get(key, 0) + 2\n", 0),
-        ("def step(counts, key):\n    try:\n        counts[key] = counts.get(key, 0) + 1\n    except Exception:\n        pass\n", 0),
+        (
+            "def step(counts, user, action):\n    key = (user, action)\n    counts[key] = counts.get(key, 0) + 1\n    return key\n",
+            1,
+        ),
+        (
+            "def step(counts, user, action):\n    key = (user, action)\n    counts[key] = counts.get(key, 0) + 1\n    return locals()\n",
+            0,
+        ),
+        (
+            "def step(counts, key, change):\n    counts[key] = counts.get(key, 0) + change()\n",
+            0,
+        ),
+        (
+            "def step(counts, key):\n    counts[key] = counts.get(key, 1) + 1\n",
+            0,
+        ),
+        (
+            "def step(counts, key):\n    counts[key] = counts.get(key, 0) + 2\n",
+            0,
+        ),
+        (
+            "def step(counts, key):\n    try:\n        counts[key] = counts.get(key, 0) + 1\n    except Exception:\n        pass\n",
+            0,
+        ),
     ] {
         let program = compile(source);
-        assert_eq!(crate::records_increment_plan::plans(function(&program, "step")).len(), expected, "{source}");
+        assert_eq!(
+            crate::records_increment_plan::plans(function(&program, "step")).len(),
+            expected,
+            "{source}"
+        );
     }
 }
 
 #[test]
 fn records_wire_plan_rejects_overwrite_escape_observer_and_wrong_target() {
     for mode in 0..10 {
-        let mut program = compile("def step(counts, user, action):\n    key = (user, action)\n    counts[key] = counts.get(key, 0) + 1\n    return key\n");
-        let (_, f) = program.functions.iter_mut().find(|(_, f)| f.name == "step").unwrap();
+        let mut program = compile(
+            "def step(counts, user, action):\n    key = (user, action)\n    counts[key] = counts.get(key, 0) + 1\n    return key\n",
+        );
+        let (_, f) = program
+            .functions
+            .iter_mut()
+            .find(|(_, f)| f.name == "step")
+            .unwrap();
         let plans = crate::records_increment_plan::plans(f);
         assert_eq!(plans.len(), 1);
         let p = &plans[0];
-        let Statement::Assign { dest: target, .. } = f.body.blocks[p.block].stmts[p.start - 2] else { panic!("capture assignment"); };
-        let Statement::Assign { dest: updated, .. } = f.body.blocks[p.block].stmts[p.start + 2] else { panic!("add assignment"); };
+        let Statement::Assign { dest: target, .. } = f.body.blocks[p.block].stmts[p.start - 2]
+        else {
+            panic!("capture assignment");
+        };
+        let Statement::Assign { dest: updated, .. } = f.body.blocks[p.block].stmts[p.start + 2]
+        else {
+            panic!("add assignment");
+        };
         match mode {
-            0 => f.body.blocks[p.block].stmts.insert(p.start, Statement::Assign { dest: target, value: Rvalue::Use(Operand::Local(p.receiver)) }),
-            1 => f.body.blocks[p.block].stmts.push(Statement::Eval(Rvalue::Use(Operand::Local(updated)))),
-            2 => f.body.blocks[p.block].stmts.insert(p.start + 1, Statement::Line(99)),
+            0 => f.body.blocks[p.block].stmts.insert(
+                p.start,
+                Statement::Assign {
+                    dest: target,
+                    value: Rvalue::Use(Operand::Local(p.receiver)),
+                },
+            ),
+            1 => f.body.blocks[p.block]
+                .stmts
+                .push(Statement::Eval(Rvalue::Use(Operand::Local(updated)))),
+            2 => f.body.blocks[p.block]
+                .stmts
+                .insert(p.start + 1, Statement::Line(99)),
             3 => {
-                let Statement::Eval(Rvalue::Call { args, .. }) = &mut f.body.blocks[p.block].stmts[p.start + 3] else { panic!("set call"); };
+                let Statement::Eval(Rvalue::Call { args, .. }) =
+                    &mut f.body.blocks[p.block].stmts[p.start + 3]
+                else {
+                    panic!("set call");
+                };
                 args[0] = Operand::Local(p.key);
             }
             4 => f.body.locals[p.key].is_cell = true,
-            5 => f.body.blocks[p.block].terminator = Terminator::Return(Some(Operand::Local(target))),
+            5 => {
+                f.body.blocks[p.block].terminator = Terminator::Return(Some(Operand::Local(target)))
+            }
             6 => {
                 // 即使新块不可达也保守拒绝外部读取，不能仅查连续窗口。
                 f.body.blocks.alloc(BasicBlock {
@@ -187,12 +237,21 @@ fn records_wire_plan_rejects_overwrite_escape_observer_and_wrong_target() {
             }
             7 => {
                 f.body.blocks.alloc(BasicBlock {
-                    stmts: vec![Statement::Assign { dest: target, value: Rvalue::Use(Operand::Local(p.receiver)) }],
+                    stmts: vec![Statement::Assign {
+                        dest: target,
+                        value: Rvalue::Use(Operand::Local(p.receiver)),
+                    }],
                     terminator: Terminator::Unreachable,
                 });
             }
             8 => {
-                let Statement::Assign { value: Rvalue::DynCallMethod { captured, obj, .. }, .. } = &mut f.body.blocks[p.block].stmts[p.start] else { panic!("get call"); };
+                let Statement::Assign {
+                    value: Rvalue::DynCallMethod { captured, obj, .. },
+                    ..
+                } = &mut f.body.blocks[p.block].stmts[p.start]
+                else {
+                    panic!("get call");
+                };
                 std::mem::swap(captured.as_mut().unwrap(), obj);
             }
             9 => {
@@ -201,6 +260,9 @@ fn records_wire_plan_rejects_overwrite_escape_observer_and_wrong_target() {
             }
             _ => unreachable!(),
         }
-        assert!(crate::records_increment_plan::plans(f).is_empty(), "mode {mode}");
+        assert!(
+            crate::records_increment_plan::plans(f).is_empty(),
+            "mode {mode}"
+        );
     }
 }
