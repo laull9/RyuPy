@@ -31,15 +31,24 @@ def verify(folder, sha):
     results = root.findall('.//t:UnitTestResult', NS)
     assert len(results) == 15, f'预期15例，实际{len(results)}'
     assert all(r.get('outcome') == 'Passed' for r in results), '存在失败或跳过'
+    for field in ('testId', 'executionId'):
+        ids = [r.get(field) for r in results]
+        assert all(ids) and len(set(ids)) == 15, f'{field}缺失或重复'
     names = [r.get('testName', '').rsplit('.', 1)[-1] for r in results]
     ordinary = [n for n in names if not n.startswith('HighCardinalityDiagnostic(')]
     assert len(ordinary) == 13 and set(ordinary) == EXPECTED, '普通测试集合不完整'
     assert sorted(n for n in names if n.startswith('HighCardinalityDiagnostic(')) == [
         'HighCardinalityDiagnostic(count: 16384)', 'HighCardinalityDiagnostic(count: 4096)'
     ], '诊断测试集合错误'
-    counters = root.find('.//t:ResultSummary/t:Counters', NS)
+    summaries = root.findall('t:ResultSummary', NS)
+    assert len(summaries) == 1 and summaries[0].get('outcome') == 'Completed', '汇总状态非成功'
+    counters = summaries[0].find('t:Counters', NS)
     assert counters is not None, '缺少汇总'
     assert all(counters.get(k) == '15' for k in ('total', 'executed', 'passed')), '汇总计数错误'
+    for key in ('failed', 'error', 'timeout', 'aborted', 'inconclusive',
+                'passedButRunAborted', 'notRunnable', 'notExecuted', 'disconnected',
+                'warning', 'completed', 'inProgress', 'pending'):
+        assert counters.get(key) == '0', f'非通过计数{key}异常或缺失'
     rows = []
     for result in results:
         for node in result.findall('.//t:StdOut', NS):

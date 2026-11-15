@@ -53,6 +53,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$EVIDENCE"
+          python3 -B tests/perf/test_records_probe_evidence.py 2>&1 | tee "$EVIDENCE/checker-selftest.log"
           python3 -B tests/perf/check_records_probe_evidence.py "$EVIDENCE" "$GITHUB_SHA" 2>&1 | tee "$EVIDENCE/verification.log"
       - name: Upload raw evidence including failures
         if: always()
