@@ -2,13 +2,13 @@
 name: Records isolated CFG guard experiment
 on:
   push:
-    branches: [work/records-guard-ci-20261115]
+    branches: [ci/records-guard-fix-20261115]
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   records-guard:
-    if: github.ref == 'refs/heads/work/records-guard-ci-20261115'
+    if: github.ref == 'refs/heads/ci/records-guard-fix-20261115'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
