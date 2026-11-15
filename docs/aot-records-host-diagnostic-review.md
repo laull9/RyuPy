@@ -91,7 +91,8 @@ alternate lookup缓存/每次取得、完整dict/probe get、tuple/probe/fused�
 先固定SDK10.0.403构建Release测试项目，再执行：
 
 ```bash
-python3 -B tests/perf/records_probe_attribution.py --output "$RUNNER_TEMP/records-attribution"
+python3 -B tests/perf/test_records_attribution_evidence.py
+python3 -B tests/perf/records_probe_attribution.py --expected-sha "$GITHUB_SHA" --output "$RUNNER_TEMP/records-attribution"
 ```
 
 脚本对32/4096/碰撞场景分别创建新testhost进程，以默认/关闭tiering和正/反初始阶段顺序
@@ -99,3 +100,21 @@ python3 -B tests/perf/records_probe_attribution.py --output "$RUNNER_TEMP/record
 不依赖测试发现顺序，不在同一JIT进程切换设置。每次计时外用独立计数公式校验键序和总值。
 测试结果、逐轮观测及TRX保存在仓库外；退出码、1例通过和72条阶段样本均需成立。
 这些控制仍不构成NativeAOT产品性能准入；所有新代码尚待真实编译和执行。
+
+
+### 归因证据门复审修正
+
+初版仅计72行不能准入，现独立checker核验精确Fact结果、定义/执行身份、Completed汇总及
+全部计数；console与TRX归因文本必须一致。配置的键数/碰撞/顺序/tiering和本次随机token
+严格匹配，12阶段×6轮必须按实际正反顺序完整唯一；拒绝未知阶段、重复/缺失/乱序、NaN/
+Infinity/负测量及错误阶段sum。完整13进程汇总按提交/SDK/token及固定运行列表重新核验。
+输出目录必须不存在，连旧空目录也拒绝复用；超时、无TRX或解析异常均写当前失败summary。
+
+阶段oracle同步加强：原始索引逐次验证命中与准确槽位，get验证命中及非零的独立槽位值；
+guard检查计数。两种hash在计时外逐键对独立算术oracle，并在计时后检查各自累计sum；
+索引/读取累计sum也由独立公式核验。聚合仍逐键校验初值加次数与总值。强制逃逸分配阶段
+检查最后实体内容。这些诊断分支本身有成本，不能把阶段时间相减当作无检查产品开销。
+
+合成证据门自检7项（含多组负例）在Python本地通过，涵盖原72条invalid/nan假通过、
+配置/轮次/阶段/数值/oracle/身份/计数、日志不一致、旧目录和失败summary。
+C#本轮改动仍须真实SDK编译，合成证据不能替代实测，也没有启用默认产品路径。
