@@ -40,31 +40,36 @@ pub(super) fn analyze_source(
 }
 
 fn analyze(f: &Function, declared_input: LocalId) -> Option<RangePlan> {
+    analyze_explained(f, declared_input).ok()
+}
+
+// 仅给受控测试提供精确拒绝点；与Option入口共享同一判定，不另设宽松诊断路径。
+fn analyze_explained(f: &Function, declared_input: LocalId) -> Result<RangePlan, String> {
     if !crate::generator_state_analysis::eligible(f) || f.params.first() != Some(&declared_input) {
-        return None;
+        return Err("字段资格或输入参数不匹配".to_owned());
     }
     // 非SSA函数只接受每个局部单个静态定义点，并证明它支配所有实际读取。
     // 此原型仍需运行时真实类型守卫，不向产品lowering暴露。
     let mut definitions = FxHashSet::default();
     let mut frame_depth = None;
     for (block_id, block) in f.body.blocks.iter() {
-        for statement in &block.stmts {
+        for (position, statement) in block.stmts.iter().enumerate() {
             if let Statement::Assign { dest, .. } = statement {
                 if f.params.contains(dest) || !definitions.insert(*dest) {
-                    return None;
+                    return Err(format!("参数被覆盖或静态定义重复，位置 {block_id:?}:{position}: {statement:?}"));
                 }
                 if let Statement::Assign { value: Rvalue::Call { callee: Callee::Runtime(
                     RuntimeFn::TracePush | RuntimeFn::TracePushWithOrigin), .. }, .. } = statement
                     && (block_id != f.body.entry || frame_depth.replace(*dest).is_some())
                 {
-                    return None;
+                    return Err(format!("trace帧非入口或重复，位置 {block_id:?}:{position}"));
                 }
             }
         }
     }
-    let frame_depth = frame_depth?;
+    let frame_depth = frame_depth.ok_or_else(|| "缺少trace帧定义".to_owned())?;
     if !dominates_all_reads(f) {
-        return None;
+        return Err("定义未支配读取（含循环首次迭代）".to_owned());
     }
     let mut facts = FxHashMap::default();
     facts.insert(declared_input, Fact::GuardedRangeCursor);
@@ -87,18 +92,18 @@ fn analyze(f: &Function, declared_input: LocalId) -> Option<RangePlan> {
     let mut multiply = None;
     let mut edge = None;
     for (id, block) in f.body.blocks.iter() {
-        for statement in &block.stmts {
+        for (position, statement) in block.stmts.iter().enumerate() {
             match statement {
                 Statement::Line(_) => {}
                 Statement::Assign { dest, value } => {
-                    infer(value, &facts)?;
+                    infer(value, &facts).ok_or_else(|| format!("未知值，位置 {id:?}:{position}: {value:?}; facts={facts:?}"))?;
                     if matches!(value, Rvalue::Call { callee: Callee::Runtime(RuntimeFn::IterStart), .. }) {
                         if iterator.replace(*dest).is_some() {
-                            return None;
+                            return Err(format!("多游标定义，位置 {id:?}:{position}"));
                         }
                     }
                     if matches!(value, Rvalue::DynBinary { .. }) && multiply.replace(*dest).is_some() {
-                        return None;
+                        return Err(format!("多个动态算术定义，位置 {id:?}:{position}"));
                     }
                 }
                 Statement::Eval(Rvalue::Call {
@@ -106,7 +111,7 @@ fn analyze(f: &Function, declared_input: LocalId) -> Option<RangePlan> {
                     args,
                 }) if args.as_slice() == [Operand::Local(frame_depth)]
                     && fact(&args[0], &facts) == Some(Fact::TraceDepth) => {}
-                _ => return None,
+                _ => return Err(format!("未批准语句，位置 {id:?}:{position}: {statement:?}; frame={frame_depth:?}")),
             }
         }
         match &block.terminator {
@@ -117,16 +122,20 @@ fn analyze(f: &Function, declared_input: LocalId) -> Option<RangePlan> {
                 if fact(value, &facts) == Some(Fact::BuiltinInteger) =>
             {
                 if edge.replace((id, *resume)).is_some() {
-                    return None;
+                    return Err(format!("多个暂停边，位置 {id:?}"));
                 }
             }
-            _ => return None,
+            _ => return Err(format!("未批准终结符，位置 {id:?}: {:?}; facts={facts:?}", block.terminator)),
         }
     }
-    let (yield_block, resume) = edge?;
-    let residents = crate::generator_state_analysis::residents(f)?;
-    let plan = RangePlan { guard_input: declared_input, iterator: iterator?, multiply: multiply?, yield_block, resume, residents };
-    resident_set_requirements_hold(&plan, &plan.residents).then_some(plan)
+    let (yield_block, resume) = edge.ok_or_else(|| "缺少整数yield边".to_owned())?;
+    let residents = crate::generator_state_analysis::residents(f).ok_or_else(|| "resident分析预算耗尽".to_owned())?;
+    let plan = RangePlan { guard_input: declared_input, iterator: iterator.ok_or_else(|| "缺少游标".to_owned())?, multiply: multiply.ok_or_else(|| "缺少乘法".to_owned())?, yield_block, resume, residents };
+    if resident_set_requirements_hold(&plan, &plan.residents) {
+        Ok(plan)
+    } else {
+        Err(format!("resident缺少输入或游标: {plan:?}"))
+    }
 }
 
 // 这里只检查候选集合要求，不是实际lowering字段映射证明。
@@ -253,7 +262,13 @@ fn original_genexpr_has_a_single_cursor_candidate_not_a_product_proof() {
     ));
     assert_eq!(deferred.comprehension_inputs.len(), 1);
     let (function, input) = deferred.comprehension_inputs[0];
-    let plan = analyze_source(&program, &deferred, function, input).unwrap();
+    let plan = analyze_explained(&program.functions[function], input).unwrap_or_else(|reason| {
+        let f = &program.functions[function];
+        // 只在这个手写基准失败时输出有界高层IR到测试日志，绝不写golden或生成文件入库。
+        let locals: Vec<_> = f.body.locals.iter().take(64).collect();
+        let blocks: Vec<_> = f.body.blocks.iter().take(24).collect();
+        panic!("{reason}\nparams={:?} entry={:?}\nlocals={locals:#?}\nblocks={blocks:#?}", f.params, f.body.entry);
+    });
     assert_eq!(plan.guard_input, input);
     assert_ne!(plan.iterator, input);
     assert_ne!(plan.multiply, plan.iterator);
