@@ -44,10 +44,11 @@ def semantic(output, python, old, new):
             exe, _, error, status = measure.build_case(ROOT, cli, bench, work / arm, backend=backend)
             (output / (arm + "-build.log")).write_text(error)
             assert exe is not None, (arm, status, error)
+            if backend == "aot":
+                save_manifest(exe, output / "manifests", label, bench.name)
             command = [str(exe)] if backend == "aot" else ["dotnet", str(exe)]
             assert run(arm, command) == expected, arm
             if backend == "aot":
-                save_manifest(exe, output / "manifests", label, bench.name)
                 moved = work / (arm + " 中文 空格搬迁")
                 shutil.copytree(exe.parent, moved)
                 exe.parent.rename(exe.parent.with_name(exe.parent.name + ".hidden"))

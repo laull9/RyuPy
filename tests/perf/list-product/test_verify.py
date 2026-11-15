@@ -6,6 +6,8 @@ from pathlib import Path
 import tempfile
 import unittest
 import verify
+import aot_hotspot_pair
+import sys
 from unittest.mock import patch
 from aot_pair_evidence import save_manifest, require_space, cleanup_case
 
@@ -104,6 +106,27 @@ class BuildEvidence(unittest.TestCase):
         link = self.root / "link"
         link.symlink_to(self.root, target_is_directory=True)
         with self.assertRaises(AssertionError): cleanup_case(link, self.root)
+
+
+class ExplicitOptions(unittest.TestCase):
+    def arguments(self, extra):
+        with patch.object(sys, "argv", ["pair", "--old", "/tmp/old", "--new", "/tmp/new",
+                                       "--python", sys.executable, "--output", "/tmp/result.json", *extra]):
+            return aot_hotspot_pair.arguments()[0]
+
+    def test_old_defaults_no_capacity_or_cleanup(self):
+        args = self.arguments([])
+        self.assertEqual(args.min_free_gib, 0)
+        self.assertFalse(args.cleanup_completed)
+
+    def test_explicit_ci_options(self):
+        args = self.arguments(["--min-free-gib", "4", "--cleanup-completed",
+                               "--manifest-evidence", "/tmp/manifests"])
+        self.assertEqual(args.min_free_gib, 4)
+        self.assertTrue(args.cleanup_completed)
+
+    def test_cleanup_without_manifest_rejected(self):
+        with self.assertRaises(SystemExit): self.arguments(["--cleanup-completed"])
 
 
 if __name__ == "__main__": unittest.main()

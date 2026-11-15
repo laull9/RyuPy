@@ -26,10 +26,13 @@ def arguments():
     parser.add_argument("--only", default="", help="逗号分隔的原始基准名，默认全部")
     parser.add_argument("--runs", default=5, type=int)
     parser.add_argument("--manifest-evidence", type=Path, help="逐用例两臂实际AOT清单，校验固定SDK")
-    parser.add_argument("--min-free-gib", type=int, default=4)
+    parser.add_argument("--min-free-gib", type=int, default=0, help="显式容量门；0保持原默认不设门")
+    parser.add_argument("--cleanup-completed", action="store_true", help="显式逐项清理，须同时保存清单证据")
     args = parser.parse_args()
-    if args.runs < 1 or args.min_free_gib < 1:
-        parser.error("--runs必须为正整数")
+    if args.runs < 1 or args.min_free_gib < 0:
+        parser.error("--runs须为正整数，--min-free-gib不能为负")
+    if args.cleanup_completed and not args.manifest_evidence:
+        parser.error("逐项清理必须同时指定--manifest-evidence")
     for name in ("old", "new", "python", "output"):
         setattr(args, name, getattr(args, name).resolve())
     if args.output.is_relative_to(ROOT):
@@ -75,7 +78,8 @@ def main():
             case_root.mkdir()
             disk = {}
             for label, cli in (("A", args.old), ("B", args.new)):
-                disk[label] = require_space(root, args.min_free_gib * 1024**3)
+                if args.min_free_gib:
+                    disk[label] = require_space(root, args.min_free_gib * 1024**3)
                 exe, _, error, status = measure.build_case(ROOT, cli, bench, case_root / label, backend="aot", native=True)
                 if exe is None:
                     raise RuntimeError((bench.name, label, status, error))
@@ -112,7 +116,8 @@ def main():
             medians = {k: round(statistics.median(v["ms"] for v in values), 3) for k, values in samples.items()}
             print(bench.name, medians, flush=True)
             # 样本JSON已写盘、两臂清单已复制、统计和搬迁通过后才清理本项。
-            cleanup_case(case_root, root)
+            if args.cleanup_completed:
+                cleanup_case(case_root, root)
     print(f"ALL {len(rows)}通过，临时构建根已清理", flush=True)
 
 
