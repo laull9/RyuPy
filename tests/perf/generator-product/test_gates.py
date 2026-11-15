@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 import mir_gate
+import baseline
 import semantic
 import performance_gate
 import runtime_gate
@@ -53,6 +54,14 @@ class Gates(unittest.TestCase):
             mutations.append(bad)
             for bad in mutations:
                 with self.assertRaises(AssertionError):check(bad)
+
+    def test_fixed_dev_required_before_known(self):
+        cp=(0,b'CP output\n',b'');unsupported=baseline.UNSUPPORTED
+        self.assertEqual(baseline.classify(cp,unsupported,unsupported,unsupported)['unsupported_cases'],1)
+        self.assertEqual(baseline.classify(cp,cp,cp,cp)['unsupported_cases'],0)
+        for dev,off,on in [(cp,unsupported,unsupported),(unsupported,cp,unsupported),
+                           ((1,b'',b'other'),unsupported,unsupported),(unsupported,unsupported,(1,b'extra',unsupported[2]))]:
+            with self.assertRaises(AssertionError):baseline.classify(cp,dev,off,on)
 
     def test_mir_default_feature_and_missing(self):
         for feature in (False, True):

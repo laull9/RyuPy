@@ -35,6 +35,8 @@ jobs:
           echo "DOTNET_INSTALL_DIR=$RUNNER_TEMP/generator-product-dotnet" >> "$GITHUB_ENV"
           git rev-parse HEAD > "$EVIDENCE/candidate.txt"
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git worktree add --detach "$RUNNER_TEMP/generator-fixed-dev" 81758bb477729aee4636f2ca6d6b0815b949849a
+          git -C "$RUNNER_TEMP/generator-fixed-dev" rev-parse HEAD > "$EVIDENCE/fixed-dev.txt"
           df -h > "$EVIDENCE/disk-before.txt"
           lscpu > "$EVIDENCE/cpu.txt"
           uname -a > "$EVIDENCE/kernel.txt"
@@ -96,10 +98,12 @@ jobs:
               "$PYTHON" -B tests/perf/generator-product/mir_gate.py "$EVIDENCE/mir-$arm-$scope.log" "$scope" "$arm"
             done
           done
-      - name: 同提交两feature状态冻结CLI
-        timeout-minutes: 35
+      - name: 固定dev及同提交两feature状态冻结CLI
+        timeout-minutes: 45
         run: |
           set -euo pipefail
+          (cd "$RUNNER_TEMP/generator-fixed-dev"; CARGO_TARGET_DIR="$RUNNER_TEMP/generator-dev-target" make build RELEASE_DIR="$RUNNER_TEMP/frozen-dev") 2>&1 | tee "$EVIDENCE/build-dev.log"
+          rm -rf -- "$RUNNER_TEMP/generator-dev-target"
           for arm in off on; do
             feature=""
             if [ "$arm" = on ]; then feature=generator-sum-experiment; fi
@@ -109,13 +113,18 @@ jobs:
           done
           rm -rf -- "$RUNNER_TEMP/generator-default-target"
           df -h > "$EVIDENCE/disk-after-build.txt"
+      - name: 原输入固定dev及off/on严格四路定位
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          "$PYTHON" -B tests/perf/generator-product/baseline.py --output "$EVIDENCE/baseline" --python "$PYTHON" --dev-source "$RUNNER_TEMP/generator-fixed-dev" --dev "$RUNNER_TEMP/frozen-dev/ryupy" --off "$RUNNER_TEMP/frozen-off/ryupy" --on "$RUNNER_TEMP/frozen-on/ryupy" 2>&1 | tee "$EVIDENCE/baseline.log"
       - name: 固定CP普通差分与已知差异独立观测
         timeout-minutes: 35
         run: |
           set -euo pipefail
           "$PYTHON" -B tests/perf/generator-product/semantic.py --output "$EVIDENCE/semantic" --python "$PYTHON" --old "$RUNNER_TEMP/frozen-off/ryupy" --new "$RUNNER_TEMP/frozen-on/ryupy" 2>&1 | tee "$EVIDENCE/semantic.log"
       - name: 原26项与三消费者同机配对
-        timeout-minutes: 160
+        timeout-minutes: 145
         run: |
           set -euo pipefail
           dotnet build-server shutdown
