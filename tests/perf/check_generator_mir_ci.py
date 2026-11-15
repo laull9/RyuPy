@@ -14,7 +14,7 @@ EXPECTED = {
         'original_three_sources_record_distinct_blocking_instructions',
     )
 } | {
-    'generator_sum_range_plan::' + name for name in (
+    'generator_sum_range_plan::tests::' + name for name in (
         'original_genexpr_has_a_single_cursor_candidate_not_a_product_proof',
         'callbacks_closure_and_multiple_cursors_remain_rejected',
         'single_static_definition_does_not_authorize_read_before_definition',
@@ -68,7 +68,7 @@ def validate(text, focused):
 
 
 
-DIAGNOSTIC = 'generator_sum_range_plan::original_genexpr_has_a_single_cursor_candidate_not_a_product_proof'
+DIAGNOSTIC = 'generator_sum_range_plan::tests::original_genexpr_has_a_single_cursor_candidate_not_a_product_proof'
 
 
 def validate_diagnostic(text):
@@ -93,7 +93,7 @@ def validate_diagnostic(text):
 def run(folder):
     stages = [
         ('fmt', ['cargo', 'fmt', '--all', '--check']),
-        ('diagnostic', ['cargo', 'test', '--locked', '-p', 'ryupy-mir', '--lib', DIAGNOSTIC, '--', '--exact', '--nocapture', '--test-threads=1']),
+        ('diagnostic', ['cargo', 'test', '--locked', '-p', 'ryupy-mir', '--lib', DIAGNOSTIC.rsplit('::', 1)[-1], '--', '--nocapture', '--test-threads=1']),
         ('focused', ['cargo', 'test', '--locked', '-p', 'ryupy-mir', '--lib', 'generator_sum_', '--', '--nocapture', '--test-threads=1']),
         ('full', ['cargo', 'test', '--locked', '-p', 'ryupy-mir', '--lib']),
     ]

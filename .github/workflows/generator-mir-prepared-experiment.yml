@@ -39,7 +39,7 @@ jobs:
           git read-tree HEAD
           git update-index --force-remove .github/workflows/generator-mir-prepared-experiment.yml tests/perf/check_generator_mir_ci.py tests/perf/test_generator_mir_ci.py
           git write-tree | tee "$EVIDENCE/source-tree.txt"
-          test "$(cat "$EVIDENCE/source-tree.txt")" = 'ac94560456b57860f1a7f13a321c18c7062cdd93'
+          test "$(cat "$EVIDENCE/source-tree.txt")" = 'c4e5e4c163eafcc25517122ca49f8acfd2c7adf6'
           unset GIT_INDEX_FILE
           printf '%s\n' '{"sdk":{"version":"10.0.403","rollForward":"disable","allowPrerelease":false}}' > global.json
           cp global.json "$EVIDENCE/global.json"
