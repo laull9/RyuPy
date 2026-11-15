@@ -126,10 +126,12 @@ public partial class PyTraceStateArtifactTests
         var binaryCryptoAdditions = BinaryCryptoPublicAdditions();
         var providerAdditions = ProviderPublicAdditions();
         var recordsGuardAdditions = RecordsGuardPublicAdditions();
-        var additions = v1Additions.Concat(sourceAdditions).Concat(metadataAdditions).Concat(builtinAdditions).Concat(xmlAdditions).Concat(deploymentAdditions).Concat(factoryAdditions).Concat(globalsAdditions).Concat(miAdditions).Concat(runtimeDerivedAdditions).Concat(resourceContextAdditions).Concat(nativeAbiAdditions).Concat(compressionAdditions).Concat(binaryCryptoAdditions).Concat(providerAdditions).Concat(recordsGuardAdditions).OrderBy(x => x, StringComparer.Ordinal).ToArray();
+        var recordsDevAdditions = RecordsDevPublicAdditions();
+        var recordsProbeAdditions = RecordsProbePublicAdditions();
+        var additions = v1Additions.Concat(sourceAdditions).Concat(metadataAdditions).Concat(builtinAdditions).Concat(xmlAdditions).Concat(deploymentAdditions).Concat(factoryAdditions).Concat(globalsAdditions).Concat(miAdditions).Concat(runtimeDerivedAdditions).Concat(resourceContextAdditions).Concat(nativeAbiAdditions).Concat(compressionAdditions).Concat(binaryCryptoAdditions).Concat(providerAdditions).Concat(recordsGuardAdditions).Concat(recordsDevAdditions).Concat(recordsProbeAdditions).OrderBy(x => x, StringComparer.Ordinal).ToArray();
         var expected = before.Concat(additions).OrderBy(x => x, StringComparer.Ordinal).ToArray();
         Evidence("baseline-abi.json", new { baseline, candidate, signatures = before.Length,
-            candidateSignatures = after.Length, expectedAdditions = additions, v1Additions, sourceAdditions, metadataAdditions, builtinAdditions, xmlAdditions, deploymentAdditions, factoryAdditions, globalsAdditions, miAdditions, runtimeDerivedAdditions, resourceContextAdditions, nativeAbiAdditions, compressionAdditions, binaryCryptoAdditions, providerAdditions, recordsGuardAdditions,
+            candidateSignatures = after.Length, expectedAdditions = additions, v1Additions, sourceAdditions, metadataAdditions, builtinAdditions, xmlAdditions, deploymentAdditions, factoryAdditions, globalsAdditions, miAdditions, runtimeDerivedAdditions, resourceContextAdditions, nativeAbiAdditions, compressionAdditions, binaryCryptoAdditions, providerAdditions, recordsGuardAdditions, recordsDevAdditions, recordsProbeAdditions,
             removed = before.Except(after).ToArray(), added = after.Except(before).ToArray(),
             expected, actual = after, baselineBytes = new FileInfo(baseline!).Length, candidateBytes = new FileInfo(candidate).Length,
             scope = "固定1659历史ABI逐字段保留，逐条追加既有冷合同与中性provider合同；不覆盖默认参数和常量" });
