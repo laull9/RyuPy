@@ -77,6 +77,8 @@ pub const EXCEPTION_TYPE_NAMES: &[&str] = &[
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum RuntimeFn {
     /// 字段状态机载体及原生PC；控制对象只在编译器恢复入口内使用。
+    GeneratorSumTryConsume,
+    GeneratorSumRangeGuard,
     GeneratorStateData,
     GeneratorStateGetPC,
     GeneratorStateSetPC,

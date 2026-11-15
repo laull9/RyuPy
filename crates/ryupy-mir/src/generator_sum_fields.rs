@@ -64,6 +64,7 @@ impl Snapshot {
                         payload,
                         initial_pc,
                         origin,
+                        ..
                     },
             },
         ] = statements.as_slice()

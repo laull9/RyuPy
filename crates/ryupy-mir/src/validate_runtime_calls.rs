@@ -26,6 +26,8 @@ pub(super) fn fixed_abi(callee: RuntimeFn) -> bool {
             | RuntimeFn::EnumerateCurrentValue
             | RuntimeFn::GeneratorStateData
             | RuntimeFn::GeneratorStateGetPC
+            | RuntimeFn::GeneratorSumTryConsume
+            | RuntimeFn::GeneratorSumRangeGuard
             | RuntimeFn::GeneratorStateSetPC
             | RuntimeFn::GuardedListSetFalseLoop
             | RuntimeFn::DynRichCompareValue
@@ -172,6 +174,8 @@ pub(super) fn validate_call(
             | RuntimeFn::EnumerateCurrentValue
             | RuntimeFn::GeneratorStateData
             | RuntimeFn::GeneratorStateGetPC => Some(&[MirType::Dynamic]),
+            RuntimeFn::GeneratorSumTryConsume => Some(&[MirType::Dynamic, MirType::Dynamic]),
+            RuntimeFn::GeneratorSumRangeGuard => Some(&[MirType::Dynamic]),
             RuntimeFn::GeneratorStateSetPC => Some(&[MirType::Dynamic, MirType::I64]),
             RuntimeFn::GuardedListSetFalseLoop => Some(&[const { MirType::Dynamic }; 4]),
             RuntimeFn::NumericListCreate => Some(&[]),
@@ -361,7 +365,9 @@ pub(super) fn validate_destination(
         let expected = match runtime {
             #[cfg(feature = "trace-adapter-test")]
             RuntimeFn::TraceAdapterExplicit => Some(MirType::Dynamic),
-            RuntimeFn::IsEnumerateIterator => Some(MirType::Bool),
+            RuntimeFn::IsEnumerateIterator
+            | RuntimeFn::GeneratorSumTryConsume
+            | RuntimeFn::GeneratorSumRangeGuard => Some(MirType::Bool),
             RuntimeFn::MakeComprehensionList
             | RuntimeFn::EnumerateCurrentIndex
             | RuntimeFn::EnumerateCurrentValue => Some(MirType::Dynamic),
@@ -512,6 +518,8 @@ pub(super) fn validate_eval(func: &Function, value: &Rvalue, errors: &mut Vec<St
                     | RuntimeFn::EnumerateCurrentValue
                     | RuntimeFn::GeneratorStateData
                     | RuntimeFn::GeneratorStateGetPC
+                    | RuntimeFn::GeneratorSumTryConsume
+                    | RuntimeFn::GeneratorSumRangeGuard
                     | RuntimeFn::GuardedListSetFalseLoop
                     | RuntimeFn::NumericAccumulatorValue
                     | RuntimeFn::ValidateOrdinaryBase

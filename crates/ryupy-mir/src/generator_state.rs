@@ -249,6 +249,7 @@ pub(crate) fn lower(program: &mut Program, id: FnId) -> bool {
             dest: result,
             value: Rvalue::MakeStateGenerator {
                 resume,
+                sum_resume: None,
                 payload: Operand::Local(data),
                 initial_pc: i64::from(entry.into_raw().into_u32()),
                 origin,
@@ -307,6 +308,8 @@ pub(crate) fn build_program(
     let mut deferred = crate::generator_product::DeferredGenerators::default();
     let (mut program, exports, diagnostics) =
         crate::build::build_program_mode(hir, types, None, Some(&mut deferred), false);
+    #[cfg(feature = "generator-sum-experiment")]
+    let prepared = crate::generator_sum_emit::prepare(&program, &deferred);
     let fallback: Vec<_> = deferred
         .functions()
         .iter()
@@ -314,5 +317,7 @@ pub(crate) fn build_program(
         .filter(|id| !crate::generator_state::lower(&mut program, *id))
         .collect();
     crate::generators::lower(&mut program, &fallback, &deferred.exceptions);
+    #[cfg(feature = "generator-sum-experiment")]
+    crate::generator_sum_emit::finish(&mut program, prepared);
     (program, exports, diagnostics)
 }

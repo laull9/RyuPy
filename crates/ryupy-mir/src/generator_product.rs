@@ -8,7 +8,7 @@ pub struct DeferredGenerators {
     pub(crate) functions: Vec<FnId>,
     pub(crate) exceptions: FxHashMap<String, GlobalId>,
     // 关闭态sum计划的显式来源证据；不以生成函数名字或参数名字推断genexpr。
-    #[cfg(test)]
+    #[cfg(any(test, feature = "generator-sum-experiment"))]
     pub(crate) comprehension_inputs: Vec<(FnId, crate::LocalId)>,
 }
 
@@ -20,7 +20,7 @@ pub(crate) fn finish_build(
     deferred: Option<&mut DeferredGenerators>,
 ) -> Vec<crate::trace_lowering::GeneratorLayout> {
     let plan = DeferredGenerators {
-        #[cfg(test)]
+        #[cfg(any(test, feature = "generator-sum-experiment"))]
         comprehension_inputs: hir
             .functions
             .iter()

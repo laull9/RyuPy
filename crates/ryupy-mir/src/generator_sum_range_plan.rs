@@ -16,12 +16,21 @@ enum Fact {
 
 #[derive(Debug)]
 pub(super) struct RangePlan {
-    guard_input: LocalId,
+    pub(super) guard_input: LocalId,
     iterator: LocalId,
     multiply: LocalId,
-    yield_block: BlockId,
+    pub(super) yield_block: BlockId,
     resume: BlockId,
     pub(super) residents: FxHashSet<LocalId>,
+}
+
+impl RangePlan {
+    // 首次接线进一步要求yield直接发布已核验的乘法结果及原恢复边，不接别名扩展形状。
+    pub(super) fn direct_yield(&self, function: &Function) -> bool {
+        matches!(&function.body.blocks[self.yield_block].terminator,
+            Terminator::Suspend { value: Operand::Local(value), resume, .. }
+                if *value == self.multiply && *resume == self.resume)
+    }
 }
 
 // 这里只核对元数据内的数值ID记录；尚未绑定Program构建身份，不能用作产品证书。
@@ -380,5 +389,6 @@ fn infer(value: &Rvalue, facts: &FxHashMap<LocalId, Fact>) -> Option<Fact> {
     }
 }
 
+#[cfg(test)]
 #[path = "generator_sum_range_plan_tests.rs"]
 mod tests;
