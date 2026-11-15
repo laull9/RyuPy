@@ -269,3 +269,13 @@ mod generator_sum_plan;
 mod generator_sum_prepared;
 #[cfg(any(test, feature = "generator-sum-experiment"))]
 mod generator_sum_range_plan;
+
+#[cfg(test)]
+mod records_increment_contract_tests;
+
+#[cfg(any(test, feature = "records-increment-experiment"))]
+mod records_increment_guard;
+#[cfg(any(test, feature = "records-increment-experiment"))]
+mod records_increment_plan;
+#[cfg(feature = "records-increment-experiment")]
+pub use records_increment_guard::{RecordsIncrementExperiment, apply_records_increment_experiment};

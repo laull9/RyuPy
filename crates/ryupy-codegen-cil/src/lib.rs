@@ -239,3 +239,6 @@ mod explicit_super_pe_tests;
 mod lexical_class_abi_tests;
 
 mod generator_state_emit;
+
+#[cfg(test)]
+mod records_guard_tests;

@@ -17,6 +17,7 @@
     <RootNamespace>RyuPy.Runtime</RootNamespace>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <!-- 专用测试构建必须显式开启；生产没有此类型、字段和调用。 -->
+    <DefineConstants Condition="'$(RecordsGuardDiagnostics)' == 'true'">$(DefineConstants);RECORDS_GUARD_DIAGNOSTICS</DefineConstants>
     <DefineConstants Condition="'$(TraceAdapterTest)' == 'true'">$(DefineConstants);TRACE_ADAPTER_TEST</DefineConstants>
   </PropertyGroup>
 

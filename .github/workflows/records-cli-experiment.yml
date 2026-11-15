@@ -1,0 +1,236 @@
+# 显式feature/CLI选择的源码差分；不合dev、不宣称默认或暖态性能。
+name: Records isolated compiled source experiment
+on:
+  push:
+    branches: [ci/records-cli-chunked-20261115]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-trial:
+    if: github.ref == 'refs/heads/ci/records-cli-chunked-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+      MSBUILDDISABLENODEREUSE: '1'
+      DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+      UseSharedCompilation: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Freeze source and fresh evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          EVIDENCE="$RUNNER_TEMP/records-cli-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          mkdir "$EVIDENCE"
+          printf 'EVIDENCE=%s\n' "$EVIDENCE" >> "$GITHUB_ENV"
+          git rev-parse HEAD | tee "$EVIDENCE/commit.txt"
+          test "$(cat "$EVIDENCE/commit.txt")" = "$GITHUB_SHA"
+          export GIT_INDEX_FILE="$EVIDENCE/source-index"
+          git read-tree HEAD
+          git update-index --force-remove .github/workflows/records-cli-experiment.yml tests/perf/package_records_evidence.py
+          git write-tree | tee "$EVIDENCE/source-tree.txt"
+          test "$(cat "$EVIDENCE/source-tree.txt")" = 2d59e91ee05a3e5d45a97c2a213613ea92feb587
+          unset GIT_INDEX_FILE
+          printf '%s\n' '{"sdk":{"version":"10.0.403","rollForward":"disable","allowPrerelease":false}}' > global.json
+          cp global.json "$EVIDENCE/global.json"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: tests/pinned-python.txt
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
+        with:
+          toolchain: '1.99.1'
+          components: rustfmt
+      - uses: actions/checkout@v4
+        with:
+          ref: 81758bb477729aee4636f2ca6d6b0815b949849a
+          path: .records-dev-baseline
+      - name: Verify SDK and evidence negative cases
+        shell: bash
+        run: |
+          set -euo pipefail
+          git -C .records-dev-baseline rev-parse HEAD | tee "$EVIDENCE/baseline-commit.txt"
+          git -C .records-dev-baseline rev-parse HEAD^{tree} | tee "$EVIDENCE/baseline-tree.txt"
+          test "$(cat "$EVIDENCE/baseline-commit.txt")" = 81758bb477729aee4636f2ca6d6b0815b949849a
+          test "$(cat "$EVIDENCE/baseline-tree.txt")" = cc73c7780c95b4b9c039bf494b8b150660f67850
+          cp global.json .records-dev-baseline/global.json
+          dotnet --version | tee "$EVIDENCE/sdk.txt"
+          test "$(cat "$EVIDENCE/sdk.txt")" = 10.0.403
+          rustc --version | tee "$EVIDENCE/rust.txt"
+          python3 --version | tee "$EVIDENCE/python.txt"
+          python3 -B -c 'import sys; assert sys.version_info[:3] == (3,12,13)'
+          python3 -B tests/perf/test_records_source_trial.py 2>&1 | tee "$EVIDENCE/checker-tests.log"
+      - name: Rustfmt, default gates, explicitly enabled gates
+        id: gates
+        shell: bash
+        run: |
+          set +e
+          set -uo pipefail
+          cargo fmt --all --check > "$EVIDENCE/fmt.log" 2>&1
+          fmt=$?
+          printf '%s\n' "$fmt" > "$EVIDENCE/fmt-exit.txt"
+          for file in crates/ryupy-mir/src/records_increment_guard.rs crates/ryupy-driver/src/records_options_tests.rs crates/ryupy-driver/src/accumulator_options.rs crates/ryupy-driver/src/session.rs crates/ryupy-driver/src/manifest.rs crates/ryupy-driver/runtime_bundle_build.rs crates/ryupy-cli/src/main.rs crates/ryupy-cli/src/args.rs; do
+            mkdir -p "$EVIDENCE/format/$(dirname "$file")"
+            rustfmt --edition 2024 --emit stdout --config skip_children=true "$file" > "$EVIDENCE/format/$file"
+          done
+          cargo test -p ryupy-driver --lib records_driver_ -- --nocapture > "$EVIDENCE/driver-default.log" 2>&1
+          a=$?
+          cargo test -p ryupy-cli --bin ryupy records_flag_ -- --nocapture > "$EVIDENCE/cli-default.log" 2>&1
+          b=$?
+          cargo test -p ryupy-driver --features records-increment-experiment --lib records_options_tests:: -- --nocapture > "$EVIDENCE/driver-enabled.log" 2>&1
+          c=$?
+          cargo test -p ryupy-mir --features records-increment-experiment --lib records_guard_ -- --nocapture > "$EVIDENCE/mir-guard.log" 2>&1
+          d=$?
+          printf '%s\n' "default_driver=$a default_cli=$b feature_driver=$c mir_guard=$d" > "$EVIDENCE/gates-exit.txt"
+          python3 -B - "$EVIDENCE" <<'PYCODE'
+          import re,sys
+          from pathlib import Path
+          root=Path(sys.argv[1])
+          for name,count in [('driver-default',1),('cli-default',1),('driver-enabled',2),('mir-guard',3)]:
+              text=(root/(name+'.log')).read_text()
+              totals=re.findall(r'test result: ok\. (\d+) passed; (\d+) failed; (\d+) ignored;',text)
+              assert totals==[(str(count),'0','0')],(name,totals)
+              tests=re.findall(r'^test (\S+) \.\.\. ok$',text,re.M)
+              assert len(tests)==count and len(set(tests))==count,(name,tests)
+          PYCODE
+          e=$?
+          test "$a" = 0 && test "$b" = 0 && test "$c" = 0 && test "$d" = 0 && test "$fmt" = 0 && test "$e" = 0
+      - name: Build separate normal and diagnostic CLIs and PE auditor
+        id: build
+        if: always() && steps.gates.outcome != 'skipped'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --manifest-path .records-dev-baseline/Cargo.toml --release -p ryupy-cli --target-dir "$RUNNER_TEMP/records-cli-baseline" 2>&1 | tee "$EVIDENCE/baseline-build.log"
+          cargo build --release -p ryupy-cli --features records-increment-experiment --target-dir "$RUNNER_TEMP/records-cli-normal" 2>&1 | tee "$EVIDENCE/normal-build.log"
+          cargo build --release -p ryupy-cli --features records-increment-diagnostics --target-dir "$RUNNER_TEMP/records-cli-diagnostic" 2>&1 | tee "$EVIDENCE/diagnostic-build.log"
+          dotnet build tests/perf/records_runtime_audit/Audit.csproj -c Release -o "$EVIDENCE/audit" 2>&1 | tee "$EVIDENCE/audit-build.log"
+      - name: Real CP and source JIT/NativeAOT differential and paired cold wall
+        id: trial
+        if: always() && steps.build.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          df -h | tee "$EVIDENCE/disk-before-trial.txt"
+          python3 -B tests/perf/records_source_trial.py --cli "$RUNNER_TEMP/records-cli-normal/release/ryupy" --diagnostic-cli "$RUNNER_TEMP/records-cli-diagnostic/release/ryupy" --baseline-cli "$RUNNER_TEMP/records-cli-baseline/release/ryupy" --baseline-repo .records-dev-baseline --audit "$EVIDENCE/audit/Audit.dll" --output "$EVIDENCE/trial" --expected-sha "$GITHUB_SHA" 2>&1 | tee "$EVIDENCE/trial.log"
+      - name: Independently verify raw evidence
+        if: always() && steps.trial.outcome != 'skipped'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B tests/perf/check_records_source_trial.py "$EVIDENCE/trial" --expected-sha "$GITHUB_SHA" 2>&1 | tee "$EVIDENCE/verified.log"
+      - name: Package complete evidence into bounded independent artifacts
+        id: package
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B tests/perf/package_records_evidence.py "$EVIDENCE" "$RUNNER_TEMP/records-parts" --github-output "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: records-source-summary-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/summary
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 1
+        with:
+          name: records-source-part-01-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-01.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 2
+        with:
+          name: records-source-part-02-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-02.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 3
+        with:
+          name: records-source-part-03-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-03.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 4
+        with:
+          name: records-source-part-04-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-04.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 5
+        with:
+          name: records-source-part-05-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-05.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 6
+        with:
+          name: records-source-part-06-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-06.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 7
+        with:
+          name: records-source-part-07-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-07.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 8
+        with:
+          name: records-source-part-08-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-08.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 9
+        with:
+          name: records-source-part-09-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-09.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 10
+        with:
+          name: records-source-part-10-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-10.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 11
+        with:
+          name: records-source-part-11-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-11.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 12
+        with:
+          name: records-source-part-12-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-12.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14

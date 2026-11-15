@@ -42,6 +42,8 @@ pub struct Session {
     /// 显式启用直接 CIL 累加实验；默认保留已验证的 holder 路径。
     /// 仅控制本次会话的 MIR 流水线，不从进程环境隐式读取，也不改变语言语义。
     pub experimental_direct_accumulator: bool,
+    /// 显式records实体key实验；需Cargo feature，默认关闭，禁止固定Python绑定路径。
+    pub experimental_records_increment: bool,
     /// 显式实验：仅在实际自动选择的普通动态实例模块启用严格ForEach holder。
     /// 默认关闭，不提供公共CLI模式，也不影响显式实例模块与旧ForRange累加器。
     pub experimental_foreach_accumulator: bool,

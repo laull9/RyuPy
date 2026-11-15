@@ -136,6 +136,9 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         RuntimeFn::NumericListReadF64 => {
             ins.push(Instruction::call(ctx.runtime_refs.numeric_list.read_f64))
         }
+        RuntimeFn::RecordsTryIncrementMaterialized => {
+            ins.push(Instruction::call(ctx.runtime_refs.accumulator.records_try))
+        }
         RuntimeFn::NumericAccumulatorCreate => {
             ins.push(Instruction::call(ctx.runtime_refs.accumulator.create))
         }

@@ -27,7 +27,7 @@ namespace RyuPy.Runtime;
 /// 覆盖已有键不递增。这是 CPython 的规则：迭代中给已有键赋新值合法，
 /// 增删键才抛 <c>RuntimeError: dictionary changed size during iteration</c>。
 /// </remarks>
-public sealed class PyDict
+public sealed partial class PyDict
 {
     /// <summary>墓碑超过这个数量且占比过半时才整理，避免每次删除都搬数组。</summary>
     private const int MinTombstonesBeforeCompact = 32;

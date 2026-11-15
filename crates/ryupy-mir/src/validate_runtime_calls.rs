@@ -197,7 +197,9 @@ pub(super) fn validate_call(
             RuntimeFn::TypedDictBegin => {
                 Some(&[MirType::Str, MirType::Dynamic, MirType::Bool, MirType::Str])
             }
-            RuntimeFn::NumericAccumulatorAdd => Some(&[MirType::Dynamic, MirType::Dynamic]),
+            RuntimeFn::NumericAccumulatorAdd | RuntimeFn::RecordsTryIncrementMaterialized => {
+                Some(&[MirType::Dynamic, MirType::Dynamic])
+            }
             RuntimeFn::WriteI64 => Some(&[MirType::Dynamic, MirType::I64]),
             RuntimeFn::WriteF64 => Some(&[MirType::Dynamic, MirType::F64]),
             RuntimeFn::WriteBool => Some(&[MirType::Dynamic, MirType::Bool]),
@@ -397,9 +399,10 @@ pub(super) fn validate_destination(
             | RuntimeFn::NumericListCreate
             | RuntimeFn::NumericListAppendF64
             | RuntimeFn::NumericListPeekList => Some(MirType::Dynamic),
-            RuntimeFn::IsModule | RuntimeFn::NumericListCanReadF64 | RuntimeFn::ExceptionMatch => {
-                Some(MirType::Bool)
-            }
+            RuntimeFn::RecordsTryIncrementMaterialized
+            | RuntimeFn::IsModule
+            | RuntimeFn::NumericListCanReadF64
+            | RuntimeFn::ExceptionMatch => Some(MirType::Bool),
             RuntimeFn::NumericListReadF64 | RuntimeFn::NumericListReadCheckedF64 => {
                 Some(MirType::F64)
             }
@@ -511,6 +514,7 @@ pub(super) fn validate_eval(func: &Function, value: &Rvalue, errors: &mut Vec<St
                     | RuntimeFn::NumericListCanReadF64
                     | RuntimeFn::NumericListReadCheckedF64
                     | RuntimeFn::NumericListReadF64
+                    | RuntimeFn::RecordsTryIncrementMaterialized
                     | RuntimeFn::NumericAccumulatorCreate
                     | RuntimeFn::MakeComprehensionList
                     | RuntimeFn::IsEnumerateIterator

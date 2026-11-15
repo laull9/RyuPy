@@ -9,6 +9,7 @@ publish.workspace = true
 [features]
 # 生成器消费融合候选；真实差分与性能验收前默认关闭。
 generator-sum-experiment = []
+records-increment-experiment = []
 # 仅隔离S2a测试产物；不用于默认项目或发布。
 trace-adapter-test = []
 

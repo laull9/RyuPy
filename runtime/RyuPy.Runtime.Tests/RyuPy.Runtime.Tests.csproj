@@ -5,6 +5,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <!-- 显式隔离CP oracle构建；默认测试不读取外部oracle也不包含此Fact。 -->
+    <DefineConstants Condition="'$(RecordsCpOracleTest)' == 'true'">$(DefineConstants);RECORDS_CP_ORACLE_TEST</DefineConstants>
     <!-- 只在隔离probe测试构建启用，与ProjectReference的全局属性一致。 -->
     <DefineConstants Condition="'$(TraceAdapterTest)' == 'true'">$(DefineConstants);TRACE_ADAPTER_TEST</DefineConstants>
     <!-- 真实冻结dev ABI门仅在专用CI显式编译；默认套件不追加跳过项。 -->
