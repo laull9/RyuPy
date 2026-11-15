@@ -4,6 +4,9 @@ namespace RyuPy.Runtime;
 /// <summary>生成代码在原yield边发布状态后尝试累计；失败须返回尚未相加的current。</summary>
 internal delegate object? PyResumeSum(object frame, PyGeneratorSumState sum);
 
+/// <summary>编译代码的批量恢复ABI；累计载体仅按不透明对象传递，不能据此构造或替换私有状态。</summary>
+public delegate object? PyResumeSumCompiled(object frame, object sum);
+
 /// <summary>一次批量恢复的私有累计值；不保存或替换Python原start对象。</summary>
 internal sealed class PyGeneratorSumState
 {
@@ -32,11 +35,19 @@ public sealed partial class PyGenerator
 {
     private PyResumeSum? _resumeSum;
 
-    /// <summary>专用能力构造器；普通六参构造器不附带能力，当前编译器尚不发射此重载。</summary>
+    /// <summary>专用能力构造器；普通六参构造器不附带能力，此内部重载供协议测试。</summary>
     internal PyGenerator(PyResume resume, object payload, long pc, string source, string name,
         object? origin, PyResumeSum sumResume) : this(resume, payload, pc, source, name, origin)
     {
         _resumeSum = sumResume;
+    }
+
+    /// <summary>编译器提供经过MIR守卫的批量恢复入口；保留普通恢复入口供完整协议回退。</summary>
+    public PyGenerator(PyResume resume, object payload, long pc, string source, string name,
+        object? origin, PyResumeSumCompiled sumResume) : this(resume, payload, pc, source, name, origin)
+    {
+        // 包装只发生在构造时；私有累计状态仍由TrySumBatch逐次创建并管理。
+        _resumeSum = (frame, sum) => sumResume(frame, sum);
     }
 
     // 返回false表示尚未执行任何恢复；true且非Completed表示Current恰好是未相加的一项。
@@ -50,4 +61,15 @@ public sealed partial class PyGenerator
         result = new PyGeneratorSumResult(!yielded, sum.Total, sum.ConsumedAny);
         return true;
     }
+}
+
+
+public static partial class PyOps
+{
+    /// <summary>只接受真实sealed range游标，不调用__iter__/__next__，失败时零消费。</summary>
+    public static bool GeneratorSumRangeGuard(object? iterator) => iterator is PyRangeIter;
+
+    /// <summary>生成代码在发布原yield状态后尝试累计；拒绝项必须原样返回给普通sum。</summary>
+    public static bool GeneratorSumTryConsume(object sum, object? value) =>
+        sum is PyGeneratorSumState state && state.TryConsume(value);
 }

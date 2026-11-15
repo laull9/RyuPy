@@ -32,7 +32,7 @@ public class PyGeneratorSumTests
             return value;
         }
         return new PyGenerator(frame => { data.OrdinaryCalls++; return Step(frame); }, data,
-            0, "sum.py", "g", null, (frame, sum) => {
+            0, "sum.py", "g", null, (object frame, PyGeneratorSumState sum) => {
                 data.BatchCalls++;
                 while (true)
                 {
@@ -108,7 +108,7 @@ public class PyGeneratorSumTests
     public void ProducerStopIterationStillUsesPep479()
     {
         var g = new PyGenerator(_ => throw new PyStopIteration("producer"), new object(),
-            0, "s.py", "g", null, (_, _) => throw new PyStopIteration("producer"));
+            0, "s.py", "g", null, (object _, PyGeneratorSumState _) => throw new PyStopIteration("producer"));
         var error = Assert.Throws<PyRuntimeError>(() => PyOps.CallBuiltin("sum", [g], [], []));
         Assert.Equal("generator raised StopIteration", error.Message);
         Assert.False(g.MoveNext());
@@ -127,7 +127,7 @@ public class PyGeneratorSumTests
     public void ProducerReentryIsRejectedButConsumerCallbackCanResume()
     {
         PyGenerator? g = null;
-        g = new PyGenerator(_ => null, new object(), 0, "s.py", "g", null, (frame, sum) => {
+        g = new PyGenerator(_ => null, new object(), 0, "s.py", "g", null, (object frame, PyGeneratorSumState sum) => {
             Assert.Throws<PyValueError>(() => g!.Next(null, false));
             PyOps.GeneratorStateSetPC(frame, -1);
             return PyNone.Instance;
@@ -212,7 +212,7 @@ public class PyGeneratorSumTests
         var caller = PyErrors.ContextNode;
         long depth = PyTraceback.CaptureDepth();
         var g = new PyGenerator(_ => null, new object(), 0, "batch-error.py", "broken", null,
-            (_, _) => { PyTraceback.SetLine(17); throw new PyValueError("producer"); });
+            (object _, PyGeneratorSumState _) => { PyTraceback.SetLine(17); throw new PyValueError("producer"); });
         var error = Assert.Throws<PyValueError>(() => PyOps.CallBuiltin("sum", [g], [], []));
         Assert.Contains("batch-error.py", PyTraceback.Format(error));
         Assert.Contains("line 17", PyTraceback.Format(error));

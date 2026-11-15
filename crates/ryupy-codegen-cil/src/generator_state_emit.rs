@@ -6,6 +6,7 @@ use ryupy_mir::{FnId, Operand};
 
 pub(crate) fn emit(
     resume: FnId,
+    sum_resume: Option<FnId>,
     payload: &Operand,
     initial_pc: i64,
     origin: Option<&Operand>,
@@ -39,7 +40,15 @@ pub(crate) fn emit(
     } else {
         ins.push(Instruction::LoadNull);
     }
-    ins.push(Instruction::NewObject(UserMethod::Reference(
-        ctx.runtime_refs.generators.state_ctor,
-    )));
+    let ctor = if let Some(sum_resume) = sum_resume {
+        ins.push(Instruction::LoadNull);
+        ins.push(Instruction::LoadMethodPointer(ctx.fn_map[&sum_resume].into()));
+        ins.push(Instruction::NewObject(UserMethod::Reference(
+            ctx.runtime_refs.generators.sum_resume_ctor,
+        )));
+        ctx.runtime_refs.generators.sum_state_ctor
+    } else {
+        ctx.runtime_refs.generators.state_ctor
+    };
+    ins.push(Instruction::NewObject(UserMethod::Reference(ctor)));
 }

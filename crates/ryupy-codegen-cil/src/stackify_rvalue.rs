@@ -432,11 +432,13 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
         }
         Rvalue::MakeStateGenerator {
             resume,
+            sum_resume,
             payload,
             initial_pc,
             origin,
         } => crate::generator_state_emit::emit(
             *resume,
+            *sum_resume,
             payload,
             *initial_pc,
             origin.as_ref(),
