@@ -218,3 +218,7 @@ sum自身的加法溢出另走同一pending-current边，由外层原Binary精�
 独审补正：高层返回epilogue仍可能有Eval(TracePopTo)。range候选只准许单参数且该参数
 已被证明为真实TracePush/TracePushWithOrigin结果、并通过定义支配检查的TracePopTo。
 任意Eval、常量伪深度及换成其他RuntimeFn均拒绝；正例与两种变异负例独立保留，未运行。
+
+来源验证入口要求FnId和输入LocalId同时匹配同一DeferredGenerators见证；非法或不匹配ID
+拒绝，不索引非法arena。另加先用后定义、替代控制流分支才定义、共享resume以及伪帧
+深度负例。全部仍为test-only，不能用跨块事实汇总替代这些支配与来源检查。

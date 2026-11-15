@@ -23,6 +23,20 @@ struct RangePlan {
     resume: BlockId,
 }
 
+// FnId/LocalId必须来自同一份deferred构建的显式来源，外来函数或任意参数号不能授予资格。
+fn analyze_source(
+    program: &Program,
+    deferred: &crate::generator_product::DeferredGenerators,
+    function: FnId,
+    input: LocalId,
+) -> Option<RangePlan> {
+    if !deferred.comprehension_inputs.contains(&(function, input)) {
+        return None;
+    }
+    let (_, f) = program.functions.iter().find(|(id, _)| *id == function)?;
+    analyze(f, input)
+}
+
 fn analyze(f: &Function, declared_input: LocalId) -> Option<RangePlan> {
     if !crate::generator_state_analysis::eligible(f) || f.params.first() != Some(&declared_input) {
         return None;
@@ -218,7 +232,7 @@ fn original_genexpr_has_a_single_cursor_candidate_not_a_product_proof() {
     ));
     assert_eq!(deferred.comprehension_inputs.len(), 1);
     let (function, input) = deferred.comprehension_inputs[0];
-    let plan = analyze(&program.functions[function], input).unwrap();
+    let plan = analyze_source(&program, &deferred, function, input).unwrap();
     assert_eq!(plan.guard_input, input);
     assert_ne!(plan.iterator, input);
     assert_ne!(plan.multiply, plan.iterator);
@@ -288,4 +302,65 @@ fn only_matching_trace_depth_may_be_popped() {
         assert!(changed, "原高层genexpr必须保留真实TracePopTo负例");
         assert!(analyze(&program.functions[function], input).is_none());
     }
+}
+
+
+#[test]
+fn source_function_and_parameter_must_match_the_same_witness() {
+    let (program, deferred) = super::generator_sum_plan::high_with_sources(
+        "def ordinary(x):\n    yield x\ng = (x * 2 for x in range(4))\n"
+    );
+    let (function, input) = deferred.comprehension_inputs[0];
+    assert!(analyze_source(&program, &deferred, function, input).is_some());
+    let wrong_function = *deferred.functions().iter().find(|id| **id != function).unwrap();
+    assert!(analyze_source(&program, &deferred, wrong_function, input).is_none());
+    let bad_input = LocalId::from_raw(999999u32.into());
+    assert!(analyze_source(&program, &deferred, function, bad_input).is_none());
+    let bad_function = FnId::from_raw(999999u32.into());
+    assert!(analyze_source(&program, &deferred, bad_function, input).is_none());
+}
+
+#[test]
+fn alternate_path_definition_is_not_a_dominating_fact() {
+    let (mut program, deferred) = super::generator_sum_plan::high_with_sources(
+        "g = (x * 2 for x in range(4))\n"
+    );
+    let (function, input) = deferred.comprehension_inputs[0];
+    let f = &mut program.functions[function];
+    let mut moved = None;
+    for (_, block) in f.body.blocks.iter_mut() {
+        if let Some(index) = block.stmts.iter().position(|statement| matches!(statement,
+            Statement::Assign { value: Rvalue::Box { value: Operand::Const(Constant::I64(2)), .. }, .. }))
+        {
+            moved = Some(block.stmts.remove(index));
+            break;
+        }
+    }
+    let entry = f.body.entry;
+    let defines = f.body.blocks.alloc(BasicBlock {
+        stmts: vec![moved.expect("原程序常量2必须有明确装箱定义")],
+        terminator: Terminator::Goto(entry),
+    });
+    f.body.entry = f.body.blocks.alloc(BasicBlock {
+        stmts: vec![],
+        terminator: Terminator::Branch {
+            cond: Operand::Const(Constant::Bool(true)), then_: defines, else_: entry,
+        },
+    });
+    assert!(!dominates_all_reads(f));
+    assert!(analyze(f, input).is_none());
+}
+
+#[test]
+fn shared_resume_does_not_get_a_second_yield_edge() {
+    let (mut program, deferred) = super::generator_sum_plan::high_with_sources(
+        "g = (x * 2 for x in range(4))\n"
+    );
+    let (function, input) = deferred.comprehension_inputs[0];
+    let f = &mut program.functions[function];
+    let edge = f.body.blocks.iter().find_map(|(_, block)| {
+        matches!(block.terminator, Terminator::Suspend { .. }).then(|| block.terminator.clone())
+    }).unwrap();
+    f.body.blocks.alloc(BasicBlock { stmts: vec![], terminator: edge });
+    assert!(analyze(f, input).is_none());
 }
