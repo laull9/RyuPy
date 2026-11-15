@@ -17,6 +17,7 @@ CASES = {
     'abi': {ROOT+'PyTraceStateArtifactTests.'+n for n in (
         'RecordsGuardCompiledAbiMatchesExactDeclaredIncrement',
         'RecordsGuardIncrementRejectsMissingChangedDuplicateAndUnknownEntries')},
+    'dev': {ROOT+'PyTraceStateArtifactTests.PinnedRecordsDevPublicAbiProvesNinePreexistingAdditions'},
     'baseline': {ROOT+'PyTraceStateArtifactTests.ProducedAssemblyPreservesEveryBaselinePublicSignature'},
 }
 MIR = {'records_increment_contract_tests::'+n for n in (
@@ -89,6 +90,42 @@ def baseline(folder):
     return {'historical_signatures':1659,'records_additions':2}
 
 
+DEV_ADDITIONS = {
+    'M:RyuPy.Runtime.PyGenerator:.ctor:6278:[32;0;6](RyuPy.Runtime.PyResume,Object,Int64,String,String,Object)->Void:',
+    'M:RyuPy.Runtime.PyOps:GeneratorStateData:150:[0;0;1](Object)->Object:',
+    'M:RyuPy.Runtime.PyOps:GeneratorStateGetPC:150:[0;0;1](Object)->Int64:',
+    'M:RyuPy.Runtime.PyOps:GeneratorStateSetPC:150:[0;0;2](Object,Int64)->Void:',
+    'M:RyuPy.Runtime.PyOps:GuardedListSetFalseLoop:150:[0;0;4](Object,Object,Object,Object)->Object:',
+    'M:RyuPy.Runtime.PyOps:EnumerateCurrentIndex:150:[0;0;1](Object)->Object:',
+    'M:RyuPy.Runtime.PyOps:EnumerateCurrentValue:150:[0;0;1](Object)->Object:',
+    'M:RyuPy.Runtime.PyOps:IsEnumerateIterator:150:[0;0;1](Object)->Boolean:',
+    'M:RyuPy.Runtime.PyOps:MakeComprehensionList:150:[0;0;1](Object)->Object:'}
+PROBE = 'I:RyuPy.Runtime.PyKeyComparer:System.Collections.Generic.IAlternateEqualityComparer`2<RyuPy.Runtime.PyDictStringPair,Object>'
+
+
+def dev_baseline(folder):
+    assert (folder/'dev-commit.txt').read_text().strip()=='81758bb477729aee4636f2ca6d6b0815b949849a'
+    assert (folder/'dev-tree.txt').read_text().strip()=='cc73c7780c95b4b9c039bf494b8b150660f67850'
+    manifest=json.loads((folder/'assembly-identities.json').read_text())
+    item=manifest['dev'];blob=(folder/'dev.dll').read_bytes()
+    assert item['sha256']==hashlib.sha256(blob).hexdigest() and item['bytes']==len(blob)
+    assert len({manifest[k]['sha256'] for k in ('baseline','dev','candidate')})==3
+    assert Path(item['path']).is_absolute() and Path(item['path']).name=='dev.dll'
+    assert Path(item['path']).parent==Path(manifest['baseline']['path']).parent
+    data=json.loads((folder/'records-dev-abi.json').read_text())
+    candidate=json.loads((folder/'baseline-abi.json').read_text())
+    assert data['baseline']==manifest['baseline']['path'] and data['dev']==item['path']
+    assert data['baselineBytes']==manifest['baseline']['bytes'] and data['devBytes']==item['bytes']
+    assert data['baselineSignatures']==1659 and data['devSignatures']==1806
+    assert data['probePresent'] is False and data['removed']==[]
+    assert len(data['devAdditions'])==9 and set(data['devAdditions'])==DEV_ADDITIONS
+    assert len(data['actual'])==len(set(data['actual']))==1806
+    assert DEV_ADDITIONS <= set(data['actual']) and PROBE not in data['actual']
+    assert candidate['recordsDevAdditions']==data['devAdditions'] and candidate['recordsProbeAdditions']==[PROBE]
+    assert sorted(candidate['actual'])==sorted(data['actual']+[PROBE]+candidate['recordsGuardAdditions'])
+    return {'dev_signatures':1806,'preexisting_additions':9,'records_probe_addition':1,'guard_additions':2}
+
+
 def verify(folder,sha):
     assert (folder/'commit.txt').read_text().strip()==sha
     assert (folder/'sdk.txt').read_text().strip()=='10.0.403'
@@ -100,6 +137,7 @@ def verify(folder,sha):
     report['cil']=rust((folder/'guard-cil.log').read_text(),{'records_guard_tests::records_guard_emits_bool_object_object_runtime_call'},1,focused=True)
     report['cil_full']=rust((folder/'cil-full.log').read_text(),ignored={'explicit_super_pe_tests::explicit_super_caller_actual_pe_gate','instance_pe_tests::explicit_instance_actual_pe_gate','instance_pe_tests::instance_class_actual_pe_gate'})
     report['historical_abi']=baseline(folder)
+    report['pinned_dev_abi']=dev_baseline(folder)
     return report
 
 

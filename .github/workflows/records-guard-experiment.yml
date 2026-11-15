@@ -36,7 +36,7 @@ jobs:
           git read-tree HEAD
           git update-index --force-remove .github/workflows/records-guard-experiment.yml tests/perf/check_records_probe_evidence.py tests/perf/check_records_materialized.py tests/perf/check_records_guard.py tests/perf/test_records_guard_evidence.py
           git write-tree | tee "$EVIDENCE/source-tree.txt"
-          test "$(cat "$EVIDENCE/source-tree.txt")" = '6099f4efb8b3bbf1b316fac545a37c7ef930c8da'
+          test "$(cat "$EVIDENCE/source-tree.txt")" = 'ea9bdfc8318d1670e0b0cbe9a04a416e6d37bb4e'
           unset GIT_INDEX_FILE
           printf '%s\n' '{"sdk":{"version":"10.0.403","rollForward":"disable","allowPrerelease":false}}' > global.json
           cp global.json "$EVIDENCE/global.json"
@@ -55,6 +55,10 @@ jobs:
         with:
           ref: bd5d7dbe1f09bd3ba649e9b1c1928845784e4fe8
           path: .records-historical-baseline
+      - uses: actions/checkout@v4
+        with:
+          ref: 81758bb477729aee4636f2ca6d6b0815b949849a
+          path: .records-dev-baseline
       - name: Verify toolchains and checker negative cases
         shell: bash
         run: |
@@ -104,14 +108,21 @@ jobs:
           test "$(cat "$EVIDENCE/baseline-commit.txt")" = bd5d7dbe1f09bd3ba649e9b1c1928845784e4fe8
           test "$(cat "$EVIDENCE/baseline-tree.txt")" = aff0fc2cf409551b5287c638cefe131a1ddd0e1f
           dotnet build .records-historical-baseline/runtime/RyuPy.Runtime/RyuPy.Runtime.csproj -c Release --artifacts-path "$EVIDENCE/baseline-artifacts" 2>&1 | tee "$EVIDENCE/baseline-build.log"
+          git -C .records-dev-baseline rev-parse HEAD | tee "$EVIDENCE/dev-commit.txt"
+          git -C .records-dev-baseline rev-parse HEAD^{tree} | tee "$EVIDENCE/dev-tree.txt"
+          test "$(cat "$EVIDENCE/dev-commit.txt")" = 81758bb477729aee4636f2ca6d6b0815b949849a
+          test "$(cat "$EVIDENCE/dev-tree.txt")" = cc73c7780c95b4b9c039bf494b8b150660f67850
+          dotnet build .records-dev-baseline/runtime/RyuPy.Runtime/RyuPy.Runtime.csproj -c Release --artifacts-path "$EVIDENCE/dev-artifacts" 2>&1 | tee "$EVIDENCE/dev-build.log"
           python3 - "$EVIDENCE" <<'PYCODE'
           import hashlib,json,shutil,sys
           from pathlib import Path
           p=Path(sys.argv[1]);baseline=list((p/'baseline-artifacts/bin/RyuPy.Runtime').glob('**/RyuPy.Runtime.dll'))
           assert len(baseline)==1
           shutil.copyfile(baseline[0],p/'baseline.dll')
+          dev=list((p/'dev-artifacts/bin/RyuPy.Runtime').glob('**/RyuPy.Runtime.dll'));assert len(dev)==1
+          shutil.copyfile(dev[0],p/'dev.dll')
           shutil.copyfile('runtime/RyuPy.Runtime/bin/Release/net10.0/RyuPy.Runtime.dll',p/'candidate.dll')
-          data={key:{'path':str(p/(key+'.dll')),'bytes':len((p/(key+'.dll')).read_bytes()),'sha256':hashlib.sha256((p/(key+'.dll')).read_bytes()).hexdigest()} for key in ('baseline','candidate')}
+          data={key:{'path':str(p/(key+'.dll')),'bytes':len((p/(key+'.dll')).read_bytes()),'sha256':hashlib.sha256((p/(key+'.dll')).read_bytes()).hexdigest()} for key in ('baseline','dev','candidate')}
           (p/'assembly-identities.json').write_text(json.dumps(data,indent=2))
           PYCODE
       - name: Execute guard and exact increment ABI contracts
@@ -125,6 +136,15 @@ jobs:
           dotnet test runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj -c Release -p:RecordsCpOracleTest=true --no-build --no-restore --filter 'FullyQualifiedName~RyuPy.Runtime.Tests.PyTraceStateArtifactTests.RecordsGuard' --logger 'trx;LogFileName=abi.trx' --results-directory "$EVIDENCE" 2>&1 | tee "$EVIDENCE/abi.log"
           second=$?
           test "$first" = 0 && test "$second" = 0
+      - name: Prove pinned dev additions before accepting candidate increment
+        if: always() && steps.baseline.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          export RYUPY_TRACE_BASELINE_DLL="$EVIDENCE/baseline.dll"
+          export RYUPY_RECORDS_DEV_BASELINE_DLL="$EVIDENCE/dev.dll"
+          export RYUPY_TRACE_EVIDENCE_DIR="$EVIDENCE"
+          dotnet test runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj -c Release -p:RecordsCpOracleTest=true --no-build --no-restore --filter 'FullyQualifiedName=RyuPy.Runtime.Tests.PyTraceStateArtifactTests.PinnedRecordsDevPublicAbiProvesNinePreexistingAdditions' --logger 'trx;LogFileName=dev.trx' --results-directory "$EVIDENCE" 2>&1 | tee "$EVIDENCE/dev-test.log"
       - name: Execute real historical baseline ABI gate
         if: always() && steps.baseline.outcome == 'success'
         shell: bash

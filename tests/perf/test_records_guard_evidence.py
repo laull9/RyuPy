@@ -5,7 +5,7 @@ import json
 import hashlib
 import unittest
 import xml.etree.ElementTree as ET
-from check_records_guard import NS, rust, trx, baseline
+from check_records_guard import NS, rust, trx, baseline, dev_baseline, DEV_ADDITIONS, PROBE
 
 
 def tag(n):return '{'+NS['t']+'}'+n
@@ -79,6 +79,43 @@ class GuardEvidenceTests(unittest.TestCase):
                     with self.assertRaises(AssertionError):check()
                     identities[key][field]=old
             (p/'candidate.dll').write_bytes(b'old');identities['candidate']=identities['baseline'].copy()
+            with self.assertRaises(AssertionError):check()
+
+    def test_pinned_dev_requires_independent_binary_and_exact_increment(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p=Path(tmp);manifest={}
+            for key in ('baseline','dev','candidate'):
+                blob=key.encode();(p/(key+'.dll')).write_bytes(blob)
+                manifest[key]={'path':str(p/(key+'.dll')),'bytes':len(blob),'sha256':hashlib.sha256(blob).hexdigest()}
+            (p/'assembly-identities.json').write_text(json.dumps(manifest))
+            (p/'dev-commit.txt').write_text('81758bb477729aee4636f2ca6d6b0815b949849a')
+            (p/'dev-tree.txt').write_text('cc73c7780c95b4b9c039bf494b8b150660f67850')
+            rows=['historical:'+str(i) for i in range(1797)]+sorted(DEV_ADDITIONS)
+            data={'baseline':manifest['baseline']['path'],'dev':manifest['dev']['path'],
+                  'baselineBytes':8,'devBytes':3,'baselineSignatures':1659,'devSignatures':1806,
+                  'devAdditions':sorted(DEV_ADDITIONS),'actual':rows,'probePresent':False,'removed':[]}
+            candidate={'recordsDevAdditions':data['devAdditions'],'recordsProbeAdditions':[PROBE],
+                       'recordsGuardAdditions':['guardtype','guardmethod'],
+                       'actual':rows+[PROBE,'guardtype','guardmethod']}
+            def check():
+                (p/'records-dev-abi.json').write_text(json.dumps(data))
+                (p/'baseline-abi.json').write_text(json.dumps(candidate))
+                return dev_baseline(p)
+            self.assertEqual(check()['preexisting_additions'],9)
+            for key,bad in [('devSignatures',1809),('devBytes',9),('dev',manifest['candidate']['path']),
+                            ('probePresent',True),('removed',['old']),('devAdditions',list(DEV_ADDITIONS)[:-1]),
+                            ('actual',rows[:-1]+[PROBE])]:
+                old=data[key];data[key]=bad
+                with self.subTest(key=key),self.assertRaises(AssertionError):check()
+                data[key]=old
+            for file in ('dev-commit.txt','dev-tree.txt'):
+                old=(p/file).read_text();(p/file).write_text('0'*40)
+                with self.assertRaises(AssertionError):check()
+                (p/file).write_text(old)
+            candidate['actual'].append('unknown')
+            with self.assertRaises(AssertionError):check()
+            candidate['actual'].pop()
+            (p/'dev.dll').write_bytes(b'candidate')
             with self.assertRaises(AssertionError):check()
 
 
