@@ -49,3 +49,33 @@ NotImplementedError、退出1且stdout空，两候选逐字节完全一致，才
 随后仍须运行修订普通输入的CP/off/on JIT/AOT、批量委托真实发射、已知空sum身份、
 搬迁及全部性能门。修订普通输入把sum/range重绑定置于显式绑定参数的函数内，不删除
 原始障碍，也不称原始模块行为已支持。原输入固定dev定位未运行前不能提前归因为基线。
+
+## 第二轮隔离验证补完（未运行）
+
+本次集成源提交：跨模块输入46c3c1ef、工厂计数说明833c9f65、实际dev ABI门fd21afff；
+保持原产品开关默认关闭，不在本CI中开启默认产品优化。实际组合树以运行HEAD记录。
+
+两态各跑完整make check。feature-on使用依赖路径
+`CARGO_FEATURES=ryupy-driver/generator-sum-experiment`，因为e2e包没有同名本地feature。
+每态先保留cargo metadata真实resolve，核driver/MIR特性位和e2e依赖链，不能只凭命令
+文本称启用了feature。两态都真实构建并执行Runtime测试，保留各自TRX/PE证据。
+先从固定dev在外部构建目录生成真实Release Runtime DLL与不可复用manifest，
+显式GeneratorAbiBaselineTest=true核旧全部签名+精确8增量（及负例）。这不替代古老
+1659条基线的既有skip。检查PE证据确实存在、无删除、实际/期望全集相同，不只看测试名。
+
+跨模块普通输入入口cross_module/main.py：off/on分别JIT/AOT对CP完整双流并搬迁。
+AOT清单必须同时绑定main/producer/consumer三个源码模块身份、实际编译文本摘要和
+链接模块名；off零批量role，on精确三个不同真实target。三个发射入口不是三次运行
+快路命中；溢出输入要求正确回退，不把它当成功快路消费统计。
+
+保留原26项及三个消费者1预热+5样本保护；再用原generators和三个消费者做4轮×12pair。
+每轮重建两臂AOT，冻结CLI不重建；奇偶轮交换off/on的AOT构建先后、套件和用例顺序。
+每轮测量执行六种CP/A/B排列各两次，使三臂位置和off/on先后均平衡，另外单次预热
+不计入样本。默认配对脚本行为不变，平衡和逆序必须显式开关。
+逐轮保留命令、构建顺序、执行顺序、raw samples、SDK清单、统计和搬迁；按实际
+CLI身份规范化off/on。四轮48新进程样本只有4次独立构建，分配每轮另取一个值，
+共享runner/启动/I/O/布局噪声仍存在，不宣称暖态、显著性或全平台性能。
+
+第二轮步骤预算：依赖15+旧ABI15+两态完整70+MIR20+冻结30+原输入10+语义35+
+原26/3保护70+平衡70=335分钟，job350分钟。任何未完成都按失败保留证据，
+不能以较早轮次数据替代缺失部分。真实运行前必须独审；本地轻测不是产品通过。

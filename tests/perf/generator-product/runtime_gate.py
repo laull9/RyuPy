@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """生成器 Runtime 隔离 CI 的 TRX 门禁：防止零测试、重复记录与合同遗漏。"""
 from collections import Counter
+import json
 from pathlib import Path
 import sys
 import xml.etree.ElementTree as ET
@@ -129,7 +130,34 @@ def compiled(path):
     assert len(observed) == 8 and set(observed) == COMPILED, "编译ABI八合同未全部通过"
 
 
+HISTORICAL = {"RyuPy.Runtime.Tests.PyTraceStateArtifactTests." + name for name in (
+    "ProducedGeneratorAssemblyPreservesFrozenDevAbiExactly",
+    "FrozenDevIncrementRejectsRemovalChangesDuplicateAndUnknownMembers",
+)}
+
+
+def historical(path):
+    ns = {"t": "http://microsoft.com/schemas/VisualStudio/TeamTest/2010"}
+    rows = ET.parse(path).getroot().findall("t:Results/t:UnitTestResult", ns)
+    matched = [r for r in rows if r.attrib["testName"] in HISTORICAL]
+    assert len(matched) == 2 and {r.attrib["testName"] for r in matched} == HISTORICAL
+    assert all(r.attrib["outcome"] == "Passed" for r in matched), "历史dev ABI与负例必须实际执行"
+
+
+def historical_artifact(folder):
+    data=json.loads((folder/'pe/generator-frozen-dev-abi.json').read_text())
+    assert data['commit']=='81758bb477729aee4636f2ca6d6b0815b949849a' and data['sdk']=='10.0.403'
+    assert data['oldSignatures']>0 and data['candidateSignatures']==data['oldSignatures']+8
+    assert len(data['additions'])==8 and len(set(data['additions']))==8
+    assert data['removed']==[] and sorted(data['added'])==sorted(data['additions'])
+    assert len(data['actual'])==data['candidateSignatures'] and sorted(data['expected'])==sorted(data['actual'])
+    assert len(set(data['actual']))==len(data['actual'])
+    assert len(data['sha256'])==len(data['candidateSha256'])==64
+
+
 if __name__ == "__main__":
     path = Path(sys.argv[1])
     check(path, "full")
     compiled(path)
+    historical(path)
+    historical_artifact(path.parent)

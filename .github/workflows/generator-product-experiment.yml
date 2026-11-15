@@ -2,7 +2,7 @@
 name: Generator product opt-in validation
 on:
   push:
-    branches: [work/generator-product-ci-20261115]
+    branches: [work/generator-product-v2-ci-20261115]
 permissions:
   contents: read
 concurrency:
@@ -77,18 +77,33 @@ jobs:
         run: |
           set -euo pipefail
           "$PYTHON" -B tests/perf/generator-product/test_gates.py
+          "$PYTHON" -B tests/perf/generator-product/test_prepare_abi_baseline.py
           "$PYTHON" -B tests/perf/test_generator_consumers.py
           cargo fmt --all --check 2>&1 | tee "$EVIDENCE/fmt.log"
-      - name: 默认完整检查与Runtime合同证据
-        timeout-minutes: 60
-        env:
-          CARGO_TARGET_DIR: ${{ runner.temp }}/generator-default-target
+      - name: 构建冻结dev实际ABI基线
+        timeout-minutes: 15
         run: |
           set -euo pipefail
-          make check DOTNET_TEST_ARGS="--logger 'trx;LogFileName=runtime.trx' --logger 'console;verbosity=normal' --results-directory '$EVIDENCE'" 2>&1 | tee "$EVIDENCE/check-default.log"
-          "$PYTHON" -B tests/perf/generator-product/runtime_gate.py "$EVIDENCE/runtime.trx"
+          "$PYTHON" -B tests/perf/generator-product/prepare_abi_baseline.py --source "$RUNNER_TEMP/generator-fixed-dev" --evidence "$EVIDENCE/frozen-dev-abi"
+          echo "RYUPY_GENERATOR_BASELINE_MANIFEST=$EVIDENCE/frozen-dev-abi/manifest.json" >> "$GITHUB_ENV"
+          echo "GeneratorAbiBaselineTest=true" >> "$GITHUB_ENV"
+      - name: off及feature-on完整workspace检查与实际PE历史合同
+        timeout-minutes: 70
+        run: |
+          set -euo pipefail
+          for arm in off on; do
+            mkdir -p "$EVIDENCE/check-$arm/pe"
+            feature=""
+            if [ "$arm" = on ]; then feature=ryupy-driver/generator-sum-experiment; fi
+            features=()
+            if [ -n "$feature" ]; then features=(--features "$feature"); fi
+            cargo metadata --locked --format-version 1 "${features[@]}" > "$EVIDENCE/check-$arm/metadata.json"
+            "$PYTHON" -B tests/perf/generator-product/feature_gate.py "$EVIDENCE/check-$arm/metadata.json" "$arm"
+            RYUPY_TRACE_EVIDENCE_DIR="$EVIDENCE/check-$arm/pe" CARGO_TARGET_DIR="$RUNNER_TEMP/generator-default-target" make check CARGO_FEATURES="$feature" DOTNET_TEST_ARGS="--logger 'trx;LogFileName=runtime.trx' --logger 'console;verbosity=normal' --results-directory '$EVIDENCE/check-$arm'" 2>&1 | tee "$EVIDENCE/check-$arm/check.log"
+            "$PYTHON" -B tests/perf/generator-product/runtime_gate.py "$EVIDENCE/check-$arm/runtime.trx"
+          done
       - name: 默认及feature完整和定向MIR
-        timeout-minutes: 35
+        timeout-minutes: 20
         run: |
           set -euo pipefail
           for arm in off on; do
@@ -102,7 +117,7 @@ jobs:
             done
           done
       - name: 固定dev及同提交两feature状态冻结CLI
-        timeout-minutes: 45
+        timeout-minutes: 30
         run: |
           set -euo pipefail
           (cd "$RUNNER_TEMP/generator-fixed-dev"; CARGO_TARGET_DIR="$RUNNER_TEMP/generator-dev-target" make build RELEASE_DIR="$RUNNER_TEMP/frozen-dev") 2>&1 | tee "$EVIDENCE/build-dev.log"
@@ -127,7 +142,7 @@ jobs:
           set -euo pipefail
           "$PYTHON" -B tests/perf/generator-product/semantic.py --output "$EVIDENCE/semantic" --python "$PYTHON" --old "$RUNNER_TEMP/frozen-off/ryupy" --new "$RUNNER_TEMP/frozen-on/ryupy" 2>&1 | tee "$EVIDENCE/semantic.log"
       - name: 原26项与三消费者同机配对
-        timeout-minutes: 145
+        timeout-minutes: 70
         run: |
           set -euo pipefail
           dotnet build-server shutdown
@@ -136,6 +151,12 @@ jobs:
             "$PYTHON" -B tests/perf/aot_hotspot_pair.py --suite "$suite" --old "$RUNNER_TEMP/frozen-off/ryupy" --new "$RUNNER_TEMP/frozen-on/ryupy" --python "$PYTHON" --runs 5 --manifest-evidence "$EVIDENCE/$suite/manifests" --min-free-gib 4 --cleanup-completed --output "$EVIDENCE/$suite/paired.json" 2>&1 | tee "$EVIDENCE/$suite/performance.log"
             "$PYTHON" -B tests/perf/generator-product/performance_gate.py "$EVIDENCE/$suite/paired.json" "$suite"
           done
+      - name: 四轮平衡构建及完整六排列消费者性能
+        timeout-minutes: 70
+        run: |
+          set -euo pipefail
+          dotnet build-server shutdown
+          "$PYTHON" -B tests/perf/generator-product/balanced.py --output "$EVIDENCE/balanced" --old "$RUNNER_TEMP/frozen-off/ryupy" --new "$RUNNER_TEMP/frozen-on/ryupy" --python "$PYTHON" 2>&1 | tee "$EVIDENCE/balanced.log"
           echo COMPLETE > "$EVIDENCE/complete.txt"
       - name: 总是上传失败或完整证据
         if: always()

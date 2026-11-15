@@ -1,5 +1,6 @@
 """固定CP与默认/feature两编译臂的普通语义、已知差异和真实批量委托证据。"""
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -22,10 +23,26 @@ def compare(expected, actual, known=False):
         assert actual == expected, '普通完整双流差分失败'
 
 
-def roles(manifest, candidate):
-    references = json.loads(manifest.read_text())['emitted_delegate_references']
+def roles(manifest, candidate, cross=False):
+    data = json.loads(manifest.read_text())
+    references = data['emitted_delegate_references']
     hits = [r for r in references if r['role'] == 'generator_sum_resume']
     assert bool(hits) == candidate, '真实批量委托发射与feature状态不符'
+    if cross:
+        assert len(hits) == (3 if candidate else 0), '跨模块批量入口必须精确三项或零项'
+        assert all(r['target'] is not None for r in hits)
+        assert len({json.dumps(r['target'], sort_keys=True) for r in hits}) == len(hits), '批量入口不可相互别名'
+        sources = data['sources']; modules = {m['id']:m for m in data['modules']}
+        source_ids = []
+        for filename in ('main.py','producer.py','consumer.py'):
+            matches = [x for x in sources if Path(x['logical_source']).name == filename]
+            assert len(matches) == 1, '缺失或重复真实源模块'
+            item = matches[0]
+            source = ROOT/'tests/fixtures/generator_sum/cross_module'/filename
+            assert item['compiled_text_sha256'] == hashlib.sha256(source.read_bytes()).hexdigest(), '清单编译文本不属于本次源输入'
+            assert modules[item['module_id']]['name'] == item['module_name'], '源模块与链接模块身份不符'
+            source_ids.append(item['module_id'])
+        assert len(set(source_ids)) == 3, '不同源码模块不可复用身份'
     return len(hits)
 
 
@@ -52,6 +69,7 @@ def main():
         for name, relative, known in [
             ('ordinary', 'tests/e2e/phase3/m3_generator_sum_fusion.py', False),
             ('known', 'tests/perf/generator_known/empty_start_identity.py', True),
+            ('cross', 'tests/fixtures/generator_sum/cross_module/main.py', False),
         ]:
             source = ROOT/relative; bench = suite.Benchmark(name=source.stem, path=source)
             expected = run(name+'-CP', [str(args.python), '-B', str(source)])
@@ -66,7 +84,7 @@ def main():
                     count = None
                     if backend == 'aot':
                         manifest = save_manifest(exe, output/'manifests', label, name)
-                        count = roles(manifest, label == 'on')
+                        count = roles(manifest, label == 'on', name == 'cross')
                     command = [str(exe)] if backend == 'aot' else ['dotnet', str(exe)]
                     compare(expected, run(arm, command), known)
                     if backend == 'aot':
@@ -77,8 +95,8 @@ def main():
                     rows.append({'arm': arm, 'known_incompatibility': known, 'batch_delegate_references': count})
                     (output/'completed.json').write_text(json.dumps(rows, indent=2))
                     cleanup_case(work, owned)
-    assert len(rows) == 8
-    (output/'complete.txt').write_text('8 semantic arms; known difference separately classified\n')
+    assert len(rows) == 12
+    (output/'complete.txt').write_text('12 semantic arms; known difference separately classified\n')
 
 
 if __name__ == '__main__': main()

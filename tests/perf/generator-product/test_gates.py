@@ -7,7 +7,13 @@ import unittest
 from unittest.mock import patch
 import mir_gate
 import baseline
+import balanced
+import feature_gate
+import itertools
+import hashlib
+from collections import Counter
 import semantic
+import aot_hotspot_pair
 import performance_gate
 import runtime_gate
 import xml.etree.ElementTree as ET
@@ -22,7 +28,7 @@ class Gates(unittest.TestCase):
         definitions=ET.SubElement(root,tag('TestDefinitions'))
         families={runtime_gate.PREFIX+n:c for n,c in runtime_gate.CONTRACTS.items()}
         families.update(runtime_gate.TRACE_CONTRACTS)
-        families.update({n:1 for n in runtime_gate.COMPILED})
+        families.update({n:1 for n in runtime_gate.COMPILED | runtime_gate.HISTORICAL})
         for family,count in sorted(families.items()):
             for variant in range(count):
                 index=len(results);testid=str(index);execution='run-'+testid
@@ -38,7 +44,7 @@ class Gates(unittest.TestCase):
             path=Path(temp)/'runtime.trx'
             def check(tree):
                 ET.ElementTree(tree).write(path)
-                runtime_gate.check(path,'full');runtime_gate.compiled(path)
+                runtime_gate.check(path,'full');runtime_gate.compiled(path);runtime_gate.historical(path)
             check(root)
             mutations=[]
             bad=copy.deepcopy(root);bad[0][0].set('executionId','wrong');mutations.append(bad)
@@ -62,6 +68,84 @@ class Gates(unittest.TestCase):
         for dev,off,on in [(cp,unsupported,unsupported),(unsupported,cp,unsupported),
                            ((1,b'',b'other'),unsupported,unsupported),(unsupported,unsupported,(1,b'extra',unsupported[2]))]:
             with self.assertRaises(AssertionError):baseline.classify(cp,dev,off,on)
+
+    def test_balanced_order_is_opt_in_and_complete(self):
+        orders=aot_hotspot_pair.execution_orders(12,True)[1:]
+        self.assertEqual(Counter(orders),Counter({p:2 for p in itertools.permutations(('CP','A','B'))}))
+        self.assertEqual(aot_hotspot_pair.execution_orders(2),[('CP','A','B'),('CP','B','A'),('CP','A','B')])
+        with self.assertRaises(ValueError):aot_hotspot_pair.execution_orders(10,True)
+
+    def test_cross_module_binds_source_and_distinct_targets(self):
+        sources=[];modules=[]
+        for index,name in enumerate(('main.py','producer.py','consumer.py')):
+            path=semantic.ROOT/'tests/fixtures/generator_sum/cross_module'/name
+            sources.append({'module_id':index,'module_name':name[:-3],'logical_source':name,
+                            'compiled_text_sha256':hashlib.sha256(path.read_bytes()).hexdigest()})
+            modules.append({'id':index,'name':name[:-3]})
+        data={'sources':sources,'modules':modules,'emitted_delegate_references':[
+            {'role':'generator_sum_resume','target':{'token':i}} for i in range(3)]}
+        with tempfile.TemporaryDirectory() as temp:
+            path=Path(temp)/'manifest.json'
+            def check(d):path.write_text(json.dumps(d));semantic.roles(path,True,True)
+            check(data)
+            bad=copy.deepcopy(data);bad['sources'][0]['compiled_text_sha256']='wrong'
+            with self.assertRaises(AssertionError):check(bad)
+            bad=copy.deepcopy(data);bad['emitted_delegate_references'][0]['target']={'token':1}
+            with self.assertRaises(AssertionError):check(bad)
+            bad=copy.deepcopy(data);bad['modules'][1]['name']='wrong'
+            with self.assertRaises(AssertionError):check(bad)
+
+    def test_actual_feature_resolve(self):
+        data={'packages':[{'name':n,'id':n} for n in ('ryupy-driver','ryupy-mir','ryupy-e2e')],
+              'resolve':{'nodes':[{'id':n,'features':[],'dependencies':['ryupy-driver'] if n=='ryupy-e2e' else []}
+                                  for n in ('ryupy-driver','ryupy-mir','ryupy-e2e')]}}
+        with tempfile.TemporaryDirectory() as temp:
+            path=Path(temp)/'metadata.json';path.write_text(json.dumps(data));feature_gate.verify(path,'off')
+            with self.assertRaises(AssertionError):feature_gate.verify(path,'on')
+            for n in data['resolve']['nodes'][:2]:n['features']=['generator-sum-experiment']
+            path.write_text(json.dumps(data));feature_gate.verify(path,'on')
+            with self.assertRaises(AssertionError):feature_gate.verify(path,'off')
+
+    def test_balanced_raw_report_identity_and_order(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp)
+            for index in (1,2,3,4):
+                for selected,names in balanced.EXPECTED.items():
+                    folder=root/f'round-{index}'/selected;folder.mkdir(parents=True);rows=[]
+                    for name in names:
+                        rows.append({'name':name,'samples':{a:[{'ms':1,'rss':1} for _ in range(12)] for a in ('CP','A','B')},
+                                     'build_order':['A','B'],'execution_order':aot_hotspot_pair.execution_orders(12,True)[1:],
+                                     'free_bytes_before_build':{a:4*1024**3 for a in ('A','B')},
+                                     'stats':{a:{'main_ms':1,'alloc_bytes':1} for a in ('A','B')}})
+                        for arm in ('A','B'):
+                            m=folder/'manifests'/name/arm/'ryupy-artifact.json';m.parent.mkdir(parents=True)
+                            m.write_text(json.dumps({'toolchain':{'sdk_version':'10.0.403','target_framework_major':10}}))
+                    old,new=('on','off') if index%2==0 else ('off','on')
+                    (folder/'paired.json').write_text(json.dumps({'old':f'/tmp/frozen-{old}/ryupy','new':f'/tmp/frozen-{new}/ryupy',
+                                                                 'runs':12,'warmup':1,'rows':rows}))
+            self.assertEqual(len(balanced.verify(root)['results']),4)
+            path=root/'round-2/original/paired.json';valid=json.loads(path.read_text())
+            for mutate in ('order','identity','samples'):
+                bad=copy.deepcopy(valid)
+                if mutate=='order':bad['rows'][0]['execution_order'][0]=['CP','A','B']*2
+                if mutate=='identity':bad['old']='/tmp/frozen-off/ryupy'
+                if mutate=='samples':bad['rows'][0]['samples']['A'].pop()
+                path.write_text(json.dumps(bad))
+                with self.assertRaises(AssertionError):balanced.verify(root)
+            path.write_text(json.dumps(valid))
+
+    def test_actual_abi_artifact_is_required(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);(root/'pe').mkdir();path=root/'pe/generator-frozen-dev-abi.json'
+            additions=[str(i) for i in range(8)];actual=['old']+additions
+            data={'commit':'81758bb477729aee4636f2ca6d6b0815b949849a','sdk':'10.0.403',
+                  'oldSignatures':1,'candidateSignatures':9,'additions':additions,'removed':[],
+                  'added':additions,'expected':actual,'actual':actual,'sha256':'a'*64,'candidateSha256':'b'*64}
+            path.write_text(json.dumps(data));runtime_gate.historical_artifact(root)
+            data['removed']=['old'];path.write_text(json.dumps(data))
+            with self.assertRaises(AssertionError):runtime_gate.historical_artifact(root)
+            path.unlink()
+            with self.assertRaises(FileNotFoundError):runtime_gate.historical_artifact(root)
 
     def test_mir_default_feature_and_missing(self):
         for feature in (False, True):
