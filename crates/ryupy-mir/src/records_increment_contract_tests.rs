@@ -275,6 +275,7 @@ fn records_guard_keeps_capture_and_original_fallback_cfg() {
     let plans = crate::records_increment_plan::plans(f);
     let p = &plans[0];
     let block = p.block;
+    let expected_args = vec![Operand::Local(p.receiver), Operand::Local(p.key)];
     let prefix = format!("{:?}", &f.body.blocks[block].stmts[..p.start]);
     let original = format!("{:?}", &f.body.blocks[block].stmts[p.start..p.start + 4]);
     let tail = format!("{:?}", &f.body.blocks[block].stmts[p.start + 4..]);
@@ -284,12 +285,15 @@ fn records_guard_keeps_capture_and_original_fallback_cfg() {
     let f = function(&program, "summarize");
     let source = &f.body.blocks[block];
     assert_eq!(format!("{:?}", &source.stmts[..source.stmts.len() - 1]), prefix);
-    let Terminator::Branch { then_, else_, .. } = source.terminator else { panic!("guard branch"); };
+    let Terminator::Branch { cond: Operand::Local(condition), then_, else_ } = source.terminator else { panic!("guard branch"); };
     assert_eq!(format!("{:?}", f.body.blocks[else_].stmts), original);
     assert!(matches!(f.body.blocks[else_].terminator, Terminator::Goto(id) if id == then_));
     assert_eq!(format!("{:?}", f.body.blocks[then_].stmts), tail);
     assert_eq!(format!("{:?}", f.body.blocks[then_].terminator), next);
-    assert!(matches!(source.stmts.last(), Some(Statement::Assign { value: Rvalue::Call { callee: Callee::Runtime(RuntimeFn::RecordsTryIncrementMaterialized), .. }, .. })));
+    let Some(Statement::Assign { dest, value: Rvalue::Call { callee: Callee::Runtime(RuntimeFn::RecordsTryIncrementMaterialized), args } }) = source.stmts.last() else { panic!("guard assignment"); };
+    assert_eq!(*dest, condition);
+    assert_eq!(args, &expected_args);
+    assert_ne!(then_, else_);
     println!("records-guard structural-only: 1 guard, original four fallback statements, unchanged capture/key");
     assert_eq!(crate::records_increment_guard::apply_records_increment_experiment(&mut program), 0);
 }
@@ -317,4 +321,22 @@ fn records_guard_rejects_observation_unreachable_and_invalid_abi() {
         }
         assert!(crate::validate::validate(&program).is_err());
     }
+}
+
+#[test]
+fn records_guard_multiple_same_block_windows_keep_each_original_slow_path() {
+    let mut program = compile("def step(counts, key):\n    counts[key] = counts.get(key, 0) + 1\n    counts[key] = counts.get(key, 0) + 1\n    return key\n");
+    let f = function(&program, "step");
+    let plans = crate::records_increment_plan::plans(f);
+    assert_eq!(plans.len(), 2);
+    assert_eq!(plans[0].block, plans[1].block);
+    let originals: Vec<_> = plans.iter().map(|p| format!("{:?}", &f.body.blocks[p.block].stmts[p.start..p.start + 4])).collect();
+    assert_eq!(crate::records_increment_guard::apply_records_increment_experiment(&mut program), 2);
+    crate::validate::validate(&program).unwrap();
+    let f = function(&program, "step");
+    for original in originals {
+        assert_eq!(f.body.blocks.iter().filter(|(_, b)| format!("{:?}", b.stmts) == original).count(), 1);
+    }
+    assert_eq!(crate::records_increment_guard::apply_records_increment_experiment(&mut program), 0);
+    crate::validate::validate(&program).unwrap();
 }

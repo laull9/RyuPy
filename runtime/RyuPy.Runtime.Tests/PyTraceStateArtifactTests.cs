@@ -125,14 +125,15 @@ public partial class PyTraceStateArtifactTests
         var compressionAdditions = CompressionPublicAdditions();
         var binaryCryptoAdditions = BinaryCryptoPublicAdditions();
         var providerAdditions = ProviderPublicAdditions();
-        var additions = v1Additions.Concat(sourceAdditions).Concat(metadataAdditions).Concat(builtinAdditions).Concat(xmlAdditions).Concat(deploymentAdditions).Concat(factoryAdditions).Concat(globalsAdditions).Concat(miAdditions).Concat(runtimeDerivedAdditions).Concat(resourceContextAdditions).Concat(nativeAbiAdditions).Concat(compressionAdditions).Concat(binaryCryptoAdditions).Concat(providerAdditions).OrderBy(x => x, StringComparer.Ordinal).ToArray();
+        var recordsGuardAdditions = RecordsGuardPublicAdditions();
+        var additions = v1Additions.Concat(sourceAdditions).Concat(metadataAdditions).Concat(builtinAdditions).Concat(xmlAdditions).Concat(deploymentAdditions).Concat(factoryAdditions).Concat(globalsAdditions).Concat(miAdditions).Concat(runtimeDerivedAdditions).Concat(resourceContextAdditions).Concat(nativeAbiAdditions).Concat(compressionAdditions).Concat(binaryCryptoAdditions).Concat(providerAdditions).Concat(recordsGuardAdditions).OrderBy(x => x, StringComparer.Ordinal).ToArray();
         var expected = before.Concat(additions).OrderBy(x => x, StringComparer.Ordinal).ToArray();
         Evidence("baseline-abi.json", new { baseline, candidate, signatures = before.Length,
-            candidateSignatures = after.Length, expectedAdditions = additions, v1Additions, sourceAdditions, metadataAdditions, builtinAdditions, xmlAdditions, deploymentAdditions, factoryAdditions, globalsAdditions, miAdditions, runtimeDerivedAdditions, resourceContextAdditions, nativeAbiAdditions, compressionAdditions, binaryCryptoAdditions, providerAdditions,
+            candidateSignatures = after.Length, expectedAdditions = additions, v1Additions, sourceAdditions, metadataAdditions, builtinAdditions, xmlAdditions, deploymentAdditions, factoryAdditions, globalsAdditions, miAdditions, runtimeDerivedAdditions, resourceContextAdditions, nativeAbiAdditions, compressionAdditions, binaryCryptoAdditions, providerAdditions, recordsGuardAdditions,
             removed = before.Except(after).ToArray(), added = after.Except(before).ToArray(),
             expected, actual = after, baselineBytes = new FileInfo(baseline!).Length, candidateBytes = new FileInfo(candidate).Length,
             scope = "固定1659历史ABI逐字段保留，逐条追加既有冷合同与中性provider合同；不覆盖默认参数和常量" });
-        Assert.True(PreservesProviderBaselineAbi(before, after), "历史ABI、既有冷合同或中性provider手写精确增量不符；见baseline-abi.json。");
+        Assert.True(PreservesRecordsGuardBaselineAbi(before, after), "历史ABI、既有冷合同或中性provider手写精确增量不符；见baseline-abi.json。");
     }
 
     internal static bool PreservesProviderBaselineAbi(string[] before, string[] after)

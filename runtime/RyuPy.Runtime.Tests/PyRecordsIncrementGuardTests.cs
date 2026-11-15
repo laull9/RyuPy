@@ -1,5 +1,7 @@
 // 编译器实验入口的精确对象门与弱键缓存；这组合同不是已编译源码差分。
+using System;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using Xunit;
 namespace RyuPy.Runtime.Tests;
 
@@ -47,5 +49,23 @@ public sealed class PyRecordsIncrementGuardTests
         Assert.False(PyRecordsIncrement.TryMaterialized(dict, zero)); Assert.Equal(300, dict.Count);
         dict.Clear(); Assert.True(PyRecordsIncrement.TryMaterialized(dict, zero));
         Assert.Same(zero, dict.Keys.Single());
+    }
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static WeakReference PopulateWeakCache()
+    {
+        var dict = new PyDict();
+        Assert.True(PyRecordsIncrement.TryMaterialized(dict, new PyTuple(["weak", "buy"])));
+        return new WeakReference(dict);
+    }
+
+    [Fact]
+    public void WeakAccessorCacheDoesNotKeepOwnerAlive()
+    {
+        WeakReference owner = PopulateWeakCache();
+        for (int attempt = 0; attempt < 12 && owner.IsAlive; attempt++)
+        {
+            GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
+        }
+        Assert.False(owner.IsAlive);
     }
 }
