@@ -2,7 +2,7 @@
 name: Generator product opt-in validation
 on:
   push:
-    branches: [work/generator-product-ci-20261115]
+    branches: [ci/generator-product-fmt-20261115]
 permissions:
   contents: read
 concurrency:
