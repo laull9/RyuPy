@@ -18,6 +18,9 @@ jobs:
       EVIDENCE: ${{ runner.temp }}/records-probe
     steps:
       - uses: actions/checkout@v4
+        with:
+          # 基线祖先核验需要历史，默认深度1无法读取父提交。
+          fetch-depth: 0
       - name: Freeze evidence identity
         shell: bash
         run: |
