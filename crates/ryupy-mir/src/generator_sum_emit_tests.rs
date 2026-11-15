@@ -119,6 +119,7 @@ fn unknown_callback_closure_and_filter_do_not_get_batch_entry() {
         "def f(x):\n    return x\ng = (f(x) for x in range(4))\n",
         "def f(n):\n    return (x * n for x in range(4))\n",
         "g = (x * 2 for x in range(4) if x)\n",
+        "def negative():\n    return (x * -3 for x in range(-2, 5))\n",
     ] {
         assert!(pairs(&built(source)).is_empty());
     }

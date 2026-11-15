@@ -327,3 +327,18 @@ fn reachable_invalid_edge_or_unresolved_terminator_is_rejected() {
         assert!(analyze(f, input).is_none());
     }
 }
+
+#[test]
+fn negative_multiplier_remains_an_explicit_unary_fallback() {
+    let (program, deferred) = crate::generator_sum_plan::high_with_sources(
+        "def negative():\n    return (x * -3 for x in range(-2, 5))\n",
+    );
+    assert_eq!(deferred.comprehension_inputs.len(), 1);
+    let (function, input) = deferred.comprehension_inputs[0];
+    let f = &program.functions[function];
+    let reason = analyze_explained(f, input).unwrap_err();
+    assert!(reason.contains("DynUnary"), "{reason}");
+    assert!(reason.starts_with("未知值"), "{reason}");
+    // 日志保留真实拒绝节点；不为快路数量放宽动态负号的类型/副作用证明。
+    println!("negative multiplier fallback: {reason}");
+}
