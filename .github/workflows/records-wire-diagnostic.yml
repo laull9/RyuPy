@@ -27,7 +27,7 @@ jobs:
           git read-tree HEAD
           git update-index --force-remove .github/workflows/records-wire-diagnostic.yml
           git write-tree | tee "$EVIDENCE/source-tree.txt"
-          test "$(cat "$EVIDENCE/source-tree.txt")" = '4e309b9d51ebdfcf6bfd483d267d5fb86d6bffc8'
+          test "$(cat "$EVIDENCE/source-tree.txt")" = 'f842ce53c47f71ea34fb9eb08360812c1da848d4'
           unset GIT_INDEX_FILE
           printf '%s\n' '{"sdk":{"version":"10.0.403","rollForward":"disable","allowPrerelease":false}}' > global.json
       - uses: actions/setup-dotnet@v4
