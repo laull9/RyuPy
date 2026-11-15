@@ -1,0 +1,106 @@
+# 仅验证隔离数值列表候选，不修改dev，也不将Runtime合同当作AOT性能验收。
+name: List insert wide index validation
+on:
+  push:
+    branches: [ci/list-insert-index-20261115]
+permissions:
+  contents: read
+jobs:
+  candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+      MSBUILDDISABLENODEREUSE: '1'
+      DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+      UseSharedCompilation: 'false'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 选择独立SDK安装目录
+        run: echo "DOTNET_INSTALL_DIR=$RUNNER_TEMP/numeric-list-dotnet" >> "$GITHUB_ENV"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - uses: actions/setup-python@v5
+        id: python
+        with:
+          python-version: '3.12.13'
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
+        with:
+          toolchain: '1.99.1'
+          components: rustfmt, clippy
+      - name: 固定环境并记录身份
+        env:
+          FIXED_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/numeric-list-evidence"
+          echo "EVIDENCE=$RUNNER_TEMP/numeric-list-evidence" >> "$GITHUB_ENV"
+          echo "PYTHON=$FIXED_PYTHON" >> "$GITHUB_ENV"
+          echo "RYUPY_FOREACH_PYTHON=$FIXED_PYTHON" >> "$GITHUB_ENV"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git rev-parse HEAD HEAD^{tree} > "$RUNNER_TEMP/numeric-list-evidence/source.txt"
+          # 独立安装目录避免runner自带较新SDK被默认选择，保留门禁失败时的实际版本。
+          dotnet --info > "$RUNNER_TEMP/numeric-list-evidence/dotnet.txt"
+          dotnet --version | tee "$RUNNER_TEMP/numeric-list-evidence/sdk.txt"
+          test "$(readlink -f "$(command -v dotnet)")" = "$DOTNET_INSTALL_DIR/dotnet"
+          test "$(dotnet --version)" = 10.0.403
+          for key in DOTNET DOTNET_HOST_PATH; do echo "$key=$DOTNET_INSTALL_DIR/dotnet" >> "$GITHUB_ENV"; done
+          for key in DOTNET_ROOT DOTNET_ROOT_X64; do echo "$key=$DOTNET_INSTALL_DIR" >> "$GITHUB_ENV"; done
+          echo "DOTNET_MULTILEVEL_LOOKUP=0" >> "$GITHUB_ENV"
+          "$FIXED_PYTHON" -c 'import sys; assert sys.version_info[:3] == (3,12,13); print(sys.version)' > "$RUNNER_TEMP/numeric-list-evidence/python.txt"
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev patchelf binutils time
+      - name: 固定旧dev独立构建
+        run: |
+          set -euo pipefail
+          git worktree add --detach "$RUNNER_TEMP/numeric-base" 1519963bf430a94da54481a83aee51c81a1c0717
+          git -C "$RUNNER_TEMP/numeric-base" rev-parse HEAD HEAD^{tree} > "$EVIDENCE/base.txt"
+          # 只覆盖同一测试文件到基线，产品源码不变；实际TRX证明直接Runtime缺陷。
+          cp runtime/RyuPy.Runtime.Tests/PyListInsertIndexTests.cs "$RUNNER_TEMP/numeric-base/runtime/RyuPy.Runtime.Tests/"
+          sha256sum runtime/RyuPy.Runtime.Tests/PyListInsertIndexTests.cs > "$EVIDENCE/baseline-test-overlay.sha256"
+          set +e
+          (cd "$RUNNER_TEMP/numeric-base"; dotnet test runtime/RyuPy.Runtime.Tests -c Release --filter FullyQualifiedName~PyListInsertIndexTests --logger 'trx;LogFileName=baseline-focused.trx' --results-directory "$EVIDENCE") 2>&1 | tee "$EVIDENCE/baseline-focused.log"
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" = 1
+          "$PYTHON" - <<'PY_BASE'
+          import os, pathlib, xml.etree.ElementTree as E
+          from collections import Counter
+          rows = E.parse(pathlib.Path(os.environ["EVIDENCE"]) / "baseline-focused.trx").getroot().findall(".//{http://microsoft.com/schemas/VisualStudio/TeamTest/2010}UnitTestResult")
+          assert Counter(r.get("outcome") for r in rows) == {"Passed": 10, "Failed": 3}
+          failed = [r.get("testName") for r in rows if r.get("outcome") == "Failed"]
+          assert sum("FullWidthIndexClampsBeforeNarrowing" in n for n in failed) == 2
+          for index in ("-9223372036854775808", "-4294967296"):
+              assert sum("FullWidthIndexClampsBeforeNarrowing" in n and index in n for n in failed) == 1
+          assert sum("NumericBackingKeepsObservedBoxThroughExtremeInsert" in n for n in failed) == 1
+          PY_BASE
+          (cd "$RUNNER_TEMP/numeric-base"; CARGO_TARGET_DIR="$RUNNER_TEMP/numeric-target-base" make build RELEASE_DIR="$RUNNER_TEMP/numeric-cli-base") 2>&1 | tee "$EVIDENCE/base-build.log"
+          rm -rf -- "$RUNNER_TEMP/numeric-target-base"
+      - name: 候选完整检查及独立构建
+        run: |
+          set -euo pipefail
+          cargo fmt --all --check
+          CARGO_TARGET_DIR="$RUNNER_TEMP/numeric-target" make check DOTNET_TEST_ARGS="--logger 'trx;LogFileName=runtime.trx' --results-directory '$EVIDENCE/full'" 2>&1 | tee "$EVIDENCE/full-check.log"
+          dotnet test runtime/RyuPy.Runtime.Tests -c Release --filter "FullyQualifiedName~PyListInsertIndexTests|FullyQualifiedName~PyListInsertProtocolTests" --logger 'trx;LogFileName=focused.trx' --results-directory "$EVIDENCE" 2>&1 | tee "$EVIDENCE/focused.log"
+          "$PYTHON" - <<'PY_CHECK'
+          import os, pathlib, xml.etree.ElementTree as E
+          rows = E.parse(pathlib.Path(os.environ["EVIDENCE"]) / "focused.trx").getroot().findall(".//{http://microsoft.com/schemas/VisualStudio/TeamTest/2010}UnitTestResult")
+          assert len(rows) == 21 and all(r.get("outcome") == "Passed" for r in rows)
+          PY_CHECK
+          CARGO_TARGET_DIR="$RUNNER_TEMP/numeric-target" make build RELEASE_DIR="$RUNNER_TEMP/numeric-cli-candidate" 2>&1 | tee "$EVIDENCE/candidate-build.log"
+          rm -rf -- "$RUNNER_TEMP/numeric-target"
+      - name: 固定CP与基线回归重现及候选JIT AOT搬迁
+        run: |
+          set -euo pipefail
+          "$PYTHON" -B tests/perf/list-insert/validate.py "$EVIDENCE/product" --old "$RUNNER_TEMP/numeric-cli-base/ryupy" --new "$RUNNER_TEMP/numeric-cli-candidate/ryupy" 2>&1 | tee "$EVIDENCE/product.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: numeric-product-${{ github.sha }}
+          path: ${{ runner.temp }}/numeric-list-evidence
+          if-no-files-found: error
+          retention-days: 14
