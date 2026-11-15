@@ -2,7 +2,7 @@
 name: List performance confirmation
 on:
   push:
-    branches: [work/list-performance-confirm-20261115]
+    branches: [ci/list-performance-confirm-20261115]
 permissions:
   contents: read
 concurrency:
