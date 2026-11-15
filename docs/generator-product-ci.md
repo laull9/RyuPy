@@ -65,7 +65,7 @@ NotImplementedError、退出1且stdout空，两候选逐字节完全一致，才
 
 跨模块普通输入入口cross_module/main.py：off/on分别JIT/AOT对CP完整双流并搬迁。
 AOT清单必须同时绑定main/producer/consumer三个逻辑源码模块身份和
-链接模块名；off零批量role，on精确三个不同真实target。三个发射入口不是三次运行
+链接模块名；off零批量role，on精确首/第三普通resume对应的两个不同$sum_batch target。两个发射入口不是两次运行
 快路命中；溢出输入要求正确回退，不把它当成功快路消费统计。
 
 保留原26项及三个消费者1预热+5样本保护；再用原generators和三个消费者做4轮×12pair。
@@ -93,6 +93,8 @@ Python门按固定工件相对布局离线重定位两DLL，重算两hash/字节
 编译器内部文本自证。CI不改产品hash实现：四个cross编译臂分别在构建前归档3个原文件，
 逐字核固定HEAD源blob，绑定HEAD/tree、CLI绝对路径/SHA256、实际build命令、cwd和入口。
 构建后重核源/CLI字节和源树未变，保留外部输入归档及核验记录。manifest另外严格核
-entry/main.py→__main__及两个modules路径→对应模块、独立模块ID和on三distinct target。
+entry/main.py→__main__及两个modules路径→对应模块、独立模块ID和on首/第三普通resume对应的两distinct batch target。
 这仅证明送入编译器的输入身份，不冒称内部编译文本hash或运行快路命中。
 平衡四轮每例再核归一化off零委托；on仅generators/genexpr_sum各一委托，其余零。
+
+固定cross原输入保留：negative工厂含DynUnary负号，当前保守拒绝批量融合，必须保持普通resume；positive/overflowing分别对应resume4/6的批量入口。三普通入口及其source/owner/signature与两批量映射逐项核对，非只将数量3改2。新增真实高层IR拒绝回归，focused默认26/feature29，真实执行结果以CI为准。

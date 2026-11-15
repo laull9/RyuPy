@@ -83,19 +83,35 @@ class Gates(unittest.TestCase):
                             'logical_source':('entry/' if index == 0 else 'modules/')+name,
                             'compiled_text_sha256':''})
             modules.append({'id':index,'name':'__main__' if index == 0 else name[:-3]})
-        data={'sources':sources,'modules':modules,'emitted_delegate_references':[
-            {'role':'generator_sum_resume','target':{'token':i}} for i in range(3)]}
+        refs=[]
+        site={'source_method':{'name':'m1_<genexpr>','owner':'Module',
+              'signature':'static [System.Runtime]System.Object ([System.Runtime]System.Object, [System.Runtime]System.Object)'}}
+        for i in (4,5,6):
+            refs.append({'role':'generator_resume','site':site,'target':{'name':f'm1_<genexpr>$state_resume{i}',
+                'owner':'Module','signature':'static [System.Runtime]System.Object ([System.Runtime]System.Object)'}})
+        for i in (4,6):
+            refs.append({'role':'generator_sum_resume','site':site,'target':{'name':f'm1_<genexpr>$state_resume{i}$sum_batch',
+                'owner':'Module','signature':site['source_method']['signature']}})
+        data={'sources':sources,'modules':modules,'emitted_delegate_references':refs}
         with tempfile.TemporaryDirectory() as temp:
             path=Path(temp)/'manifest.json'
             def check(d):path.write_text(json.dumps(d));semantic.roles(path,True,True)
             check(data)
             bad=copy.deepcopy(data);bad['sources'][0]['compiled_text_sha256']='wrong'
             with self.assertRaises(AssertionError):check(bad)
-            bad=copy.deepcopy(data);bad['emitted_delegate_references'][0]['target']={'token':1}
+            bad=copy.deepcopy(data);bad['emitted_delegate_references'][-1]['target']=copy.deepcopy(bad['emitted_delegate_references'][-2]['target'])
             with self.assertRaises(AssertionError):check(bad)
             bad=copy.deepcopy(data);bad['sources'][0]['logical_source']='wrong/main.py'
             with self.assertRaises(AssertionError):check(bad)
             bad=copy.deepcopy(data);bad['sources'].pop()
+            with self.assertRaises(AssertionError):check(bad)
+            bad=copy.deepcopy(data);bad['modules'].append(copy.deepcopy(bad['modules'][0]))
+            with self.assertRaises(AssertionError):check(bad)
+            bad=copy.deepcopy(data);bad['emitted_delegate_references'][-1]['target']['name']='m1_<genexpr>$state_resume5$sum_batch'
+            with self.assertRaises(AssertionError):check(bad)
+            bad=copy.deepcopy(data);bad['emitted_delegate_references'][-1]['site']={'source_method':{'name':'wrong'}}
+            with self.assertRaises(AssertionError):check(bad)
+            bad=copy.deepcopy(data);bad['emitted_delegate_references'].pop(1)
             with self.assertRaises(AssertionError):check(bad)
             bad=copy.deepcopy(data);bad['modules'][1]['name']='wrong'
             with self.assertRaises(AssertionError):check(bad)

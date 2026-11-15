@@ -29,10 +29,11 @@ def roles(manifest, candidate, cross=False):
     hits = [r for r in references if r['role'] == 'generator_sum_resume']
     assert bool(hits) == candidate, '真实批量委托发射与feature状态不符'
     if cross:
-        assert len(hits) == (3 if candidate else 0), '跨模块批量入口必须精确三项或零项'
+        assert len(hits) == (2 if candidate else 0), '跨模块批量入口必须精确两项或零项'
         assert all(r['target'] is not None for r in hits)
         assert len({json.dumps(r['target'], sort_keys=True) for r in hits}) == len(hits), '批量入口不可相互别名'
         sources = data['sources']; modules = {m['id']:m for m in data['modules']}
+        assert len(sources) == len(data['modules']) == len(modules) == 3, '模块清单必须精确三项且ID唯一'
         source_ids = []
         for filename in ('main.py','producer.py','consumer.py'):
             matches = [x for x in sources if Path(x['logical_source']).name == filename]
@@ -45,7 +46,31 @@ def roles(manifest, candidate, cross=False):
             assert modules[item['module_id']]['name'] == item['module_name'], '源模块与链接模块身份不符'
             source_ids.append(item['module_id'])
         assert len(set(source_ids)) == 3, '不同源码模块不可复用身份'
+        producer = next(x['module_id'] for x in sources if x['module_name'] == 'producer')
+        cross_targets(references, producer, candidate)
     return len(hits)
+
+
+def cross_targets(references, producer, candidate):
+    # 固定三工厂源：negative含DynUnary，保守不融合；不能只减少role数量。
+    normal = [r for r in references if r['role'] == 'generator_resume']
+    batch = [r for r in references if r['role'] == 'generator_sum_resume']
+    prefix = f'm{producer}_<genexpr>'
+    expected = [prefix+'$state_resume'+str(i) for i in (4, 5, 6)]
+    assert len(normal) == 3 and {r['target']['name'] for r in normal} == set(expected)
+    by_name = {r['target']['name']: r for r in normal}
+    for r in normal:
+        assert r['site']['source_method']['name'] == prefix
+        assert r['target']['owner'] == r['site']['source_method']['owner']
+        assert r['target']['signature'] == 'static [System.Runtime]System.Object ([System.Runtime]System.Object)'
+    selected = [expected[0], expected[2]] if candidate else []
+    assert len(batch) == len(selected)
+    assert {r['target']['name'] for r in batch} == {n+'$sum_batch' for n in selected}
+    for r in batch:
+        ordinary = by_name[r['target']['name'].removesuffix('$sum_batch')]
+        assert r['site']['source_method'] == ordinary['site']['source_method']
+        assert r['target']['owner'] == ordinary['target']['owner']
+        assert r['target']['signature'] == ordinary['site']['source_method']['signature']
 
 
 CROSS_FILES = ('main.py', 'producer.py', 'consumer.py')
@@ -122,9 +147,9 @@ def main():
                     inputs = seal_inputs(sealed, cli, backend) if name == 'cross' else None
                     exe, _, error, status = measure.build_case(ROOT, cli, bench, work, backend=backend,
                         command_evidence=sealed/'command.json' if inputs else None)
+                    (output/(arm+'-build.log')).write_text(error)
                     if inputs:
                         verify_inputs(sealed, inputs)
-                    (output/(arm+'-build.log')).write_text(error)
                     assert exe is not None, (arm, status, error)
                     count = None
                     if backend == 'aot':

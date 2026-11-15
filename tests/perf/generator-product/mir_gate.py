@@ -1,4 +1,4 @@
-"""隔离运行格式与MIR测试；显式核对结构原型25例及既有四个忽略项，不宣称产品融合。"""
+"""隔离运行格式与MIR测试；显式核对结构原型26例及既有四个忽略项，不宣称产品融合。"""
 import json
 import os
 from pathlib import Path
@@ -20,6 +20,7 @@ EXPECTED = {
         'connecting_dead_tail_through_resume_restores_duplicate_rejection',
         'reachable_invalid_edge_or_unresolved_terminator_is_rejected',
         'callbacks_closure_and_multiple_cursors_remain_rejected',
+        'negative_multiplier_remains_an_explicit_unary_fallback',
         'single_static_definition_does_not_authorize_read_before_definition',
         'only_matching_trace_depth_may_be_popped',
         'numeric_ids_must_match_one_metadata_record',
