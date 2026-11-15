@@ -3,6 +3,7 @@ import argparse
 import hashlib
 import json
 import shutil
+import sys
 import tarfile
 from pathlib import Path
 
@@ -72,9 +73,19 @@ def package(source,destination,limit=LIMIT,max_parts=12,summary_limit=LIMIT):
         status['error']=f'{type(error).__name__}: {error}'
         raise
     finally:
-        if writer:writer.close_part()
-        reserve.unlink(missing_ok=True)
+        active_error=sys.exc_info()[1]
+        cleanup_errors=[]
+        # close/flush也可能再次ENOSPC；先释放状态空间，任何清理异常都不能跳过错误状态。
+        try:reserve.unlink(missing_ok=True)
+        except Exception as error:cleanup_errors.append(f'reserve: {type(error).__name__}: {error}')
+        try:
+            if writer:writer.close_part()
+        except Exception as error:cleanup_errors.append(f'close: {type(error).__name__}: {error}')
+        if cleanup_errors:
+            status.update(ok=False,cleanup_errors=cleanup_errors)
         (summary/'package-status.json').write_text(json.dumps(status,indent=2))
+        if cleanup_errors and active_error is None:
+            raise RuntimeError('; '.join(cleanup_errors))
 
 
 if __name__=='__main__':
