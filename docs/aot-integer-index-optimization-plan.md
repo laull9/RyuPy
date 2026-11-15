@@ -83,3 +83,21 @@ MIR保留全部静态准入证明，在原preheader接一个调用与null分支�
 这将类型守卫、Count和原生下标细节封装在Runtime，不需分别新增多个类型检测/Count/SetItem ABI。
 它仍是完整热点切片，必须确认调用前读取局部不提前触发LoadChecked/协议、副作用不重复、
 内部原生循环不丢常用观察与错误位置；未通过该备选的审查前不实施。
+
+## 本轮审查结论与交接修正
+
+2026-11-15最小ABI异构复审支持进入下一轮候选；本轮按用户要求停止在设计阶段，没有新增RuntimeFn或Pass。
+主代理补充以下硬约束，取代审查报告中过强的完全保真/无分配表述：
+- 精确long守卫必须使用`value is long x`；`PyInt.TryI64`同时接受bool和int，不能直接代替。
+- 最终Box及正溢出BigInteger构造会分配，可能遇资源失败；只能对循环内有效背板写入说明无逐项装箱。
+  资源失败时的局部j/Line写回差异需单独ADR接受，不能以“绝不抛异常”跳过。
+- 无名临时槽也可能跨块读取；必须穷尽实际Statement/Terminator读集合，拒绝出口或环外仍读取的被跳过定义。
+  不从name=None推断活性。普通函数参数身份限制按方案执行，不能凭未实现的Pass声称已证明。
+- `_numeric`为PyList私有字段，PyOps不能直接访问；拒绝该背板的逻辑应在PyList内部helper实现，
+  对codegen所需的public编译器ABI保持人工维护及ABI计数测试，不能为一条快路公开存储字段。
+- RuntimeRefs/方法解析/stackify分派按实际模块核对，四参数Dynamic固定ABI的枚举穷尽匹配全部同步。
+- null比较可复用现有BinOp::Eq和Constant::Null，但一个新call/分支仍有成本；不声明零开销。
+
+下一轮先落手写e2e pending和真实原始sieve源管线结构断言，再实现与评测；
+普通对象/字典/异构列表各按其真实协议验证回退，未绑定顺序、别名、零轮、overflow、locals/cell/EH、
+外部容器与错误栈分别覆盖。当前没有性能收益验收。

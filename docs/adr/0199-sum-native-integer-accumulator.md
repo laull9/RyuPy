@@ -1,6 +1,6 @@
 # ADR-0199：内建 sum 原生整数累加器优化
 
-- 状态：候选（Runtime 实现与单元测试已就绪，e2e 标记 pending 待 AOT 整体编排转正）
+- 状态：已接受；有限默认，CP/JIT/NativeAOT/混合域搬迁及完整门禁通过
 - 日期：2026-11-15
 - 关联：ADR-0010, ADR-0044, ADR-0182
 
@@ -26,10 +26,14 @@
 
 ## 验收与取舍
 
-- Runtime 单元测试包含 9 项既有 `PySumStreamingTests`（全部原样通过）以及 11 项新增的 `PySumIntegerAccumulatorTests`（覆盖空 start、小整数缓存单例、负数抵消、>256 整数、正负溢出与回退、bool/float 混合、协议一致性、异常早停及 10,000 项连续累加分配上界 < 2048 字节）。
-- CPython 3.12.13 对齐：新增 `tests/e2e/phase3/aot_sum_integer_accumulator.py`，经本地固定 CPython 3.12.13 校验输出一致，依规先标记 `# ryupy: pending`。
-- 本 ADR 仅覆盖 Runtime 层内建 sum 的原生整数累加，CIL 编译期特定循环内联及 foreign 对象的跨语言语义仍由 AOT 主切片负责。
+20项C#专项、固定CP/JIT/真实NativeAOT及输入隐藏搬迁、NumPy混合域与异常双流通过，主fixture已转正。
+完整make check退出0：C#3160/2、MIR371/4、cases756、编译e2e474/286。
+26项1warm5中generators343.71→312.17ms，后续重点10轮333.08→306.97ms；
+独立轮分配169254912→145255296字节。RSS约22MiB持平，CP逐项内存目标仍未达到。
+全量整体B/A几何耗时0.99800，sorting+2.18%、closures+1.62%和comprehensions+0.38%等不利值保留。
+不以人为噪声阈值或单次内部统计覆盖不利结果，追加保护轮结论见[专项文档](../aot-sum-integer-optimization.md)。
+默认空输入规范小整数0的身份修正纳入本切；显式start/回调引用保持。
+两项既有sum参数偏差继续登记于semantics §4.15，未扩展其解析范围。
 
-主代理补测负向溢出回落、原生整数段后用户回调返回shared long，20项PySum测试通过。
-默认空sum现在返回规范小整数0，较旧实现的临时零盒更贴近CP；空显式start及回调结果身份保持。
-此前“9项参数偏差”是将9项旧测试与已登记的两项参数偏差混淆，按semantics §4.15原记录解释。
+追加sorting配对曾+7.48%且三臂波动较大，最后独立10轮+0.25%，未稳定复现>5%回退；
+仍保留所有负结果，接受整数热点的复现收益与全量接近持平的取舍。

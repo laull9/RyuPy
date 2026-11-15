@@ -581,10 +581,15 @@ HMAC digest callable、HMAC 元数据写入及 binascii.Error 重绑定明确 NI
 
 ### 4.15 sum流式消费及既有参数边界
 
-`sum` 通过一次通用迭代器创建逐项消费，每次取值后立即执行普通二元加法；
+`sum` 通过一次通用迭代器创建逐项消费，每次取值后立即执行二元加法语义；
 加法或迭代失败即停止，保留加法回调中的活列表变更、空输入start身份及__add__/__iadd__区分。
 即时CPython/JIT、真实NativeAOT和输入隐藏搬迁差分通过；完整门禁与性能验收状态见
 [sum专项](aot-sum-optimization.md)。
+
+连续精确long通过原生累计减少中间装箱，正负溢出、异构项及用户协议前正确物化，
+bool/float/foreign保持普通加法。空显式start和无后续原生加法的回调返回值保留原引用；
+默认空输入返回规范小整数0。CP/JIT/真实NativeAOT与NumPy混合域搬迁通过，
+性能与分配取舍见[ADR-0199](adr/0199-sum-native-integer-accumulator.md)。
 
 当前仍有既有参数偏差：str/bytes/bytearray start缺少CPython专门拒绝，位置与关键字重复start缺少特化报错。
 上述两项登记后独立修复，流式消费沿既有参数解析路径。
