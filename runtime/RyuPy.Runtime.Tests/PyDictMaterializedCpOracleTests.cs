@@ -14,7 +14,6 @@ namespace RyuPy.Runtime.Tests;
 public sealed class PyDictMaterializedCpOracleTests(ITestOutputHelper output)
 {
     private readonly List<string[]> _events = [];
-    private readonly Dictionary<PyDict, PyDict.StringPairAccess> _access = [];
     private int _fast, _fallback;
     private static string B(bool value) => value ? "true" : "false";
     private static string S(object? value) => PyRepr.Str(value);
@@ -22,12 +21,8 @@ public sealed class PyDictMaterializedCpOracleTests(ITestOutputHelper output)
 
     private void Increment(object owner, object key)
     {
-        if (owner is PyDict dict)
-        {
-            if (!_access.TryGetValue(dict, out var access))
-                _access.Add(dict, access = new PyDict.StringPairAccess(dict));
-            if (access.TryIncrementMaterializedKey(key)) { _fast++; return; }
-        }
+        // 与实验CIL相同的公开守卫入口；false后按原协议运行，不直接调用accessor替代它。
+        if (PyRecordsIncrement.TryMaterialized(owner, key)) { _fast++; return; }
         _fallback++;
         // 真实公开协议与产品整数内核；拒绝前没有执行过这些调用，不能重复get/add/set。
         object old = PyOps.CallMethod(owner, "get", [key, PyInt.Box(0L)], [], [])!;
