@@ -44,7 +44,9 @@ def package(source,destination,limit=LIMIT,max_parts=12,summary_limit=LIMIT):
     destination.mkdir(parents=True);summary=destination/'summary';summary.mkdir()
     status=dict(ok=False,stage='summary',text_files=[],omitted=[])
     writer=None
+    reserve=destination/'status-space.reserve'
     try:
+        reserve.write_bytes(b'\0'*(1024*1024))
         total=0
         for path in sorted(source.rglob('*')):
             if path.is_file() and path.suffix.lower() in ('.json','.log','.txt','.stdout','.stderr','.trx','.yml'):
@@ -56,6 +58,7 @@ def package(source,destination,limit=LIMIT,max_parts=12,summary_limit=LIMIT):
                 status['text_files'].append(dict(path=str(relative),bytes=size,sha256=digest(path)));total+=size
         assert not status['omitted'], 'text summary exceeds bound; partial original text preserved, not complete evidence'
         status['stage']='archive'
+        (summary/'package-status.json').write_text(json.dumps(status,indent=2))
         # 流式gzip直写分块，避免raw+完整tar+parts三份同时占用磁盘。
         writer=Parts(destination,limit,max_parts)
         with tarfile.open(fileobj=writer,mode='w|gz') as tar:tar.add(source,arcname='evidence',recursive=True)
@@ -70,6 +73,7 @@ def package(source,destination,limit=LIMIT,max_parts=12,summary_limit=LIMIT):
         raise
     finally:
         if writer:writer.close_part()
+        reserve.unlink(missing_ok=True)
         (summary/'package-status.json').write_text(json.dumps(status,indent=2))
 
 
