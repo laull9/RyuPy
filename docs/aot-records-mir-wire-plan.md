@@ -73,3 +73,28 @@ run43698461290的历史1659门没有删除项，但候选1809签名比手写1799
 不改旧provider历史判定。新增单列9条dev增量及其独立DLL合同，再单列records接口1条，
 最终才是当前守卫2条。CI必须独立checkout精确devSHA/tree并构建DLL，验证无records项，
 不能以当前候选差集替代来源证明。与generator分支合并时须组合各自已审增量，不能覆盖。
+
+## 显式CLI与源码试验（新增，待真实验证）
+
+Cargo的CLI/driver feature `records-increment-experiment`沿依赖启用MIR实验；
+即使专用CLI也默认不运行，另需`--experimental-records-increment`。普通CLI收到该flag
+在读取输入前拒绝。build/dump共用accumulator_options末尾追加同一程序级pass，自动trace
+编译也使用同一pass表。固定Python native-binding路径显式拒绝，不修改用户C ABI工作。
+AOT清单记录选项，不把有feature误记为有调用。
+
+`records-increment-diagnostics`是另一个专用构建，包含私有成功/回退计数及进程退出时的
+CreateNew JSON。普通/性能构建不包含这些字段/事件/调用，不读计数环境变量。专用构建
+用独立Cargo target与dotnet artifacts目录封装自己的Runtime，禁止共享运行时覆盖。
+这是执行命中证据，不是性能臂；不在计时臂偷偷开启计数。公开ABI不增加诊断API。
+
+源码试验脚本 `records_source_trial.py` 接收正常实验CLI和专用诊断CLI，固定CP3.12.13、
+SDK10.0.403、本次SHA、新外部输出目录。三个fixture各跑CP及control/enabled/diagnostic
+的JIT和NativeAOT六臂，并核原生头/清单及dump的0/1守卫。contracts覆盖实体key身份、bool、
+溢出、locals排除、用户add重入删插和异常原值；诊断预计3成功4回退。known_subclass仍要求
+CP成功、两个RyuPy臂一致的精确已知拒绝，0成功1回退。不能删掉或算进相等案例。
+聚合fixture预计200000成功0回退；控制与实验输出均对同次CP。普通CLI两臂同一二进制。
+
+性能仅在上述输出/诊断通过后，perf fixture的CP、control/enabled JIT、control/enabled AOT
+五臂交替正反顺序，6轮各一次独立新进程，共30条原始wall样本。构建和诊断不计入样本；
+启动、I/O和共享runner噪声在wall内，无暖态吞吐、分配或完整records程序收益结论。
+任何失败保留当前阶段双流/命令/退出码/超时及ok=false报告；这套新路径当前尚未实跑。

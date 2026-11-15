@@ -47,6 +47,7 @@ fn main() -> ExitCode {
         instance_modules: cli.instance_modules,
         instance_direct_globals: cli.instance_direct_globals,
         experimental_direct_accumulator: cli.experimental_direct_accumulator,
+        experimental_records_increment: cli.experimental_records_increment,
         experimental_leaf_inline: cli.experimental_leaf_inline,
         diagnostic_scalar_slp: cli.diagnostic_scalar_slp,
         experimental_packed_slp: cli.experimental_packed_slp,
@@ -417,5 +418,20 @@ mod instance_module_tests {
             panic!("run");
         };
         assert_eq!(include_modules, ["c"]);
+    }
+}
+
+#[cfg(test)]
+mod records_flag_tests {
+    use super::*;
+    #[test]
+    fn records_flag_is_explicit_and_false_by_default() {
+        for command in ["build", "run", "dump"] {
+            let default = Cli::try_parse_from(["ryupy", command, "input.py"]).unwrap();
+            assert!(!default.experimental_records_increment);
+            let selected = Cli::try_parse_from(["ryupy", command, "input.py", "--experimental-records-increment"]).unwrap();
+            assert!(selected.experimental_records_increment);
+            assert!(!selected.experimental_direct_accumulator && !selected.experimental_leaf_inline);
+        }
     }
 }

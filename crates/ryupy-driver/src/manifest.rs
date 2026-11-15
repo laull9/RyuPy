@@ -51,6 +51,7 @@ impl ManifestContext {
             managed_size: managed.len() as u64,
             options: json!({"experimental_direct_accumulator": session.experimental_direct_accumulator,
                 "experimental_foreach_accumulator": session.experimental_foreach_accumulator,
+                "experimental_records_increment": session.experimental_records_increment,
                 "experimental_leaf_inline": session.experimental_leaf_inline,
                 "diagnostic_scalar_slp": session.diagnostic_scalar_slp,
                 "experimental_packed_slp": session.experimental_packed_slp,

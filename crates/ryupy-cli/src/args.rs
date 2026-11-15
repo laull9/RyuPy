@@ -33,6 +33,9 @@ pub(super) struct Cli {
     /// 实验：将受守卫循环累加展开成直接 CIL（不保证更快；默认使用 holder）
     #[arg(long, global = true, hide = true)]
     pub(super) experimental_direct_accumulator: bool,
+    /// 实验：records已物化key守卫（需专用构建，默认关闭，不保证收益）
+    #[arg(long, global = true, hide = true)]
+    pub(super) experimental_records_increment: bool,
     /// 实验：受守卫纯叶调用内联（默认关闭，不保证更快）
     #[arg(long, global = true, hide = true)]
     pub(super) experimental_leaf_inline: bool,

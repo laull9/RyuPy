@@ -43,6 +43,9 @@ pub(crate) fn build() {
     }
     let dotnet = std::env::var_os("DOTNET").unwrap_or_else(|| "dotnet".into());
     let artifacts = output.join("dotnet-artifacts");
+    let records_diagnostics = if std::env::var_os("CARGO_FEATURE_RECORDS_INCREMENT_DIAGNOSTICS").is_some() {
+        "-p:RecordsGuardDiagnostics=true"
+    } else { "-p:RecordsGuardDiagnostics=false" };
     let result = Command::new(dotnet)
         .arg("build")
         .arg(workspace.join("runtime/RyuPy.CPython/RyuPy.CPython.csproj"))
@@ -57,6 +60,7 @@ pub(crate) fn build() {
             "--artifacts-path",
         ])
         .arg(&artifacts)
+        .arg(records_diagnostics)
         .env("MSBUILDDISABLENODEREUSE", "1")
         .env("DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER", "1")
         .output()

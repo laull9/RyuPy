@@ -463,3 +463,6 @@ mod default_source_tests;
 
 #[cfg(test)]
 mod test_temp;
+
+#[cfg(test)]
+mod records_options_tests;

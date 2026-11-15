@@ -267,4 +267,4 @@ mod records_increment_guard;
 #[cfg(any(test, feature = "records-increment-experiment"))]
 mod records_increment_plan;
 #[cfg(feature = "records-increment-experiment")]
-pub use records_increment_guard::apply_records_increment_experiment;
+pub use records_increment_guard::{RecordsIncrementExperiment, apply_records_increment_experiment};
