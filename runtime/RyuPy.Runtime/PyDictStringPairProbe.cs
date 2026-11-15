@@ -100,5 +100,27 @@ public sealed partial class PyDict
             _checkedVersion = owner.Version;
             return true;
         }
+
+        // 已物化键的独立合同：仅替代canonical get(key,0)+1随后同dict/key写回。
+        // 命中保留表内实体；插入必须使用调用方原tuple，不能复制后破坏key is next(iter(d))。
+        // false发生在用户协议与写入之前，调用者以同一原key执行未开始的普通操作。
+        // 此入口不证明方法来源、跨操作别名/观察和异常行号；MIR接线仍须独立证明。
+        internal bool TryIncrementMaterializedKey(object? key)
+        {
+            if (key is null || key.GetType() != typeof(PyTuple)
+                || key is not PyTuple { Items: [string first, string second] } tuple) return false;
+            if (!CheckDomain()) return false;
+            if (owner._index.GetAlternateLookup<PyDictStringPair>()
+                .TryGetValue(new(first, second), out int slot))
+            {
+                if (owner._values[slot] is not long current || current == long.MaxValue) return false;
+                // 产品算术使用小整数缓存，不能复制旧host实验的CLR直接装箱假设。
+                owner._values[slot] = PyInt.Box(current + 1L);
+                return true;
+            }
+            owner.Set(tuple, PyInt.Box(1L));
+            _checkedVersion = owner.Version;
+            return true;
+        }
     }
 }
