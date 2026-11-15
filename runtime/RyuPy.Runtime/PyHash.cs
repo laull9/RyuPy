@@ -438,7 +438,7 @@ public static partial class PyHash
 /// <summary>
 /// 字典 / 集合的键包装：把「Python 相等 + 哈希」映射成 CLR 的 <see cref="IEqualityComparer{T}"/>。
 /// </summary>
-public sealed class PyKeyComparer : IEqualityComparer<object>
+public sealed partial class PyKeyComparer : IEqualityComparer<object>
 {
     /// <summary>共享实例。</summary>
     public static readonly PyKeyComparer Instance = new();
