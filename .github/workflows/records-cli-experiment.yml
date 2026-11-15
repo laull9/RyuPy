@@ -131,7 +131,7 @@ jobs:
           set -euo pipefail
           python3 -B tests/perf/package_records_evidence.py "$EVIDENCE" "$RUNNER_TEMP/records-parts" --github-output "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
-        if: always() && steps.package.outcome == 'success'
+        if: always()
         with:
           name: records-source-summary-${{ github.sha }}
           path: ${{ runner.temp }}/records-parts/summary
