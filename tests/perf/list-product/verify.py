@@ -14,6 +14,8 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "tests"))
 from benchlib import measure, suite
+sys.path.insert(0, str(ROOT / "tests/perf"))
+from aot_pair_evidence import save_manifest
 
 
 def semantic(output, python, old, new):
@@ -45,6 +47,7 @@ def semantic(output, python, old, new):
             command = [str(exe)] if backend == "aot" else ["dotnet", str(exe)]
             assert run(arm, command) == expected, arm
             if backend == "aot":
+                save_manifest(exe, output / "manifests", label, bench.name)
                 moved = work / (arm + " 中文 空格搬迁")
                 shutil.copytree(exe.parent, moved)
                 exe.parent.rename(exe.parent.with_name(exe.parent.name + ".hidden"))
@@ -95,6 +98,9 @@ def performance(path):
         for samples in row["samples"].values():
             assert len(samples) == 5 and all(s["ms"] > 0 for s in samples)
         for arm in ("A", "B"):
+            manifest = path.parent / "manifests" / row["name"] / arm / "ryupy-artifact.json"
+            data_manifest = json.loads(manifest.read_text())
+            assert data_manifest["toolchain"]["sdk_version"] == "10.0.403"
             assert {"main_ms", "alloc_bytes"} <= row["stats"][arm].keys()
     print("26项完整双流差分、配对原始样本及两臂搬迁均完成；不是暖态性能结论")
 

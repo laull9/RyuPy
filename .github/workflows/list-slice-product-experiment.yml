@@ -62,6 +62,10 @@ jobs:
           "$FIXED_PYTHON" -c 'import sys,os; assert sys.version_info[:3] == (3,12,13); assert os.path.isabs(sys.executable); print(sys.version)' | tee "$EVIDENCE/python.txt"
           echo "PYTHON=$FIXED_PYTHON" >> "$GITHUB_ENV"
           echo "RYUPY_FOREACH_PYTHON=$FIXED_PYTHON" >> "$GITHUB_ENV"
+          # 产品driver优先读取DOTNET，不能仅依靠PATH上的dotnet版本。
+          for key in DOTNET DOTNET_HOST_PATH; do echo "$key=$DOTNET_INSTALL_DIR/dotnet" >> "$GITHUB_ENV"; done
+          for key in DOTNET_ROOT DOTNET_ROOT_X64; do echo "$key=$DOTNET_INSTALL_DIR" >> "$GITHUB_ENV"; done
+          echo "DOTNET_MULTILEVEL_LOOKUP=0" >> "$GITHUB_ENV"
           dotnet --info > "$EVIDENCE/dotnet.txt"
           rustc --version > "$EVIDENCE/rust.txt"
           sudo apt-get update
@@ -98,7 +102,7 @@ jobs:
           set -euo pipefail
           # 无后台构建、无矩阵并发；构建不计时，统计/搬迁另轮，CPU仍属共享runner。
           dotnet build-server shutdown
-          "$PYTHON" -B tests/perf/aot_hotspot_pair.py --old "$RUNNER_TEMP/frozen-base/ryupy" --new "$RUNNER_TEMP/frozen-candidate/ryupy" --python "$PYTHON" --runs 5 --output "$EVIDENCE/paired.json" 2>&1 | tee "$EVIDENCE/performance.log"
+          "$PYTHON" -B tests/perf/aot_hotspot_pair.py --old "$RUNNER_TEMP/frozen-base/ryupy" --new "$RUNNER_TEMP/frozen-candidate/ryupy" --python "$PYTHON" --runs 5 --manifest-evidence "$EVIDENCE/manifests" --min-free-gib 4 --output "$EVIDENCE/paired.json" 2>&1 | tee "$EVIDENCE/performance.log"
           "$PYTHON" -B tests/perf/list-product/verify.py performance "$EVIDENCE/paired.json" | tee "$EVIDENCE/performance-check.log"
           echo COMPLETE > "$EVIDENCE/complete.txt"
       - name: 总是留存已完成与失败证据
