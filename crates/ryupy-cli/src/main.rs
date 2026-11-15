@@ -429,9 +429,17 @@ mod records_flag_tests {
         for command in ["build", "run", "dump"] {
             let default = Cli::try_parse_from(["ryupy", command, "input.py"]).unwrap();
             assert!(!default.experimental_records_increment);
-            let selected = Cli::try_parse_from(["ryupy", command, "input.py", "--experimental-records-increment"]).unwrap();
+            let selected = Cli::try_parse_from([
+                "ryupy",
+                command,
+                "input.py",
+                "--experimental-records-increment",
+            ])
+            .unwrap();
             assert!(selected.experimental_records_increment);
-            assert!(!selected.experimental_direct_accumulator && !selected.experimental_leaf_inline);
+            assert!(
+                !selected.experimental_direct_accumulator && !selected.experimental_leaf_inline
+            );
         }
     }
 }

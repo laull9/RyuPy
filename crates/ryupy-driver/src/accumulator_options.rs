@@ -9,8 +9,14 @@ pub(crate) fn validate(session: &Session) -> Result<()> {
         !(session.experimental_direct_accumulator && session.experimental_foreach_accumulator),
         "直接累加实验与ForEach局部累加实验不能同时启用"
     );
-    ensure!(!session.experimental_records_increment || cfg!(feature = "records-increment-experiment"), "records实验需要records-increment-experiment构建feature");
-    ensure!(!(session.experimental_records_increment && session.fixed_binding_build), "records实验不支持固定Python绑定构建");
+    ensure!(
+        !session.experimental_records_increment || cfg!(feature = "records-increment-experiment"),
+        "records实验需要records-increment-experiment构建feature"
+    );
+    ensure!(
+        !(session.experimental_records_increment && session.fixed_binding_build),
+        "records实验不支持固定Python绑定构建"
+    );
     Ok(())
 }
 
@@ -37,7 +43,9 @@ pub(crate) fn pipeline(
     let passes = {
         let mut selected = passes;
         if session.experimental_records_increment {
-            selected.push(PipelinePass::Program(Box::new(ryupy_mir::RecordsIncrementExperiment)));
+            selected.push(PipelinePass::Program(Box::new(
+                ryupy_mir::RecordsIncrementExperiment,
+            )));
         }
         selected
     };

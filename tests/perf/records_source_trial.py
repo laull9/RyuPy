@@ -14,8 +14,12 @@ sys.path.insert(0,str(ROOT/'tests'))
 from benchlib.artifact import verified_native, MANIFEST_NAME
 from benchlib.suite import Benchmark
 
-CASES={'contracts':(3,4),'callbacks':(0,3),'known_subclass':(0,1),'performance':(200000,0)}
+CASES={'contracts':(3,4),'callbacks':(0,3),'known_callbacks':(0,3),'known_subclass':(0,1),'performance':(200000,0)}
 KNOWN=b'custom-get ann buy\ncustom-set 6\nknown-rejection dict layout with non-scalar keys is not supported 0\n'
+
+KNOWN_CALLBACKS=b'key-hash\nkey-hash\nkey-eq\nkey-hash\nkey-eq\nkey-value [2]\nreceiver-get a 0\nreceiver-set a 6\n'
+CP_CALLBACKS=b'key-hash\nkey-hash\nkey-hash\nkey-eq\nkey-hash\nkey-eq\nkey-value [2]\nreceiver-get a 0\nreceiver-set a 6\n'
+BASELINE_SHA='81758bb477729aee4636f2ca6d6b0815b949849a'
 
 
 def trace(payload,token,counts):
@@ -25,13 +29,14 @@ def trace(payload,token,counts):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    for name in ('cli','diagnostic-cli','audit','output'):parser.add_argument('--'+name,type=Path,required=True)
+    for name in ('cli','diagnostic-cli','baseline-cli','baseline-repo','audit','output'):parser.add_argument('--'+name,type=Path,required=True)
     parser.add_argument('--expected-sha',required=True)
     args=parser.parse_args();out=args.output.resolve()
     assert not out.is_relative_to(ROOT) and not out.exists()
     assert sys.version_info[:3]==(3,12,13)
     assert subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()==args.expected_sha
     assert subprocess.check_output(['dotnet','--version'],cwd=ROOT,text=True).strip()=='10.0.403'
+    assert subprocess.check_output(['git','rev-parse','HEAD'],cwd=args.baseline_repo,text=True).strip()==BASELINE_SHA
     out.mkdir(parents=True);normal=args.cli.resolve();diagnostic=args.diagnostic_cli.resolve()
     sha=lambda path:hashlib.sha256(path.read_bytes()).hexdigest()
     assert sha(normal)!=sha(diagnostic)
@@ -39,6 +44,7 @@ def main():
     for key in ('RYUPY_RUNTIME_DIR','RYUPY_STATS','RYUPY_RECORDS_GUARD_TRACE','RYUPY_RECORDS_GUARD_TOKEN'):env.pop(key,None)
     report={'ok':False,'commit':args.expected_sha,'python':'3.12.13','sdk':'10.0.403',
             'cli_sha256':sha(normal),'diagnostic_cli_sha256':sha(diagnostic),'cases':{},'commands':[],
+            'baseline_commit':BASELINE_SHA,'baseline_cli_sha256':sha(args.baseline_cli),
             'scope':'explicit-feature-source-trial; new-process wall includes startup and IO; shared runner; not warm throughput'}
     def run(label,command,extra=None,timeout=1200):
         started=time.perf_counter();row={'label':label,'command':[str(x) for x in command]};report['commands'].append(row)
@@ -59,9 +65,22 @@ def main():
         for case,counts in CASES.items():
             source=ROOT/'tests/fixtures/records_guard_source'/f'{case}.py'
             oracle=run(case+'-cp',[sys.executable,'-B',source]);assert not oracle[1]
-            expected=KNOWN if case=='known_subclass' else oracle[0]
+            expected=KNOWN if case=='known_subclass' else KNOWN_CALLBACKS if case=='known_callbacks' else oracle[0]
             if case=='known_subclass':assert oracle[0]==b'custom-get ann buy\ncustom-set 6\ncustom-result 6 True\n'
-            info={'source_sha256':sha(source),'cp_equivalent':case!='known_subclass','arms':{},'samples':[]};report['cases'][case]=info
+            info={'source_sha256':sha(source),'cp_equivalent':case not in ('known_subclass','known_callbacks'),'arms':{},'samples':[]};report['cases'][case]=info
+            if case=='known_callbacks':
+                assert oracle[0]==CP_CALLBACKS and expected!=oracle[0]
+                info['baseline']={}
+                for backend in ('jit','aot'):
+                    label=f'{case}-baseline-{backend}';directory=out/label;directory.mkdir()
+                    command=[args.baseline_cli,'build',source,'-o',directory,'--native']
+                    if backend=='aot':command.append('--aot')
+                    build=run(label+'-build',command)
+                    entry=verified_native(directory,Benchmark(case,source),build[1].decode(),mode='standalone') if backend=='aot' else directory/(case+'.dll')
+                    command=[entry] if backend=='aot' else ['dotnet',entry]
+                    actual=run(label+'-execute',command)
+                    assert actual[:2]==(expected,b''), (label,'historical difference not proven')
+                    info['baseline'][backend]={'entry_path':str(entry.relative_to(out)),'entry_sha256':sha(entry)}
             for enabled in (False,True):
                 label=case+('-enabled' if enabled else '-control')
                 command=[normal,'dump',source,'--emit','mir']+(['--experimental-records-increment'] if enabled else [])

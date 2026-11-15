@@ -24,18 +24,24 @@ class EvidenceTests(unittest.TestCase):
         import json
         import tempfile
         from pathlib import Path
-        from check_records_source_trial import verify, CASES, ARMS, KNOWN, SOURCE_ROOT
+        from check_records_source_trial import verify, CASES, ARMS, KNOWN, SOURCE_ROOT, KNOWN_CALLBACKS, CP_CALLBACKS, BASELINE_SHA
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);sha='a'*40
-            data=dict(ok=True,commit=sha,python='3.12.13',sdk='10.0.403',cli_sha256='a',diagnostic_cli_sha256='b',cases={},commands=[])
+            data=dict(baseline_commit=BASELINE_SHA,baseline_cli_sha256='c',ok=True,commit=sha,python='3.12.13',sdk='10.0.403',cli_sha256='a',diagnostic_cli_sha256='b',cases={},commands=[])
             def row(label,out=b'ok\n'):
                 data['commands'].append(dict(label=label,exit=0,wall_ms=1.0))
                 (root/(label+'.stdout')).write_bytes(out);(root/(label+'.stderr')).write_bytes(b'')
             for case,counts in CASES.items():
-                oracle=b'custom-get ann buy\ncustom-set 6\ncustom-result 6 True\n' if case=='known_subclass' else b'ok\n'
-                row(case+'-cp',oracle);expected=KNOWN if case=='known_subclass' else oracle
+                oracle=b'custom-get ann buy\ncustom-set 6\ncustom-result 6 True\n' if case=='known_subclass' else CP_CALLBACKS if case=='known_callbacks' else b'ok\n'
+                row(case+'-cp',oracle);expected=KNOWN if case=='known_subclass' else KNOWN_CALLBACKS if case=='known_callbacks' else oracle
                 row(case+'-control-mir',b'none');row(case+'-enabled-mir',b'RecordsTryIncrementMaterialized')
-                info=dict(source_sha256=hashlib.sha256((SOURCE_ROOT/'tests/fixtures/records_guard_source'/f'{case}.py').read_bytes()).hexdigest(),complete=True,cp_equivalent=case!='known_subclass',arms={},samples=[]);data['cases'][case]=info
+                info=dict(source_sha256=hashlib.sha256((SOURCE_ROOT/'tests/fixtures/records_guard_source'/f'{case}.py').read_bytes()).hexdigest(),complete=True,cp_equivalent=case not in ('known_subclass','known_callbacks'),arms={},samples=[]);data['cases'][case]=info
+                if case=='known_callbacks':
+                    info['baseline']={}
+                    for backend in ('jit','aot'):
+                        label=f'{case}-baseline-{backend}';(root/label).mkdir();(root/label/'entry').write_bytes(b'assembly')
+                        row(label+'-build');row(label+'-execute',expected)
+                        info['baseline'][backend]=dict(entry_path=label+'/entry',entry_sha256=hashlib.sha256(b'assembly').hexdigest())
                 for arm in ARMS:
                     label=case+'-'+arm;row(label+'-build');row(label+'-execute',expected)
                     (root/label).mkdir();(root/label/'entry').write_bytes(b'assembly');(root/label/'RyuPy.Runtime.dll').write_bytes(b'assembly');diagnostic=arm.startswith('diagnostic-')
@@ -63,6 +69,8 @@ class EvidenceTests(unittest.TestCase):
             x=copy.deepcopy(data);x['cases']['contracts']['source_sha256']='wrong';variants.append(x)
             x=copy.deepcopy(data);x['cases']['contracts']['arms']['control-jit']['runtime_audits'][0]['path']='contracts-enabled-jit/RyuPy.Runtime.dll';variants.append(x)
             x=copy.deepcopy(data);x['cases']['contracts']['arms']['control-jit']['runtime_audits']*=2;variants.append(x)
+            x=copy.deepcopy(data);x['baseline_commit']='wrong';variants.append(x)
+            x=copy.deepcopy(data);x['cases']['known_callbacks']['baseline'].pop('aot');variants.append(x)
             for value in variants:
                 with self.assertRaises((AssertionError,KeyError)):check(value)
             (root/'contracts-enabled-aot-execute.stdout').write_bytes(b'wrong')

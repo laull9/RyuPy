@@ -14,7 +14,7 @@ class Key:
 
 first = Key()
 second = Key()
-d = {}
+d = {'seed': 0}
 increment(d, first)
 increment(d, second)
 print('key-value', list(d.values()))

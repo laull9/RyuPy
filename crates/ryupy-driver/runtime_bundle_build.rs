@@ -43,9 +43,12 @@ pub(crate) fn build() {
     }
     let dotnet = std::env::var_os("DOTNET").unwrap_or_else(|| "dotnet".into());
     let artifacts = output.join("dotnet-artifacts");
-    let records_diagnostics = if std::env::var_os("CARGO_FEATURE_RECORDS_INCREMENT_DIAGNOSTICS").is_some() {
-        "-p:RecordsGuardDiagnostics=true"
-    } else { "-p:RecordsGuardDiagnostics=false" };
+    let records_diagnostics =
+        if std::env::var_os("CARGO_FEATURE_RECORDS_INCREMENT_DIAGNOSTICS").is_some() {
+            "-p:RecordsGuardDiagnostics=true"
+        } else {
+            "-p:RecordsGuardDiagnostics=false"
+        };
     let result = Command::new(dotnet)
         .arg("build")
         .arg(workspace.join("runtime/RyuPy.CPython/RyuPy.CPython.csproj"))

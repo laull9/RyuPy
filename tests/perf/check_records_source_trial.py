@@ -5,15 +5,21 @@ import json
 import math
 from pathlib import Path
 
-CASES={'contracts':(3,4),'callbacks':(0,3),'known_subclass':(0,1),'performance':(200000,0)}
+CASES={'contracts':(3,4),'callbacks':(0,3),'known_callbacks':(0,3),'known_subclass':(0,1),'performance':(200000,0)}
 SOURCE_ROOT=Path(__file__).resolve().parents[2]
 ARMS=[f'{a}-{b}' for a in ('control','enabled','diagnostic') for b in ('jit','aot')]
 KNOWN=b'custom-get ann buy\ncustom-set 6\nknown-rejection dict layout with non-scalar keys is not supported 0\n'
+
+KNOWN_CALLBACKS=b'key-hash\nkey-hash\nkey-eq\nkey-hash\nkey-eq\nkey-value [2]\nreceiver-get a 0\nreceiver-set a 6\n'
+CP_CALLBACKS=b'key-hash\nkey-hash\nkey-hash\nkey-eq\nkey-hash\nkey-eq\nkey-value [2]\nreceiver-get a 0\nreceiver-set a 6\n'
+BASELINE_SHA='81758bb477729aee4636f2ca6d6b0815b949849a'
 
 
 def verify(root,sha):
     data=json.loads((root/'source-trial.json').read_text())
     assert data['ok'] is True and data['commit']==sha
+    assert data['baseline_commit']==BASELINE_SHA
+    assert data['baseline_cli_sha256']
     assert data['python']=='3.12.13' and data['sdk']=='10.0.403'
     assert data['cli_sha256']!=data['diagnostic_cli_sha256']
     assert set(data['cases'])==set(CASES)
@@ -29,11 +35,20 @@ def verify(root,sha):
         info=data['cases'][case];assert info['complete'] is True
         fixture=SOURCE_ROOT/'tests/fixtures/records_guard_source'/f'{case}.py'
         assert info['source_sha256']==hashlib.sha256(fixture.read_bytes()).hexdigest()
-        assert info['cp_equivalent'] is (case!='known_subclass')
+        assert info['cp_equivalent'] is (case not in ('known_subclass','known_callbacks'))
         oracle,err=output(case+'-cp');assert not err
         if case=='known_subclass':assert oracle==b'custom-get ann buy\ncustom-set 6\ncustom-result 6 True\n'
-        expected=KNOWN if case=='known_subclass' else oracle
+        expected=KNOWN if case=='known_subclass' else KNOWN_CALLBACKS if case=='known_callbacks' else oracle
         assert expected
+        if case=='known_callbacks':
+            assert oracle==CP_CALLBACKS and expected!=oracle
+            assert set(info['baseline'])=={'jit','aot'}
+            for backend,item in info['baseline'].items():
+                label=f'{case}-baseline-{backend}';output(label+'-build')
+                assert output(label+'-execute')==(expected,b'')
+                entry=(root/item['entry_path']).resolve()
+                assert entry.is_relative_to((root/label).resolve()) and entry.is_file()
+                assert hashlib.sha256(entry.read_bytes()).hexdigest()==item['entry_sha256']
         for enabled in (False,True):
             mir,_=output(case+('-enabled' if enabled else '-control')+'-mir')
             assert mir.count(b'RecordsTryIncrementMaterialized')==int(enabled)
