@@ -69,6 +69,25 @@ public sealed class PyDictStringPairProbeTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void SameCountDeleteInsertInvalidatesByVersionNotCount()
+    {
+        var dict = new PyDict(); var access = new PyDict.StringPairAccess(dict);
+        access.TrySet("ann", "buy", 1L); access.TrySet("bob", "view", 2L);
+        Assert.True(access.TryGet("ann", "buy", out _, out _));
+        int count = dict.Count; long version = dict.Version;
+        dict.Delete(new PyTuple(["bob", "view"])); dict.Set("foreign", 3L);
+        Assert.Equal(count, dict.Count); Assert.NotEqual(version, dict.Version);
+        Assert.False(access.TryGet("ann", "buy", out _, out _));
+        Assert.False(access.TrySet("ann", "buy", 4L));
+        Assert.Equal(1L, dict.Get(new PyTuple(["ann", "buy"])));
+        dict.Delete("foreign"); dict.Set(new PyTuple(["cyd", "cart"]), 5L);
+        Assert.Equal(count, dict.Count);
+        Assert.True(access.TryGet("cyd", "cart", out bool found, out object? value));
+        Assert.True(found); Assert.Equal(5L, value);
+        Assert.Equal("cyd", ((PyTuple)dict.Keys.Last()!).Items[0]);
+    }
+
+    [Fact]
     public void UserEqualitySeesRealFallbackTupleAndNeverAnAlternateProbe()
     {
         int comparisons = 0; object? observed = null;
@@ -193,7 +212,8 @@ public sealed class PyDictStringPairProbeTests(ITestOutputHelper output)
     {
         string[] keys = Enumerable.Range(0, count).Select(i => i.ToString()).ToArray();
         object value = new();
-        // 诊断不设墙钟阈值；CI共享机噪声不能转换为收益断言。原始测量写测试日志。
+        // 仅筛选灾难性退化，不是性能A/B验收：固定顺序、无交替/多轮，且CI共享机有噪声。
+        // 不设墙钟收益阈值；原始测量写测试日志。
         foreach (bool probe in new[] { false, true })
         {
             var dict = new PyDict(); var access = new PyDict.StringPairAccess(dict);
