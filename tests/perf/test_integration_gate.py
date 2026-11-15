@@ -6,8 +6,21 @@ from pathlib import Path
 import tempfile
 import unittest
 import integration_gate as gate
+from integration_semantic import archive_for_relocation, MANIFEST_NAME
 
 class GateTests(unittest.TestCase):
+    def test_relocation_archive_paths(self):
+        with tempfile.TemporaryDirectory() as t:
+            out=Path(t);directory=out/'arm';dist=directory/'x.dist';dist.mkdir(parents=True)
+            entry=dist/'x';entry.write_bytes(b'fake-native');(dist/MANIFEST_NAME).write_text('{}')
+            row={'entry':str(entry.relative_to(out)), 'sha256':hashlib.sha256(entry.read_bytes()).hexdigest()}
+            moved=archive_for_relocation(entry,directory,out,row)
+            self.assertFalse((out/row['original_entry']).exists())
+            self.assertEqual((out/row['entry']).read_bytes(),b'fake-native')
+            self.assertTrue((out/row['manifest']).is_file())
+            self.assertEqual(out/row['relocated'],moved/'x')
+            self.assertEqual((out/row['relocated']).read_bytes(),(out/row['entry']).read_bytes())
+
     def test_feature_resolution(self):
         names=['ryupy-cli','ryupy-driver','ryupy-mir','ryupy-e2e']
         data={'packages':[{'name':n,'id':n} for n in names], 'resolve':{'nodes':[

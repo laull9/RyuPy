@@ -14,6 +14,20 @@ from benchlib.artifact import verified_native, MANIFEST_NAME
 from benchlib.suite import Benchmark
 
 
+def archive_for_relocation(entry, directory, out, row):
+    """保留原运行路径，显式返回搬迁与hidden归档，报告不指向消失的入口。"""
+    moved=directory/'中文 空格搬迁';shutil.copytree(entry.parent,moved)
+    original=entry.parent;hidden=original.with_name(original.name+'.hidden')
+    original.rename(hidden)
+    archived=hidden/entry.name
+    row.update(original_entry=row['entry'],entry=str(archived.relative_to(out)),
+               manifest=str((hidden/MANIFEST_NAME).relative_to(out)),
+               relocated=str((moved/entry.name).relative_to(out)))
+    assert archived.is_file() and (hidden/MANIFEST_NAME).is_file()
+    assert hashlib.sha256(archived.read_bytes()).hexdigest()==row['sha256']
+    return moved
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     for key in ('off','on','output'):parser.add_argument('--'+key,type=Path,required=True)
@@ -69,8 +83,7 @@ def main():
                     assert run(label+'-execute',command)==oracle
                     row={'label':label,'entry':str(entry.relative_to(out)),'sha256':sha(entry)};report['arms'].append(row);save()
                     if backend=='aot':
-                        moved=directory/'中文 空格搬迁';shutil.copytree(entry.parent,moved)
-                        original=entry.parent;original.rename(original.with_name(original.name+'.hidden'))
+                        moved=archive_for_relocation(entry,directory,out,row);save()
                         assert run(label+'-moved',[moved/entry.name],moved,env|{'PATH':'/nonexistent'})==oracle
                         assert sha(moved/entry.name)==row['sha256']
                         row['relocated']=str((moved/entry.name).relative_to(out));save()
