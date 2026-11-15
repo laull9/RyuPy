@@ -352,10 +352,22 @@ public sealed partial class PyList
     public bool Contains(object? value) => IndexOf(value) >= 0;
 
     /// <summary><c>clear()</c>。</summary>
-    public void Clear() { if (_booleans is { } b) b.Clear(); else Items.Clear(); }
+    public void Clear()
+    {
+        // 清空不观察元素，无需为尚未物化的浮点槽创建对象；公开Items后的别名仍走原背板。
+        if (_booleans is { } b) b.Clear();
+        else if (_numeric is { } n) n.Clear();
+        else Items.Clear();
+    }
 
     /// <summary><c>reverse()</c>。</summary>
-    public void Reverse() { if (_booleans is { } b) b.Reverse(); else Items.Reverse(); }
+    public void Reverse()
+    {
+        // 连同缓存的原盒一起移动槽，保留身份、NaN位模式和延迟物化状态。
+        if (_booleans is { } b) b.Reverse();
+        else if (_numeric is { } n) n.Reverse();
+        else Items.Reverse();
+    }
 
     /// <summary><c>copy()</c>：浅拷贝。</summary>
     public PyList Copy() => _booleans is { } b ? new(new List<bool>(b)) : new(Items);
