@@ -1,0 +1,121 @@
+# 独立实体key合同门；无默认产品融合、无NativeAOT性能声明。
+name: Records materialized key experiment
+on:
+  push:
+    branches: [work/records-materialized-ci-20261115]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  records-materialized:
+    if: github.ref == 'refs/heads/work/records-materialized-ci-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+      CARGO_TERM_COLOR: never
+      INSTA_UPDATE: 'no'
+      MSBUILDDISABLENODEREUSE: '1'
+      DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+      UseSharedCompilation: 'false'
+    steps:
+      - name: Prepare evidence directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          EVIDENCE="$RUNNER_TEMP/records-materialized-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          mkdir "$EVIDENCE"
+          printf 'EVIDENCE=%s\n' "$EVIDENCE" >> "$GITHUB_ENV"
+          printf 'run=%s attempt=%s\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" > "$EVIDENCE/run.txt"
+      - uses: actions/checkout@v4
+      - name: Freeze exact source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rev-parse HEAD | tee "$EVIDENCE/commit.txt"
+          test "$(cat "$EVIDENCE/commit.txt")" = "$GITHUB_SHA"
+          export GIT_INDEX_FILE="$RUNNER_TEMP/records-materialized-source-index"
+          git read-tree HEAD
+          git update-index --force-remove .github/workflows/records-materialized-experiment.yml tests/perf/check_records_probe_evidence.py tests/perf/test_records_probe_evidence.py tests/perf/check_records_materialized.py tests/perf/test_records_materialized_evidence.py
+          git write-tree | tee "$EVIDENCE/source-tree.txt"
+          test "$(cat "$EVIDENCE/source-tree.txt")" = 'b7d9b7438fddd7ccb79b85c0d5280f2e4e071c9c'
+          unset GIT_INDEX_FILE
+          printf '%s\n' '{"sdk":{"version":"10.0.403","rollForward":"disable","allowPrerelease":false}}' > global.json
+          cp global.json "$EVIDENCE/global.json"
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
+        with:
+          components: rustfmt
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - uses: actions/setup-python@v5
+        id: python
+        with:
+          python-version-file: tests/pinned-python.txt
+      - name: Verify toolchains and checker tests
+        id: tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet --version | tee "$EVIDENCE/sdk.txt"
+          test "$(cat "$EVIDENCE/sdk.txt")" = '10.0.403'
+          dotnet --info > "$EVIDENCE/dotnet-info.txt"
+          rustc --version | tee "$EVIDENCE/rustc.txt"
+          grep -E '^rustc 1\.99\.1 ' "$EVIDENCE/rustc.txt"
+          python3 -B tests/perf/test_records_probe_evidence.py 2>&1 | tee "$EVIDENCE/original-checker.log"
+          python3 -B tests/perf/test_records_materialized_evidence.py 2>&1 | tee "$EVIDENCE/new-checker.log"
+      - name: Build actual runtime tests
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet build runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj -c Release 2>&1 | tee "$EVIDENCE/build.log"
+      - name: Execute original fifteen probe contracts
+        if: always() && steps.build.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet test runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj -c Release --no-build --no-restore --filter 'FullyQualifiedName~RyuPy.Runtime.Tests.PyDictStringPairProbeTests' --logger 'trx;LogFileName=records.trx' --logger 'console;verbosity=detailed' --results-directory "$EVIDENCE" 2>&1 | tee "$EVIDENCE/original.log"
+      - name: Execute eleven materialized key contracts
+        if: always() && steps.build.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet test runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj -c Release --no-build --no-restore --filter 'FullyQualifiedName~RyuPy.Runtime.Tests.PyDictMaterializedIncrementTests' --logger 'trx;LogFileName=materialized.trx' --logger 'console;verbosity=detailed' --results-directory "$EVIDENCE" 2>&1 | tee "$EVIDENCE/materialized.log"
+      - name: Check formatting and complete MIR library including source contracts
+        if: always() && steps.tools.outcome == 'success'
+        shell: bash
+        run: |
+          set -uo pipefail
+          cargo fmt --all --check 2>&1 | tee "$EVIDENCE/fmt.log"
+          fmt=${PIPESTATUS[0]}
+          # CI没有在工作树内修格式；仅额外保留新文件的格式化建议供失败定位。
+          rustfmt --edition 2024 --emit stdout crates/ryupy-mir/src/records_increment_contract_tests.rs > "$EVIDENCE/records-contract-formatted.rs" 2> "$EVIDENCE/rustfmt-diagnostic.log"
+          cargo test --locked -p ryupy-mir --lib -- --test-threads=1 2>&1 | tee "$EVIDENCE/mir.log"
+          mir=${PIPESTATUS[0]}
+          printf '{"fmt":%s,"mir":%s}\n' "$fmt" "$mir" > "$EVIDENCE/rust-exits.json"
+          test "$fmt" = 0 && test "$mir" = 0
+      - name: Run pending CPython input only not product differential
+        if: always() && steps.tools.outcome == 'success'
+        env:
+          PYTHON: ${{ steps.python.outputs.python-path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$PYTHON" --version | tee "$EVIDENCE/python.txt"
+          "$PYTHON" -B -c 'import sys; assert sys.version_info[:3] == (3,12,13)'
+          "$PYTHON" -B tests/e2e/phase3/dict_materialized_increment_contract.py | tee "$EVIDENCE/cp-input-only.txt"
+      - name: Reject missing skipped or inconsistent verification evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B tests/perf/check_records_materialized.py "$EVIDENCE" "$GITHUB_SHA" 2>&1 | tee "$EVIDENCE/verification.log"
+      - name: Upload raw evidence including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: records-materialized-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ env.EVIDENCE }}
+          if-no-files-found: error
+          retention-days: 14
