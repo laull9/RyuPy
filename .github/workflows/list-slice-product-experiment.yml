@@ -1,0 +1,111 @@
+# 专用产品实验分支；不并入dev，不改变默认CI。
+name: Product list slice isolated validation
+on:
+  push:
+    branches: [work/list-slice-product-ci-20261115]
+permissions:
+  contents: read
+concurrency:
+  group: list-slice-product-performance
+  cancel-in-progress: false
+jobs:
+  isolated:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    defaults:
+      run:
+        shell: bash
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+      CARGO_TERM_COLOR: never
+      MSBUILDDISABLENODEREUSE: '1'
+      DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+      UseSharedCompilation: 'false'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 准备隔离目录与固定基线
+        run: |
+          set -euo pipefail
+          EVIDENCE="$RUNNER_TEMP/list-product-evidence"
+          mkdir -p "$EVIDENCE"
+          echo "EVIDENCE=$EVIDENCE" >> "$GITHUB_ENV"
+          echo "DOTNET_INSTALL_DIR=$RUNNER_TEMP/list-product-dotnet" >> "$GITHUB_ENV"
+          echo "BASE=$RUNNER_TEMP/list-product-base" >> "$GITHUB_ENV"
+          git rev-parse HEAD > "$EVIDENCE/candidate.txt"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git worktree add --detach "$RUNNER_TEMP/list-product-base" 81758bb477729aee4636f2ca6d6b0815b949849a
+          git -C "$RUNNER_TEMP/list-product-base" rev-parse HEAD > "$EVIDENCE/base.txt"
+          df -h > "$EVIDENCE/disk-before.txt"
+          lscpu > "$EVIDENCE/cpu.txt"
+          uname -a > "$EVIDENCE/kernel.txt"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - uses: actions/setup-python@v5
+        id: python
+        with:
+          python-version: '3.12.13'
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
+        with:
+          components: rustfmt, clippy
+      - name: 固定工具链与本机依赖
+        timeout-minutes: 15
+        env:
+          FIXED_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          set -euo pipefail
+          test "$(dotnet --version)" = 10.0.403
+          test "$(readlink -f "$(command -v dotnet)")" = "$DOTNET_INSTALL_DIR/dotnet"
+          "$FIXED_PYTHON" -c 'import sys,os; assert sys.version_info[:3] == (3,12,13); assert os.path.isabs(sys.executable); print(sys.version)' | tee "$EVIDENCE/python.txt"
+          echo "PYTHON=$FIXED_PYTHON" >> "$GITHUB_ENV"
+          echo "RYUPY_FOREACH_PYTHON=$FIXED_PYTHON" >> "$GITHUB_ENV"
+          dotnet --info > "$EVIDENCE/dotnet.txt"
+          rustc --version > "$EVIDENCE/rust.txt"
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev patchelf binutils
+      - name: 自检配对报告门禁
+        run: "$PYTHON -B tests/perf/list-product/test_verify.py"
+      - name: 基线完整检查并冻结CLI
+        timeout-minutes: 70
+        run: |
+          set -euo pipefail
+          (cd "$BASE"; CARGO_TARGET_DIR="$RUNNER_TEMP/target-base" make check) 2>&1 | tee "$EVIDENCE/base-check.log"
+          (cd "$BASE"; CARGO_TARGET_DIR="$RUNNER_TEMP/target-base" make build RELEASE_DIR="$RUNNER_TEMP/frozen-base") 2>&1 | tee "$EVIDENCE/base-build.log"
+          # 只清理本job独占的可重建Cargo输出；冻结CLI已内嵌自己的运行时。
+          rm -rf -- "$RUNNER_TEMP/target-base"
+          df -h > "$EVIDENCE/disk-after-base.txt"
+      - name: 候选完整检查、20合同并冻结CLI
+        timeout-minutes: 70
+        run: |
+          set -euo pipefail
+          CARGO_TARGET_DIR="$RUNNER_TEMP/target-candidate" make check 2>&1 | tee "$EVIDENCE/candidate-check.log"
+          dotnet test runtime/RyuPy.Runtime.Tests -c Release --filter 'FullyQualifiedName~PyListSliceOwnershipTests' --logger 'trx;LogFileName=slice.trx' --results-directory "$EVIDENCE" 2>&1 | tee "$EVIDENCE/slice-tests.log"
+          "$PYTHON" -B tests/perf/list-product/verify.py trx "$EVIDENCE/slice.trx"
+          CARGO_TARGET_DIR="$RUNNER_TEMP/target-candidate" make build RELEASE_DIR="$RUNNER_TEMP/frozen-candidate" 2>&1 | tee "$EVIDENCE/candidate-build.log"
+          rm -rf -- "$RUNNER_TEMP/target-candidate"
+          df -h > "$EVIDENCE/disk-after-build.txt"
+      - name: pending切片用例显式CP/JIT/AOT双臂差分及搬迁
+        timeout-minutes: 25
+        run: |
+          set -euo pipefail
+          "$PYTHON" -B tests/perf/list-product/verify.py semantic "$EVIDENCE/semantics" --python "$PYTHON" --old "$RUNNER_TEMP/frozen-base/ryupy" --new "$RUNNER_TEMP/frozen-candidate/ryupy" 2>&1 | tee "$EVIDENCE/semantic.log"
+      - name: 单runner顺序原26项配对（包括list_ops及matmul）
+        timeout-minutes: 150
+        run: |
+          set -euo pipefail
+          # 无后台构建、无矩阵并发；构建不计时，统计/搬迁另轮，CPU仍属共享runner。
+          dotnet build-server shutdown
+          "$PYTHON" -B tests/perf/aot_hotspot_pair.py --old "$RUNNER_TEMP/frozen-base/ryupy" --new "$RUNNER_TEMP/frozen-candidate/ryupy" --python "$PYTHON" --runs 5 --output "$EVIDENCE/paired.json" 2>&1 | tee "$EVIDENCE/performance.log"
+          "$PYTHON" -B tests/perf/list-product/verify.py performance "$EVIDENCE/paired.json" | tee "$EVIDENCE/performance-check.log"
+          echo COMPLETE > "$EVIDENCE/complete.txt"
+      - name: 总是留存已完成与失败证据
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: list-product-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/list-product-evidence
+          if-no-files-found: error
+          retention-days: 14
