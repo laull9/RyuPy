@@ -100,9 +100,46 @@ internal sealed class PySegmentedListStorage : IReadOnlyList<object?>
     internal PySegmentedListStorage Slice(PySlice slice)
     {
         var (start, _, step, count) = slice.Indices(Count);
+        if (step == 1) return SliceRange((int)start, (int)count);
         var result = new PySegmentedListStorage();
         long index = start;
         for (long i = 0; i < count; i++, index += step) result.Append(this[(int)index]);
+        return result;
+    }
+
+    // 归一化后的连续切片：只复制引用，按源/目标段界拆批次，不逐元素调用索引器和Append。
+    // 与List.GetRange一致验证位置及长度；此入口本身不执行Python索引协议。
+    internal PySegmentedListStorage SliceRange(int start, int count)
+    {
+        if (start < 0) throw new ArgumentOutOfRangeException(nameof(start));
+        if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));
+        if (start > Count - count) throw new ArgumentException("切片超出列表范围");
+        var result = new PySegmentedListStorage();
+        int copied = 0;
+        while (copied < count)
+        {
+            var destination = new object?[SegmentSize];
+            int length = Math.Min(SegmentSize, count - copied);
+            if (_materialized is { } items)
+            {
+                items.CopyTo(start + copied, destination, 0, length);
+            }
+            else
+            {
+                int written = 0;
+                while (written < length)
+                {
+                    int sourceIndex = start + copied + written;
+                    int part = Math.Min(length - written, SegmentSize - sourceIndex % SegmentSize);
+                    Array.Copy(_segments[sourceIndex / SegmentSize], sourceIndex % SegmentSize,
+                        destination, written, part);
+                    written += part;
+                }
+            }
+            result._segments.Add(destination);
+            copied += length;
+        }
+        result._count = count;
         return result;
     }
 

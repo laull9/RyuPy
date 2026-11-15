@@ -194,4 +194,40 @@ public class PySegmentedListStorageTests
         Assert.Equal(!materialize, list.IsSegmented);
         if (materialize) Assert.Same(exported, list.Materialize());
     }
+    [Theory]
+    [InlineData(false, 0, 0)]
+    [InlineData(false, 3079, 0)]
+    [InlineData(false, 1000, 2050)]
+    [InlineData(false, 1024, 1025)]
+    [InlineData(true, 1000, 2050)]
+    [InlineData(true, 1024, 1025)]
+    public void ContiguousSlicesCopyUniqueReferencesAcrossBothBoundaries(bool exported, int start, int count)
+    {
+        var list = new PySegmentedListStorage();
+        var values = Enumerable.Range(0, 3079).Select(_ => new object()).ToArray();
+        list.Extend(values);
+        if (exported) list.Materialize();
+        var slice = list.SliceRange(start, count);
+        var protocolSlice = list.Slice(new PySlice((long)start, (long)start + count, null));
+        Assert.Equal(count, slice.Count);
+        Assert.Equal(count, protocolSlice.Count);
+        for (int i = 0; i < count; i++)
+        {
+            Assert.Same(values[start + i], slice[i]);
+            Assert.Same(values[start + i], protocolSlice[i]);
+        }
+        object marker = new object();
+        slice.Append(marker);
+        Assert.Same(marker, slice.GetItem(-1));
+        if (count > 0)
+        {
+            slice.SetItem(0, marker);
+            Assert.Same(values[start], list[start]);
+        }
+        Assert.Equal(!exported, list.IsSegmented);
+        Assert.Throws<ArgumentOutOfRangeException>(() => list.SliceRange(-1, 1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => list.SliceRange(0, -1));
+        Assert.Throws<ArgumentException>(() => list.SliceRange(3079, 1));
+        Assert.Throws<ArgumentException>(() => list.SliceRange(int.MaxValue, int.MaxValue));
+    }
 }

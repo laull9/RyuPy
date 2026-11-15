@@ -30,6 +30,8 @@ for (int round = -2; round < rounds; round++)
 {
     foreach (string mode in round % 2 == 0 ? new[] { "contiguous", "segmented" } : new[] { "segmented", "contiguous" })
     {
+        // 两臂使用同一切片规格，协议阶段双方均执行Indices；另列预归一化存储复制。
+        var slices = Enumerable.Range(0, 200).Select(i => new PySlice((long)i, (long)i + 500, null)).ToArray();
         if (mode == "contiguous")
         {
             var items = new List<object?>();
@@ -37,6 +39,13 @@ for (int round = -2; round < rounds; round++)
                 () => Verify(items, boxes.Length, 0, boxes.Length));
             List<object?>? slice = null;
             Measure(round, mode, "slice", () => {
+                foreach (PySlice spec in slices)
+                {
+                    var (start, _, _, count) = spec.Indices(items.Count);
+                    slice = items.GetRange((int)start, (int)count);
+                }
+            }, () => Verify(slice!, 500, 199, 500));
+            Measure(round, mode, "slice_normalized", () => {
                 for (int i = 0; i < 200; i++) slice = items.GetRange(i, 500);
             }, () => Verify(slice!, 500, 199, 500));
             var chunk = items.GetRange(1000, 1000);
@@ -50,13 +59,14 @@ for (int round = -2; round < rounds; round++)
             var items = new PySegmentedListStorage();
             Measure(round, mode, "append", () => { foreach (object? box in boxes) items.Append(box); },
                 () => Verify(items, boxes.Length, 0, boxes.Length));
-            // 预建slice对象，避免只在候选臂计入索引协议实参的分配。
-            var slices = Enumerable.Range(0, 200).Select(i => new PySlice((long)i, (long)i + 500, null)).ToArray();
             PySegmentedListStorage? slice = null;
             Measure(round, mode, "slice", () => {
                 foreach (PySlice spec in slices) slice = items.Slice(spec);
             }, () => Verify(slice!, 500, 199, 500));
-            var chunk = items.Slice(new PySlice(1000L, 2000L, null));
+            Measure(round, mode, "slice_normalized", () => {
+                for (int i = 0; i < 200; i++) slice = items.SliceRange(i, 500);
+            }, () => Verify(slice!, 500, 199, 500));
+            var chunk = items.SliceRange(1000, 1000);
             var more = new PySegmentedListStorage();
             Measure(round, mode, "extend", () => {
                 for (int i = 0; i < 2000; i++) more.ExtendExact(chunk);
@@ -64,6 +74,6 @@ for (int round = -2; round < rounds; round++)
         }
     }
 }
-Console.WriteLine(JsonSerializer.Serialize(new { schema = "list-storage-prototype-v2", frequency = Stopwatch.Frequency,
+Console.WriteLine(JsonSerializer.Serialize(new { schema = "list-storage-prototype-v3", frequency = Stopwatch.Frequency,
     framework = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,
     scope = "warm-process per-stage reference storage; source boxing excluded; not list_ops; not product AOT", samples }));
