@@ -64,7 +64,7 @@ NotImplementedError、退出1且stdout空，两候选逐字节完全一致，才
 1659条基线的既有skip。检查PE证据确实存在、无删除、实际/期望全集相同，不只看测试名。
 
 跨模块普通输入入口cross_module/main.py：off/on分别JIT/AOT对CP完整双流并搬迁。
-AOT清单必须同时绑定main/producer/consumer三个源码模块身份、实际编译文本摘要和
+AOT清单必须同时绑定main/producer/consumer三个逻辑源码模块身份和
 链接模块名；off零批量role，on精确三个不同真实target。三个发射入口不是三次运行
 快路命中；溢出输入要求正确回退，不把它当成功快路消费统计。
 
