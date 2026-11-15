@@ -202,6 +202,32 @@ pub(crate) fn collect(
             },
         );
     }
+    // 批量恢复单列，不能把两参数能力入口伪装成普通单步恢复。
+    for (_, function) in program.functions.iter() {
+        for (_, block) in function.body.blocks.iter() {
+            for statement in &block.stmts {
+                if let Statement::Assign {
+                    value:
+                        Rvalue::MakeStateGenerator {
+                            sum_resume: Some(sum),
+                            ..
+                        },
+                    ..
+                } = statement
+                {
+                    roles.insert(
+                        functions[sum],
+                        Role {
+                            name: "generator_sum_resume",
+                            module: None,
+                            function: Some(sum.into_raw().into_u32()),
+                            class: None,
+                        },
+                    );
+                }
+            }
+        }
+    }
     for (&class, &method) in factories {
         roles.insert(
             method,

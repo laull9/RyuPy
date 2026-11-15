@@ -13,7 +13,7 @@ public delegate object? PyResume(object frame);
 /// 槽 1 为发送值，槽 2 为注入异常，槽 3 为逻辑异常路由暂存；局部值从槽 4 开始。
 /// 恢复循环吞掉内部 Retry 哨兵；只有真正 yield 才返回给调用者。
 /// </remarks>
-public sealed class PyGenerator : IPyIterator
+public sealed partial class PyGenerator : IPyIterator
 {
     private PyResume? _resume;
     private object?[]? _frame;
@@ -62,7 +62,8 @@ public sealed class PyGenerator : IPyIterator
     public bool MoveNext() => MoveNextCore(PyNone.Instance, out _);
 
     // 完成值只属于本次恢复；普通迭代直接丢弃，不能留给后续 next 领取。
-    private bool MoveNextCore(object? sentValue, out object? returnValue, PyBaseException? injected = null)
+    private bool MoveNextCore(object? sentValue, out object? returnValue, PyBaseException? injected = null,
+        PyGeneratorSumState? sum = null)
     {
         returnValue = null;
         if (_running) throw new PyValueError("generator already executing");
@@ -105,7 +106,7 @@ public sealed class PyGenerator : IPyIterator
             object? value;
             while (true)
             {
-                value = _resume!(frame);
+                value = sum is null ? _resume!(frame) : _resumeSum!(frame, sum);
                 if (!ReferenceEquals(value, PyOps.GeneratorRetry())) break;
                 // 逻辑异常路由可能跳过被调用函数的正常弹帧，保留本生成器帧并清理其内层。
                 PyTraceback.PopTo(depth + 1);
@@ -274,6 +275,7 @@ public sealed class PyGenerator : IPyIterator
         _state?.Clear();
         _state = null;
         _resume = null;
+        _resumeSum = null;
         _origin = null;
         _current = null;
         _context = _contextRoot;

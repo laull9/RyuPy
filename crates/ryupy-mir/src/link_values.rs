@@ -12,11 +12,13 @@ pub(super) fn remap_rvalue(
     match value {
         Rvalue::MakeStateGenerator {
             resume,
+            sum_resume,
             payload,
             initial_pc,
             origin,
         } => Rvalue::MakeStateGenerator {
             resume: fn_map[resume],
+            sum_resume: sum_resume.map(|id| fn_map[&id]),
             payload: remap_operand(payload, global_map),
             initial_pc: *initial_pc,
             origin: origin.as_ref().map(|v| remap_operand(v, global_map)),

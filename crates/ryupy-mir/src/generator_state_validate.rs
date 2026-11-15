@@ -12,6 +12,7 @@ pub(crate) fn validate_creation(
 ) {
     let Rvalue::MakeStateGenerator {
         resume,
+        sum_resume,
         payload,
         initial_pc,
         origin,
@@ -34,7 +35,18 @@ pub(crate) fn validate_creation(
             && local_decl(&target.body.locals, target.params[0])
                 .is_some_and(|p| p.ty == MirType::Dynamic)
     });
-    if !valid_payload
+    let valid_sum = sum_resume.is_none_or(|sum| {
+        program.functions.iter().any(|(id, target)| {
+            id == sum
+                && target.params.len() == 2
+                && target.ret == MirType::Dynamic
+                && target.params.iter().all(|p| {
+                    local_decl(&target.body.locals, *p).is_some_and(|p| p.ty == MirType::Dynamic)
+                })
+        })
+    });
+    if !valid_sum
+        || !valid_payload
         || !valid_target
         || *initial_pc < 0
         || origin

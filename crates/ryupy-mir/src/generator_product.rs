@@ -7,6 +7,9 @@ use rustc_hash::FxHashMap;
 pub struct DeferredGenerators {
     pub(crate) functions: Vec<FnId>,
     pub(crate) exceptions: FxHashMap<String, GlobalId>,
+    // 关闭态sum计划的显式来源证据；不以生成函数名字或参数名字推断genexpr。
+    #[cfg(any(test, feature = "generator-sum-experiment"))]
+    pub(crate) comprehension_inputs: Vec<(FnId, crate::LocalId)>,
 }
 
 pub(crate) fn finish_build(
@@ -17,6 +20,19 @@ pub(crate) fn finish_build(
     deferred: Option<&mut DeferredGenerators>,
 ) -> Vec<crate::trace_lowering::GeneratorLayout> {
     let plan = DeferredGenerators {
+        #[cfg(any(test, feature = "generator-sum-experiment"))]
+        comprehension_inputs: hir
+            .functions
+            .iter()
+            .filter(|(_, f)| f.is_generator && f.is_comprehension)
+            .filter_map(|(id, _)| {
+                let function = functions[&id];
+                program.functions[function]
+                    .params
+                    .first()
+                    .map(|input| (function, *input))
+            })
+            .collect(),
         functions: hir
             .functions
             .iter()

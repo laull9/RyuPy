@@ -206,7 +206,7 @@ public partial class PyTraceStateArtifactTests
         string consumeTarget = P("Consume", "Void", "Object", "Boolean");
         foreach (string name in new[] { "Match", "Abort", "AllMiss" })
             FixedArgument(P(name, "Void", "Object"), consumeTarget, name == "AllMiss" ? 1 : 0);
-        string move = M("PyGenerator", "MoveNextCore", "Boolean", true, "Object", "Object&", "PyBaseException");
+        string move = M("PyGenerator", "MoveNextCore", "Boolean", true, "Object", "Object&", "PyBaseException", "PyGeneratorSumState");
         if (Body(move) is { } generator)
         {
             var il = generator.Instructions;

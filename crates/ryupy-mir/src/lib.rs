@@ -258,3 +258,14 @@ mod local_access;
 
 #[cfg(test)]
 mod generator_state_tests;
+// 批量sum准入仍处于独审/CI原型阶段，生产构建不包含该计划或启用开关。
+#[cfg(feature = "generator-sum-experiment")]
+mod generator_sum_emit;
+#[cfg(any(test, feature = "generator-sum-experiment"))]
+mod generator_sum_fields;
+#[cfg(test)]
+mod generator_sum_plan;
+#[cfg(test)]
+mod generator_sum_prepared;
+#[cfg(any(test, feature = "generator-sum-experiment"))]
+mod generator_sum_range_plan;

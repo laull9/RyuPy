@@ -133,6 +133,7 @@ def build_case(
     *,
     backend: str = "jit",
     native: bool = True,
+    command_evidence: Path | None = None,
 ) -> tuple[Path | None, float, str, str]:
     """返回本次编译产物入口、耗时、错误日志与状态。
 
@@ -157,6 +158,9 @@ def build_case(
     if native:
         command.append("--native")
 
+    if command_evidence is not None:
+        # 可选外部证据，不改变默认构建命令与行为。
+        command_evidence.write_text(json.dumps({'command': command, 'cwd': str(root)}, indent=2))
     start = time.perf_counter()
     result = subprocess.run(
         command,
