@@ -2,7 +2,7 @@
 name: Generator regression risk controls
 on:
   push:
-    branches: [work/generator-control-ci-20261115]
+    branches: [ci/generator-control-20261115]
 permissions:
   contents: read
 concurrency:
