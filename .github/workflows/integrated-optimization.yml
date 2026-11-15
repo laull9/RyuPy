@@ -82,7 +82,7 @@ jobs:
           for arm in off on; do
             mkdir -p "$EVIDENCE/check-$arm/pe"
             feature=""
-            if [ "$arm" = on ]; then feature='ryupy-cli/generator-sum-experiment,ryupy-cli/records-increment-experiment'; fi
+            if [ "$arm" = on ]; then feature='ryupy-driver/generator-sum-experiment,ryupy-driver/records-increment-experiment'; fi
             args=(); if [ -n "$feature" ]; then args=(--features "$feature"); fi
             cargo metadata --locked --format-version 1 "${args[@]}" > "$EVIDENCE/check-$arm/metadata.json"
             "$PYTHON" -B tests/perf/integration_gate.py features "$EVIDENCE/check-$arm/metadata.json" "$arm"

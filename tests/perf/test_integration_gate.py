@@ -24,13 +24,17 @@ class GateTests(unittest.TestCase):
     def test_feature_resolution(self):
         names=['ryupy-cli','ryupy-driver','ryupy-mir','ryupy-e2e']
         data={'packages':[{'name':n,'id':n} for n in names], 'resolve':{'nodes':[
-            {'id':n,'features':[],'dependencies':['ryupy-driver'] if n=='ryupy-e2e' else []} for n in names]}}
+            {'id':n,'features':[],'dependencies':['ryupy-driver'] if n in ('ryupy-e2e','ryupy-cli') else []} for n in names]}}
         with tempfile.TemporaryDirectory() as t:
             p=Path(t)/'m.json'; p.write_text(json.dumps(data)); gate.features(p,'off')
-            for node in data['resolve']['nodes'][:3]:node['features']=['generator-sum-experiment','records-increment-experiment']
+            for node in data['resolve']['nodes'][1:3]:node['features']=['generator-sum-experiment','records-increment-experiment']
             p.write_text(json.dumps(data)); gate.features(p,'on')
-            for index in range(3):
+            for index in (1,2):
                 bad=copy.deepcopy(data);bad['resolve']['nodes'][index]['features'].pop()
+                p.write_text(json.dumps(bad))
+                with self.assertRaises(AssertionError):gate.features(p,'on')
+            for index in (0,3):
+                bad=copy.deepcopy(data);bad['resolve']['nodes'][index]['dependencies']=[]
                 p.write_text(json.dumps(bad))
                 with self.assertRaises(AssertionError):gate.features(p,'on')
             data['resolve']['nodes'][0]['features'].append('records-increment-diagnostics')

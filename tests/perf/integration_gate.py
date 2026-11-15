@@ -13,9 +13,11 @@ def features(path,arm):
     for name in ('ryupy-cli','ryupy-driver','ryupy-mir'):
         actual=nodes[ids[name]]['features']
         for feature in ('generator-sum-experiment','records-increment-experiment'):
-            assert (feature in actual)==(arm=='on'),(name,feature,actual)
+            # make check包含-p ryupy-e2e，须从其直接依赖driver选择；CLI feature别名不必激活。
+            assert (feature in actual)==(arm=='on' and name!='ryupy-cli'),(name,feature,actual)
         assert 'records-increment-diagnostics' not in actual
-    assert ids['ryupy-driver'] in nodes[ids['ryupy-e2e']]['dependencies']
+    for consumer in ('ryupy-e2e','ryupy-cli'):
+        assert ids['ryupy-driver'] in nodes[ids[consumer]]['dependencies']
 
 def historical_artifact(folder):
     data=json.loads((folder/'pe/generator-frozen-dev-abi.json').read_text())
