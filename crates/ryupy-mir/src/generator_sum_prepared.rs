@@ -246,6 +246,7 @@ fn merging_two_field_read_targets_and_rewriting_the_operation_is_rejected() {
 fn extra_uncovered_dispatch_block_is_not_silently_ignored() {
     let (mut program, snapshots) = original().lower_owned().unwrap();
     let source = &snapshots[0];
+    source.verify(&program).unwrap();
     let id = resume(&program, source.function);
     program.functions[id].body.blocks.alloc(BasicBlock {
         stmts: vec![], terminator: Terminator::Return(Some(Operand::Const(Constant::None))),
