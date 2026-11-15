@@ -63,8 +63,12 @@ def check(path: Path, mode: str) -> None:
     assert summary is not None and summary.attrib["outcome"] == "Completed"
     counters = summary.find("t:Counters", ns)
     assert counters is not None, "缺失汇总"
+    # 固定 Microsoft.NET.Test.Sdk/VSTest 17.14.1 的 TRX logger：
+    # total 包含跳过，executed=passed+failed；summary.notExecuted 固定为0，
+    # 不是逐项 NotExecuted 的计数。跳过仍逐项精确白名单核验，且总数必须守恒。
+    # 来源：microsoft/vstest v17.14.1 的 TrxLogger.cs 与 ObjectModel/TestRunSummary.cs。
     expected = {"total": len(results), "executed": len(passed),
-                "passed": len(passed), "notExecuted": len(skipped)}
+                "passed": len(passed), "notExecuted": 0}
     for key, count in expected.items():
         assert int(counters.attrib.get(key, "0")) == count, f"汇总 {key} 不一致"
     for key, value in counters.attrib.items():

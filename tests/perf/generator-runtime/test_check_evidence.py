@@ -97,7 +97,27 @@ class EvidenceTests(unittest.TestCase):
             ET.SubElement(self.root[0], "UnitTestResult", testId=f"skip-{index}",
                           testName=name, outcome="NotExecuted")
         self.root[1][0].set("total", str(17 + len(names)))
-        self.root[1][0].set("notExecuted", str(len(names)))
+        self.root[1][0].set("notExecuted", "0")
+
+    def test_nonzero_summary_notexecuted_rejected(self):
+        self.add_skips(sorted(ALLOWED_SKIPS))
+        self.add_trace()
+        for value in ("1", "2", "3", "-1"):
+            with self.subTest(value=value):
+                self.root[1][0].set("notExecuted", value)
+                with self.assertRaises(AssertionError): self.verify("full")
+
+    def test_skip_total_not_counted_rejected(self):
+        self.add_skips(sorted(ALLOWED_SKIPS))
+        self.add_trace()
+        self.root[1][0].set("total", "20")
+        with self.assertRaises(AssertionError): self.verify("full")
+
+    def test_skip_counted_as_executed_rejected(self):
+        self.add_skips(sorted(ALLOWED_SKIPS))
+        self.add_trace()
+        self.root[1][0].set("executed", "22")
+        with self.assertRaises(AssertionError): self.verify("full")
 
     def test_two_allowed_skips(self):
         self.add_skips(sorted(ALLOWED_SKIPS))

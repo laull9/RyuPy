@@ -13,7 +13,7 @@ TRX 的非空唯一 testId、TestDefinitions 类/方法映射、定向名称唯�
 完整套件实际数量由 TRX 记录，不把合成门禁自检的 20 条记录冒充真实测试数量。
 
 工件以本次 checkout SHA 与 attempt 命名，包含 SDK 信息、定向/完整 TRX、日志和
-门禁输出；失败同样上传现有证据。原始结果不进 Git。17 组 Python 门禁正负例在 CI
+门禁输出；失败同样上传现有证据。原始结果不进 Git。20 组 Python 门禁正负例在 CI
 先执行，可本地运行 `python3 -B tests/perf/generator-runtime/test_check_evidence.py`。
 
 这里只验证 Runtime 协议候选与现有 Runtime 回归。**未验证编译器接线、CP 差分、
@@ -39,3 +39,18 @@ TRX 的非空唯一 testId、TestDefinitions 类/方法映射、定向名称唯�
 以及 `ActualPeRejectsGeneratorSumAuthorityAndFinallyOrderChanges` 两个参数化实例通过。
 仅执行普通非定向测试不能替代上述真实 PE 变异验证；仍不提供历史 DLL，旧 ABI 专项
 依前述精确白名单跳过，不允许把它报为通过。
+
+## VSTest 17.14.1 汇总字段语义
+
+真实 run `43680868168` / commit `407c770164c5b20efc40639b7dd8a8d7c525e543`
+的 full TRX 有3204条：3202 Passed、2个上述精确白名单 NotExecuted；汇总
+`total=3204, executed=3202, passed=3202, notExecuted=0`。旧门禁误把最后一个字段
+当跳过数而失败，不能把该失败描述为产品测试失败。
+
+固定版本的 [TrxLogger.cs](https://github.com/microsoft/vstest/blob/v17.14.1/src/Microsoft.TestPlatform.Extensions.TrxLogger/TrxLogger.cs)
+传入 total、passed+failed、passed、failed；
+[TestRunSummary.cs](https://github.com/microsoft/vstest/blob/v17.14.1/src/Microsoft.TestPlatform.Extensions.TrxLogger/ObjectModel/TestRunSummary.cs)
+将 notExecuted 等其余字段设为0。因此门禁对本固定 logger 精确要求 notExecuted=0，
+**跳过许可仍只来自逐项身份白名单**，total必须等于全部逐项记录、executed/passed必须
+等于逐项通过数。任意第三项跳过、重复跳过、focused跳过、总数不守恒仍拒绝。
+真实工件重放通过不等于新版 workflow 已重跑；历史 DLL 与首次初始化专项仍未执行。
