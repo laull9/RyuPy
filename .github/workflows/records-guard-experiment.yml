@@ -36,7 +36,7 @@ jobs:
           git read-tree HEAD
           git update-index --force-remove .github/workflows/records-guard-experiment.yml tests/perf/check_records_probe_evidence.py tests/perf/check_records_materialized.py tests/perf/check_records_guard.py tests/perf/test_records_guard_evidence.py
           git write-tree | tee "$EVIDENCE/source-tree.txt"
-          test "$(cat "$EVIDENCE/source-tree.txt")" = 'a8ac55259d89ba962e60adf8dd186895acdd1980'
+          test "$(cat "$EVIDENCE/source-tree.txt")" = '6099f4efb8b3bbf1b316fac545a37c7ef930c8da'
           unset GIT_INDEX_FILE
           printf '%s\n' '{"sdk":{"version":"10.0.403","rollForward":"disable","allowPrerelease":false}}' > global.json
           cp global.json "$EVIDENCE/global.json"
