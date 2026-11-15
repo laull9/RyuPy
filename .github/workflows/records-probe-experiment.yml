@@ -19,7 +19,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # 基线祖先核验需要历史，默认深度1无法读取父提交。
           fetch-depth: 0
       - name: Freeze evidence identity
         shell: bash
@@ -28,7 +27,14 @@ jobs:
           mkdir -p "$EVIDENCE"
           git rev-parse HEAD | tee "$EVIDENCE/commit.txt"
           test "$(cat "$EVIDENCE/commit.txt")" = "$GITHUB_SHA"
-          git merge-base --is-ancestor 9f8668ae08fdfedd04a394b26a92b72781c8ce54 HEAD
+          # GitHub集成可重建提交SHA；核完整源码树而非本地祖先身份。
+          # 仅剔除本次验证新增的三个文件，其他任意源码变化均令树校验失败。
+          export GIT_INDEX_FILE="$RUNNER_TEMP/records-source-index"
+          git read-tree HEAD
+          git update-index --force-remove .github/workflows/records-probe-experiment.yml tests/perf/check_records_probe_evidence.py tests/perf/test_records_probe_evidence.py
+          git write-tree | tee "$EVIDENCE/source-tree.txt"
+          test "$(cat "$EVIDENCE/source-tree.txt")" = '7a2a3d208cbf91de2f3f35d0861dcc5da44a3865'
+          unset GIT_INDEX_FILE
           printf '%s\n' '{"sdk":{"version":"10.0.403","rollForward":"disable","allowPrerelease":false}}' > global.json
           cp global.json "$EVIDENCE/global.json"
       - uses: actions/setup-dotnet@v4
