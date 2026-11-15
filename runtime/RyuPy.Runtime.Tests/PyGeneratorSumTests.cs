@@ -5,6 +5,7 @@ using RyuPy.Runtime;
 
 namespace RyuPy.Runtime.Tests;
 
+[Collection("生成器帧栈")]
 public class PyGeneratorSumTests
 {
     private sealed class Payload(object?[] items)
@@ -153,5 +154,73 @@ public class PyGeneratorSumTests
     }
 
 #endif
+
+    [Fact]
+    public void MissingCapabilityFallsBackToCompleteOrdinarySum()
+    {
+        int calls = 0;
+        var g = new PyGenerator(frame => {
+            if (calls++ == 3) { PyOps.GeneratorStateSetPC(frame, -1); return 99L; }
+            PyOps.GeneratorStateSetPC(frame, calls);
+            return (long)calls;
+        }, new object(), 0, "ordinary.py", "g", null);
+        Assert.False(g.TrySumBatch(0, out _));
+        Assert.Equal(0, calls);
+        Assert.Equal(6L, PyOps.CallBuiltin("sum", [g], [], []));
+        Assert.Equal(4, calls);
+    }
+
+    [Fact]
+    public void InitialNonNoneSendDoesNotStartOrCloseBatchCapableGenerator()
+    {
+        var data = new Payload([7L, 8L]);
+        var g = Create(data);
+        Assert.Throws<PyTypeError>(() => g.Send(42L));
+        Assert.Equal(0, data.Index);
+        Assert.Equal(0, data.BatchCalls);
+        Assert.Equal(15L, PyOps.CallBuiltin("sum", [g], [], []));
+    }
+
+    [Theory]
+    [InlineData("close")]
+    [InlineData("throw")]
+    [InlineData("nested-sum")]
+    public void ConsumerCallbackMayControlPausedGenerator(string action)
+    {
+        PyGenerator? g = null;
+        var cls = new PyClass("SumControl");
+        cls.SetAttr("__radd__", PyNativeFunctions.Create("__radd__", ["self", "other"], [null, null], 2,
+            _ => {
+                if (action == "close") g!.Close();
+                else if (action == "throw")
+                    Assert.Throws<PyValueError>(() => g!.Throw(new PyValueError("injected")));
+                else Assert.Equal(15L, PyOps.CallBuiltin("sum", [g], [], []));
+                return 5L;
+            }));
+        g = Create(new Payload([new PyInstance(cls), 7L, 8L]));
+        Assert.Equal(5L, PyOps.CallBuiltin("sum", [g], [], []));
+        Assert.False(g.MoveNext());
+    }
+
+    [Fact]
+    public void ProducerErrorRestoresCallerContextAndReleasesCapability()
+    {
+        var caller = PyErrors.ContextNode;
+        long depth = PyTraceback.CaptureDepth();
+        var g = new PyGenerator(_ => null, new object(), 0, "batch-error.py", "broken", null,
+            (_, _) => { PyTraceback.SetLine(17); throw new PyValueError("producer"); });
+        var error = Assert.Throws<PyValueError>(() => PyOps.CallBuiltin("sum", [g], [], []));
+        Assert.Contains("batch-error.py", PyTraceback.Format(error));
+        Assert.Contains("line 17", PyTraceback.Format(error));
+        Assert.Same(caller, PyErrors.ContextNode);
+        Assert.Equal(depth, PyTraceback.CaptureDepth());
+        Assert.False(g.TrySumBatch(0, out _));
+        Assert.False(g.MoveNext());
+        // 检查真实字段释放，不能仅因PC关闭就声称委托不再保活生产者环境。
+        var field = typeof(PyGenerator).GetField("_resumeSum",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        Assert.NotNull(field);
+        Assert.Null(field!.GetValue(g));
+    }
 
 }
