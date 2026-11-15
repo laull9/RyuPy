@@ -34,11 +34,11 @@ fn compiled_batch_has_guard_and_same_frame_fallback() {
     let batch = &program.functions[sum];
     assert_eq!(batch.params.len(), 2);
     // 核查真实yield块的发布顺序与边，不用helper存在性冒充融合闭环。
-    let (yield_id, yield_block, consume_args) = batch.body.blocks.iter().find_map(|(id, block)| {
+    let (yield_id, yield_block, consume_args, consume_dest) = batch.body.blocks.iter().find_map(|(id, block)| {
         match block.stmts.last()? {
-            Statement::Assign { value: Rvalue::Call {
-                callee: Callee::Runtime(RuntimeFn::GeneratorSumTryConsume), args }, .. } => {
-                Some((id, block, args))
+            Statement::Assign { dest, value: Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::GeneratorSumTryConsume), args } } => {
+                Some((id, block, args, *dest))
             }
             _ => None,
         }
@@ -47,11 +47,17 @@ fn compiled_batch_has_guard_and_same_frame_fallback() {
         Statement::Eval(Rvalue::Call {
             callee: Callee::Runtime(RuntimeFn::GeneratorStateSetPC), args })
             if args.first() == Some(&Operand::Local(batch.params[0]))));
-    let Terminator::Branch { then_, else_, .. } = yield_block.terminator else {
+    let Terminator::Branch { cond, then_, else_ } = &yield_block.terminator else {
         panic!("累计后必须显式分开成功与拒绝边");
     };
-    assert_eq!(then_, program.functions[resume].body.entry);
-    assert_eq!(batch.body.blocks[else_].terminator,
+    assert_eq!(*cond, Operand::Local(consume_dest));
+    // PC发布完整语句必须与普通恢复一致，包括数值和frame，不能只检查helper名称。
+    assert_eq!(
+        &yield_block.stmts[yield_block.stmts.len() - 2],
+        program.functions[resume].body.blocks[yield_id].stmts.last().unwrap(),
+    );
+    assert_eq!(*then_, program.functions[resume].body.entry);
+    assert_eq!(batch.body.blocks[*else_].terminator,
         Terminator::Return(Some(consume_args[1].clone())));
     assert_eq!(program.functions[resume].body.blocks[yield_id].terminator,
         Terminator::Return(Some(consume_args[1].clone())));
