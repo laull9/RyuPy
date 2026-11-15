@@ -175,7 +175,14 @@ public sealed partial class PyList
 
     /// <summary>按 Python 下标规则删除元素。</summary>
     /// <param name="index">下标（支持负数）。</param>
-    public void DelItem(long index) => Items.RemoveAt((int)Normalize(index));
+    public void DelItem(long index)
+    {
+        // 删除没有返回值，不观察元素；先校验下标，再移动完整槽及其原盒引用。
+        int position = (int)Normalize(index);
+        if (_numeric is { } numeric) numeric.RemoveAt(position);
+        else if (_booleans is { } booleans) booleans.RemoveAt(position);
+        else Items.RemoveAt(position);
+    }
 
     /// <summary>按下标取元素，自动区分整数下标与切片。</summary>
     /// <param name="key">整数或 <see cref="PySlice"/>。</param>
