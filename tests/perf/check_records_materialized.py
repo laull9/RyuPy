@@ -27,7 +27,7 @@ MIR = {'records_increment_contract_tests::'+n for n in (
 IGNORED = {'trace_frame_tests::original_frames_has_pc_partitioned_retry_frame_obligations',
            'trace_frame_tests::renamed_generator_and_factory_alias_keep_frame_proof',
            'trace_frame_tests::repeated_actual_match_block_converges_without_epoch_growth',
-           'trace_frame_dataflow_tests::actual_mir_diamond_reaches_fixed_point'}
+           'trace_frame_dataflow::tests::actual_mir_diamond_reaches_fixed_point'}
 
 
 def check_cs(root):
