@@ -2,13 +2,13 @@
 name: Records host experiment
 on:
   push:
-    branches: [work/records-host-ci-20261115]
+    branches: [ci/records-host-diagnostic-20261115]
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   records-probe:
-    if: github.ref == 'refs/heads/work/records-host-ci-20261115'
+    if: github.ref == 'refs/heads/ci/records-host-diagnostic-20261115'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
