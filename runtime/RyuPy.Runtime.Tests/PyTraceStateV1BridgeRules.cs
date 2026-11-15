@@ -139,8 +139,11 @@ internal sealed partial class PyTraceStateV1ArtifactContract
             Rule(S("PyXmlTreeBuilderErrors", name, type, "String"), [], enabled, FreshCall(type));
         Rule(S("PyIO", "Guard", "Object", "System.Func`1<Object>"), [], enabled, FreshCall("PyBaseException"));
         Rule(I("PyGenerator", "Next", "Object", "Object", "Boolean"), [], FreshCall("PyStopIteration"));
-        Rule(I("PyGenerator", "MoveNextCore", "Boolean", "Object", "Object&", "PyBaseException"), [], enabled,
+        // 批量状态仍为调用栈参数；只迁移这一准确私有签名，不保留旧重载或整类权限。
+        Rule(I("PyGenerator", "MoveNextCore", "Boolean", "Object", "Object&", "PyBaseException", "PyGeneratorSumState"), [], enabled,
             Call(P("EnterGenerator", "Void", "Int64")), Call(P("EscapeGenerator", "Void", "Object", "Int64")), Call(P("LeaveGenerator", "Void", "Int64")));
+        // 批量资格只能读取开关以拒绝V1，不能获得Enter/Escape/Leave或其它状态写权限。
+        Rule(I("PyGenerator", "TrySumBatch", "Boolean", "Int64", "PyGeneratorSumResult&"), [], enabled);
         Rule(S("PySystem", "FlushOutputs", "Void"), [], enabled, suppress);
         Rule(S("Builtins", "Flush", "Void"), [], enabled);
         Rule(S("Builtins", "FlushForExit", "Int32", "Int32"), [], enabled, FreshCall("PyBaseException"), Call(P("Terminal", "Void", "PyBaseException")));

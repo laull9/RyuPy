@@ -167,3 +167,101 @@ C#手写恢复器覆盖一委托消费多项、零增量dirty、空start身份�
 StopIteration不触发PEP479、不关闭且继续next、已暂停next/send、生产者PEP479、回调
 long身份、生产者重入拒绝/消费者回调恢复和trace拒绝。这里只是已编写测试，尚未编译。
 后续须由独审及CI验证，然后才接显式MIR生成入口；不把手写恢复器算产品融合完成。
+
+高层准入原型另在`generator_sum_plan.rs`以test-only模块实现：读取显式Suspend和
+residents，拒绝共享resume、字段资格失败、未知语句、动态协议与通用迭代，接受有限原生
+标量/局部移动/装箱。该白名单尚不证明原始generators中的range与动态操作，因此有明确
+负断言要求原程序各生成器全部拒绝，不宣称已有原基准命中。待结构测试实际编译通过、
+精确range来源与观察证明补齐后才接产品lowering；现阶段没有产品开关可误启用。
+
+## 精确range候选的闭环与失败回退（尚未产品接线）
+
+原始三源拒绝点由构建器源码及新增高层结构断言登记，仍须CI运行确认：
+
+| 原源 | 高层MIR阻断 | 本切片能否覆盖 |
+| --- | --- | --- |
+| count_up | DynRichCompareValue/DynTruthy的动态比较及DynBinary(Add,inplace) | 否，普通for另需消费者执行区 |
+| chained | GeneratorDelegateStep与delegated Suspend，未通过字段资格 | 否，完整委托协议单独证明 |
+| genexpr | 隐式`.0`上的IterStart/IterNextOk/IterValue与DynBinary(Mul) | 只有新增真实游标guard及精确整数事实后可能覆盖 |
+
+test-only `DeferredGenerators.comprehension_inputs`从HIR的`is_generator && is_comprehension`
+和现有FnId映射登记隐式输入LocalId，不通过`<genexpr>`或`.0`名字授予资格。
+`generator_sum_range_plan.rs`从此证据建立显式单游标候选：guard_input、迭代器定义、乘法
+定义、yield块及resume块。当前检查单静态定义、CFG支配/块内定义先于使用及事实收敛，但**运行时guard和后端
+发射尚未接入，因此只是关闭态候选，不是产品证书**；编译器默认不含此模块。
+
+运行时guard必须作用于工厂已求值/绑定的真实输入对象，精确类型为密封`PyRangeIter`。
+`PyRangeIter`自身实现IPyIterator，PyIter.Create返回同一实例；不得创建新range或新游标。
+不看range函数名，不重新执行工厂/iter，不执行任何MoveNext；guard失败就不附能力，
+原普通恢复入口完整接管。不能先进入MoveNextCore再用pending-current假冒guard失败，
+否则首次启动时点和当前元素会出错。
+
+该guard只证明迭代协议封闭、不调用用户代码，不证明数值范围。IterValue仍读同一个
+原游标，结果是精确long；boxed常量2也是精确long，故乘法可以保留原内建整数路径，
+却不能标记其结果恒为long。原`PyInt.MultiplyI64`的BigInteger升级必须保留；乘法升级后
+正常发布当前yield/resident再回sum外域，既不能丢弃本项，也不能把它重做成long乘法。
+sum自身的加法溢出另走同一pending-current边，由外层原Binary精确加一次。
+
+首切不改`PyRangeIter.MoveNext`，其已有long步进极值边界不因sealed类型而消失，不能宣称
+完整CP范围兼容；如果以后做原生计数或闭式预求和，必须另有Int128边界与整数升级证明。
+
+生产者纯区不得有用户回调、cell/global观察或未知协议。消费者回调仍在暂停态执行，
+可以通过别名推进原游标或控制生成器；再次进入批量必须读取当前PC和原游标真实位置，
+不能使用上次预算/复制的counter。本轮补充手写pending：range替换及零预消费、创建后
+重绑、部分消费/外部消费原游标、用户乘法回调、乘法与累计各自正负溢出、消费者回调推进
+游标后恢复。当前只运行CP输入，不算RyuPy兼容或融合通过。
+
+候选额外加入全CFG支配收敛，包含Suspend的resume边；预算不收敛即拒绝。每个非参数
+局部的定义必须支配全部读取，同块还须严格在读取之前。测试故意把乘法移到IterValue
+之前，证明“只有一个静态定义”不等于安全事实。此检查仍未在本环境编译运行，不记通过。
+
+独审补正：高层返回epilogue仍可能有Eval(TracePopTo)。range候选只准许单参数且该参数
+已被证明为真实TracePush/TracePushWithOrigin结果、并通过定义支配检查的TracePopTo。
+任意Eval、常量伪深度及换成其他RuntimeFn均拒绝；正例与两种变异负例独立保留，未运行。
+
+来源验证入口要求FnId和输入LocalId同时匹配同一DeferredGenerators见证；非法或不匹配ID
+拒绝，不索引非法arena。另加先用后定义、替代控制流分支才定义、共享resume以及伪帧
+深度负例。全部仍为test-only，不能用跨块事实汇总替代这些支配与来源检查。
+
+进一步收紧trace匹配：只接受唯一且位于函数入口块的TracePush/TracePushWithOrigin定义，
+TracePopTo必须直接使用该唯一LocalId，而非仅凭TraceDepth类型。重复入口、其他深度
+以及任意Eval均拒绝。新增循环首次读（定义故意移到Suspend以后）和跨暂停字段映射丢失
+原游标的负例；候选持有residents，发射映射必须覆盖全体活值和输入/原游标，不重建游标。
+
+## 尚阻断产品发射的两项证明缺口
+
+独审确认test-only原型不是证书，以下不可用“结构测试通过”代替：
+
+1. `resident_set_requirements_hold`只自检候选要求的集合。它未核对实际lowering生成的
+   LocalId→字段号/字段类型映射，未证明每条yield前的写回或resume后的真实读取。
+   发射层必须给出实际映射，并按显式yield边逐项核查原对象引用和字段覆盖；不能把
+   `plan.residents`拿来与自身比较就宣布物化正确。当前测试名称明确改成集合要求。
+2. arena的FnId/LocalId只是数值，同样源码两次构建可以相同。当前`analyze_source`
+   参数可自由组合Program和deferred，无法证明来自同次构建。新增反证测试刻意展示此
+   碰撞并允许当前test-only候选识别，**该测试通过说明缺口存在，不说明资格安全**。
+
+建议产品接口沿既有PreparedHigh的拥有式模式：私有PreparedSum同时拥有Program、显式
+来源元数据和计划；分析后不暴露可变Program，lower消费该对象内部同一版本。link或
+其他结构改写失效后重做分析，不接受外来ID/元数据组合。不要简单保存Program指针：
+Program可以移动，指针既不是稳定构建身份，也不是未改写证明。此封装与实际字段映射
+验证尚未实现，故仍无产品发射、无默认启用、无原基准融合命中结论。
+
+## Runtime首次CI失败及修正范围
+
+run43679743022实际提交`66c2db9e94b45b03774c70f59ac08c60f1829dcc`：定向15通过/1失败；
+全Runtime3190通过/2跳过/8失败。结果不可写成通过。
+
+- 负溢出测试最终`long.MinValue - 1 + 7`重新落入long范围，原断言错误要求BigInteger盒；
+  原PyInt.Normalize明确允许收敛。改成独立BigInteger数学预期，再显式断言正确long或
+  BigInteger类型和值，不改变产品数值逻辑。此修正仍待重跑验证。
+- TextWrap两项失败在TextWrapOracle.Read，CI未提供固定3.12.13的PYTHON绝对路径。
+  属于工作流配置，不能删除预言机或修改测试版本要求充作产品修复。
+- 五项真实PE审计准确抓到4参MoveNextCore和TrySumBatch新trace读取不在批准合同。
+  经独审选择保留显式调用栈参数，精确迁移私有MoveNextCore的四参数签名与指令/EH检查；
+  TrySumBatch只获get_Enabled读取许可，旧三参签名/其他调用/opcode仍拒绝。没有通配扩权。
+  新增实际PE变异：TrySumBatch读开关改成Exit必须拒绝；交换已允许的Enter/Leave两个
+  同签名目标也必须由finally顺序检查拒绝。变异PE从不加载/执行。
+
+原型delegate、状态类型及七参构造器改为internal，六参公开ABI保留；新增公开形状测试。
+没有历史DLL专项通过声明。将来CIL跨程序集接线需要正式公开ABI手写增量和历史DLL专项，
+不能直接把本内部构造器作为产品ABI。所有修正仍待真实CI与trace专项验证。

@@ -2,10 +2,10 @@
 namespace RyuPy.Runtime;
 
 /// <summary>生成代码在原yield边发布状态后尝试累计；失败须返回尚未相加的current。</summary>
-public delegate object? PyResumeSum(object frame, PyGeneratorSumState sum);
+internal delegate object? PyResumeSum(object frame, PyGeneratorSumState sum);
 
 /// <summary>一次批量恢复的私有累计值；不保存或替换Python原start对象。</summary>
-public sealed class PyGeneratorSumState
+internal sealed class PyGeneratorSumState
 {
     /// <summary>精确long的当前总值，只有成功消费才更新。</summary>
     public long Total { get; private set; }
@@ -33,7 +33,7 @@ public sealed partial class PyGenerator
     private PyResumeSum? _resumeSum;
 
     /// <summary>专用能力构造器；普通六参构造器不附带能力，当前编译器尚不发射此重载。</summary>
-    public PyGenerator(PyResume resume, object payload, long pc, string source, string name,
+    internal PyGenerator(PyResume resume, object payload, long pc, string source, string name,
         object? origin, PyResumeSum sumResume) : this(resume, payload, pc, source, name, origin)
     {
         _resumeSum = sumResume;
