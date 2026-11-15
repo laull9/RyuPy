@@ -222,3 +222,8 @@ sum自身的加法溢出另走同一pending-current边，由外层原Binary精�
 来源验证入口要求FnId和输入LocalId同时匹配同一DeferredGenerators见证；非法或不匹配ID
 拒绝，不索引非法arena。另加先用后定义、替代控制流分支才定义、共享resume以及伪帧
 深度负例。全部仍为test-only，不能用跨块事实汇总替代这些支配与来源检查。
+
+进一步收紧trace匹配：只接受唯一且位于函数入口块的TracePush/TracePushWithOrigin定义，
+TracePopTo必须直接使用该唯一LocalId，而非仅凭TraceDepth类型。重复入口、其他深度
+以及任意Eval均拒绝。新增循环首次读（定义故意移到Suspend以后）和跨暂停字段映射丢失
+原游标的负例；候选持有residents，发射映射必须覆盖全体活值和输入/原游标，不重建游标。

@@ -21,6 +21,7 @@ struct RangePlan {
     multiply: LocalId,
     yield_block: BlockId,
     resume: BlockId,
+    residents: FxHashSet<LocalId>,
 }
 
 // FnId/LocalId必须来自同一份deferred构建的显式来源，外来函数或任意参数号不能授予资格。
@@ -44,15 +45,23 @@ fn analyze(f: &Function, declared_input: LocalId) -> Option<RangePlan> {
     // 非SSA函数只接受每个局部单个静态定义点，并证明它支配所有实际读取。
     // 此原型仍需运行时真实类型守卫，不向产品lowering暴露。
     let mut definitions = FxHashSet::default();
-    for (_, block) in f.body.blocks.iter() {
+    let mut frame_depth = None;
+    for (block_id, block) in f.body.blocks.iter() {
         for statement in &block.stmts {
             if let Statement::Assign { dest, .. } = statement {
                 if f.params.contains(dest) || !definitions.insert(*dest) {
                     return None;
                 }
+                if let Statement::Assign { value: Rvalue::Call { callee: Callee::Runtime(
+                    RuntimeFn::TracePush | RuntimeFn::TracePushWithOrigin), .. }, .. } = statement
+                    && (block_id != f.body.entry || frame_depth.replace(*dest).is_some())
+                {
+                    return None;
+                }
             }
         }
     }
+    let frame_depth = frame_depth?;
     if !dominates_all_reads(f) {
         return None;
     }
@@ -94,7 +103,8 @@ fn analyze(f: &Function, declared_input: LocalId) -> Option<RangePlan> {
                 Statement::Eval(Rvalue::Call {
                     callee: Callee::Runtime(RuntimeFn::TracePopTo),
                     args,
-                }) if args.len() == 1 && fact(&args[0], &facts) == Some(Fact::TraceDepth) => {}
+                }) if args.as_slice() == [Operand::Local(frame_depth)]
+                    && fact(&args[0], &facts) == Some(Fact::TraceDepth) => {}
                 _ => return None,
             }
         }
@@ -113,7 +123,16 @@ fn analyze(f: &Function, declared_input: LocalId) -> Option<RangePlan> {
         }
     }
     let (yield_block, resume) = edge?;
-    Some(RangePlan { guard_input: declared_input, iterator: iterator?, multiply: multiply?, yield_block, resume })
+    let residents = crate::generator_state_analysis::residents(f)?;
+    let plan = RangePlan { guard_input: declared_input, iterator: iterator?, multiply: multiply?, yield_block, resume, residents };
+    resident_mapping_covers(&plan, &plan.residents).then_some(plan)
+}
+
+// 后续发射的字段映射必须覆盖本次计划的全部暂停活值，尤其不能丢弃同一个原游标。
+fn resident_mapping_covers(plan: &RangePlan, fields: &FxHashSet<LocalId>) -> bool {
+    plan.residents.is_subset(fields)
+        && fields.contains(&plan.guard_input)
+        && fields.contains(&plan.iterator)
 }
 
 // 保守的全CFG支配检查：单一静态赋值不能自动证明循环首次读取已经初始化。
@@ -362,5 +381,57 @@ fn shared_resume_does_not_get_a_second_yield_edge() {
         matches!(block.terminator, Terminator::Suspend { .. }).then(|| block.terminator.clone())
     }).unwrap();
     f.body.blocks.alloc(BasicBlock { stmts: vec![], terminator: edge });
+    assert!(analyze(f, input).is_none());
+}
+
+
+#[test]
+fn loop_first_read_cannot_use_a_definition_after_suspend() {
+    let (mut program, deferred) = super::generator_sum_plan::high_with_sources(
+        "g = (x * 2 for x in range(4))\n"
+    );
+    let (function, input) = deferred.comprehension_inputs[0];
+    let f = &mut program.functions[function];
+    let plan = analyze(f, input).unwrap();
+    let mut moved = None;
+    for (_, block) in f.body.blocks.iter_mut() {
+        if let Some(index) = block.stmts.iter().position(|statement| matches!(statement,
+            Statement::Assign { value: Rvalue::Box { value: Operand::Const(Constant::I64(2)), .. }, .. }))
+        {
+            moved = Some(block.stmts.remove(index));
+            break;
+        }
+    }
+    f.body.blocks[plan.resume].stmts.push(moved.unwrap());
+    assert!(!dominates_all_reads(f));
+    assert!(analyze(f, input).is_none());
+}
+
+#[test]
+fn field_mapping_must_preserve_original_cursor_across_suspend() {
+    let (program, deferred) = super::generator_sum_plan::high_with_sources(
+        "g = (x * 2 for x in range(4))\n"
+    );
+    let (function, input) = deferred.comprehension_inputs[0];
+    let plan = analyze_source(&program, &deferred, function, input).unwrap();
+    assert!(resident_mapping_covers(&plan, &plan.residents));
+    let mut missing = plan.residents.clone();
+    missing.remove(&plan.iterator);
+    assert!(!resident_mapping_covers(&plan, &missing));
+}
+
+#[test]
+fn second_frame_entry_cannot_masquerade_as_matching_trace_depth() {
+    let (mut program, deferred) = super::generator_sum_plan::high_with_sources(
+        "g = (x * 2 for x in range(4))\n"
+    );
+    let (function, input) = deferred.comprehension_inputs[0];
+    let f = &mut program.functions[function];
+    let duplicate = f.body.blocks[f.body.entry].stmts.iter().find(|statement| matches!(statement,
+        Statement::Assign { value: Rvalue::Call { callee: Callee::Runtime(
+            RuntimeFn::TracePush | RuntimeFn::TracePushWithOrigin), .. }, .. })).unwrap().clone();
+    let new_depth = crate::generators::local(&mut f.body.locals, MirType::I64);
+    let Statement::Assign { value, .. } = duplicate else { unreachable!() };
+    f.body.blocks[f.body.entry].stmts.push(Statement::Assign { dest: new_depth, value });
     assert!(analyze(f, input).is_none());
 }
