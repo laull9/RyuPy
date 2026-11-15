@@ -316,8 +316,9 @@ public sealed partial class PyList
         {
             throw (PyBaseException)PyErrors.PrepareRaise(new PyIndexError("pop index out of range"));
         }
-        // 先证明位置合法再窄化；成功路径维持既有物化及对象身份。
+        // 先证明位置合法再窄化；数值背板仅观察被移除槽，保留其原盒身份。
         if (_booleans is { } booleans) return PopBoolean(booleans, (int)position);
+        if (_numeric is not null) return PopNumeric((int)position);
         var items = Items;
         object? value = items[(int)position];
         items.RemoveAt((int)position);

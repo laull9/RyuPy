@@ -52,6 +52,17 @@ public sealed partial class PyList
         return value;
     }
 
+    // 范围已由Pop校验；先物化再删除，失败时不改变列表，未观察槽不装箱。
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private object PopNumeric(int position)
+    {
+        var slots = _numeric!;
+        PyNumericSlot slot = slots[position];
+        object value = slot.Materialize();
+        slots.RemoveAt(position);
+        return value;
+    }
+
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static object ListIndexError() => throw new PyIndexError("list index out of range");
 
