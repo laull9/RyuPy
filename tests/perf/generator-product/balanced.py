@@ -66,6 +66,7 @@ def run(args):
                      '--old',str(old),'--new',str(new),'--python',str(args.python),'--runs','12','--balanced-order',
                      '--manifest-evidence',str(folder/'manifests'),'--min-free-gib','4','--cleanup-completed',
                      '--output',str(folder/'paired.json')]
+            if getattr(args, 'raw_evidence', False): command += ['--raw-evidence',str(folder/'raw')]
             if index%2==0:command.append('--reverse-cases')
             (folder/'command.json').write_text(json.dumps(command,indent=2))
             with (folder/'run.log').open('w') as log:

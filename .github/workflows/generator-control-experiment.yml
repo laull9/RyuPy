@@ -1,0 +1,105 @@
+# 专用产品实验分支；不并入dev，不改变默认CI。
+name: Generator regression risk controls
+on:
+  push:
+    branches: [work/generator-control-ci-20261115]
+permissions:
+  contents: read
+concurrency:
+  group: generator-product-performance
+  cancel-in-progress: false
+jobs:
+  isolated:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 160
+    defaults:
+      run:
+        shell: bash
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+      CARGO_TERM_COLOR: never
+      MSBUILDDISABLENODEREUSE: '1'
+      DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+      UseSharedCompilation: 'false'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 固定已验证产品源码与实验目录
+        run: |
+          set -euo pipefail
+          EVIDENCE="$RUNNER_TEMP/generator-control-evidence"
+          mkdir -p "$EVIDENCE"
+          echo "EVIDENCE=$EVIDENCE" >> "$GITHUB_ENV"
+          echo "DOTNET_INSTALL_DIR=$RUNNER_TEMP/generator-product-dotnet" >> "$GITHUB_ENV"
+          git rev-parse HEAD > "$EVIDENCE/candidate.txt"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git fetch --no-tags origin cfcb69dc7a728d0b6926bbd19f6d83f881873a13
+          test "$(git rev-parse FETCH_HEAD)" = cfcb69dc7a728d0b6926bbd19f6d83f881873a13
+          git worktree add --detach "$RUNNER_TEMP/generator-control-source" cfcb69dc7a728d0b6926bbd19f6d83f881873a13
+          git -C "$RUNNER_TEMP/generator-control-source" rev-parse HEAD HEAD^{tree} > "$EVIDENCE/source.txt"
+          df -h > "$EVIDENCE/disk-before.txt"
+          lscpu > "$EVIDENCE/cpu.txt"
+          uname -a > "$EVIDENCE/kernel.txt"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - uses: actions/setup-python@v5
+        id: python
+        with:
+          python-version: '3.12.13'
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
+        with:
+          toolchain: '1.99.1'
+          components: rustfmt, clippy
+      - name: 固定工具链与本机依赖
+        timeout-minutes: 15
+        env:
+          FIXED_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          set -euo pipefail
+          test "$(dotnet --version)" = 10.0.403
+          test "$(readlink -f "$(command -v dotnet)")" = "$DOTNET_INSTALL_DIR/dotnet"
+          "$FIXED_PYTHON" -c 'import sys,os; assert sys.version_info[:3] == (3,12,13); assert os.path.isabs(sys.executable); print(sys.version)' | tee "$EVIDENCE/python.txt"
+          echo "PYTHON=$FIXED_PYTHON" >> "$GITHUB_ENV"
+          echo "RYUPY_FOREACH_PYTHON=$FIXED_PYTHON" >> "$GITHUB_ENV"
+          # 产品driver优先读取DOTNET，不能仅依靠PATH上的dotnet版本。
+          for key in DOTNET DOTNET_HOST_PATH; do echo "$key=$DOTNET_INSTALL_DIR/dotnet" >> "$GITHUB_ENV"; done
+          for key in DOTNET_ROOT DOTNET_ROOT_X64; do echo "$key=$DOTNET_INSTALL_DIR" >> "$GITHUB_ENV"; done
+          echo "DOTNET_MULTILEVEL_LOOKUP=0" >> "$GITHUB_ENV"
+          dotnet --info > "$EVIDENCE/dotnet.txt"
+          rustc --version > "$EVIDENCE/rust.txt"
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev patchelf binutils
+      - name: 控制实验门禁轻测
+        run: |
+          set -euo pipefail
+          "$PYTHON" -B tests/perf/generator-product/test_gates.py
+          "$PYTHON" -B tests/perf/generator-product/test_controls.py
+      - name: 冻结固定源码两feature状态CLI
+        timeout-minutes: 30
+        run: |
+          set -euo pipefail
+          for arm in off on; do
+            feature=""
+            if [ "$arm" = on ]; then feature=generator-sum-experiment; fi
+            (cd "$RUNNER_TEMP/generator-control-source"; CARGO_TARGET_DIR="$RUNNER_TEMP/generator-control-$arm-target" make build CARGO_FEATURES="$feature" RELEASE_DIR="$RUNNER_TEMP/frozen-$arm") 2>&1 | tee "$EVIDENCE/build-$arm.log"
+            rm -rf -- "$RUNNER_TEMP/generator-control-$arm-target"
+          done
+          df -h > "$EVIDENCE/disk-after-build.txt"
+      - name: 四轮六输入平衡重建与完整原始双流
+        timeout-minutes: 110
+        run: |
+          set -euo pipefail
+          dotnet build-server shutdown
+          "$PYTHON" -B tests/perf/generator-product/controls.py --source "$RUNNER_TEMP/generator-control-source" --output "$EVIDENCE/control" --old "$RUNNER_TEMP/frozen-off/ryupy" --new "$RUNNER_TEMP/frozen-on/ryupy" --python "$PYTHON" 2>&1 | tee "$EVIDENCE/control.log"
+          echo COMPLETE > "$EVIDENCE/complete.txt"
+      - name: 总是上传失败或完整证据
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generator-control-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/generator-control-evidence
+          if-no-files-found: error
+          retention-days: 14

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import hashlib
 import itertools
 import os
 from pathlib import Path
@@ -33,6 +34,7 @@ def arguments():
     parser.add_argument("--new", required=True, type=Path)
     parser.add_argument("--python", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--raw-evidence", type=Path, help="显式归档各次完整双流和构建身份，保持默认行为")
     parser.add_argument("--only", default="", help="逗号分隔的原始基准名，默认全部")
     parser.add_argument("--suite", choices=("original", "generator-consumers"), default="original")
     parser.add_argument("--balanced-order", action="store_true", help="显式六排列平衡三臂；runs须6的倍数")
@@ -56,6 +58,10 @@ def arguments():
         args.manifest_evidence = args.manifest_evidence.resolve()
         if args.manifest_evidence.is_relative_to(ROOT):
             parser.error("清单证据必须位于仓库外")
+    if args.raw_evidence:
+        args.raw_evidence = args.raw_evidence.resolve()
+        if args.raw_evidence.is_relative_to(ROOT): parser.error("原始证据必须在仓库外")
+        args.raw_evidence.mkdir(parents=True, exist_ok=False)
     source_dir = (ROOT / "tests/benchmarks" if args.suite == "original"
                   else ROOT / "tests/perf/generator_consumers")
     benches = suite.discover(source_dir)
@@ -82,8 +88,17 @@ def main():
     if version != expected_version:
         raise RuntimeError(f"基准Python版本须为{expected_version}，实际{version}")
 
-    def checked(command, expected=None, stats=None):
+    def archive(tag, command, result, cwd=ROOT):
+        if args.raw_evidence:
+            folder = args.raw_evidence/bench.name; folder.mkdir(parents=True, exist_ok=True)
+            (folder/(tag+'.stdout')).write_bytes(result.stdout)
+            (folder/(tag+'.stderr')).write_bytes(result.stderr)
+            (folder/(tag+'.json')).write_text(json.dumps({'command':command, 'cwd':str(cwd),
+                'exit':result.exit_code, 'ms':result.wall_ms, 'rss':result.max_rss_bytes, 'stats':result.stats}, indent=2))
+
+    def checked(command, expected=None, stats=None, tag='oracle'):
         result = measure.run_once(command, env, ROOT, stats)
+        archive(tag, command, result)
         if result.exit_code or expected is not None and (result.stdout, result.stderr) != expected:
             raise RuntimeError((command, result.exit_code, result.stdout, result.stderr))
         return result
@@ -96,13 +111,25 @@ def main():
             case_root = root / bench.name
             case_root.mkdir()
             disk = {}
+            source_bytes = bench.path.read_bytes()
+            if args.raw_evidence:
+                folder = args.raw_evidence/bench.name; folder.mkdir()
+                (folder/'source.py').write_bytes(source_bytes)
+                identities = {'source':str(bench.path),'source_sha256':hashlib.sha256(source_bytes).hexdigest(),'arms':{}}
             for label, cli in (("A", args.old), ("B", args.new)):
                 if args.min_free_gib:
                     disk[label] = require_space(root, args.min_free_gib * 1024**3)
-                exe, _, error, status = measure.build_case(ROOT, cli, bench, case_root / label, backend="aot", native=True)
+                exe, _, error, status = measure.build_case(ROOT, cli, bench, case_root / label, backend="aot", native=True,
+                    command_evidence=folder/(label+'-build-command.json') if args.raw_evidence else None)
+                if args.raw_evidence:
+                    (folder/(label+'-build.log')).write_text(error)
                 if exe is None:
                     raise RuntimeError((bench.name, label, status, error))
                 paths[label] = exe
+                if args.raw_evidence:
+                    identities['arms'][label] = {'cli':str(cli), 'cli_sha256':hashlib.sha256(cli.read_bytes()).hexdigest(),
+                        'executable':str(exe), 'executable_sha256':hashlib.sha256(exe.read_bytes()).hexdigest()}
+                    (folder/'identities.json').write_text(json.dumps(identities,indent=2))
                 if args.manifest_evidence:
                     save_manifest(exe, args.manifest_evidence, label, bench.name)
             commands = {"CP": [str(args.python), "-B", str(bench.path)],
@@ -114,12 +141,12 @@ def main():
             orders = execution_orders(args.runs, args.balanced_order)
             for index, order in enumerate(orders):
                 for label in order:
-                    result = checked(commands[label], expected)
+                    result = checked(commands[label], expected, tag=f"sample-{index}-{label}")
                     if index:
                         samples[label].append({"ms": result.wall_ms, "rss": result.max_rss_bytes})
             stats = {}
             for label in ("A", "B"):
-                result = checked(commands[label], expected, "RYUPY_STATS")
+                result = checked(commands[label], expected, "RYUPY_STATS", tag="stats-"+label)
                 if not {"main_ms", "alloc_bytes"} <= result.stats.keys():
                     raise RuntimeError((bench.name, label, "统计字段缺失"))
                 stats[label] = result.stats
@@ -127,9 +154,17 @@ def main():
                 moved = case_root / "中文 空格搬迁" / label
                 shutil.copytree(dist, moved)
                 dist.rename(dist.with_name(dist.name + ".hidden"))
+                if args.raw_evidence:
+                    assert hashlib.sha256((moved/paths[label].name).read_bytes()).hexdigest() == identities['arms'][label]['executable_sha256']
                 result = measure.run_once([str(moved / paths[label].name)], env | {"PATH": "/nonexistent"}, moved, None)
+                archive("moved-"+label, [str(moved / paths[label].name)], result, moved)
                 if (result.exit_code, result.stdout, result.stderr) != (0, *expected):
                     raise RuntimeError((bench.name, label, "搬迁失败", result.stderr))
+            assert bench.path.read_bytes() == source_bytes, "测量期间输入改变"
+            if args.raw_evidence:
+                for label, cli in (("A", args.old),("B",args.new)):
+                    assert hashlib.sha256(cli.read_bytes()).hexdigest() == identities['arms'][label]['cli_sha256']
+                (folder/'complete.txt').write_text('COMPLETE\n')
             rows.append({"name": bench.name, "samples": samples, "stats": stats, "free_bytes_before_build": disk, "execution_order": orders[1:], "build_order": ["A", "B"]})
             args.output.write_text(json.dumps({"old": str(args.old), "new": str(args.new),
                 "python": str(args.python), "runs": args.runs, "warmup": 1, "rows": rows}, indent=2))
