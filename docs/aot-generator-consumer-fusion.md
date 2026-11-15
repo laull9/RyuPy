@@ -68,3 +68,85 @@ python3 -B tests/perf/aot_hotspot_pair.py \
 后续按次序：真实高层候选/拒绝结构测试；同次CP/JIT差分；融合候选的原始AOT三臂与
 完整原程序配对；异常/身份/桥边界与搬迁；完整make check。只有这些证据闭合后才能
 登记具体命中的消费者与收益，不将测试设施完成写成优化完成。
+
+## 首个真实融合切片：精确整数sum的批量恢复
+
+以下为待实现设计，不是已存在ABI。先从原程序的genexpr_sum臂切入，普通for和委托仍保留。
+它复用现有`BuiltinSumFast`的long/dirty合同，不重写浮点求和、不新增用户协议快路。
+
+### 为什么不直接把循环内联到消费者
+
+把生成器正文直接拼到sum所在函数会抹掉真实producer帧，并把生产者StopIteration与
+消费者加法错误混在一个异常域。把生成器改成list再求和则破坏惰性、内存和错误停止点。
+首切选择在生成的恢复入口内消费连续精确long，再直接跳到原resume块，绕过每项委托
+往返；生命周期仍由PyGenerator持有，sum只在准确暂停边接回原实现。
+
+### 高层计划与窄准入
+
+计划在deferred lowering前生成，禁止根据后端名字判断来源。其最小数据形状为：
+
+```text
+SumConsumerPlan {
+  consumer_function, consumer_block, consumer_statement,
+  producer_function, created_generator_local,
+  captured_callable, iterator_creation_statement,
+  suspend_edges: [(yield_block, resume_block, input_local)],
+  disallowed_observations, materialization_map
+}
+```
+
+只接受直接单次消费、显式真实内建sum调用和单位置生成器输入；start未给或已确认精确long。
+先拒绝star/kwargs、未知callable、消费前别名/容器保存、EH、yield-from、locals观察及trace V1。
+生产者沿字段状态准入；保留生成器实体和owner，首切不做对象消除。闭包需要共享cell
+物化合同，不能为了命中原基准擅自快照，首切未证明则拒绝。
+
+参数绑定与`PyIter.Create`仍在`BuiltinSumFast`原位置执行；不能让新批量协议提前消费，
+也不能绕开真实sum被重绑定的调用路径。计划中的消费者身份必须由调用构建器已有真实
+callee证明，而不是按字符串"sum"搜索；输入表达式已有副作用不能为守卫重复求值。
+
+### 批量边界的状态合同
+
+候选控制载体增设私有批量累计状态（仅计划命中的恢复入口读取），保存原生total、dirty
+及已消费项数。入口用当前sum累加状态初始化，不重新装箱原start。控制状态不能进入Python
+对象图，不用于替换用户值。
+
+每个yield的发射顺序必须是：
+
+1. 像原实现一样先计算完整yield值，发布下一个恢复PC与所有跨暂停局部。
+2. 若批量模式未激活，直接沿原yield返回。这不是全体生成器新增的通用慢分支，首切只
+   对计划命中者生成对应入口；普通恢复入口仍保留。
+3. 若value是精确CLR long且与当前total相加无溢出，更新total/dirty/消费数，发送值置None，
+   直接跳转原resume块。原`GeneratorInput`仍在该块消费None并清控制槽。
+4. 若非long或溢出，**不执行该项加法**，沿原yield返回该对象。此时生成器已精确暂停于
+   本项之后；外层sum物化左值，再用原Binary处理这一个current，不重新next、不重放正文。
+5. 正常Return把PC置-1，终值仍由原MoveNext协议丢弃。累计结果与完成状态分开，不能把
+   生成器return值加入sum；Finish清引用后仍须能取得累计状态的值副本。
+
+批量出口至少区分：`completed`（原生成器耗尽）、`yielded-current`（该项尚未相加）和
+`unavailable`（完全未恢复、调用方应走原MoveNext）。不能只用bool混淆后两者，否则容易
+重复消费。累计状态必须finally解除，以免后续next/send/throw/close意外继续批量模式。
+
+### 异常所有权
+
+批量resume由原MoveNextCore的running/context/frame/PEP479边界包住。精确long无溢出
+加法不调用Python代码；每项之间没有消费者回调，允许把这些连续恢复合成一次进入。
+producer自身的调用仍保留自己的Line及调用帧，发生异常立即沿原PEP479/Finish流程退出。
+
+非long/溢出的Binary严格在MoveNextCore返回以后执行；用户__add__/__radd__失败不应
+关闭已经暂停的生成器，也不应被包装为generator raised StopIteration。此错误路径是
+首切最重要的负例，不能靠成功sum样本代替。
+
+### 发射与回归清单
+
+- MIR：显式批量状态/offer操作和两恢复入口，不复制函数身份；原yield/resume映射逐条断言。
+- RuntimeFn/验证器/CIL引用表同步新增ABI，codegen只发射显式MIR，不推测Python内建。
+- Runtime：复用BuiltinSumFast累计逻辑；增精确暂停出口处理，保持dirty=false原start身份。
+- C#合同：空输入原start身份、long连续累计、正负溢出、异构第一个/中间元素、恢复后送None、
+  首次非None send拒绝、失败后next位置、返回值丢弃、累计控制finally清除。
+- MIR负例：未知sum、别名逃逸、闭包/观察、EH、yield-from、共享resume块与预算耗尽均不命中。
+- 性能证明必须同时检查生成入口里连续yield边已变为回边，以及运行计数显示每元素恢复
+  调用确实减少；只看墙钟或字段读写数量不能证明消费融合。
+
+若基于此合同的首切不能在原始genexpr_sum命中，则先记录具体拒绝原因，不扩大守卫或
+放松语义换取图表改善。普通for的任意循环体拥有消费者副作用，需要另外的双帧执行区；
+yield-from还必须保持完整控制协议，不能复用“精确long无消费者回调”的证明。

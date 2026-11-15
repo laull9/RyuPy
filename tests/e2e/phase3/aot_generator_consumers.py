@@ -167,3 +167,55 @@ try:
     sum(invalid())
 except RuntimeError as error:
     print("pep479", str(error))
+
+# throw必须传给当前子生成器；子生成器可捕获、继续yield并把返回值交给父生成器。
+events = []
+
+
+def throw_child():
+    try:
+        try:
+            yield "ready"
+        except ValueError as error:
+            events.append(str(error))
+            yield "handled"
+        return "child-return"
+    finally:
+        events.append("child-finally")
+
+
+def throw_parent():
+    result = yield from throw_child()
+    yield result
+
+
+g = throw_parent()
+print("throw ready", next(g))
+print("throw handled", g.throw(ValueError("forwarded")), events)
+print("throw result", next(g), events)
+print("throw done", next(g, "done"))
+
+# 未捕获异常穿过委托时，子/父finally各执行一次且顺序不变。
+events = []
+
+
+def uncaught_child():
+    try:
+        yield 1
+    finally:
+        events.append("child")
+
+
+def uncaught_parent():
+    try:
+        yield from uncaught_child()
+    finally:
+        events.append("parent")
+
+
+g = uncaught_parent()
+next(g)
+try:
+    g.throw(ValueError("escape"))
+except ValueError as error:
+    print("throw escape", str(error), events, next(g, "done"))
