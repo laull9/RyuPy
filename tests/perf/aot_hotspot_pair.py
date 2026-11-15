@@ -22,7 +22,9 @@ def arguments():
     parser.add_argument("--new", required=True, type=Path)
     parser.add_argument("--python", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
-    parser.add_argument("--only", default="", help="逗号分隔的原始基准名，默认全部")
+    parser.add_argument("--only", default="", help="逗号分隔的所选套件基准名，默认全部")
+    parser.add_argument("--suite", choices=("original", "generator-consumers"),
+                        default="original", help="默认保留原始26项；生成器三臂仅用于归因")
     parser.add_argument("--runs", default=5, type=int)
     args = parser.parse_args()
     if args.runs < 1:
@@ -31,7 +33,9 @@ def arguments():
         setattr(args, name, getattr(args, name).resolve())
     if args.output.is_relative_to(ROOT):
         parser.error("原始报告必须写入仓库外目录")
-    benches = suite.discover(ROOT / "tests/benchmarks")
+    source_dir = (ROOT / "tests/benchmarks" if args.suite == "original"
+                  else ROOT / "tests/perf/generator_consumers")
+    benches = suite.discover(source_dir)
     requested = set(args.only.split(",")) if args.only else {b.name for b in benches}
     unknown = requested - {b.name for b in benches}
     if unknown:
@@ -95,7 +99,8 @@ def main():
                     raise RuntimeError((bench.name, label, "搬迁失败", result.stderr))
             rows.append({"name": bench.name, "samples": samples, "stats": stats})
             args.output.write_text(json.dumps({"old": str(args.old), "new": str(args.new),
-                "python": str(args.python), "runs": args.runs, "warmup": 1, "rows": rows}, indent=2))
+                "python": str(args.python), "suite": args.suite,
+                "runs": args.runs, "warmup": 1, "rows": rows}, indent=2))
             medians = {k: round(statistics.median(v["ms"] for v in values), 3) for k, values in samples.items()}
             print(bench.name, medians, flush=True)
     print(f"ALL {len(rows)}通过，临时构建根已清理", flush=True)
