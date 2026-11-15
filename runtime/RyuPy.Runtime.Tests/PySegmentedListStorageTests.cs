@@ -230,4 +230,53 @@ public class PySegmentedListStorageTests
         Assert.Throws<ArgumentException>(() => list.SliceRange(3079, 1));
         Assert.Throws<ArgumentException>(() => list.SliceRange(int.MaxValue, int.MaxValue));
     }
+    [Theory]
+    [InlineData(false, 0)]
+    [InlineData(false, 1)]
+    [InlineData(false, 500)]
+    [InlineData(false, 1024)]
+    [InlineData(false, 1025)]
+    [InlineData(true, 500)]
+    [InlineData(true, 1024)]
+    public void CompactSmallSlicePreservesIndependentIdentityAndLaterMutation(bool exported, int count)
+    {
+        var source = new PySegmentedListStorage();
+        var values = Enumerable.Range(0, 3079).Select(_ => new object()).ToArray();
+        source.Extend(values);
+        if (exported) source.Materialize();
+        var slice = source.SliceRangeCompact(1000, count);
+        Assert.Equal(count > 1024, slice.IsSegmented);
+        for (int i = 0; i < count; i++) Assert.Same(values[1000 + i], slice[i]);
+        var marker = new object();
+        slice.Append(marker);
+        slice.ExtendExact(slice);
+        Assert.Equal(2 * (count + 1), slice.Count);
+        Assert.Same(marker, slice.GetItem(-1));
+        if (count > 0) slice.SetItem(0, marker);
+        Assert.Same(values[1000], source[1000]);
+        slice.Clear();
+        slice.Append(marker);
+        Assert.Same(marker, slice.Pop());
+        Assert.Throws<ArgumentOutOfRangeException>(() => source.SliceRangeCompact(-1, 0));
+        Assert.Throws<ArgumentException>(() => source.SliceRangeCompact(3079, 1));
+    }
+    [Fact]
+    public void CompactSliceLiveCursorObservesExportedWritesAndClear()
+    {
+        var source = new PySegmentedListStorage();
+        source.Extend(new object?[] { "a", "b", "c" });
+        var slice = source.SliceRangeCompact(0, 3);
+        using var cursor = slice.GetEnumerator();
+        Assert.True(cursor.MoveNext());
+        var exported = slice.Materialize();
+        exported.RemoveAt(0);
+        Assert.True(cursor.MoveNext());
+        Assert.Equal("c", cursor.Current);
+        slice.Clear();
+        Assert.False(cursor.MoveNext());
+        slice.Append("d");
+        Assert.False(cursor.MoveNext());
+        Assert.Same(exported, slice.Materialize());
+        Assert.Equal("a", source[0]);
+    }
 }

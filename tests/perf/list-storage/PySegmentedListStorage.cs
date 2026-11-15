@@ -3,6 +3,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 
 namespace RyuPy.Runtime;
 
@@ -141,6 +142,34 @@ internal sealed class PySegmentedListStorage : IReadOnlyList<object?>
         }
         result._count = count;
         return result;
+    }
+
+    // 独立小切片候选：完整页容量对短切片浪费明显，直接采用精确容量连续背板。
+    // 原SliceRange保持不变作为同轮控制；长切片仍走分段。公开List永久兼容合同不变。
+    internal PySegmentedListStorage SliceRangeCompact(int start, int count)
+    {
+        if (start < 0) throw new ArgumentOutOfRangeException(nameof(start));
+        if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));
+        if (start > Count - count) throw new ArgumentException("切片超出列表范围");
+        if (count > SegmentSize) return SliceRange(start, count);
+        List<object?> result;
+        if (_materialized is { } items) result = items.GetRange(start, count);
+        else
+        {
+            result = new List<object?>(count);
+            CollectionsMarshal.SetCount(result, count);
+            Span<object?> destination = CollectionsMarshal.AsSpan(result);
+            int copied = 0;
+            while (copied < count)
+            {
+                int position = start + copied;
+                int length = Math.Min(count - copied, SegmentSize - position % SegmentSize);
+                _segments[position / SegmentSize].AsSpan(position % SegmentSize, length)
+                    .CopyTo(destination.Slice(copied, length));
+                copied += length;
+            }
+        }
+        return new PySegmentedListStorage { _materialized = result };
     }
 
     internal void Clear()
