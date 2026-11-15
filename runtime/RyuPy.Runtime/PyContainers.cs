@@ -215,13 +215,15 @@ public sealed partial class PyList
     public PyList GetSlice(PySlice slice)
     {
         var (start, _, step, count) = slice.Indices(Count);
-        var result = new List<object?>((int)count);
+        // 结果包装独占新建背板；直接填入，避免公共IEnumerable构造器再次复制。
+        // 源Items访问仍保留原物化时点；空切片不观察或物化源，元素引用不重建。
+        var result = new PyList((int)count);
         long index = start;
         for (long i = 0; i < count; i++, index += step)
         {
-            result.Add(Items[(int)index]);
+            result._items!.Add(Items[(int)index]);
         }
-        return new PyList(result);
+        return result;
     }
 
     /// <summary>按步长 1 的切片赋值：可改变列表长度。</summary>
