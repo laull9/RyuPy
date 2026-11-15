@@ -107,6 +107,10 @@ jobs:
         run: |
           set -euo pipefail
           "$PYTHON" -B tests/perf/generator-product/semantic.py --output "$EVIDENCE/generator-semantic" --python "$PYTHON" --old "$RUNNER_TEMP/integrated-cli-off/ryupy" --new "$RUNNER_TEMP/integrated-cli-on/ryupy" 2>&1 | tee "$EVIDENCE/generator-semantic.log"
+      - name: 同源混合发射与list所有权JIT及AOT搬迁
+        run: |
+          set -euo pipefail
+          "$PYTHON" -B tests/perf/integration_semantic.py --off "$RUNNER_TEMP/integrated-cli-off/ryupy" --on "$RUNNER_TEMP/integrated-cli-on/ryupy" --output "$EVIDENCE/integrated-semantic" 2>&1 | tee "$EVIDENCE/integrated-semantic.log"
       - name: 双feature records真实CP对照与PE隔离
         run: |
           set -euo pipefail
