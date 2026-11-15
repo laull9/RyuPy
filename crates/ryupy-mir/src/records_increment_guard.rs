@@ -69,7 +69,9 @@ fn expand(f: &mut Function, plan: Plan) {
 }
 
 /// 显式程序级实验pass；默认pipeline不注册。
+#[cfg(feature = "records-increment-experiment")]
 pub struct RecordsIncrementExperiment;
+#[cfg(feature = "records-increment-experiment")]
 impl crate::passes::ProgramPass for RecordsIncrementExperiment {
     fn name(&self) -> &'static str {
         "records_increment_experiment"
