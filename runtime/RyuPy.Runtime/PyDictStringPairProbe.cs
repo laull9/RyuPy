@@ -34,6 +34,8 @@ public sealed partial class PyDict
     // 不缓存值或槽位；每次真实访问仍由原_index完成，覆盖、墓碑整理和删除顺序完全共享。
     internal sealed class StringPairAccess(PyDict owner)
     {
+        // 外部持续修改不能驱使每次探针全表扫描；大表失去证明后保守拒绝。
+        private const int MaxDomainScanSlots = 256;
         private long _checkedVersion = -1;
         private bool _safe;
 
@@ -43,6 +45,7 @@ public sealed partial class PyDict
             if (_checkedVersion == owner.Version) return _safe;
             _checkedVersion = owner.Version;
             _safe = false;
+            if (owner._keys.Count > MaxDomainScanSlots) return false;
             // Version在任何结构修改后变化；精确tuple的精确字符串成员无用户回调。
             // 不使用PyHash.IsHashable作为无回调证明，tuple内的用户对象也必须拒绝。
             foreach (object? key in owner._keys)
@@ -74,6 +77,10 @@ public sealed partial class PyDict
             }
             // 只有真正插入才物化真实tuple，仍通过唯一插入入口维护版本和整理。
             owner.Set(new PyTuple([first, second]), value);
+            // 既有域已证明，新键仍是精确string对，整个插入不可能调用用户代码。
+            // 承接自身写入的证明（包括墓碑整理），而非下一次扫描增长后的整张表。
+            // 外部写入仍使Version不相等，不能通过此处自动接受。
+            _checkedVersion = owner.Version;
             return true;
         }
     }
