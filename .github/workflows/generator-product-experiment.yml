@@ -1,0 +1,134 @@
+# 专用产品实验分支；不并入dev，不改变默认CI。
+name: Generator product opt-in validation
+on:
+  push:
+    branches: [work/generator-product-ci-20261115]
+permissions:
+  contents: read
+concurrency:
+  group: generator-product-performance
+  cancel-in-progress: false
+jobs:
+  isolated:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    defaults:
+      run:
+        shell: bash
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+      CARGO_TERM_COLOR: never
+      MSBUILDDISABLENODEREUSE: '1'
+      DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+      UseSharedCompilation: 'false'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 准备同提交off/on隔离目录
+        run: |
+          set -euo pipefail
+          EVIDENCE="$RUNNER_TEMP/generator-product-evidence"
+          mkdir -p "$EVIDENCE"
+          echo "EVIDENCE=$EVIDENCE" >> "$GITHUB_ENV"
+          echo "DOTNET_INSTALL_DIR=$RUNNER_TEMP/generator-product-dotnet" >> "$GITHUB_ENV"
+          git rev-parse HEAD > "$EVIDENCE/candidate.txt"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          df -h > "$EVIDENCE/disk-before.txt"
+          lscpu > "$EVIDENCE/cpu.txt"
+          uname -a > "$EVIDENCE/kernel.txt"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - uses: actions/setup-python@v5
+        id: python
+        with:
+          python-version: '3.12.13'
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
+        with:
+          components: rustfmt, clippy
+      - name: 固定工具链与本机依赖
+        timeout-minutes: 15
+        env:
+          FIXED_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          set -euo pipefail
+          test "$(dotnet --version)" = 10.0.403
+          test "$(readlink -f "$(command -v dotnet)")" = "$DOTNET_INSTALL_DIR/dotnet"
+          "$FIXED_PYTHON" -c 'import sys,os; assert sys.version_info[:3] == (3,12,13); assert os.path.isabs(sys.executable); print(sys.version)' | tee "$EVIDENCE/python.txt"
+          echo "PYTHON=$FIXED_PYTHON" >> "$GITHUB_ENV"
+          echo "RYUPY_FOREACH_PYTHON=$FIXED_PYTHON" >> "$GITHUB_ENV"
+          # 产品driver优先读取DOTNET，不能仅依靠PATH上的dotnet版本。
+          for key in DOTNET DOTNET_HOST_PATH; do echo "$key=$DOTNET_INSTALL_DIR/dotnet" >> "$GITHUB_ENV"; done
+          for key in DOTNET_ROOT DOTNET_ROOT_X64; do echo "$key=$DOTNET_INSTALL_DIR" >> "$GITHUB_ENV"; done
+          echo "DOTNET_MULTILEVEL_LOOKUP=0" >> "$GITHUB_ENV"
+          dotnet --info > "$EVIDENCE/dotnet.txt"
+          rustc --version > "$EVIDENCE/rust.txt"
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev patchelf binutils
+      - name: 门禁轻测与格式
+        run: |
+          set -euo pipefail
+          "$PYTHON" -B tests/perf/generator-product/test_gates.py
+          "$PYTHON" -B tests/perf/test_generator_consumers.py
+          cargo fmt --all --check 2>&1 | tee "$EVIDENCE/fmt.log"
+      - name: 默认完整检查与Runtime合同证据
+        timeout-minutes: 60
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/generator-default-target
+        run: |
+          set -euo pipefail
+          make check DOTNET_TEST_ARGS="--logger 'trx;LogFileName=runtime.trx' --logger 'console;verbosity=normal' --results-directory '$EVIDENCE'" 2>&1 | tee "$EVIDENCE/check-default.log"
+          "$PYTHON" -B tests/perf/generator-product/runtime_gate.py "$EVIDENCE/runtime.trx"
+      - name: 默认及feature完整和定向MIR
+        timeout-minutes: 35
+        run: |
+          set -euo pipefail
+          for arm in off on; do
+            features=()
+            if [ "$arm" = on ]; then features=(--features generator-sum-experiment); fi
+            for scope in focused full; do
+              filter=()
+              if [ "$scope" = focused ]; then filter=(generator_sum_); fi
+              CARGO_TARGET_DIR="$RUNNER_TEMP/generator-default-target" cargo test --locked -p ryupy-mir --lib "${features[@]}" "${filter[@]}" 2>&1 | tee "$EVIDENCE/mir-$arm-$scope.log"
+              "$PYTHON" -B tests/perf/generator-product/mir_gate.py "$EVIDENCE/mir-$arm-$scope.log" "$scope" "$arm"
+            done
+          done
+      - name: 同提交两feature状态冻结CLI
+        timeout-minutes: 35
+        run: |
+          set -euo pipefail
+          for arm in off on; do
+            feature=""
+            if [ "$arm" = on ]; then feature=generator-sum-experiment; fi
+            CARGO_TARGET_DIR="$RUNNER_TEMP/generator-$arm-target" make build CARGO_FEATURES="$feature" RELEASE_DIR="$RUNNER_TEMP/frozen-$arm" 2>&1 | tee "$EVIDENCE/build-$arm.log"
+            # 仅删除本job独占的可重建目标，冻结CLI已经内嵌当前Runtime。
+            rm -rf -- "$RUNNER_TEMP/generator-$arm-target"
+          done
+          rm -rf -- "$RUNNER_TEMP/generator-default-target"
+          df -h > "$EVIDENCE/disk-after-build.txt"
+      - name: 固定CP普通差分与已知差异独立观测
+        timeout-minutes: 35
+        run: |
+          set -euo pipefail
+          "$PYTHON" -B tests/perf/generator-product/semantic.py --output "$EVIDENCE/semantic" --python "$PYTHON" --old "$RUNNER_TEMP/frozen-off/ryupy" --new "$RUNNER_TEMP/frozen-on/ryupy" 2>&1 | tee "$EVIDENCE/semantic.log"
+      - name: 原26项与三消费者同机配对
+        timeout-minutes: 160
+        run: |
+          set -euo pipefail
+          dotnet build-server shutdown
+          for suite in original generator-consumers; do
+            mkdir -p "$EVIDENCE/$suite"
+            "$PYTHON" -B tests/perf/aot_hotspot_pair.py --suite "$suite" --old "$RUNNER_TEMP/frozen-off/ryupy" --new "$RUNNER_TEMP/frozen-on/ryupy" --python "$PYTHON" --runs 5 --manifest-evidence "$EVIDENCE/$suite/manifests" --min-free-gib 4 --cleanup-completed --output "$EVIDENCE/$suite/paired.json" 2>&1 | tee "$EVIDENCE/$suite/performance.log"
+            "$PYTHON" -B tests/perf/generator-product/performance_gate.py "$EVIDENCE/$suite/paired.json" "$suite"
+          done
+          echo COMPLETE > "$EVIDENCE/complete.txt"
+      - name: 总是上传失败或完整证据
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generator-product-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/generator-product-evidence
+          if-no-files-found: error
+          retention-days: 14
