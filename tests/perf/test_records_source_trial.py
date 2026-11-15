@@ -24,7 +24,7 @@ class EvidenceTests(unittest.TestCase):
         import json
         import tempfile
         from pathlib import Path
-        from check_records_source_trial import verify, CASES, ARMS, KNOWN
+        from check_records_source_trial import verify, CASES, ARMS, KNOWN, SOURCE_ROOT
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);sha='a'*40
             data=dict(ok=True,commit=sha,python='3.12.13',sdk='10.0.403',cli_sha256='a',diagnostic_cli_sha256='b',cases={},commands=[])
@@ -35,15 +35,15 @@ class EvidenceTests(unittest.TestCase):
                 oracle=b'custom-get ann buy\ncustom-set 6\ncustom-result 6 True\n' if case=='known_subclass' else b'ok\n'
                 row(case+'-cp',oracle);expected=KNOWN if case=='known_subclass' else oracle
                 row(case+'-control-mir',b'none');row(case+'-enabled-mir',b'RecordsTryIncrementMaterialized')
-                info=dict(complete=True,cp_equivalent=case!='known_subclass',arms={},samples=[]);data['cases'][case]=info
+                info=dict(source_sha256=hashlib.sha256((SOURCE_ROOT/'tests/fixtures/records_guard_source'/f'{case}.py').read_bytes()).hexdigest(),complete=True,cp_equivalent=case!='known_subclass',arms={},samples=[]);data['cases'][case]=info
                 for arm in ARMS:
                     label=case+'-'+arm;row(label+'-build');row(label+'-execute',expected)
-                    (root/label).write_bytes(b'assembly');diagnostic=arm.startswith('diagnostic-')
-                    info['arms'][arm]=dict(entry_path=label,entry_sha256=hashlib.sha256(b'assembly').hexdigest(),output_matches_expected=True,diagnostic=diagnostic,trace_token='a'*32 if diagnostic else None)
+                    (root/label).mkdir();(root/label/'entry').write_bytes(b'assembly');(root/label/'RyuPy.Runtime.dll').write_bytes(b'assembly');diagnostic=arm.startswith('diagnostic-')
+                    info['arms'][arm]=dict(entry_path=label+'/entry',entry_sha256=hashlib.sha256(b'assembly').hexdigest(),output_matches_expected=True,diagnostic=diagnostic,trace_token='a'*32 if diagnostic else None)
                     audit_label=label+'-runtime-audit-0'
                     digest=hashlib.sha256(b'assembly').hexdigest()
                     row(audit_label,json.dumps(dict(mode='diagnostic' if diagnostic else 'normal',sha256=digest,fields=['DiagnosticsReady','_diagnosticFast','_diagnosticFallback'] if diagnostic else [],methods=['RegisterDiagnostics','Observe'] if diagnostic else ['TryMaterialized'])).encode())
-                    info['arms'][arm]['runtime_audits']=[dict(label=audit_label,path=label,sha256=digest)]
+                    info['arms'][arm]['runtime_audits']=[dict(label=audit_label,path=label+'/RyuPy.Runtime.dll',sha256=digest)]
                     if diagnostic:(root/(label+'-trace.json')).write_text(json.dumps(dict(schema=1,scope='records-compiled-guard-diagnostic',token='a'*32,fast=counts[0],fallback=counts[1])))
                 if case=='performance':
                     order=['cp','control-jit','enabled-jit','control-aot','enabled-aot']
@@ -60,6 +60,9 @@ class EvidenceTests(unittest.TestCase):
             x=copy.deepcopy(data);x['cases']['known_subclass']['cp_equivalent']=True;variants.append(x)
             x=copy.deepcopy(data);x['commands'][0]['wall_ms']=float('nan');variants.append(x)
             x=copy.deepcopy(data);x['cases']['contracts']['arms']['control-aot']['entry_sha256']='wrong';variants.append(x)
+            x=copy.deepcopy(data);x['cases']['contracts']['source_sha256']='wrong';variants.append(x)
+            x=copy.deepcopy(data);x['cases']['contracts']['arms']['control-jit']['runtime_audits'][0]['path']='contracts-enabled-jit/RyuPy.Runtime.dll';variants.append(x)
+            x=copy.deepcopy(data);x['cases']['contracts']['arms']['control-jit']['runtime_audits']*=2;variants.append(x)
             for value in variants:
                 with self.assertRaises((AssertionError,KeyError)):check(value)
             (root/'contracts-enabled-aot-execute.stdout').write_bytes(b'wrong')

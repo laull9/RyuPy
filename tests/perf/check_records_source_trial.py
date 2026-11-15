@@ -6,6 +6,7 @@ import math
 from pathlib import Path
 
 CASES={'contracts':(3,4),'callbacks':(0,3),'known_subclass':(0,1),'performance':(200000,0)}
+SOURCE_ROOT=Path(__file__).resolve().parents[2]
 ARMS=[f'{a}-{b}' for a in ('control','enabled','diagnostic') for b in ('jit','aot')]
 KNOWN=b'custom-get ann buy\ncustom-set 6\nknown-rejection dict layout with non-scalar keys is not supported 0\n'
 
@@ -26,6 +27,8 @@ def verify(root,sha):
         return (root/(label+'.stdout')).read_bytes(),(root/(label+'.stderr')).read_bytes()
     for case,counts in CASES.items():
         info=data['cases'][case];assert info['complete'] is True
+        fixture=SOURCE_ROOT/'tests/fixtures/records_guard_source'/f'{case}.py'
+        assert info['source_sha256']==hashlib.sha256(fixture.read_bytes()).hexdigest()
         assert info['cp_equivalent'] is (case!='known_subclass')
         oracle,err=output(case+'-cp');assert not err
         if case=='known_subclass':assert oracle==b'custom-get ann buy\ncustom-set 6\ncustom-result 6 True\n'
@@ -43,10 +46,16 @@ def verify(root,sha):
             assert hashlib.sha256(entry.read_bytes()).hexdigest()==item['entry_sha256']
             diagnostic=arm.startswith('diagnostic-')
             assert item['runtime_audits']
+            arm_root=(root/label).resolve()
+            assert arm_root.is_relative_to(root.resolve()) and arm_root.is_dir()
+            actual_dlls=sorted(str(p.relative_to(root)) for p in (root/label).rglob('RyuPy.Runtime.dll'))
+            paths=[a['path'] for a in item['runtime_audits']]
+            assert paths==actual_dlls and len(set(paths))==len(paths)
+            assert [a['label'] for a in item['runtime_audits']]==[f'{label}-runtime-audit-{i}' for i in range(len(paths))]
             for audit in item['runtime_audits']:
                 payload,stderr=output(audit['label']);assert not stderr
                 metadata=json.loads(payload);dll=(root/audit['path']).resolve()
-                assert dll.is_relative_to(root.resolve()) and dll.is_file()
+                assert dll.is_relative_to(arm_root) and dll.name=='RyuPy.Runtime.dll' and dll.is_file()
                 assert metadata['sha256']==audit['sha256']==hashlib.sha256(dll.read_bytes()).hexdigest()
                 assert metadata['mode']==('diagnostic' if diagnostic else 'normal')
                 for name in ('DiagnosticsReady','_diagnosticFast','_diagnosticFallback'):
