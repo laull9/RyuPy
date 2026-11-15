@@ -13,7 +13,10 @@ fn original_genexpr_has_a_single_cursor_candidate_not_a_product_proof() {
         // 只在这个手写基准失败时输出有界高层IR到测试日志，绝不写golden或生成文件入库。
         let locals: Vec<_> = f.body.locals.iter().take(64).collect();
         let blocks: Vec<_> = f.body.blocks.iter().take(24).collect();
-        panic!("{reason}\nparams={:?} entry={:?}\nlocals={locals:#?}\nblocks={blocks:#?}", f.params, f.body.entry);
+        panic!(
+            "{reason}\nparams={:?} entry={:?}\nlocals={locals:#?}\nblocks={blocks:#?}",
+            f.params, f.body.entry
+        );
     });
     assert_eq!(plan.guard_input, input);
     assert_ne!(plan.iterator, input);
@@ -92,7 +95,6 @@ fn only_matching_trace_depth_may_be_popped() {
     }
 }
 
-
 #[test]
 fn numeric_ids_must_match_one_metadata_record() {
     let (program, deferred) = crate::generator_sum_plan::high_with_sources(
@@ -120,9 +122,18 @@ fn alternate_path_definition_is_not_a_dominating_fact() {
     let f = &mut program.functions[function];
     let mut moved = None;
     for (_, block) in f.body.blocks.iter_mut() {
-        if let Some(index) = block.stmts.iter().position(|statement| matches!(statement,
-            Statement::Assign { value: Rvalue::Box { value: Operand::Const(Constant::I64(2)), .. }, .. }))
-        {
+        if let Some(index) = block.stmts.iter().position(|statement| {
+            matches!(
+                statement,
+                Statement::Assign {
+                    value: Rvalue::Box {
+                        value: Operand::Const(Constant::I64(2)),
+                        ..
+                    },
+                    ..
+                }
+            )
+        }) {
             moved = Some(block.stmts.remove(index));
             break;
         }
@@ -174,9 +185,18 @@ fn loop_first_read_cannot_use_a_definition_after_suspend() {
     let plan = analyze(f, input).unwrap();
     let mut moved = None;
     for (_, block) in f.body.blocks.iter_mut() {
-        if let Some(index) = block.stmts.iter().position(|statement| matches!(statement,
-            Statement::Assign { value: Rvalue::Box { value: Operand::Const(Constant::I64(2)), .. }, .. }))
-        {
+        if let Some(index) = block.stmts.iter().position(|statement| {
+            matches!(
+                statement,
+                Statement::Assign {
+                    value: Rvalue::Box {
+                        value: Operand::Const(Constant::I64(2)),
+                        ..
+                    },
+                    ..
+                }
+            )
+        }) {
             moved = Some(block.stmts.remove(index));
             break;
         }
@@ -188,9 +208,8 @@ fn loop_first_read_cannot_use_a_definition_after_suspend() {
 
 #[test]
 fn required_resident_set_includes_original_cursor() {
-    let (program, deferred) = crate::generator_sum_plan::high_with_sources(
-        "g = (x * 2 for x in range(4))\n"
-    );
+    let (program, deferred) =
+        crate::generator_sum_plan::high_with_sources("g = (x * 2 for x in range(4))\n");
     let (function, input) = deferred.comprehension_inputs[0];
     let plan = analyze_source(&program, &deferred, function, input).unwrap();
     assert!(resident_set_requirements_hold(&plan, &plan.residents));
@@ -235,7 +254,6 @@ fn second_frame_entry_cannot_masquerade_as_matching_trace_depth() {
     assert!(analyze(f, input).is_none());
 }
 
-
 #[test]
 fn separate_builds_can_collide_so_numeric_ids_are_not_a_product_certificate() {
     let source = "g = (x * 2 for x in range(4))\n";
@@ -245,4 +263,67 @@ fn separate_builds_can_collide_so_numeric_ids_are_not_a_product_certificate() {
     let (function, input) = first.comprehension_inputs[0];
     // 已知证明缺口的反证：数值匹配不会拒绝跨构建组合；因此该API必须保持test-only。
     assert!(analyze_source(&second_program, &first, function, input).is_some());
+}
+
+#[test]
+fn dead_none_tail_does_not_define_reachable_values() {
+    let (program, deferred) =
+        crate::generator_sum_plan::high_with_sources("g = (x * 2 for x in range(4))\n");
+    let (function, input) = deferred.comprehension_inputs[0];
+    let f = &program.functions[function];
+    let reachable = reachable_blocks(f).unwrap();
+    let dead = f.body.blocks.iter().find(|(id, block)| {
+        !reachable.contains(id)
+            && block.stmts.iter().any(|statement| {
+                matches!(
+                    statement,
+                    Statement::Assign {
+                        value: Rvalue::Call {
+                            callee: Callee::Runtime(RuntimeFn::DynNone),
+                            ..
+                        },
+                        ..
+                    }
+                )
+            })
+    });
+    assert!(dead.is_some(), "真实源必须包含导致误拒的无前驱尾块");
+    assert!(analyze(f, input).is_some());
+}
+
+#[test]
+fn connecting_dead_tail_through_resume_restores_duplicate_rejection() {
+    let (mut program, deferred) =
+        crate::generator_sum_plan::high_with_sources("g = (x * 2 for x in range(4))\n");
+    let (function, input) = deferred.comprehension_inputs[0];
+    let f = &mut program.functions[function];
+    let plan = analyze(f, input).unwrap();
+    let reachable = reachable_blocks(f).unwrap();
+    let dead = f
+        .body
+        .blocks
+        .iter()
+        .find(|(id, _)| !reachable.contains(id))
+        .unwrap()
+        .0;
+    f.body.blocks[plan.resume].terminator = Terminator::Goto(dead);
+    let reason = analyze_explained(f, input).unwrap_err();
+    assert!(reason.contains("静态定义重复"), "{reason}");
+}
+
+#[test]
+fn reachable_invalid_edge_or_unresolved_terminator_is_rejected() {
+    for invalid_edge in [false, true] {
+        let (mut program, deferred) =
+            crate::generator_sum_plan::high_with_sources("g = (x * 2 for x in range(4))\n");
+        let (function, input) = deferred.comprehension_inputs[0];
+        let f = &mut program.functions[function];
+        let plan = analyze(f, input).unwrap();
+        f.body.blocks[plan.resume].terminator = if invalid_edge {
+            Terminator::Goto(BlockId::from_raw(999999u32.into()))
+        } else {
+            Terminator::Unreachable
+        };
+        assert!(analyze(f, input).is_none());
+    }
 }

@@ -48,18 +48,33 @@ fn analyze_explained(f: &Function, declared_input: LocalId) -> Result<RangePlan,
     if !crate::generator_state_analysis::eligible(f) || f.params.first() != Some(&declared_input) {
         return Err("字段资格或输入参数不匹配".to_owned());
     }
+    let reachable = reachable_blocks(f).ok_or_else(|| "不可识别的控制流".to_owned())?;
     // 非SSA函数只接受每个局部单个静态定义点，并证明它支配所有实际读取。
     // 此原型仍需运行时真实类型守卫，不向产品lowering暴露。
     let mut definitions = FxHashSet::default();
     let mut frame_depth = None;
-    for (block_id, block) in f.body.blocks.iter() {
+    for (block_id, block) in f
+        .body
+        .blocks
+        .iter()
+        .filter(|(id, _)| reachable.contains(id))
+    {
         for (position, statement) in block.stmts.iter().enumerate() {
             if let Statement::Assign { dest, .. } = statement {
                 if f.params.contains(dest) || !definitions.insert(*dest) {
-                    return Err(format!("参数被覆盖或静态定义重复，位置 {block_id:?}:{position}: {statement:?}"));
+                    return Err(format!(
+                        "参数被覆盖或静态定义重复，位置 {block_id:?}:{position}: {statement:?}"
+                    ));
                 }
-                if let Statement::Assign { value: Rvalue::Call { callee: Callee::Runtime(
-                    RuntimeFn::TracePush | RuntimeFn::TracePushWithOrigin), .. }, .. } = statement
+                if let Statement::Assign {
+                    value:
+                        Rvalue::Call {
+                            callee:
+                                Callee::Runtime(RuntimeFn::TracePush | RuntimeFn::TracePushWithOrigin),
+                            ..
+                        },
+                    ..
+                } = statement
                     && (block_id != f.body.entry || frame_depth.replace(*dest).is_some())
                 {
                     return Err(format!("trace帧非入口或重复，位置 {block_id:?}:{position}"));
@@ -75,7 +90,12 @@ fn analyze_explained(f: &Function, declared_input: LocalId) -> Result<RangePlan,
     facts.insert(declared_input, Fact::GuardedRangeCursor);
     for _ in 0..f.body.locals.len() + 1 {
         let before = facts.len();
-        for (_, block) in f.body.blocks.iter() {
+        for (_, block) in f
+            .body
+            .blocks
+            .iter()
+            .filter(|(id, _)| reachable.contains(id))
+        {
             for statement in &block.stmts {
                 if let Statement::Assign { dest, value } = statement
                     && let Some(fact) = infer(value, &facts)
@@ -91,18 +111,33 @@ fn analyze_explained(f: &Function, declared_input: LocalId) -> Result<RangePlan,
     let mut iterator = None;
     let mut multiply = None;
     let mut edge = None;
-    for (id, block) in f.body.blocks.iter() {
+    for (id, block) in f
+        .body
+        .blocks
+        .iter()
+        .filter(|(id, _)| reachable.contains(id))
+    {
         for (position, statement) in block.stmts.iter().enumerate() {
             match statement {
                 Statement::Line(_) => {}
                 Statement::Assign { dest, value } => {
-                    infer(value, &facts).ok_or_else(|| format!("未知值，位置 {id:?}:{position}: {value:?}; facts={facts:?}"))?;
-                    if matches!(value, Rvalue::Call { callee: Callee::Runtime(RuntimeFn::IterStart), .. }) {
+                    infer(value, &facts).ok_or_else(|| {
+                        format!("未知值，位置 {id:?}:{position}: {value:?}; facts={facts:?}")
+                    })?;
+                    if matches!(
+                        value,
+                        Rvalue::Call {
+                            callee: Callee::Runtime(RuntimeFn::IterStart),
+                            ..
+                        }
+                    ) {
                         if iterator.replace(*dest).is_some() {
                             return Err(format!("多游标定义，位置 {id:?}:{position}"));
                         }
                     }
-                    if matches!(value, Rvalue::DynBinary { .. }) && multiply.replace(*dest).is_some() {
+                    if matches!(value, Rvalue::DynBinary { .. })
+                        && multiply.replace(*dest).is_some()
+                    {
                         return Err(format!("多个动态算术定义，位置 {id:?}:{position}"));
                     }
                 }
@@ -111,26 +146,46 @@ fn analyze_explained(f: &Function, declared_input: LocalId) -> Result<RangePlan,
                     args,
                 }) if args.as_slice() == [Operand::Local(frame_depth)]
                     && fact(&args[0], &facts) == Some(Fact::TraceDepth) => {}
-                _ => return Err(format!("未批准语句，位置 {id:?}:{position}: {statement:?}; frame={frame_depth:?}")),
+                _ => {
+                    return Err(format!(
+                        "未批准语句，位置 {id:?}:{position}: {statement:?}; frame={frame_depth:?}"
+                    ));
+                }
             }
         }
         match &block.terminator {
             Terminator::Goto(_) | Terminator::Return(None) => {}
             Terminator::Return(Some(value)) if fact(value, &facts) == Some(Fact::None) => {}
             Terminator::Branch { cond, .. } if fact(cond, &facts) == Some(Fact::Boolean) => {}
-            Terminator::Suspend { value, resume, input: None, delegated: false }
-                if fact(value, &facts) == Some(Fact::BuiltinInteger) =>
-            {
+            Terminator::Suspend {
+                value,
+                resume,
+                input: None,
+                delegated: false,
+            } if fact(value, &facts) == Some(Fact::BuiltinInteger) => {
                 if edge.replace((id, *resume)).is_some() {
                     return Err(format!("多个暂停边，位置 {id:?}"));
                 }
             }
-            _ => return Err(format!("未批准终结符，位置 {id:?}: {:?}; facts={facts:?}", block.terminator)),
+            _ => {
+                return Err(format!(
+                    "未批准终结符，位置 {id:?}: {:?}; facts={facts:?}",
+                    block.terminator
+                ));
+            }
         }
     }
     let (yield_block, resume) = edge.ok_or_else(|| "缺少整数yield边".to_owned())?;
-    let residents = crate::generator_state_analysis::residents(f).ok_or_else(|| "resident分析预算耗尽".to_owned())?;
-    let plan = RangePlan { guard_input: declared_input, iterator: iterator.ok_or_else(|| "缺少游标".to_owned())?, multiply: multiply.ok_or_else(|| "缺少乘法".to_owned())?, yield_block, resume, residents };
+    let residents = crate::generator_state_analysis::residents(f)
+        .ok_or_else(|| "resident分析预算耗尽".to_owned())?;
+    let plan = RangePlan {
+        guard_input: declared_input,
+        iterator: iterator.ok_or_else(|| "缺少游标".to_owned())?,
+        multiply: multiply.ok_or_else(|| "缺少乘法".to_owned())?,
+        yield_block,
+        resume,
+        residents,
+    };
     if resident_set_requirements_hold(&plan, &plan.residents) {
         Ok(plan)
     } else {
@@ -146,6 +201,27 @@ fn resident_set_requirements_hold(plan: &RangePlan, fields: &FxHashSet<LocalId>)
         && fields.contains(&plan.iterator)
 }
 
+// 入口可达图包含暂停后的恢复边。无EH资格由调用者先核验；未知终结符不能当作终点。
+// 合成的无前驱return尾块不参与定义/事实，但一旦出现可达边即恢复全部检查。
+fn reachable_blocks(f: &Function) -> Option<FxHashSet<BlockId>> {
+    let mut reachable = FxHashSet::default();
+    let mut queue = vec![f.body.entry];
+    while let Some(id) = queue.pop() {
+        let (_, block) = f.body.blocks.iter().find(|(candidate, _)| *candidate == id)?;
+        if !reachable.insert(id) {
+            continue;
+        }
+        match &block.terminator {
+            Terminator::Goto(next) => queue.push(*next),
+            Terminator::Branch { then_, else_, .. } => queue.extend([*then_, *else_]),
+            Terminator::Suspend { resume, .. } => queue.push(*resume),
+            Terminator::Return(_) => {}
+            _ => return None,
+        }
+    }
+    Some(reachable)
+}
+
 // 保守的全CFG支配检查：单一静态赋值不能自动证明循环首次读取已经初始化。
 fn dominates_all_reads(f: &Function) -> bool {
     use crate::local_access::{statement_reads, terminator_reads};
@@ -157,13 +233,9 @@ fn dominates_all_reads(f: &Function) -> bool {
             _ => vec![],
         }
     };
-    let mut reachable = FxHashSet::default();
-    let mut queue = vec![f.body.entry];
-    while let Some(id) = queue.pop() {
-        if reachable.insert(id) {
-            queue.extend(next(&f.body.blocks[id].terminator));
-        }
-    }
+    let Some(reachable) = reachable_blocks(f) else {
+        return false;
+    };
     let mut predecessors: FxHashMap<BlockId, Vec<BlockId>> = FxHashMap::default();
     for &id in &reachable {
         for target in next(&f.body.blocks[id].terminator) {
