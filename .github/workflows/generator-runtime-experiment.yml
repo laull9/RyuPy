@@ -1,0 +1,73 @@
+# 仅用于独立实验分支；不得合入 dev/main 或改变默认 CI。
+name: Generator runtime isolated experiment
+on:
+  push:
+    branches: [work/generator-runtime-ci-20261115]
+permissions:
+  contents: read
+concurrency:
+  group: generator-runtime-experiment-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  prototype:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    env:
+      DOTNET_NOLOGO: '1'
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      MSBUILDDISABLENODEREUSE: '1'
+      DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+      UseSharedCompilation: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - name: 准备独立 SDK 与证据目录
+        run: |
+          set -euo pipefail
+          echo "DOTNET_INSTALL_DIR=$RUNNER_TEMP/generator-runtime-dotnet" >> "$GITHUB_ENV"
+          echo "EVIDENCE=$RUNNER_TEMP/generator-runtime-evidence" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/generator-runtime-evidence"
+          git rev-parse HEAD > "$RUNNER_TEMP/generator-runtime-evidence/commit.txt"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          printf '%s\n' '生成器 Runtime 协议候选：定向合同与全部 Runtime 单测；不代表编译器接线、CP 差分、JIT/NativeAOT 或性能收益。' > "$RUNNER_TEMP/generator-runtime-evidence/scope.txt"
+      - name: 自检证据门禁
+        run: python3 -B tests/perf/generator-runtime/test_check_evidence.py
+      - uses: actions/setup-dotnet@v4
+        id: sdk
+        with:
+          dotnet-version: '10.0.403'
+      - name: 核验实际 SDK
+        id: sdkcheck
+        run: |
+          set -euo pipefail
+          dotnet --info | tee "$EVIDENCE/dotnet-info.txt"
+          test "$(dotnet --version)" = '10.0.403'
+          test "$(readlink -f "$(command -v dotnet)")" = "$DOTNET_INSTALL_DIR/dotnet"
+      - name: 编译并运行生成器定向合同
+        run: |
+          set -euo pipefail
+          dotnet test runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj -c Release \
+            --filter 'FullyQualifiedName~PyGeneratorSumTests' \
+            --logger 'trx;LogFileName=focused.trx' --results-directory "$EVIDENCE" \
+            2>&1 | tee "$EVIDENCE/focused.log"
+          python3 -B tests/perf/generator-runtime/check_evidence.py "$EVIDENCE/focused.trx" focused \
+            | tee "$EVIDENCE/focused-check.log"
+      - name: 运行全部 Runtime 测试（无过滤）
+        if: ${{ !cancelled() && steps.sdkcheck.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          dotnet test runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj -c Release --no-build \
+            --logger 'trx;LogFileName=full.trx' --results-directory "$EVIDENCE" \
+            2>&1 | tee "$EVIDENCE/full.log"
+          python3 -B tests/perf/generator-runtime/check_evidence.py "$EVIDENCE/full.trx" full \
+            | tee "$EVIDENCE/full-check.log"
+      - name: 总是保存本次 SHA 的原始证据
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generator-runtime-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/generator-runtime-evidence
+          if-no-files-found: error
+          retention-days: 14
