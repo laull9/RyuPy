@@ -55,6 +55,7 @@ fn empty_program() -> LinkedProgram {
         exports: Vec::new(),
     });
     LinkedProgram {
+        native_modules: Default::default(),
         external_provider: None,
         candidate_modules: Vec::new(),
         metadata_unavailable: None,

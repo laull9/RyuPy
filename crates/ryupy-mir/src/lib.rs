@@ -94,6 +94,8 @@ pub mod link;
 mod link_placeholders;
 mod loop_assignment_join;
 mod mir;
+mod native_modules;
+pub use native_modules::NativeModuleRequirements;
 mod module_execution;
 mod module_location;
 pub mod native_abi;

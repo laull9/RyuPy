@@ -9,10 +9,11 @@ RyuPy：Rust 编写的 Python → .NET CIL 编译器。所有对话、文档、�
 - 语义规范：`docs/semantics.md`（常用行为对齐 CPython；已登记偏差明确说明，不支持项明确报错）
 - 开发循环：`docs/workflow.md` §3（竖切，一次一个特性）
 - 当前任务：`TODO.md`
-- 长期方向（2026-11-16，规划）：所有 Python 函数体进入 CIL，libpython 仅提供底层 ABI
-  与原生扩展能力，逐步移除 Python 胶水与解释执行。见 `docs/cil-execution-roadmap.md`、
-  ADR-0208；后续首切为 C0 盘点与基线冻结，C0–C5 均待办。当前兼容 provider、C ABI、
-  原生标准库与已有性能资产保留回归，默认晋升与旧路径退出分别验收。
+- 长期方向（2026-11-16–17，实施中）：应用与第三方业务函数体逐步迁入 CIL，主线复用原版
+  libpython、静态 shim 和原生导入钩子；按 ADR-0223 允许少量必要 Python 胶水，逐函数登记
+  来源、版本、执行阶段与性能。见 `docs/cil-execution-roadmap.md`、ADR-0208/0223。
+  C0 已完成，C1–C3 有已验子合同，完整闭包与调度继续开发；自定义严格内核保留可选研究。
+  兼容 provider、C ABI、原生标准库与性能资产保留回归，默认晋升与旧路径退出分别验收。
 
 ## 命令
 

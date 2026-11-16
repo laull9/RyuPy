@@ -312,6 +312,7 @@ pub(crate) fn link_with_origins(
     });
 
     LinkedProgram {
+        native_modules: Default::default(),
         external_provider: None,
         candidate_modules: Vec::new(),
         optional_sources: None,

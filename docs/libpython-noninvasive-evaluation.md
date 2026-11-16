@@ -345,6 +345,20 @@ ADR-0221 要求 `atexit` 新建类/首次导入仍可用，之后在 FiniCore fe
 只清 CLR 账本。fork 有明确接线位置；stock 公开 API 没有等价的“内部模块清理完毕、解释器仍有效”
 回调。`Py_AtExit` 位于 Python 内部 finalization 完成之后，不能用它执行这批 Python C API 释放。
 A 可采用经验证的宿主主动关停/根持有策略；C 需证明私有 fence 的生命周期。
+后续只读审查已确认 live globals 的具体强环：真实 CP dict → managed 函数代理 → Host.Roots
+→ PyFunctionOwner/State → owned PythonObject(dict) → 原 CP dict。现有 managed 代理没有
+GC traverse/clear 协议，单独运行两端 GC 无法拆环；增加 traverse 前还须区分 CLR 外逃引用的
+独立所有权，防止提前清理仍活跃的函数环境。完整 live CIL 函数模块以可回收所有权设计和
+重复重导持有量门为准入；真实字典冷适配、PEP451 原生事务可先分别验证。
+允许少量胶水后，优先研究“真实 CPython 薄函数 + 纯执行 core/公开 handle 分离”：CP 函数
+原生持有 globals/defaults/closure，闭包只持静态原生 dispatch；dispatch 强持不含 owned
+Python 回边的执行 core，CLR 公开函数句柄独立持有 CP 函数。这样可复用 CPython 函数字段与
+GC 协议，CIL 直达保持快路，CP 回调付出一层可测胶水成本。当前仅完成只读论证，尚无回收或
+性能实测；现有包装器捕获完整 CLR 函数，不能原样解决强环。
+首证限定无未知业务捕获、无默认值的普通函数。后续让可变元数据保持单一权威，验证动态
+defaults/签名及绑定一致性；通用 `*args/**kwargs` 包装不能自动获得业务形参的绑定合同。
+真实 glue code/frame 如实标注，CIL 业务 traceback 独立保存；任意 `__code__` 替换与完全
+无检查的 CIL 直达必须另定一致性合同。自定义原生 callable/environment 留作对照方案。
 若要改变现有释放顺序，必须另做生命周期设计，不能直接挪用 strict 回调名字。
 
 依据：[官方初始化/关闭/线程合同](https://docs.python.org/3.12/c-api/init.html)、

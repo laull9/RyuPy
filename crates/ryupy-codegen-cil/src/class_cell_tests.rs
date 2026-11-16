@@ -47,6 +47,7 @@ fn program(guard: bool) -> LinkedProgram {
         exports: vec![],
     });
     LinkedProgram {
+        native_modules: Default::default(),
         external_provider: None,
         candidate_modules: Vec::new(),
         metadata_unavailable: None,

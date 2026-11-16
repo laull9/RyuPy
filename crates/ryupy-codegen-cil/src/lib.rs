@@ -20,6 +20,8 @@ mod emission_report;
 mod entry;
 mod generic_callables;
 mod make_function;
+#[cfg(test)]
+mod native_startup_tests;
 pub use emission_report::{
     DelegateReference, EmissionArtifact, EmissionReport, FunctionEmission, MethodDescriptor,
     ModuleEmission,

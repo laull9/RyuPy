@@ -110,6 +110,7 @@ fn original_function_identity_is_duplicated_at_definition() {
         exports: vec![],
     });
     let program = LinkedProgram {
+        native_modules: Default::default(),
         external_provider: None,
         candidate_modules: Vec::new(),
         metadata_unavailable: None,

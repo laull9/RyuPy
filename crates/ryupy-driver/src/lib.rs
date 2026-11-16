@@ -30,6 +30,9 @@ mod dump;
 pub use dump::dump;
 mod default_aot;
 mod linked_compile;
+mod native_module_requirements;
+#[cfg(test)]
+mod native_module_requirements_tests;
 use linked_compile::compile_linked_traced;
 mod distribution_metadata;
 mod instance_modules;
