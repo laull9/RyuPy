@@ -1,0 +1,101 @@
+# Runtime-only 原型；不接编译器、不自动晋升 dev。
+name: Captured method plan Runtime prototype
+on:
+  push:
+    branches: [fix/capture-plan-prototype-20261116]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+      MSBUILDDISABLENODEREUSE: '1'
+      DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+      UseSharedCompilation: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 隔离SDK与证据目录
+        run: |
+          echo "DOTNET_INSTALL_DIR=$RUNNER_TEMP/instance-dotnet" >> "$GITHUB_ENV"
+          mkdir "$RUNNER_TEMP/instance-evidence"
+          echo "EVIDENCE=$RUNNER_TEMP/instance-evidence" >> "$GITHUB_ENV"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - uses: actions/setup-python@v5
+        id: python
+        with:
+          python-version: '3.12.13'
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
+        with:
+          toolchain: '1.99.1'
+          components: rustfmt, clippy
+      - name: 固定实际SDK与源提交
+        env:
+          FIXED_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y clang zlib1g-dev patchelf binutils
+          git rev-parse HEAD HEAD^{tree} | tee "$EVIDENCE/candidate-source.txt"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          dotnet --info > "$EVIDENCE/dotnet.txt"
+          test "$(dotnet --version)" = 10.0.403
+          test "$(readlink -f "$(command -v dotnet)")" = "$DOTNET_INSTALL_DIR/dotnet"
+          for key in DOTNET DOTNET_HOST_PATH; do echo "$key=$DOTNET_INSTALL_DIR/dotnet" >> "$GITHUB_ENV"; done
+          for key in DOTNET_ROOT DOTNET_ROOT_X64; do echo "$key=$DOTNET_INSTALL_DIR" >> "$GITHUB_ENV"; done
+          echo "DOTNET_MULTILEVEL_LOOKUP=0" >> "$GITHUB_ENV"
+          echo "PYTHON=$FIXED_PYTHON" >> "$GITHUB_ENV"
+          echo "RYUPY_FOREACH_PYTHON=$FIXED_PYTHON" >> "$GITHUB_ENV"
+          "$FIXED_PYTHON" -c 'import sys; assert sys.version_info[:3] == (3,12,13); print(sys.version)' > "$EVIDENCE/python.txt"
+      - name: 候选默认与records feature完整检查
+        run: |
+          set -euo pipefail
+          failed=0
+          for arm in default feature; do
+            work="$RUNNER_TEMP/instance-check-$arm"
+            target="$RUNNER_TEMP/instance-target-$arm"
+            git worktree add --detach "$work" "$GITHUB_SHA"
+            mkdir "$EVIDENCE/check-$arm"
+            features=""; feature_args=()
+            if [[ "$arm" == feature ]]; then
+              features=ryupy-driver/records-increment-experiment
+              feature_args=(--features "$features")
+            fi
+            git -C "$work" rev-parse HEAD HEAD^{tree} > "$EVIDENCE/check-$arm/source.txt"
+            (cd "$work"; cargo metadata --locked --format-version 1 "${feature_args[@]}") > "$EVIDENCE/check-$arm/metadata.json" 2> "$EVIDENCE/check-$arm/metadata.stderr"
+            "$PYTHON" tests/perf/instance-capture/resolve.py "$EVIDENCE/check-$arm/metadata.json" "$arm" > "$EVIDENCE/check-$arm/features.json"
+            set +e
+            (cd "$work"; CARGO_TARGET_DIR="$target" make check CARGO_FEATURES="$features" DOTNET_TEST_ARGS="--logger trx --results-directory $EVIDENCE/check-$arm") > "$EVIDENCE/check-$arm/full.log" 2>&1
+            result=$?
+            set -e
+            echo "$result" > "$EVIDENCE/check-$arm/exit.txt"
+            if [[ "$result" != 0 ]]; then failed=1; fi
+            git -C "$work" diff --exit-code
+            rm -rf -- "$target"
+          done
+          test "$failed" = 0
+      - name: PIC 关闭的计划语义合同
+        run: |
+          set -euo pipefail
+          RYUPY_PIC=0 dotnet test runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj \
+            --filter FullyQualifiedName~PyCapturedMethodPlanTests \
+            --logger trx --results-directory "$EVIDENCE/plan-pic0" \
+            > "$EVIDENCE/plan-pic0.log" 2>&1
+      - name: Runtime 计划原型三臂性能分配
+        run: |
+          set -euo pipefail
+          "$PYTHON" tests/perf/capture-plan/run.py "$RUNNER_TEMP/plan-results"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: capture-plan-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/instance-evidence
+            ${{ runner.temp }}/plan-results
+          retention-days: 14

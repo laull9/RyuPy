@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+"""四次独立构建，JIT/AOT 与 PIC 双臂；只诊断 Runtime，不代表产品验收。"""
+import hashlib
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+
+ROOT = Path(__file__).resolve().parents[3]
+OUT = Path(sys.argv[1]).resolve()
+OUT.mkdir(parents=True, exist_ok=False)
+ENV = {k: v for k, v in os.environ.items() if k not in
+       {"RYUPY_PIC", "RYUPY_PIC_STATS", "RYUPY_RUNTIME_DIR"}}
+REPORT = {"commands": [], "rows": [], "entries": []}
+
+
+def run(argv, tag, extra=None):
+    """所有命令保留双流与退出码；异常时由 finally 保存已完成证据。"""
+    result = subprocess.run(argv, cwd=ROOT, env=ENV | (extra or {}),
+                            capture_output=True, text=True, timeout=900)
+    (OUT / (tag + ".stdout")).write_text(result.stdout)
+    (OUT / (tag + ".stderr")).write_text(result.stderr)
+    REPORT["commands"].append({"argv": argv, "tag": tag, "exit": result.returncode})
+    if result.returncode:
+        raise RuntimeError(f"{tag}: {result.returncode}")
+    return result.stdout
+
+
+try:
+    assert run(["dotnet", "--version"], "sdk").strip() == "10.0.403"
+    REPORT["source"] = run(["git", "rev-parse", "HEAD", "HEAD^{tree}"], "source").splitlines()
+    for round_id in range(4):
+        for backend in ("jit", "aot"):
+            tag = f"{round_id}-{backend}"
+            product = OUT / tag
+            obj = OUT / ("obj-" + tag)
+            cmd = ["dotnet", "publish", str(ROOT / "tests/perf/capture-plan/Host.csproj"),
+                   "-c", "Release", "-o", str(product), "--artifacts-path", str(obj)]
+            if backend == "aot":
+                cmd += ["-r", "linux-x64", "-p:PublishAot=true"]
+            run(cmd, "publish-" + tag)
+            shutil.rmtree(obj)
+            entry = product / ("Host.dll" if backend == "jit" else "Host")
+            REPORT["entries"].append({"path": str(entry.relative_to(OUT)),
+                "sha256": hashlib.sha256(entry.read_bytes()).hexdigest()})
+            for pic in ("1", "0"):
+                argv = ["dotnet", str(entry)] if backend == "jit" else [str(entry)]
+                stdout = run(argv, f"run-{tag}-pic{pic}", {"RYUPY_PIC": pic})
+                rows = [json.loads(line) for line in stdout.splitlines()]
+                assert len(rows) == 36
+                assert {(r["batch"], r["arm"]) for r in rows} == {
+                    (b, a) for b in range(2, 14) for a in ("late", "bound", "plan")}
+                for row in rows:
+                    assert row["count"] == 100000 and row["ms"] >= 0 and row["allocation"] >= 0
+                    REPORT["rows"].append(row | {"round": round_id, "backend": backend, "pic": pic})
+finally:
+    (OUT / "report.json").write_text(json.dumps(REPORT, ensure_ascii=False, indent=2))
