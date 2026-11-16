@@ -28,4 +28,5 @@ ADR-0216 在 `_install_importlib=0` 严格内核上补齐了纯 C UTF-8 codec �
 ## 边界与后果
 
 - C4-1 已在官方 CPython 3.12.13 外部源码构建上通过 `test_transform.py`（7 项）、`--transform-only`、符号核验、原 15 项基础探针、7 项新增扩展/CIL/并发/重入负例/`atexit` 探针，以及同一源码包构建的未修改 CPython 3.12.13 10 项 `--with-stock-diff` 对照测试（macOS 实测），临时构建目录已自动清理。
+- 后续回归修复（2026-11-16）：发现原 `ryupy_import_loaders.h` 核心方法采用 `METH_O` 会拒绝真实 CPython 3.12.13 合法的关键字参数调用（如 `BuiltinImporter.create_module(spec=...)`/`exec_module(module=...)`/`is_package(fullname=...)`/`get_code`/`get_source` 及 `ExtensionFileLoader`/`CilModuleLoader` 对应方法与 `get_filename(name=...)`）；现已将 Loader 家族按职责拆分为 `ryupy_import_{loader_common,loaders,ext_loader,cil_loader}.h`，全部方法统一收口至 `METH_VARARGS | METH_KEYWORDS` + `PyArg_ParseTupleAndKeywords`（保留 `BuiltinImporter` static/class 绑定、Ext/CIL 实例绑定及单事务与唯一执行体，准确拒绝缺失/重复/未知关键字），并通过严格内核 + `--with-stock-diff` 关键字正负例探针全量复验。
 - C4-2（host/C# 接入）为独立后续任务；多版本边界仍为 CPython 3.12.13，Windows 与 Linux 平台验证待办。

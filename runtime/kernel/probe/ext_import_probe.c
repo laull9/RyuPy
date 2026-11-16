@@ -12,6 +12,7 @@
  * 5. ext-atexit          : Py_FinalizeEx 期间在 atexit 回调内合法导入未加载过的 .so 扩展。
  */
 #include "probe_ext_common.h"
+#include "probe_loader_kw.h"
 #include <unistd.h>
 
 static int
@@ -72,6 +73,10 @@ mode_ext_basic_spec(const char *ext_dir)
     PyObject *builtin_is_pkg = PyObject_CallMethod(builtin_loader, "is_package", "s", "itertools");
     PROBE_CHECK(builtin_is_pkg == Py_False, "BuiltinImporter.is_package('itertools') != False");
     Py_XDECREF(builtin_is_pkg);
+    /* BuiltinImporter 真实关键字正/负例（覆盖 static/class 绑定与 TypeError 拒绝）。 */
+    if (probe_verify_builtin_loader_kw(builtin_loader, builtin_spec, builtin_mod, "itertools") != 0) {
+        return 1;
+    }
     Py_DECREF(builtin_loader);
     Py_DECREF(builtin_spec);
     Py_DECREF(builtin_mod);
@@ -119,6 +124,17 @@ mode_ext_basic_spec(const char *ext_dir)
     PyObject *icnt = PyObject_CallMethod(sp_cached, "init_count", NULL);
     PROBE_CHECK(icnt != NULL && PyLong_AsLong(icnt) == 1, "m_size=-1 must reuse extension cache");
     Py_DECREF(icnt);
+
+    /* ExtensionFileLoader 真实关键字正/负例（覆盖 create/exec/is_package/get_code/get_source/get_filename）。 */
+    PyObject *cached_spec = PyObject_GetAttrString(sp_cached, "__spec__");
+    PyObject *efl = cached_spec ? PyObject_GetAttrString(cached_spec, "loader") : NULL;
+    PROBE_CHECK(cached_spec != NULL && efl != NULL, "ext_sp_basic loader/spec");
+    if (probe_verify_ext_loader_kw(efl, cached_spec, sp_cached, "ext_sp_basic", expected_origin) != 0) {
+        return 1;
+    }
+    Py_DECREF(efl);
+    Py_DECREF(cached_spec);
+
     Py_DECREF(sp_cached);
     Py_DECREF(sp);
 

@@ -137,6 +137,16 @@ class TransformTests(unittest.TestCase):
         self.assertIn('#include "ryupy_import_abi.h"', RYUPY_KERNEL_HEADER.content)
         self.assertNotIn("pycore_lock.h", RYUPY_IMPORT_REGISTRY_HEADER.content)
         self.assertIn("package_dir", RYUPY_IMPORT_ABI_HEADER.content)
+        for rel in (
+            "Python/ryupy_import_loader_common.h",
+            "Python/ryupy_import_loaders.h",
+            "Python/ryupy_import_ext_loader.h",
+            "Python/ryupy_import_cil_loader.h",
+        ):
+            self.assertIn(rel, header_paths)
+        for h in build_import_router_headers():
+            if "loader" in h.rel_path:
+                self.assertNotIn("METH_O", h.content, f"{h.rel_path} 不得残留 METH_O")
 
     def test_ensure_outside_repo_rejects_repo_paths(self):
         with self.assertRaises(KernelBuildError):

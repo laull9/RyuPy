@@ -9,6 +9,7 @@
  *                         fromlist 跳过/穿透、atexit 合法导入后在 _PyImport_FiniCore 调用 cleanup。
  */
 #include "probe_ext_common.h"
+#include "probe_loader_kw.h"
 
 typedef struct {
     int create_calls;
@@ -447,6 +448,10 @@ mode_cil_mixed_callbacks(const char *ext_dir, CilMockState *st)
                     PyErr_ExceptionMatches(PyExc_NotImplementedError),
                 "CIL loader unpromised get_resource_reader must raise NotImplementedError");
     PyErr_Clear();
+    /* CilModuleLoader 本地 API 合同全关键字正/负例。 */
+    if (probe_verify_cil_loader_kw(pkg_loader, pkg_spec, pkg, "cil_pkg") != 0) {
+        return 1;
+    }
     Py_DECREF(pkg_loader);
     Py_DECREF(pkg_spec);
     PyObject *csub = PyObject_GetAttrString(pkg, "c_sub");

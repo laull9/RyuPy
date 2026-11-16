@@ -2,7 +2,8 @@
 
 本模块定义 C4-1 导入子系统所需的新增头文件集合与精确源码锚点（与
 `anchors_eval_import.py` 协同接入 `transform.py`）：
-1. 注入 `Include/ryupy_import_abi.h` 与 `Python/ryupy_import_{registry,loaders,helpers,router,api_impl}.h`、
+1. 注入 `Include/ryupy_import_abi.h` 与
+   `Python/ryupy_import_{registry,loader_common,loaders,ext_loader,cil_loader,helpers,router,api_impl}.h`、
    `Python/ryupy_module_spec.h`。
 2. `Include/internal/pycore_import.h`：保持 `struct _import_state` 与 `PyInterpreterState`
    既有布局零改动，仅声明 `_PyImport_RyuPyModuleRepr`。
@@ -39,9 +40,21 @@ RYUPY_MODULE_SPEC_HEADER = NewHeaderFile(
     rel_path="Python/ryupy_module_spec.h",
     content=_load_kernel_header("ryupy_module_spec.h"),
 )
+RYUPY_IMPORT_LOADER_COMMON_HEADER = NewHeaderFile(
+    rel_path="Python/ryupy_import_loader_common.h",
+    content=_load_kernel_header("ryupy_import_loader_common.h"),
+)
 RYUPY_IMPORT_LOADERS_HEADER = NewHeaderFile(
     rel_path="Python/ryupy_import_loaders.h",
     content=_load_kernel_header("ryupy_import_loaders.h"),
+)
+RYUPY_IMPORT_EXT_LOADER_HEADER = NewHeaderFile(
+    rel_path="Python/ryupy_import_ext_loader.h",
+    content=_load_kernel_header("ryupy_import_ext_loader.h"),
+)
+RYUPY_IMPORT_CIL_LOADER_HEADER = NewHeaderFile(
+    rel_path="Python/ryupy_import_cil_loader.h",
+    content=_load_kernel_header("ryupy_import_cil_loader.h"),
 )
 RYUPY_IMPORT_HELPERS_HEADER = NewHeaderFile(
     rel_path="Python/ryupy_import_helpers.h",
@@ -64,7 +77,10 @@ def build_import_router_headers() -> list[NewHeaderFile]:
         RYUPY_IMPORT_REGISTRY_HEADER,
         RYUPY_MODULE_LOCKS_HEADER,
         RYUPY_MODULE_SPEC_HEADER,
+        RYUPY_IMPORT_LOADER_COMMON_HEADER,
         RYUPY_IMPORT_LOADERS_HEADER,
+        RYUPY_IMPORT_EXT_LOADER_HEADER,
+        RYUPY_IMPORT_CIL_LOADER_HEADER,
         RYUPY_IMPORT_HELPERS_HEADER,
         RYUPY_IMPORT_ROUTER_HEADER,
         RYUPY_IMPORT_API_IMPL_HEADER,
