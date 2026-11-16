@@ -6,12 +6,12 @@ public static partial class PyOps
     /// <summary>历史捕获判据ABI；名称并非Python模块类型测试。</summary>
     public static bool IsModule(object? receiver) => RequiresEarlyMethodCapture(receiver);
 
-    /// <summary>哪些接收者必须在实参前固定属性目标；不扩普通实例的既有调用域。</summary>
+    /// <summary>哪些接收者必须在实参前固定属性目标；普通实例也必须保留Python求值顺序。</summary>
     public static bool RequiresEarlyMethodCapture(object? receiver)
     {
         // PyList为sealed精确载体；普通list不需捕获，避免逐个探测新增冷布局。
         if (receiver is PyList or PyDict) return false;
-        return receiver is PyModule or PySuper or PyNamedTupleInstance or PyStringInstance or PyListInstance or PyDictInstance
+        return receiver is PyInstance or PyModule or PySuper or PyNamedTupleInstance or PyStringInstance or PyListInstance or PyDictInstance
             || receiver is PyClass { NamedTupleLayout: not null } or PyClass { HasListLayout: true } or PyClass { HasDictLayout: true }
             || receiver is PyType type && (ReferenceEquals(type, PyType.Get("list")) || ReferenceEquals(type, PyType.Get("dict")));
     }
@@ -23,6 +23,8 @@ public static partial class PyOps
     public static object? CaptureMethodTarget(object? receiver, string name)
     {
         if (!RequiresEarlyMethodCapture(receiver)) return receiver;
+        // 普通实例的查找错误在自造点准备，不广catch用户getter/__getattr__。
+        if (receiver is PyInstance instance) return PyObject.CaptureInstanceMethod(instance, name);
         // 字符串子类property/__getattr__的用户正文不广catch；查找自身的错误在自造点准备。
         if (receiver is PySuper or PyStringInstance or PyListInstance or PyDictInstance or PyClass { HasListLayout: true } or PyClass { HasDictLayout: true }
             || receiver is PyType type && (ReferenceEquals(type, PyType.Get("list")) || ReferenceEquals(type, PyType.Get("dict"))))

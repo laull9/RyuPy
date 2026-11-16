@@ -387,7 +387,11 @@ public static partial class PyObject
     };
 
     /// <summary>读取实例属性。</summary>
-    private static object? GetInstanceAttr(PyInstance instance, string name)
+    // 编译方法捕获须在实参前完成属性查找；只给查找自身构造的错误补充调用现场。
+    internal static object? CaptureInstanceMethod(PyInstance instance, string name) =>
+        GetInstanceAttr(instance, name, prepareMissing: true);
+
+    private static object? GetInstanceAttr(PyInstance instance, string name, bool prepareMissing = false)
     {
         instance.Class.RequireLexicalFactoryReady();
         if (instance.ForeignInstance is { } foreignInstance) return GetAttr(foreignInstance, name);
@@ -410,14 +414,19 @@ public static partial class PyObject
         {
             if (property.Getter is null)
             {
-                throw InstanceAttributeError(instance, $"property '{name}' of '{instance.Class.Name}' object has no getter");
+                throw InstanceAttributeError(instance, $"property '{name}' of '{instance.Class.Name}' object has no getter", prepareMissing);
             }
             return InvokeBound(property.Getter, dataOwner, instance, [], [], []);
         }
         if (instance.Class.HasSlotLayout)
         {
-            if (instance.Class.TryLookup(name, out _, out object? fixedRaw) && fixedRaw is PyInstanceSlotDescriptor fixedSlot) return fixedSlot.Read(instance);
-            if (name == "__dict__") return instance.SlotDictionary;
+            if (instance.Class.TryLookup(name, out _, out object? fixedRaw) && fixedRaw is PyInstanceSlotDescriptor fixedSlot) return fixedSlot.Read(instance, prepareMissing);
+            if (name == "__dict__")
+            {
+                if (!instance.Class.HasInstanceDictionary)
+                    throw InstanceAttributeError(instance, $"'{instance.Class.Name}' object has no attribute '__dict__'", prepareMissing);
+                return instance.SlotDictionary;
+            }
         }
         // 2. 实例属性权威：旧数组槽或新族真实dict。
         if (instance.TryOwnAttribute(name, out object? value))
@@ -448,15 +457,15 @@ public static partial class PyObject
             );
         }
         throw InstanceAttributeError(instance,
-            $"'{(instance.Class.IsTypingGenericRoot ? "typing.Generic" : instance.Class.Name)}' object has no attribute '{name}'"
+            $"'{(instance.Class.IsTypingGenericRoot ? "typing.Generic" : instance.Class.Name)}' object has no attribute '{name}'", prepareMissing
         );
     }
 
-    // 仅实例查找自身的新错误；str子类提前捕获不包住用户getter，普通实例错误路径不变。
-    private static PyAttributeError InstanceAttributeError(PyInstance instance, string message)
+    // 仅准备查找自身的新错误；不包住用户getter，普通直接GetAttr保留既有错误路径。
+    private static PyAttributeError InstanceAttributeError(PyInstance instance, string message, bool prepareMissing = false)
     {
         var error = new PyAttributeError(message);
-        if (instance is PyStringInstance or PyListInstance or PyDictInstance) PyErrors.PrepareRaise(error);
+        if (prepareMissing || instance is PyStringInstance or PyListInstance or PyDictInstance) PyErrors.PrepareRaise(error);
         return error;
     }
 

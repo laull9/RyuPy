@@ -148,7 +148,7 @@ public sealed class PyExplicitSuperTests
         root.SetAttr("f", 42L);
         Assert.Equal(42L, PyOps.CaptureMethodTarget(proxy, "f"));
         Assert.Throws<PyTypeError>(() => PyPic.CallCapturedMethod0(1772, true, 42L, "f"));
-        Assert.False(PyOps.RequiresEarlyMethodCapture(self));
-        Assert.Same(self, PyOps.CaptureMethodTarget(self, "missing"));
+        Assert.True(PyOps.RequiresEarlyMethodCapture(self));
+        Assert.Throws<PyAttributeError>(() => PyOps.CaptureMethodTarget(self, "missing"));
     }
 }

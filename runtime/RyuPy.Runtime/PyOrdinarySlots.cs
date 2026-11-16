@@ -102,11 +102,13 @@ internal sealed class PyInstanceSlotDescriptor(PyClass owner, string name) : PyN
     public object? Bind(PyClass definingClass, object? self) => self is null or PyNone ? this : Read(self);
     private PyInstance Receiver(object? self) => self is PyInstance instance && instance.Class.IsSubclassOf(owner)
         ? instance : throw new PyTypeError($"descriptor '{name}' for '{owner.Name}' objects does not apply to this object");
-    internal object? Read(object? self)
+    internal object? Read(object? self, bool prepareMissing = false)
     {
         PyInstance instance = Receiver(self);
         if (instance.Class.TryGetInstanceSlot(name, out int slot) && instance.TryGetSlot(slot, out object? value)) return value;
-        throw new PyAttributeError($"'{instance.Class.Name}' object has no attribute '{name}'");
+        var error = new PyAttributeError($"'{instance.Class.Name}' object has no attribute '{name}'");
+        if (prepareMissing) PyErrors.PrepareRaise(error);
+        throw error;
     }
     internal void Write(object? self, object? value)
     {

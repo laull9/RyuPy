@@ -16,12 +16,14 @@ public class PyModuleMethodCaptureTests
     }
 
     [Fact]
-    public void NonModulesKeepIdentityWithoutLookingUpAnAttribute()
+    public void NonCapturedReceiversKeepIdentityWithoutLookingUpAnAttribute()
     {
         var list = new PyList([]);
         var cls = Assert.IsType<PyClass>(PyOps.MakeClass("CaptureOrdinary", [], null));
         var instance = Assert.IsType<PyInstance>(cls.Invoke([], [], []));
-        foreach (object? value in new object?[] { null, PyNone.Instance, list, cls, instance, "text", 42L })
+        Assert.True(PyOps.IsModule(instance));
+        Assert.Throws<PyAttributeError>(() => PyOps.CaptureModuleTarget(instance, "missing"));
+        foreach (object? value in new object?[] { null, PyNone.Instance, list, cls, "text", 42L })
             {
             Assert.False(PyOps.IsModule(value));
             Assert.Same(value, PyOps.CaptureModuleTarget(value, "missing"));
@@ -132,9 +134,10 @@ public class PyModuleMethodCaptureTests
         cls.SetAttr("method", PyNativeFunctions.Create("method", ["self", "a", "b", "c"],
             [null, 0L, 0L, 0L], 1, _ => marker));
         var instance = Assert.IsType<PyInstance>(cls.Invoke([], [], []));
-        bool captured = PyOps.IsModule(instance);
-        object? target = PyOps.CaptureModuleTarget(instance, "method");
-        Assert.False(captured); Assert.Same(instance, target);
+        // 历史PE可传显式false；保留直接PIC协议测试，编译器新捕获判据另测。
+        bool captured = false;
+        object? target = instance;
+        Assert.True(PyOps.IsModule(instance));
         for (int repeat = 0; repeat < 3; repeat++)
         {
             Assert.Same(marker, PyPic.CallCapturedMethod0(3915, captured, target, "method"));

@@ -25,14 +25,14 @@ public sealed class PyStringCaptureTests
     }
 
     [Fact]
-    public void OnlyRealStringInstancesJoinTheExistingCaptureDomain()
+    public void ExactBuiltinsAndClassesRemainOutsideInstanceCaptureDomain()
     {
         PyClass cls = TextClass(); object text = Text(cls);
         Assert.True(PyOps.IsModule(text));
         Assert.Same(text, PyObject.GetAttr(PyOps.CaptureModuleTarget(text, "startswith"), "__self__"));
         foreach (object ordinary in new object[]
         {
-            "abc", new PyInstance(new PyClass("Plain")), cls, new PyClass("Other"),
+            "abc", cls, new PyClass("Other"),
             new PyList([]), new PyTuple([]), new PyBytes([]), new PyByteArray([]),
         })
         {
@@ -125,7 +125,7 @@ public sealed class PyStringCaptureTests
                 Assert.Equal(new PyStackFrame("capture_test.py", "caller", 93), error.Frames[0]);
             }
             Assert.Equal(0, arguments);
-            // 普通实例保持false捕获及原自造错误路径，不顺手给它新增异常准备。
+            // 普通实例直接GetAttr仍保原自造错误路径；方法捕获在独立入口准备错误。
             var ordinary = new PyInstance(new PyClass("Plain"));
             var original = Assert.Throws<PyAttributeError>(() => PyObject.GetAttr(ordinary, "missing"));
             Assert.Empty(original.Frames); Assert.Null(original.Context);
