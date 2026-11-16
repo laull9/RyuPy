@@ -1,5 +1,10 @@
 # 随包 libpython 宿主与通用对象桥
 
+> **2026-11-16 长期归属更新（规划）**：按 [ADR-0208](adr/0208-cil-execution-libpython-kernel.md)
+> 和[全 CIL 路线](cil-execution-roadmap.md)，所有 Python 函数体将进入 CIL，libpython 仅保留
+> 底层 ABI 与原生扩展能力。当前源码委派、Python helper 与解释执行路径作为过渡兼容能力
+> 维持回归；C0–C5 完成后按独立准入切换默认并删除。当前实现与历史证据继续按下文记录。
+
 > 2026-11-13 依据 [ADR-0181](adr/0181-cpython-provider-first.md) 开始实施。
 > 随包宿主、对象桥、显式provider与分发计划已接入；macOS arm64试点已通过21项完整编译应用门。
 > 手写探针、固定发行与重跑入口见 [验收驱动](../tests/cpython/README.md)。

@@ -1,5 +1,9 @@
 # 语言子集与语义规范
 
+> **全 CIL 语义迁移规划（2026-11-16）**：协程、动态对象和反射后续由 CIL/Runtime 承接，
+> libpython 仅保留底层能力。详见[分阶段合同](cil-execution-roadmap.md)。新语义尚未实施；
+> 已有支持项、pending 和偏差保持现状，逐 API 同次 CPython 验收后再更新本规范。
+
 > **CPython provider试点（2026-11-13）**：固定3.12.13/PBS20260623，显式provider在macOS arm64
 > 已通过21项CP/JIT与NativeAOT/搬迁、原联合应用和六项C#生命周期模式。API与冻结快照范围见
 > [验收驱动](../tests/cpython/README.md)。真实错版本ABI、handled异常双向状态、混合栈无陈旧帧均通过；

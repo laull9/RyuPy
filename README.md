@@ -3,6 +3,9 @@
 将Python项目编译为.NET CIL及NativeAOT独立应用。编译器用Rust编写，运行时用C#编写，
 兼容模式复用随包CPython标准库与第三方扩展；本地应用模块进入CIL编译链。
 
+长期方向已规划为[全 CIL 执行与 libpython 底层化](docs/cil-execution-roadmap.md)：
+全部 Python 函数体进入 CIL，内部 Python 胶水逐步移除；C0–C5 尚待实施，当前兼容模式继续维护。
+
 ## 使用
 
 RyuPy CLI本身是一个文件，C#运行时、互操作桥、SQLite依赖、许可证和shim源码均内嵌。

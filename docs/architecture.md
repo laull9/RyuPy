@@ -3,10 +3,16 @@
 > 本文描述**当前代码的实际分层**以及每层的职责边界。愿景与阶段规划见 [roadmap.md](roadmap.md)；
 > 关键取舍见 [adr/](adr/)；Python 语义细节见 [semantics.md](semantics.md)。
 
+> **2026-11-16 目标架构规划**：全部 Python 函数体编译为 CIL，libpython 收敛到底层
+> 对象 ABI 与原生扩展能力；内部 Python 胶水、反射、协程及导入协议逐步迁入 CIL/Runtime。
+> 见[目标分层与 C0–C5](cil-execution-roadmap.md)、[ADR-0208](adr/0208-cil-execution-libpython-kernel.md)。
+> 本次仅登记规划，现有实现仍包含 CPython 执行域。下列依赖与互操作分层约束继续有效；
+> 执行归属由 driver 冻结，异步/语言语义在 HIR/MIR 显式化，codegen 仅发射已确定操作。
+
 > **2026-11-13 已接入的试点架构**：当前crate分层继续有效；随包 libpython 宿主与通用对象桥
 > 见 [cpython-provider.md](cpython-provider.md)。`RyuPy.CPython` 封装 C API、GIL、句柄、
 > 静态回调与确定释放，Runtime提供中性对象/provider合同，driver管理显式归属与分发闭包。
-> 标准库和扩展优先由CPython provider承接，typed CIL快路保留；下方总览保留编译流水线。
+> 现有兼容模式由CPython provider承接标准库和扩展，typed CIL快路保留；长期迁移顺序见上方规划。
 
 ## 1. 总览
 

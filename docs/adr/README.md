@@ -3,6 +3,9 @@
 最新仓库规则：[ADR-0182：源码仓库与即时 CPython 比较](0182-source-only-test-oracles.md)。
 旧文档的生成 golden、快照和原始结果保留约定由此替换。
 
+最新长期方向：[ADR-0208：全 CIL 执行与 libpython 底层化](0208-cil-execution-libpython-kernel.md)
+（方向已接受，C0–C5 实施与验收待启动）；详细执行顺序见[实施路线](../cil-execution-roadmap.md)。
+
 每篇 ADR 记录一个**有取舍的决定**：当时的背景、考虑过的方案、最终选择及其代价。
 ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把旧的状态改为「已被 ADR-XXXX 取代」。
 
@@ -64,7 +67,8 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 
 | ADR | 主题 | 状态 |
 | --- | --- | --- |
-| [0181](0181-cpython-provider-first.md) | 随包 CPython provider、通用对象桥与实测热点优化 | 方向已接受，实现待启动；更新 0009/0172 排期 |
+| [0208](0208-cil-execution-libpython-kernel.md) | 全 CIL 执行、移除 Python 胶水与 libpython 底层化 | 方向已接受，C0–C5 实施待启动 |
+| [0181](0181-cpython-provider-first.md) | 随包 CPython provider、通用对象桥与实测热点优化 | 既有宿主/分发资产保留；长期执行归属由 0208 接续 |
 
 ## 模板
 
