@@ -242,7 +242,42 @@ def build_and_verify(args: argparse.Namespace) -> None:
                 )
             print(f"[probe:{mode}] {proc.stdout.strip()}")
 
-        print(f"[kernel] 全部构建、符号核验与 4 项手写 C 探针通过（前缀：{prefix_dir}）")
+        # 单独的负例进程覆盖曾经崩溃的公开入口、PEP 523 分派与 throw 异常保留。
+        guard_bin = workdir / "import_guard_probe"
+        guard_command = compile_cmd.copy()
+        guard_command[guard_command.index(str(PROBE_SRC))] = str(KERNEL_DIR / "probe/import_guard_probe.c")
+        guard_command[-1] = str(guard_bin)
+        run_logged(guard_command, cwd=workdir, env=env,
+                   log_file=logs_dir / "guard_cc.log", step="编译内核拒绝边界探针")
+        for mode in ("magic", "exec-paths", "exec-object", "repr", "custom-eval", "throw-context"):
+            proc = subprocess.run([str(guard_bin), str(prefix_dir), mode], cwd=workdir, env=env,
+                                  capture_output=True, text=True, check=False, timeout=30)
+            if proc.returncode != 0:
+                raise KernelBuildError(f"拒绝边界探针 [{mode}] 失败：{proc.returncode}\n{proc.stdout}\n{proc.stderr}")
+            print(f"[guard:{mode}] {proc.stdout.strip()}")
+
+        # 纯 C UTF-8 CodecInfo 与 _io 标准流全覆盖探针。
+        for probe_name, probe_file, modes in (
+            ("stdio_codecs_probe", "probe/stdio_codecs_probe.c", ("codecs-utf8", "stdio-streams")),
+            ("stdio_edge_probe", "probe/stdio_edge_probe.c", ("stdio-closefd", "stdio-bad-fd", "stdio-bad-config")),
+        ):
+            bin_path = workdir / probe_name
+            cmd = compile_cmd.copy()
+            cmd[cmd.index(str(PROBE_SRC))] = str(KERNEL_DIR / probe_file)
+            cmd[-1] = str(bin_path)
+            run_logged(cmd, cwd=workdir, env=env, log_file=logs_dir / f"{probe_name}_cc.log",
+                       step=f"编译 {probe_name}")
+            for mode in modes:
+                proc = subprocess.run([str(bin_path), str(prefix_dir), mode], cwd=workdir, env=env,
+                                      capture_output=True, text=True, check=False, timeout=30)
+                if proc.returncode != 0:
+                    raise KernelBuildError(
+                        f"stdio/codecs 探针 [{mode}] 失败（exit={proc.returncode}）：\n"
+                        f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+                    )
+                print(f"[{probe_name}:{mode}] {proc.stdout.strip()}")
+
+        print(f"[kernel] 全部构建、符号核验与 15 项手写 C 探针通过（前缀：{prefix_dir}）")
     finally:
         if args.keep:
             print(f"[kernel] 已按 --keep 保留仓库外临时目录：{workdir}")

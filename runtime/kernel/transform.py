@@ -43,15 +43,23 @@ def build_anchors() -> list[AnchorEdit]:
     """汇总 CPython 3.12.13 严格零字节码内核所需的全部精确锚点。"""
     from anchors_eval_import import build_eval_import_anchors
     from anchors_frozen_build import build_frozen_build_anchors
+    from anchors_guards import build_guard_anchors
+    from anchors_stdio_codecs import build_stdio_codecs_anchors
 
-    return build_eval_import_anchors() + build_frozen_build_anchors()
+    return (
+        build_eval_import_anchors()
+        + build_frozen_build_anchors()
+        + build_guard_anchors()
+        + build_stdio_codecs_anchors()
+    )
 
 
 def default_headers() -> list[NewHeaderFile]:
     """返回需要写入 CPython 源码树的新增头文件清单。"""
     from anchors_eval_import import RYUPY_KERNEL_HEADER
+    from anchors_stdio_codecs import RYUPY_UTF8_CODEC_HEADER, RYUPY_UTF8_INCREMENTAL_HEADER
 
-    return [RYUPY_KERNEL_HEADER]
+    return [RYUPY_KERNEL_HEADER, RYUPY_UTF8_CODEC_HEADER, RYUPY_UTF8_INCREMENTAL_HEADER]
 
 
 def apply_anchors(
