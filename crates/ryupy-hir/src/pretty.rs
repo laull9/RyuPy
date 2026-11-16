@@ -394,6 +394,7 @@ pub(crate) fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String
             dump_expr(module, body, *fallback)
         ),
         ExprKind::ClassLocal(name) => format!("class_namespace.{name}"),
+        ExprKind::Await(value) => format!("await {}", dump_expr(module, body, *value)),
         ExprKind::YieldFrom(value) => format!("yield from {}", dump_expr(module, body, *value)),
         ExprKind::Yield(value) => format!(
             "(yield {})",

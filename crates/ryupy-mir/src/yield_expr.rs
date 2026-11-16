@@ -33,15 +33,20 @@ impl ExprBuilder<'_> {
 impl ExprBuilder<'_> {
     /// yield-from是显式委托循环，终值与每次yield分开；异常转发由帧输入协议完成。
     pub(crate) fn build_yield_from(&mut self, expression: ExprId) -> Operand {
+        self.build_delegation(expression, RuntimeFn::GeneratorDelegateStart)
+    }
+
+    /// await 复用显式暂停CFG，但入口只接受 awaitable 协议。
+    pub(crate) fn build_await(&mut self, expression: ExprId) -> Operand {
+        self.build_delegation(expression, RuntimeFn::CoroutineAwaitStart)
+    }
+
+    fn build_delegation(&mut self, expression: ExprId, start: RuntimeFn) -> Operand {
         use crate::mir::{Rvalue, Statement};
         let source = self.build_expr(expression);
         let ty = self.ty_of(expression);
         let source = self.coerce(source, &ty, &MirType::Dynamic);
-        let delegate = self.runtime_call(
-            RuntimeFn::GeneratorDelegateStart,
-            vec![source],
-            MirType::Dynamic,
-        );
+        let delegate = self.runtime_call(start, vec![source], MirType::Dynamic);
         let step = self.blocks.alloc(BasicBlock {
             stmts: vec![],
             terminator: Terminator::Unreachable,

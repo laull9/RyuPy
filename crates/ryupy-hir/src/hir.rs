@@ -109,8 +109,10 @@ pub struct Function {
     /// 由 `closures.rs` 在 lowering 之前分析整个 AST 填写；对顶层函数
     /// `free` / `cells` 通常为空，`has_nested` 标记体内是否有嵌套 def / lambda。
     pub closure: ClosureInfo,
-    /// 当前函数体含 yield（包括不可达分支），调用先返回生成器而非执行体。
+    /// 需要惰性显式状态机：含 yield（包括不可达分支）或 async def；具体协议由 is_coroutine 区分。
     pub is_generator: bool,
+    /// async def 的独立协程身份；同时使用生成器式显式状态机。
+    pub is_coroutine: bool,
     /// 首条字符串语句的文档内容；没有文档时为 None。
     pub docstring: Option<String>,
     /// 定义位置求值的真实注解对象，与静态类型线索分开保存。
@@ -258,6 +260,8 @@ pub enum ExprKind {
     /// 暂停并在恢复后得到 send 的值；next 对应 None。
     Yield(Option<ExprId>),
     YieldFrom(ExprId),
+    /// await 明确保留，不能按普通调用或 yield-from 源码语义处理。
+    Await(ExprId),
     /// 错误恢复占位：对应的错误已经报过，下游静默跳过。
     Missing,
     /// 降级期临时名称，模块完成前必须统一登记并替换为 ModuleVar。

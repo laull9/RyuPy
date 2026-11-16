@@ -43,7 +43,8 @@ pub(crate) fn safe_uses(function: &Function, facts: &TypeckResults) -> bool {
             | ExprKind::ContextMethod { base: operand, .. }
             | ExprKind::Attribute { base: operand, .. }
             | ExprKind::Starred(operand)
-            | ExprKind::YieldFrom(operand) => vec![*operand],
+            | ExprKind::YieldFrom(operand)
+            | ExprKind::Await(operand) => vec![*operand],
             ExprKind::Binary { lhs, rhs, .. }
             | ExprKind::Compare { lhs, rhs, .. }
             | ExprKind::BoolOp { lhs, rhs, .. } => vec![*lhs, *rhs],

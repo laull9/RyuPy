@@ -45,6 +45,9 @@ impl<'a> ExprLowerCtx<'a> {
     pub fn lower_expr(&mut self, expr: &ast::Expr) -> ExprId {
         let range = expr.range();
         let kind = match expr {
+            ast::Expr::Await(value) if cfg!(feature = "native-coroutines") => {
+                ExprKind::Await(self.lower_expr(&value.value))
+            }
             ast::Expr::Yield(value) => {
                 if self.allow_yield {
                     ExprKind::Yield(value.value.as_deref().map(|value| self.lower_expr(value)))

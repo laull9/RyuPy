@@ -20,7 +20,9 @@ pub(super) fn fixed_abi(callee: RuntimeFn) -> bool {
     }
     matches!(
         callee,
-        RuntimeFn::MakeComprehensionList
+        RuntimeFn::CoroutineCreate
+            | RuntimeFn::CoroutineAwaitStart
+            | RuntimeFn::MakeComprehensionList
             | RuntimeFn::IsEnumerateIterator
             | RuntimeFn::EnumerateCurrentIndex
             | RuntimeFn::EnumerateCurrentValue
@@ -168,7 +170,9 @@ pub(super) fn validate_call(
                 MirType::Dynamic,
                 MirType::Dynamic,
             ]),
-            RuntimeFn::MakeComprehensionList
+            RuntimeFn::CoroutineCreate
+            | RuntimeFn::CoroutineAwaitStart
+            | RuntimeFn::MakeComprehensionList
             | RuntimeFn::IsEnumerateIterator
             | RuntimeFn::EnumerateCurrentIndex
             | RuntimeFn::EnumerateCurrentValue
@@ -370,7 +374,9 @@ pub(super) fn validate_destination(
             RuntimeFn::IsEnumerateIterator
             | RuntimeFn::GeneratorSumTryConsume
             | RuntimeFn::GeneratorSumRangeGuard => Some(MirType::Bool),
-            RuntimeFn::MakeComprehensionList
+            RuntimeFn::CoroutineCreate
+            | RuntimeFn::CoroutineAwaitStart
+            | RuntimeFn::MakeComprehensionList
             | RuntimeFn::EnumerateCurrentIndex
             | RuntimeFn::EnumerateCurrentValue => Some(MirType::Dynamic),
             RuntimeFn::GeneratorStateGetPC => Some(MirType::I64),

@@ -132,6 +132,8 @@ static managed_call dispatch;
 static PyTypeObject *managed_type;
 static PyThreadState *initial_thread;
 static char init_error[4096];
+#include "execution_audit.h"
+#include "method_descriptor.h"
 
 /* 回调失败必须已设置Python异常，绝不能让托管异常穿过C栈。 */
 static PyObject *forward(Managed *self, int op, PyObject *a, PyObject *b, PyObject *c, int64_t n, const char *s) {
@@ -277,7 +279,10 @@ API int rp_gil(void) { return (int)PyGILState_Ensure(); }
 API void rp_gil_release(int state) { PyGILState_Release((PyGILState_STATE)state); }
 API int rp_stop(void) {
     PyEval_RestoreThread(initial_thread); initial_thread = NULL;
+    rp_execution_audit_phase(2);
+    Py_CLEAR(native_method_type);
     int result = Py_FinalizeEx();
+    audit_finalized = audit_enabled;
     managed_type = NULL;
     return result;
 }

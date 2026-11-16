@@ -166,3 +166,6 @@ mod lexical_class_boundary_tests;
 mod direct_globals_tests;
 
 mod direct_globals;
+
+#[cfg(test)]
+mod coroutine_tests;

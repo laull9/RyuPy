@@ -249,6 +249,7 @@ fn register_discovered(
             range,
             closure: ClosureInfo::default(),
             is_generator: false,
+            is_coroutine: false,
             docstring: None,
             annotation_values: Vec::new(),
         });

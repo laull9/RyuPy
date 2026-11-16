@@ -25,6 +25,8 @@ public sealed partial class PyGenerator : IPyIterator
     private object? _current;
     private bool _running;
     private bool _started;
+    // 协程包装仅改变自身 PEP 479 的语言名称，子委托错误保持原来源。
+    internal bool IsCoroutine { private get; set; }
     private readonly PyExceptionContext _contextRoot = new(null, null);
     private PyExceptionContext? _context;
 
@@ -57,6 +59,9 @@ public sealed partial class PyGenerator : IPyIterator
         _origin = origin;
         _context = _contextRoot;
     }
+
+    // 原生协程包装器据真实帧生命周期判断复用，错误发送不能提前关闭。
+    internal bool IsClosed => _frame is null && _state is null;
 
     /// <summary>执行到下一个 yield 或完成；None 是合法产出，不是耗尽哨兵。</summary>
     public bool MoveNext() => MoveNextCore(PyNone.Instance, out _);
@@ -124,7 +129,7 @@ public sealed partial class PyGenerator : IPyIterator
         {
             // PEP 479：函数体泄漏的 StopIteration 是错误，不能假装正常耗尽。
             PyErrors.PrepareRaise(stop);
-            var error = new PyRuntimeError("generator raised StopIteration").WithCause(stop);
+            var error = new PyRuntimeError(IsCoroutine ? "coroutine raised StopIteration" : "generator raised StopIteration").WithCause(stop);
             error.Context = stop;
             PyTraceback.Attach(error);
             Finish();
@@ -200,7 +205,7 @@ public sealed partial class PyGenerator : IPyIterator
         }
         catch (PyGeneratorExit) { return PyNone.Instance; }
         // 此错误属于 close 协议，不是函数体错误，不能走 Finish 丢失暂停点。
-        throw new PyRuntimeError("generator ignored GeneratorExit");
+        throw new PyRuntimeError(IsCoroutine ? "coroutine ignored GeneratorExit" : "generator ignored GeneratorExit");
     }
 
     private static PyBaseException NormalizeThrown(object? exception)

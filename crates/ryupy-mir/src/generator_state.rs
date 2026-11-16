@@ -319,5 +319,6 @@ pub(crate) fn build_program(
     crate::generators::lower(&mut program, &fallback, &deferred.exceptions);
     #[cfg(feature = "generator-sum-experiment")]
     crate::generator_sum_emit::finish(&mut program, prepared);
+    crate::coroutines::wrap_factories(&mut program, &deferred.coroutines);
     (program, exports, diagnostics)
 }

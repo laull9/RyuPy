@@ -31,6 +31,7 @@ pub fn check_module(module: &Module) -> (ModuleTypes, Vec<Diagnostic>) {
         modes.insert(func_id, crate::initial_mode::initial_mode(module, func));
     }
     crate::runtime_function_modes::apply(module, &mut modes);
+    crate::default_reflection_modes::apply(module, &mut modes);
 
     // 模块级变量的槽位类型只依赖 HIR 结构，先算好供所有轮次复用。
     let module_vars = crate::module_vars::infer_module_var_types(module);
@@ -232,7 +233,9 @@ fn expr_children(kind: &ExprKind) -> Vec<ExprId> {
         ExprKind::Slice { start, stop, step } => {
             [*start, *stop, *step].into_iter().flatten().collect()
         }
-        ExprKind::Starred(inner) | ExprKind::YieldFrom(inner) => vec![*inner],
+        ExprKind::Starred(inner) | ExprKind::YieldFrom(inner) | ExprKind::Await(inner) => {
+            vec![*inner]
+        }
         ExprKind::Yield(value) => value.iter().copied().collect(),
         _ => Vec::new(),
     }
@@ -562,7 +565,8 @@ impl FunctionChecker<'_> {
             | ExprKind::Slice { .. }
             | ExprKind::Starred(_)
             | ExprKind::Yield(_)
-            | ExprKind::YieldFrom(_) => {
+            | ExprKind::YieldFrom(_)
+            | ExprKind::Await(_) => {
                 for child in expr_children(&expr.kind) {
                     self.check_expr(child);
                 }

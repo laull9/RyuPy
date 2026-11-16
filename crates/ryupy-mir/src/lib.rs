@@ -39,6 +39,8 @@ mod exact_types;
 pub mod expr_builder;
 mod expr_ops;
 mod expr_values;
+#[cfg(test)]
+mod function_defaults_tests;
 mod function_locals;
 mod function_module;
 #[cfg(test)]
@@ -279,3 +281,5 @@ mod records_increment_guard;
 mod records_increment_plan;
 #[cfg(feature = "records-increment-experiment")]
 pub use records_increment_guard::{RecordsIncrementExperiment, apply_records_increment_experiment};
+
+mod coroutines;

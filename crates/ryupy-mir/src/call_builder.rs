@@ -180,11 +180,12 @@ impl ExprBuilder<'_> {
             }
         }
 
-        // 缺少必需参数同样交给运行时（错误消息需要参数名与种类）
+        // 省略参数由当前函数对象绑定：默认tuple/dict可经任意别名修改或删除，
+        // 定义期的默认值不能证明本次调用仍有默认值。完整实参继续保留直调。
         for (index, param) in params.iter().enumerate() {
             let is_variadic =
                 matches!(param.kind, ParamKind::VarPositional | ParamKind::VarKeyword);
-            if !is_variadic && assigned[index].is_none() && param.default.is_none() {
+            if !is_variadic && assigned[index].is_none() {
                 return None;
             }
         }

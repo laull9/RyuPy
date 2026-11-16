@@ -148,6 +148,7 @@ impl<'a> ExprBuilder<'a> {
             ExprKind::Literal(lit) => self.build_literal(lit),
             ExprKind::Yield(value) => self.build_yield_expr(*value),
             ExprKind::YieldFrom(value) => self.build_yield_from(*value),
+            ExprKind::Await(value) => self.build_await(*value),
             ExprKind::ModuleVar(var) => self.build_module_name(*var),
             ExprKind::Local(loc) => {
                 let mir_local = self.local_map[loc];

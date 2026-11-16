@@ -1,20 +1,22 @@
 # TODO
 
-## 全 CIL 执行长期主线（2026-11-16，规划已登记）
+## 全 CIL 执行长期主线（2026-11-16，实施中）
 
 目标：应用、标准库和第三方 Python 函数体全部由 CIL 执行，libpython 仅保留底层
 对象 ABI 与原生扩展能力；移除内部 Python 胶水及最终产品的 Python 执行载荷。
 方向见 [ADR-0208](docs/adr/0208-cil-execution-libpython-kernel.md)，
-任务、边界与准入见[全 CIL 路线](docs/cil-execution-roadmap.md)。本节为新规划，实施尚未启动。
+任务、边界与准入见[全 CIL 路线](docs/cil-execution-roadmap.md)。
+实施分支为 `feat/adr0208-cil-execution`；主代理协调 Hydrogen、Flash 与三名 GPT-6.1 Sol。
+完成门按阶段独立验收，当前 C0 盘点、C1 基础槽候选及 C2/C3 首切并行开发。
 
 - [x] 写入目标、分层、C0–C5 顺序、防回退与旧路径退出规则；同步主文档。
-- [ ] **C0 首切：执行归属/启动链盘点与基线冻结**。登记源码/字节码入口、Python helper、
+- [~] **C0 首切：执行归属/启动链盘点与基线冻结**。登记源码/字节码入口、Python helper、
   C 扩展间接求值及 libpython frozen 启动/关闭链，明确严格内核方案和首个胶水替换边界。
-- [ ] **C1 内部零 Python 胶水**。CIL/静态 shim 接管导入、类构建、描述符与回调；
+- [~] **C1 内部零 Python 胶水**。CIL/静态 shim 接管导入、类构建、描述符与回调；
   保住身份、GIL、异常、关闭和原 SanBudget 路径，原生扩展 ABI 消费者逐项验证。
-- [ ] **C2 对象与高级反射**。生成签名/注解/闭包/来源元数据，补齐框架反射、元类及帧合同；
+- [~] **C2 对象与高级反射**。生成签名/注解/闭包/来源元数据，补齐框架反射、元类及帧合同；
   分离源码位置、资源根和用户数据根，替换随包 `.py` 锚点，明确原文查询边界。
-- [ ] **C3 异步 CIL 状态机**。实现 coroutine/awaitable、async with/for、异步生成器与所需
+- [~] **C3 异步 CIL 状态机**。实现 coroutine/awaitable、async with/for、异步生成器与所需
   事件循环，逐切验证取消、contextvars、异常/finally、任务身份和连接/事务清理。
 - [ ] **C4 完整 Python 闭包与底层 libpython**。编译 Python 标准库/框架/包装层，保留真实
   原生核心；启动、运行、关闭均零 CPython 字节码执行，产物无 `.py/.pyc` 或嵌入源码胶水。

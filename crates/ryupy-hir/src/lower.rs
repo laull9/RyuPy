@@ -185,6 +185,7 @@ pub fn lower_module_with_native_exceptions(
                         range: fn_def.range(),
                         closure: Default::default(),
                         is_generator: false,
+                        is_coroutine: false,
                         docstring: None,
                         annotation_values: Vec::new(),
                     });
@@ -223,6 +224,7 @@ pub fn lower_module_with_native_exceptions(
                     range: fn_def.range(),
                     closure: Default::default(),
                     is_generator: false,
+                    is_coroutine: false,
                     docstring: None,
                     annotation_values: Vec::new(),
                 });
@@ -250,6 +252,7 @@ pub fn lower_module_with_native_exceptions(
         range: parsed.module.range,
         closure: Default::default(),
         is_generator: false,
+        is_coroutine: false,
         docstring: None,
         annotation_values: Vec::new(),
     });
@@ -472,6 +475,22 @@ pub fn lower_module_with_native_exceptions(
         default_exprs: all_default_exprs,
     };
 
+    // await 的合法位置由 HIR 函数身份决定，不能让普通函数留下暂停边。
+    for (_, function) in module.functions.iter() {
+        if !function.is_coroutine {
+            for (_, expression) in function.body.exprs.iter() {
+                if matches!(expression.kind, crate::ExprKind::Await(_)) {
+                    diagnostics.push(
+                        Diagnostic::error(
+                            Span::new(parsed.file, expression.range),
+                            "await 只能出现在 async 函数体内",
+                        )
+                        .with_code("E0100"),
+                    );
+                }
+            }
+        }
+    }
     crate::unresolved_globals::resolve(&mut module);
     (module, diagnostics)
 }

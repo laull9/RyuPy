@@ -15,7 +15,6 @@ public sealed partial class CPythonHost
     private nint _objectInitFn;
     private nint _objectSetAttrFn;
     private nint _objectDelAttrFn;
-    private nint _superGetAttrFn;
     private nint _superCreateFn;
     private readonly Dictionary<PyClass, PythonObject> _mixinMirrors = new();
 
@@ -179,18 +178,18 @@ public sealed partial class CPythonHost
         EnsureClassBridgeHelpers();
         nint startPtr = ResolveBasePointer(start);
         nint receiverPtr = 0;
-        nint namePtr = 0;
+        nint superPtr = 0;
         try
         {
             receiverPtr = receiver is null ? Native.rp_none() : ToPython(receiver);
-            namePtr = ToPython(name);
-            return FromOwned(CallRawArgs(_superGetAttrFn, startPtr, receiverPtr, namePtr));
+            superPtr = CallSuperOwned(startPtr, receiverPtr);
+            return FromOwned(Native.rp_op(2, superPtr, s: name));
         }
         finally
         {
             Native.rp_decref(startPtr);
             if (receiverPtr != 0) Native.rp_decref(receiverPtr);
-            if (namePtr != 0) Native.rp_decref(namePtr);
+            if (superPtr != 0) Native.rp_decref(superPtr);
         }
     });
 
@@ -203,7 +202,7 @@ public sealed partial class CPythonHost
         try
         {
             receiverPtr = receiver is null ? Native.rp_none() : ToPython(receiver);
-            return FromOwned(CallRawArgs(_superCreateFn, startPtr, receiverPtr));
+            return FromOwned(CallSuperOwned(startPtr, receiverPtr));
         }
         finally
         {
@@ -211,6 +210,12 @@ public sealed partial class CPythonHost
             if (receiverPtr != 0) Native.rp_decref(receiverPtr);
         }
     });
+
+    // 零参 super 的词法类与接收者已经由托管 PyMethodContext 冻结。
+    // 显式调用真实 PySuper_Type，None 接收者沿旧合同建立单参未绑定代理。
+    private nint CallSuperOwned(nint start, nint receiver) => Native.rp_is_none(receiver) != 0
+        ? CallRawArgs(_superCreateFn, start)
+        : CallRawArgs(_superCreateFn, start, receiver);
 
     /// <inheritdoc />
     public bool Contains(IPyForeignObject foreignInstance, object? value) => PythonCall(() =>
@@ -412,7 +417,8 @@ public sealed partial class CPythonHost
         {
             string qualname = TryGetQualname(fn, $"{ownerClass.Name}.{fn.Name}");
             var target = new ForeignMethodTarget(ownerClass, fn, bindContext);
-            return CallHelperRaw(_wrapMethodFn, [target, fn.Name, qualname], null, null);
+            return nativeMethodsEnabled ? CreateNativeMethodOwned(target, fn.Name, qualname)
+                : CallHelperRaw(_wrapMethodFn, [target, fn.Name, qualname], null, null);
         }
         return ToPython(value);
     }
@@ -512,16 +518,22 @@ public sealed partial class CPythonHost
         try
         {
             _makeClassFn = Check(Native.rp_op(2, module, s: "_rp_make_class"));
-            _wrapMethodFn = Check(Native.rp_op(2, module, s: "_rp_wrap_method"));
+            _wrapMethodFn = nativeMethodsEnabled ? 0 : Check(Native.rp_op(2, module, s: "_rp_wrap_method"));
             _staticMethodFn = Check(Native.rp_op(2, module, s: "_rp_staticmethod"));
             _classMethodFn = Check(Native.rp_op(2, module, s: "_rp_classmethod"));
             _propertyFn = Check(Native.rp_op(2, module, s: "_rp_property"));
-            _objectNewFn = Check(Native.rp_op(2, module, s: "_rp_object_new"));
-            _objectInitFn = Check(Native.rp_op(2, module, s: "_rp_object_init"));
-            _objectSetAttrFn = Check(Native.rp_op(2, module, s: "_rp_object_setattr"));
-            _objectDelAttrFn = Check(Native.rp_op(2, module, s: "_rp_object_delattr"));
-            _superGetAttrFn = Check(Native.rp_op(2, module, s: "_rp_super_getattr"));
-            _superCreateFn = Check(Native.rp_op(2, module, s: "_rp_super_create"));
+            // 缓存真实 object 原生描述符；参数绑定和错误仍由 CPython 槽位处理，
+            // 四条基础操作不再建立转发用 Python 函数帧。
+            nint objectType = Check(Native.rp_builtin("object"));
+            try
+            {
+                _objectNewFn = Check(Native.rp_op(2, objectType, s: "__new__"));
+                _objectInitFn = Check(Native.rp_op(2, objectType, s: "__init__"));
+                _objectSetAttrFn = Check(Native.rp_op(2, objectType, s: "__setattr__"));
+                _objectDelAttrFn = Check(Native.rp_op(2, objectType, s: "__delattr__"));
+            }
+            finally { Native.rp_decref(objectType); }
+            _superCreateFn = Check(Native.rp_builtin("super"));
         }
         finally
         {
@@ -548,7 +560,6 @@ public sealed partial class CPythonHost
         ReleaseRef(ref _objectInitFn);
         ReleaseRef(ref _objectSetAttrFn);
         ReleaseRef(ref _objectDelAttrFn);
-        ReleaseRef(ref _superGetAttrFn);
         ReleaseRef(ref _superCreateFn);
         foreach (PythonObject mirror in _mixinMirrors.Values)
         {

@@ -27,6 +27,7 @@ public sealed partial class PyFunction
         "__builtins__" => PyFunctionOwner.GetContext(this).Builtins,
         "__doc__" => _doc ?? PyNone.Instance,
         "__annotations__" => _annotations ??= new PyDict(),
+        "__defaults__" or "__kwdefaults__" => GetDefaultsMetadata(name),
         "__dict__" => _attributes ??= new PyDict(),
         _ => _attributes is not null && _attributes.TryGet(name, out object? value)
             ? value : throw MissingMetadata(name),
@@ -52,6 +53,8 @@ public sealed partial class PyFunction
             case "__builtins__": throw new PyAttributeError("readonly attribute");
             case "__doc__": _doc = value; break;
             case "__module__": _module = value; break;
+            case "__defaults__":
+            case "__kwdefaults__": SetDefaultsMetadata(name, value); break;
             case "__annotations__":
                 if (value is not (null or PyNone or PyDict))
                     throw new PyTypeError("__annotations__ must be set to a dict object");
@@ -78,6 +81,8 @@ public sealed partial class PyFunction
             case "__builtins__": throw new PyAttributeError("readonly attribute");
             case "__doc__": _doc = null; break;
             case "__module__": _module = null; break;
+            case "__defaults__":
+            case "__kwdefaults__": SetDefaultsMetadata(name, null); break;
             case "__annotations__": _annotations = null; break;
             case "__dict__": throw new PyTypeError("cannot delete __dict__");
             default:

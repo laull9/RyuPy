@@ -16,6 +16,9 @@ mod check_attrs;
 mod check_comparison;
 mod check_stmts;
 mod default_modes;
+mod default_reflection_modes;
+#[cfg(test)]
+mod default_reflection_modes_tests;
 mod fallthrough;
 mod infer;
 mod module_metadata;

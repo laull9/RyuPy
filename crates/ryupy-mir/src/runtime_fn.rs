@@ -309,6 +309,10 @@ pub enum RuntimeFn {
     /// 内部异常分派完成，要求运行时重新进入resume而非暴露yield。
     GeneratorRetry,
     GeneratorDelegateStart,
+    /// 将编译器生成的独立状态机包装为不可普通迭代的协程。
+    CoroutineCreate,
+    /// 通过类型级 __await__ 建立委托，不进行解释执行。
+    CoroutineAwaitStart,
     GeneratorDelegateStep,
     GeneratorDelegateCurrent,
     GeneratorDelegateResult,

@@ -12,10 +12,7 @@ sys.dont_write_bytecode = True
 
 from support import (ROOT, audit_native_paths, checked, declaration, environment, execute,
                      external_workspace, inspect_host_report, private_distribution,
-                     require_python, rid, write_json)
-
-sys.path.insert(0, str(ROOT / 'tests/aot'))
-from aot_layout import reported_aot
+                     require_python, rid, standalone_layout, write_json)
 
 MODULES = ['sys', 'base64', 'json', 'sqlite3', 'zlib', 'collections',
            'contextlib', 'bridge_fixture', 'atexit', 'numpy', 'urllib', 'io']
@@ -219,7 +216,7 @@ def main():
                 if args.mode in ('aot', 'all'):
                     publish = root / (case.stem + '-publish')
                     build = run(case.stem + '-aot-build', common + ['--aot', '-o', publish])
-                    layout = reported_aot(build.stderr, publish, 'app', rid())
+                    layout = standalone_layout(build.stderr, publish, 'app', rid())
                     native_cwd = root / (case.stem + '-native-cwd')
                     native_cwd.mkdir()
                     native_env = dict(env, RYUPY_CPYTHON_REPORT=str(native_cwd / 'host.json'))

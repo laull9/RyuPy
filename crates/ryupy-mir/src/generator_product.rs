@@ -6,6 +6,8 @@ use rustc_hash::FxHashMap;
 #[derive(Debug, Default)]
 pub struct DeferredGenerators {
     pub(crate) functions: Vec<FnId>,
+    /// 原生协程与普通生成器共享状态机，但工厂发布独立协议对象。
+    pub(crate) coroutines: Vec<FnId>,
     pub(crate) exceptions: FxHashMap<String, GlobalId>,
     // 关闭态sum计划的显式来源证据；不以生成函数名字或参数名字推断genexpr。
     #[cfg(any(test, feature = "generator-sum-experiment"))]
@@ -20,6 +22,12 @@ pub(crate) fn finish_build(
     deferred: Option<&mut DeferredGenerators>,
 ) -> Vec<crate::trace_lowering::GeneratorLayout> {
     let plan = DeferredGenerators {
+        coroutines: hir
+            .functions
+            .iter()
+            .filter(|(_, f)| f.is_coroutine)
+            .map(|(id, _)| functions[&id])
+            .collect(),
         #[cfg(any(test, feature = "generator-sum-experiment"))]
         comprehension_inputs: hir
             .functions
@@ -50,7 +58,9 @@ pub(crate) fn finish_build(
         *deferred = plan;
         Vec::new()
     } else {
-        crate::generators::lower(program, &plan.functions, &plan.exceptions)
+        let layouts = crate::generators::lower(program, &plan.functions, &plan.exceptions);
+        crate::coroutines::wrap_factories(program, &plan.coroutines);
+        layouts
     }
 }
 
@@ -102,6 +112,11 @@ pub fn prepare_high<O: crate::passes::PipelineObserver>(
         return Err(Failure::unsupported("产品V1不能与S2测试编译器混用"));
     }
     for (_, function) in hir.functions.iter() {
+        if function.is_coroutine {
+            return Err(Failure::unsupported(
+                "原生协程独立使用完整状态机，不准入有限 trace V1 产品",
+            ));
+        }
         if function
             .body
             .handlers

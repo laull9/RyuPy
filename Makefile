@@ -73,6 +73,7 @@ trace-frame-proof-experiment: ## 独立运行四项旧已知失败实验；保�
 python-baseline: ## 自检 Phase 1–3 的 CPython 用例与预期错误退出
 	"$(PYTHON)" -B tests/test_case_manifest.py
 	"$(PYTHON)" -B tests/test_project_gate.py
+	"$(PYTHON)" -B -m unittest discover -s tests/cil_execution -p 'test_*.py'
 	"$(PYTHON)" tests/run_python_baseline.py
 
 .PHONY: python-extensions
@@ -182,3 +183,7 @@ runtime-cpython: ## 构建 CPython 桥与 shim（须显式指定 CPYTHON_HOME，
 	@test -n "$(CPYTHON_HOME)" || { echo "请显式指定 CPYTHON_HOME=<CPython 3.12.13 基础发行根>"; exit 1; }
 	dotnet build runtime/RyuPy.CPython -c Release -nologo -v q
 	sh runtime/RyuPy.CPython/native/build.sh "$(CPYTHON_HOME)" runtime/RyuPy.CPython/bin/Release/net10.0
+
+.PHONY: cil-execution-audit
+cil-execution-audit: ## C0 真实原生执行审计；PYTHON须为固定3.12.13，发行需含头文件与共享库
+	"$(PYTHON)" -B tests/cpython/execution_audit.py --python "$(PYTHON)"

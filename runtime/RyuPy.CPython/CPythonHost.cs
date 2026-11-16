@@ -102,6 +102,7 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
             else if (configuration.ExpectedVersion != "3.12.13")
                 throw new InvalidDataException("多版本CPython shim缺少构建版本导出");
             NativeLibrary.SetDllImportResolver(typeof(Native).Assembly, (name, _, _) => name == Native.Library ? host.shimLibrary : 0);
+            host.ConfigureExecutionAudit();
             host.tclTkEnvironment = TclTkEnvironment.Configure(configuration.Home);
             nint[] paths = configuration.SearchPaths.Select(Marshal.StringToCoTaskMemUTF8).ToArray();
             nint[] args = argv.Select(Marshal.StringToCoTaskMemUTF8).ToArray();
@@ -114,6 +115,7 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
             finally { foreach (nint item in paths) Marshal.FreeCoTaskMem(item); foreach (nint item in args) Marshal.FreeCoTaskMem(item); }
             host.state = 1;
             host.InstallImports();
+            if (host.executionAuditEnabled) { using Lease lease = host.Enter(); Native.rp_execution_audit_phase(1); }
             return host;
         }
         catch (Exception error)
@@ -202,6 +204,7 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
         try
         {
             using Lease lease = Enter();
+            if (executionAuditEnabled) Native.rp_execution_audit_phase(2);
             try { CaptureModulePaths(); } catch (Exception error) { observationError = error; }
             ReleaseClassBridgeResources();
             Drain(); lock (gate) liveHandlesAtShutdown = handles.Count;

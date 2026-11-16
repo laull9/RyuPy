@@ -71,7 +71,17 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
         crate::closures_decl::validate_declarations(file, def, diagnostics);
     }
     let is_comprehension = matches!(&source, FnSource::Comprehension(_));
-    let is_generator = match &source {
+    let is_coroutine = matches!(&source, FnSource::Def(def) if def.is_async);
+    if is_coroutine && !cfg!(feature = "native-coroutines") {
+        diagnostics.push(
+            Diagnostic::error(
+                Span::new(file, functions[func_id].range),
+                "原生协程需要显式 native-coroutines 编译特性",
+            )
+            .with_code("E0100"),
+        );
+    }
+    let contains_yield = match &source {
         FnSource::Def(def) => crate::generator_scan::analyze(file, &def.body, diagnostics),
         FnSource::Comprehension(comp) => {
             let generator = comp.kind == crate::comprehension_ast::ComprehensionKind::Generator;
@@ -82,6 +92,16 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
             crate::generator_scan::analyze_lambda(file, &lambda.body, diagnostics)
         }
     };
+    if is_coroutine && contains_yield {
+        diagnostics.push(
+            Diagnostic::error(
+                Span::new(file, functions[func_id].range),
+                "异步生成器尚未接入原生协程候选",
+            )
+            .with_code("E0100"),
+        );
+    }
+    let is_generator = contains_yield || is_coroutine;
     let is_lambda = matches!(source, FnSource::Lambda(_));
     let info = analysis.infos.get(&func_id).cloned().unwrap_or_default();
     // 嵌套函数（def / lambda）的默认值不在 main 作用域求值：
@@ -440,6 +460,7 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
     functions[func_id].docstring = docstring;
     functions[func_id].is_comprehension = is_comprehension;
     functions[func_id].is_generator = is_generator;
+    functions[func_id].is_coroutine = is_coroutine;
     functions[func_id].params = params;
     functions[func_id].ret = ret;
     functions[func_id].body = body;

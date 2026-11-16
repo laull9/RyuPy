@@ -17,6 +17,13 @@ internal sealed class PyGeneratorDelegation
         _target = _iterator is PyInstanceIterator custom ? custom.Instance : _iterator;
     }
 
+    // await 已按类型级协议取得真正迭代器，不能再次调用其 __iter__。
+    internal PyGeneratorDelegation(IPyIterator iterator, object? target)
+    {
+        _iterator = iterator;
+        _target = target;
+    }
+
     internal bool Step(object frame)
     {
         if (frame is not object?[] slots || slots.Length < 4)
@@ -78,6 +85,8 @@ internal sealed class PyGeneratorDelegation
             if (PyObject.TryMethod(instance, "__next__", [], out object? next)) return next;
             throw new PyTypeError($"'{instance.Class.Name}' object is not an iterator");
         }
+        if (_target is PyNativeObject native)
+            return PyOps.CallValue(PyOps.PrepareMethod(native, "__next__"), [], [], []);
         if (_iterator!.MoveNext()) return _iterator.Current();
         throw new PyStopIteration();
     }
