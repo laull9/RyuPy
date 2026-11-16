@@ -73,6 +73,10 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 | [0214](0214-generic-default-function-companions.md) | typed 函数缺省实参的通用伴生核心 | 语义/产品、第二轮完整检查与性能复验通过 |
 | [0215](0215-native-async-with-traceback.md) | 原生async with与真实traceback冷视图 | 显式协程候选、清理回归及第二轮完整检查通过 |
 | [0216](0216-strict-kernel-native-stdio.md) | 严格内核原生 _io 与 UTF-8 codec | macOS arm64 原型与十五模式探针通过 |
+| [0218](0218-native-async-for.md) | 原生 async for 与窄耗尽保护 | 显式候选 21 项及七组真实 NativeAOT 搬迁通过 |
+| [0219](0219-native-inspect-signature.md) | 原生签名值对象、绑定与框架反射桥 | 核心、桥、三个框架消费者及冷 repr 修正 JIT/NativeAOT 搬迁通过 |
+| [0220](0220-native-compiled-import-hooks.md) | 编译模块原生 finder/loader | 三版本 198 类桥与两模式产品搬迁、关闭导入通过 |
+| [0221](0221-c4-2-strict-kernel-host-and-cil-import-integration.md) | 严格内核 Host 与模块事务接入 | 设计已接受，实施分切待落地 |
 | [0217](0217-strict-kernel-frozen-extensions-and-cil-import-abi.md) | 严格内核冻结扩展与静态 CIL 导入 ABI | macOS arm64 22 项内核探针及 10 项 stock 对照通过，产品接入待办 |
 
 ## 模板

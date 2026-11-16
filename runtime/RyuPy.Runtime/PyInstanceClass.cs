@@ -23,7 +23,7 @@ public static partial class PyModuleInstances
     /// <summary>class表达式求基类前消费外frame的builtins hook；不查globals同名覆盖。</summary>
     public static void ClassGuard(object outerContext)
     {
-        if (!Context(outerContext).Builtins.TryGet("__build_class__", out object? hook))
+        if (!Context(outerContext).TryBuiltin("__build_class__", out object? hook))
             throw new PyNameError("__build_class__ not found");
         if (!ReferenceEquals(hook, PyInstanceClassHook.Function))
             throw new PyNotImplementedError("custom __build_class__ hooks are not implemented for instance modules");

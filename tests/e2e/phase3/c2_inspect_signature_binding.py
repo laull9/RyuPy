@@ -1,4 +1,3 @@
-# ryupy: pending
 # ADR0219：inspect绑定不执行正文；apply_defaults与活arguments按真实参数协议回调。
 from inspect import Parameter, Signature, signature
 
@@ -49,3 +48,16 @@ try:
 except TypeError:
     print("positional-only-TypeError")
 print(list(positional.bind_partial().arguments))
+
+# 严格绑定的声明缺参与未知keyword优先级，保留精确TypeError文本。
+required = Signature([Parameter("first", 1), Parameter("second", 1)])
+for values in [{"unknown": 1}, {"first": 1, "unknown": 2}]:
+    try:
+        required.bind(**values)
+    except TypeError as error:
+        print(str(error))
+positional_required = Signature([Parameter("first", 0), Parameter("second", 0)])
+try:
+    positional_required.bind(second=1)
+except TypeError as error:
+    print(str(error))

@@ -78,4 +78,13 @@ public sealed class PyInspectTests
         Assert.Throws<PyValueError>(() => PyOps.FunctionIntrospectionKind(unknown, 9));
     }
 
+    [Fact]
+    public void ParameterReprUsesFixedOuterQuotesAndPreservesInnerText()
+    {
+        var plain = new PyInspectParameter("x", PyInspectKind.Values[1], PyInspectModule.Empty, PyInspectModule.Empty);
+        var quoted = new PyInspectParameter("x", PyInspectKind.Values[1], "\"", PyInspectModule.Empty);
+        Assert.Equal("<Parameter \"x\">", PyRepr.Repr(plain));
+        Assert.Equal("<Parameter \"x='\"'\">", PyRepr.Repr(quoted));
+    }
+
 }

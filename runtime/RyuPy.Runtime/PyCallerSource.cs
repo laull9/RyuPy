@@ -18,18 +18,18 @@ internal sealed class CompiledCodeSource(string name, string file, PyModuleGet? 
 
 // 冷消费者的一次选帧结果；热压帧仍只写既有平行数组，不分配此记录。
 internal readonly record struct PyCallerSource(PyStackFrame Frame, CompiledCodeSource? Code,
-    PyDict? Globals, object? Origin, bool OutOfStack = false)
+    object? Globals, object? Origin, bool OutOfStack = false)
 {
     private static readonly object OutsideEnvironment = new();
     internal bool Known => Code is not null || OutOfStack;
-    internal object Environment => OutOfStack ? OutsideEnvironment : (object?)Globals ?? Code
+    internal object Environment => OutOfStack ? OutsideEnvironment : (Globals is null ? null : PyModuleNamespaceAccess.View(Globals)) ?? Code
         ?? throw new PyRuntimeError("caller has no known environment");
 
     // 仅受信生成getter的缺槽异常表示missing；其它异常绝不转为编译初名。
     internal bool TryReadName(out object? value)
     {
         if (OutOfStack) { value = "sys"; return true; }
-        if (Globals is not null) return Globals.TryGet("__name__", out value);
+        if (Globals is not null) return PyModuleNamespaceAccess.TryGet(Globals, "__name__", out value);
         if (Code?.LegacyGetter is not { } getter)
             throw new PyRuntimeError("caller has no readable global environment");
         try { value = getter("__name__"); return true; }
@@ -105,7 +105,7 @@ public static partial class PyTraceback
         }
         if (instanceContext is not PyModuleExecutionContext context)
             throw new PyRuntimeError("instance code has no execution context");
-        object entry = context.State.Globals.GetOrDefault("__name__", PyNone.Instance) ?? PyNone.Instance;
+        object entry = context.State.GetOrDefault("__name__", PyNone.Instance) ?? PyNone.Instance;
         return new ModuleExecutionSource(context.State, code, context.State.Globals, entry);
     }
 
@@ -118,7 +118,7 @@ public static partial class PyTraceback
         var frame = new PyStackFrame(_files[index], _functions[index], _lines[index]);
         object? origin = _origins[index];
         CompiledCodeSource? code;
-        PyDict? globals = null;
+        object? globals = null;
         switch (origin)
         {
             case null: return new(frame, null, null, null);

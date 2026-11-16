@@ -45,7 +45,9 @@ public sealed partial class CPythonHost
         writer.WriteString("synchronization_failure", synchronizationFailure);
         writer.WriteString("python_library", pythonPath);
         writer.WriteString("shim_library", shimPath);
-        WriteExecutionAudit(writer);
+        if (isStrictKernel) WriteStrictExecutionAudit(writer);
+        else WriteExecutionAudit(writer);
+        WriteInspectReport(writer);
         writer.WriteStartObject("module_paths");
         foreach ((string name, string filename) in loadedModulePaths) writer.WriteString(name, filename);
         writer.WriteEndObject(); writer.WriteEndObject();

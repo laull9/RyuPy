@@ -127,6 +127,8 @@ public sealed partial class CPythonHost
             catch { reverse.Remove(value); owner.Dispose(); throw; }
         }
         if (synchronizeContainers && value is PyList or PyDict) return TransferContainer(value);
+        if (IsRefRegistrationBlocked)
+            throw new ObjectDisposedException("CPython", "FiniCore释放栅栏期间或关闭后禁止注册新托管根");
         // 弱反向索引不钉住托管对象；C端代理存活期间Roots才是明确的强根。
         nint identity = (nint)Interlocked.Increment(ref nextRoot);
         Roots[identity] = value;

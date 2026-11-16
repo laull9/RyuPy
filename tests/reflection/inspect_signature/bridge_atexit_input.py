@@ -1,4 +1,3 @@
-# ryupy: pending
 # 真实退出阶段首次/再次签名检查；用户atexit顺序不变，类型/kind/empty仍属同一解释器。
 import atexit
 import inspect

@@ -1,4 +1,3 @@
-# ryupy: pending
 # 真实attrs23.2.0消费者；CPython主消费者与原生descriptor候选分别跑，回调模块必须CIL。
 import inspect
 import attrs

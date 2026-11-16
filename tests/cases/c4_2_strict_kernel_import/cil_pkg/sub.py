@@ -1,6 +1,6 @@
 """C4-2 子模块：验证相对导入与实时 __dict__/globals 同步。"""
 from .helper import scale_value
-from .. import VERSION
+from . import VERSION
 
 LIVE_COUNTER = scale_value(7)
 

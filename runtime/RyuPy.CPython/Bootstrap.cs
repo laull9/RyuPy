@@ -1,5 +1,4 @@
 // 应用入口的显式组合与冻结配置读取；相对路径只以分发目录为根，不搜索系统Python。
-using System.Runtime.InteropServices;
 using System.Text.Json;
 using RyuPy.Runtime;
 
@@ -17,12 +16,28 @@ public static class Bootstrap
     public static void Start(string configPath, string[] args)
     {
         if (host is not null) throw new InvalidOperationException("CPython宿主已启动");
-        // Runtime已经初始化argv，直接取同一来源，保留入口名、空参数与换行参数。
-        if (PyModules.TryCached("sys", out PyModule? system) && system.GetAttr("argv") is PyList currentArgs)
-            args = currentArgs.Items.Select(value => (string)value!).ToArray();
+        args = ResolveRuntimeArgs(args);
         host = CPythonHost.Start(configPath, args);
         PyProvider.Install(host);
     }
+
+    /// <summary>以严格零字节码内核未冻结形态启动宿主（仅接收 kernel_mode=strict 配置）。</summary>
+    public static void StartStrictUnsealed(string configPath, string[] args)
+    {
+        if (host is not null) throw new InvalidOperationException("CPython宿主已启动");
+        args = ResolveRuntimeArgs(args);
+        host = CPythonHost.StartStrictUnsealed(configPath, args);
+        PyProvider.Install(host);
+    }
+
+    private static string[] ResolveRuntimeArgs(string[] args)
+    {
+        // Runtime已经初始化argv，直接取同一来源，保留入口名、空参数与换行参数。
+        if (PyModules.TryCached("sys", out PyModule? system) && system.GetAttr("argv") is PyList currentArgs)
+            return currentArgs.Items.Select(value => (string)value!).ToArray();
+        return args;
+    }
+
     /// <summary>统一退出路径；标准流/运行时退出失败也会执行解释器关闭。</summary>
     public static int Finish(int code)
     {
@@ -49,7 +64,18 @@ public static class Bootstrap
     }
 }
 
-internal sealed record HostConfiguration(string Home, string Library, string Shim, string[] SearchPaths, string[] Modules, bool SynchronizeContainers, string[] NativeSearchPaths, string ExpectedVersion, string? EntryScript = null, bool NativeInspectProfile = false)
+internal sealed record HostConfiguration(
+    string Home,
+    string Library,
+    string Shim,
+    string[] SearchPaths,
+    string[] Modules,
+    bool SynchronizeContainers,
+    string[] NativeSearchPaths,
+    string ExpectedVersion,
+    string? EntryScript = null,
+    bool NativeInspectProfile = false,
+    string KernelMode = "compat")
 {
     internal static HostConfiguration Read(string filename)
     {
@@ -58,12 +84,19 @@ internal sealed record HostConfiguration(string Home, string Library, string Shi
         JsonElement root = document.RootElement;
         if (root.GetProperty("schema").GetInt32() != 1)
             throw new InvalidDataException("CPython配置要求schema=1");
+        string kernelMode = root.TryGetProperty("kernel_mode", out JsonElement modeElement)
+            ? modeElement.GetString()!
+            : "compat";
+        if (kernelMode is not ("compat" or "strict"))
+            throw new InvalidDataException("kernel_mode必须为compat或strict");
         string expectedVersion = root.GetProperty("python_version").GetString()!;
         string[] versionParts = (expectedVersion ?? "").Split('.');
         if (versionParts.Length != 3 || versionParts.Any(p => p.Length == 0 || p.Any(c => c < '0' || c > '9'))
             || !Version.TryParse(expectedVersion, out Version? parsedVersion)
             || parsedVersion.Major != 3 || parsedVersion.Minor < 9 || parsedVersion.Minor > 15)
             throw new InvalidDataException("CPython配置要求正式版3.9–3.15，固定声明版本为3.12.13，实际为：" + expectedVersion);
+        if (kernelMode == "strict" && expectedVersion != "3.12.13")
+            throw new InvalidDataException("strict内核模式固定要求CPython 3.12.13，实际为：" + expectedVersion);
         string directory = Path.GetDirectoryName(filename)!;
         bool development = root.TryGetProperty("development", out JsonElement developer) && developer.GetBoolean();
         string ResolveValue(string value)
@@ -111,6 +144,7 @@ internal sealed record HostConfiguration(string Home, string Library, string Shi
                 ? nativePaths.EnumerateArray().Select(p => ResolveValue(p.GetString()!)).ToArray() : [],
             expectedVersion,
             entryScript,
-            root.TryGetProperty("native_inspect_profile", out JsonElement inspectProfile) && inspectProfile.GetBoolean());
+            root.TryGetProperty("native_inspect_profile", out JsonElement inspectProfile) && inspectProfile.GetBoolean(),
+            kernelMode);
     }
 }

@@ -38,7 +38,7 @@ public class PySourceProvenanceTests
     private static PyModuleExecutionContext Context(object? name)
     {
         // 没有伪造实际编译单元；Execute(X,targetY)由独立真实宿主/PE用例覆盖。
-        var state = new PyModuleInstanceState(null); state.Globals.Set("__name__", name);
+        var state = new PyModuleInstanceState(null); state.Set("__name__", name);
         return new PyModuleExecutionContext(state, new PyDict());
     }
     private static void Frame(object? origin, Action action, string file = File, int line = 12)
@@ -115,7 +115,7 @@ public class PySourceProvenanceTests
         object instanceSource = PyTraceback.CreateCodeSource("code_x", File, null);
         var context = Context("target_entry");
         object marker = PyTraceback.CreateModuleExecutionSourceWithCode(instanceSource, context);
-        context.State.Globals.Set("__name__", "target_later");
+        context.State.Set("__name__", "target_later");
         Frame(marker, () =>
         {
             Assert.Equal("target_entry", Module()); Assert.Equal("target_later", PyTraceback.GetCallerModule());
@@ -225,7 +225,7 @@ public class PySourceProvenanceTests
     {
         // 此guard须与旧引擎/CP/新候选同组验收；若发现旧正确路径被拒绝，不得以单测绿放行。
         object source = PyTraceback.CreateCodeSource("x", File, null); var context = Context("entry");
-        var probe = new BoolProbe(() => { context.State.Globals.Set("__name__", PyNone.Instance); throw new PyAttributeError("fallback"); });
+        var probe = new BoolProbe(() => { context.State.Set("__name__", PyNone.Instance); throw new PyAttributeError("fallback"); });
         var function = PyModuleInstances.CreateOwnedFunction(context, "owned", Signature(source),
             (_, _, _, _, _) => PyNone.Instance, [], false, null);
         PyOps.FunctionModule(function, probe);

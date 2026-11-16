@@ -6,7 +6,7 @@
 > **2026-11-16 目标架构规划**：全部 Python 函数体编译为 CIL，libpython 收敛到底层
 > 对象 ABI 与原生扩展能力；内部 Python 胶水、反射、协程及导入协议逐步迁入 CIL/Runtime。
 > 见[目标分层与 C0–C5](cil-execution-roadmap.md)、[ADR-0208](adr/0208-cil-execution-libpython-kernel.md)。
-> C0 已完成盘点，C1 基础槽/super、C2 实时默认值与 C3 coroutine/await 首切已实现；
+> C0 已完成盘点，C1 类构造/原生导入、C2 默认值/通用核心/签名反射与 C3 await/async with/for 已分切实现；
 > 现有产品继续包含 CPython 执行域。下列依赖与互操作分层约束继续有效；
 > 执行归属由 driver 冻结，异步/语言语义在 HIR/MIR 显式化，codegen 仅发射已确定操作。
 

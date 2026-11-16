@@ -1,4 +1,3 @@
-# ryupy: pending
 # ADR0219：真实接收者移除一次、简单类/callable、partial实时关键词及有限native表。
 import inspect
 from functools import partial
@@ -69,3 +68,25 @@ class ChildConstructor(ParentConstructor):
     def __init__(self, child=2):
         pass
 print(list(inspect.signature(ChildConstructor).parameters))
+
+class StaticCallable:
+    @staticmethod
+    def __call__(value, option=8):
+        return value
+class ClassCallable:
+    @classmethod
+    def __call__(cls, value, option=9):
+        return value
+for value in [instance, StaticCallable(), ClassCallable()]:
+    print(list(inspect.signature(value).parameters))
+instance.__call__ = lambda shadow, extra: shadow
+print(list(inspect.signature(instance).parameters))
+
+bindings = []
+class CallDescriptor:
+    def __get__(self, receiver, owner):
+        bindings.append((receiver is not None, owner is DescribedCallable))
+        return lambda actual, option=11: actual
+class DescribedCallable:
+    __call__ = CallDescriptor()
+print(list(inspect.signature(DescribedCallable()).parameters), bindings)

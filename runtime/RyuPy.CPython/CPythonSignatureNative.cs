@@ -6,6 +6,7 @@ namespace RyuPy.CPython;
 internal static class SignatureNative
 {
     [DllImport(Native.Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_inspect_prepare();
+    [DllImport(Native.Library, CallingConvention = CallingConvention.Cdecl)] internal static extern long rp_inspect_lifecycle(int field);
     [DllImport(Native.Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_inspect_tag(nint value);
     [DllImport(Native.Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_inspect_identity(int tag);
     [DllImport(Native.Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_inspect_parameter(nint name, int kind, nint defaultValue, nint annotation);

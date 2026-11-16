@@ -1,4 +1,3 @@
-# ryupy: pending
 """C1 原生导入钩子：真实包、循环、失败重试、CP sys.modules 权威与关闭时首次反向导入。"""
 from collections import UserDict
 from bridge_fixture.native_import_contract import verify

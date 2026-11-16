@@ -1,7 +1,7 @@
 # ADR-0220：编译模块原生 finder/loader 首切
 
 - 日期：2026-11-16
-- 状态：实现完成，三版本桥门通过；等待本轮最终产品冻结产物复验
+- 状态：已接受；本切三版本桥门与最终冻结产品验收完成
 - 接续：ADR-0208、ADR-0213
 
 ## 决策
@@ -49,18 +49,29 @@ create_module 已完成 Runtime 正文，exec_module 重复调用保持空操作
 标准库仍产生执行帧，C0 的 complete/startup_complete 继续为 false。
 显式 native-methods 候选传空源码；候选策略、精确 FunctionType/code/frame 边界保持 ADR-0211。
 
-## 已验与最终门
+## 验证
 
 先登记 pending 产品输入，旧实现真实类桥规格断言失败后实现。3.9.25、3.12.13、3.13.3
 各自重新构建 shim，默认/候选各跑 33 项真实类桥，共 198 项通过；六个源码输入同次 CPython
 oracle 全过。每版本独立 C 小宿主还验证了修改 builtins 后的真实描述符身份、旧源码导出 ABI
 及 rp_op(29) 拒绝执行。独立共享库宿主避免静态解释器与共享 libpython 的双份类型身份。
 
-产品初验已覆盖包/空包、父包顺序、循环、重复身份、失败重试、sys.modules None/模块与普通对象
+产品已覆盖包/空包、父包顺序、循环、重复身份、失败重试、sys.modules None/模块与普通对象
 替换、关闭时首次导入。默认与候选分别通过固定 3.12.13 同次 oracle、JIT、NativeAOT、删除
-input/build 后的中文空格路径搬迁及私有分发隐藏。最终冻结 CLI 后再次执行相同产品门。
+input/build 后的中文空格路径搬迁及私有分发隐藏。2026-11-16 在 macOS arm64 使用本轮唯一
+冻结 `third-final-cli` 完成上述最终产品复验，两个模式均通过。产品 pending 标记已移除。
 帧门只匹配原内部 `<string>` 源码：已删除两个 class 与三个成员帧为零；默认 wrap/method 帧
 必须活跃，候选二者为零。三个生命周期帧数均为正且无丢帧，严格审计门保持原样。
+
+JIT、AOT 与搬迁后的关闭报告三次计数一致：
+
+| 模式 | startup | runtime | shutdown | `_rp_wrap_method` / `_rp_method` | 已删内部帧 |
+| --- | ---: | ---: | ---: | --- | ---: |
+| 默认 | 826 | 2251 | 37 | 1 / 1 | 0 |
+| 显式 native-methods | 825 | 2249 | 37 | 0 / 0 | 0 |
+
+每份报告的 dropped_frames/coverage_failures 均为零，complete/startup_complete 均为 false。
+default evaluator 的完整观测与 stdlib CIL 化仍按 ADR-0208 后续阶段推进。
 
 本切新增的 inspect profile 接线由 ADR-0219 定义：配置显式启用、受信启动先捕获、关闭清理，
 独立 header 与静态 P/Invoke 经公共桥合流；finder/loader 本身不依赖该 profile。

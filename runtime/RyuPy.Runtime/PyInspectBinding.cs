@@ -27,9 +27,11 @@ internal static class PyInspectBinding
                     supplied.Set(p.Name, args[position++]);
                 }
                 else if (kind == 0 && ReferenceEquals(p.Default, PyInspectModule.Empty) && keywords.TryGet(p.Name, out _))
-                    throw new PyTypeError($"'{p.Name}' parameter is positional only, but was passed as a keyword");
+                    throw new PyTypeError($"missing a required positional-only argument: '{p.Name}'");
                 else if (kind == 1 && keywords.TryGet(p.Name, out object? value))
                 { supplied.Set(p.Name, value); keywords.Delete(p.Name); }
+                else if (!partial && ReferenceEquals(p.Default, PyInspectModule.Empty))
+                    throw new PyTypeError($"missing a required argument: '{p.Name}'");
             }
             else if (kind == 2)
             {
@@ -41,21 +43,24 @@ internal static class PyInspectBinding
             else if (kind == 4) rest = p;
         }
         if (position < args.Length) throw new PyTypeError("too many positional arguments");
-        if (keywords.Count > 0)
-        {
-            if (rest is null)
-            {
-                foreach (var p in signature.Parameters)
-                    if (p.Kind.Value == 0 && keywords.TryGet(p.Name, out _))
-                        throw new PyTypeError($"'{p.Name}' parameter is positional only, but was passed as a keyword");
-                foreach (var key in keywords.Keys) throw new PyTypeError($"got an unexpected keyword argument '{key}'");
-            }
-            else supplied.Set(rest.Name, keywords);
-        }
+        // CP strict绑定先报告声明顺序中的必需缺参，再处理剩余未知关键字。
         if (!partial)
             foreach (var p in signature.Parameters)
                 if (p.Kind.Value is not (2 or 4) && ReferenceEquals(p.Default, PyInspectModule.Empty) && !supplied.TryGet(p.Name, out _))
                     throw new PyTypeError($"missing a required argument: '{p.Name}'");
+        if (keywords.Count > 0)
+        {
+            if (rest is null)
+            {
+                var positionalNames = new List<string>();
+                foreach (var p in signature.Parameters)
+                    if (p.Kind.Value == 0 && keywords.TryGet(p.Name, out _)) positionalNames.Add(p.Name);
+                if (positionalNames.Count > 0)
+                    throw new PyTypeError("got some positional-only arguments passed as keyword arguments: '" + string.Join(", ", positionalNames) + "'");
+                foreach (var key in keywords.Keys) throw new PyTypeError($"got an unexpected keyword argument '{key}'");
+            }
+            else supplied.Set(rest.Name, keywords);
+        }
         return new PyInspectBoundArguments(signature, supplied);
     }
 }

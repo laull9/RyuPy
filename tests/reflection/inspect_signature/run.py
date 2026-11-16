@@ -24,14 +24,14 @@ def check_case(args, case, work, logs):
     inputs = work / (case + "-input")
     inputs.mkdir()
     consumer = case in ("attrs", "pydantic", "fastapi")
-    bridge = case in ("bridge", "atexit")
+    bridge = case in ("bridge", "atexit", "owner")
     if consumer:
         entry = inputs / (case + "_input.py")
         shutil.copyfile(HERE / "consumers" / entry.name, entry)
         shutil.copyfile(HERE / "consumers/compiled_callbacks.py", inputs / "compiled_callbacks.py")
         callback = "compiled_callbacks"
     elif bridge:
-        entry = inputs / ("bridge_atexit_input.py" if case == "atexit" else "bridge_input.py")
+        entry = inputs / ({"atexit": "bridge_atexit_input.py", "owner": "bridge_owner_input.py"}.get(case, "bridge_input.py"))
         shutil.copyfile(HERE / entry.name, entry)
         shutil.copyfile(HERE / "bridge_callbacks.py", inputs / "bridge_callbacks.py")
         shutil.copyfile(HERE / "bridge_kind_callbacks.py", inputs / "bridge_kind_callbacks.py")
@@ -102,6 +102,10 @@ def check_case(args, case, work, logs):
             for key in ("active_leases", "handles", "managed_roots", "pending_releases"):
                 assert stats[key] == 0, (key, stats)
             assert stats["synchronization_failure"] is None, stats
+            lifecycle = stats["native_inspect_profile"]
+            assert lifecycle["enabled"] is True and lifecycle["active"] == 0 and lifecycle["aliases_null"] == 1, lifecycle
+            assert lifecycle["owners_created"] == lifecycle["owners_cleared"] == lifecycle["owners_freed"], lifecycle
+            assert lifecycle["owners_created"] == (2 if case == "owner" else 1), lifecycle
             distribution = jit_dist if mode == "jit" else aot_dist
             for key in ("python_library", "shim_library"):
                 assert Path(stats[key]).resolve().is_relative_to(distribution.resolve()), stats[key]
@@ -114,9 +118,9 @@ def check_case(args, case, work, logs):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ryupy", type=Path, default=ROOT / "target/debug/ryupy")
-    parser.add_argument("--python", type=Path, required=True, help="含固定attrs23.2.0/Pydantic2.14.3/FastAPI0.158.1及httpx的环境")
+    parser.add_argument("--python", type=Path, required=True, help="含固定attrs23.2.0/Pydantic2.14.3/FastAPI0.158.1及httpx2 2.16.2的环境")
     parser.add_argument("--core-python", type=Path, required=True, help="固定CPython3.12.13")
-    parser.add_argument("--case", action="append", choices=["bridge", "atexit", "attrs", "pydantic", "fastapi", "core"])
+    parser.add_argument("--case", action="append", choices=["bridge", "atexit", "owner", "attrs", "pydantic", "fastapi", "core"])
     parser.add_argument("--jit-only", action="store_true")
     parser.add_argument("--logs", type=Path, required=True)
     args = parser.parse_args()

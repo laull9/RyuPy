@@ -1,4 +1,4 @@
-// 实例模块import的显式环境守卫及真实有限默认__import__；不执行自定义hook、不支持相对协议。
+// 实例import的显式环境守卫：兼容默认域保持有限，strict原始协议交给中性provider；不执行未知hook。
 using System;
 namespace RyuPy.Runtime;
 
@@ -17,6 +17,16 @@ internal static class PyModuleImport
     {
         if (args[0] is not string name)
             throw new PyTypeError("module name must be a string");
+        if (PyProvider.Current is IPyStrictImportProvider)
+        {
+            object?[] fromlist = args[3] switch
+            {
+                PyTuple strictTuple => strictTuple.Items,
+                PyList strictList => strictList.Items.ToArray(),
+                _ => throw new PyNotImplementedError("strict __import__ requires list or tuple fromlist"),
+            };
+            return PyModules.ImportLevel(name, args[1], fromlist, PyItertools.Index(args[4]));
+        }
         if (args[4] is not long level || level != 0)
             throw new PyNotImplementedError("compiled __import__ only supports exact integer level zero");
         bool empty = args[3] is PyTuple tuple && tuple.GetType() == typeof(PyTuple) && tuple.Length == 0
@@ -37,8 +47,8 @@ public static partial class PyModuleInstances
     /// <summary>每条实际import消费前验证捕获环境；未知hook在任何目标导入副作用前拒绝。</summary>
     public static void ImportGuard(object context)
     {
-        var builtins = Context(context).Builtins;
-        if (!builtins.TryGet("__import__", out object? importer)) throw new PyImportError("__import__ not found");
+        var execution = Context(context);
+        if (!execution.TryBuiltin("__import__", out object? importer)) throw new PyImportError("__import__ not found");
         if (!ReferenceEquals(importer, PyModuleImport.Function))
             throw new PyNotImplementedError("custom __import__ hooks are not implemented for instance modules");
     }

@@ -1,4 +1,3 @@
-# ryupy: pending
 # CP真实inspect与CIL映射：bootstrap身份、monkeypatch、defaults/annotations及活BoundArguments。
 import inspect
 import bridge_callbacks as compiled

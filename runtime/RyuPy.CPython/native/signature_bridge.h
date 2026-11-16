@@ -8,13 +8,92 @@ static PyObject *inspect_parameter_fields[4], *inspect_signature_fields[2], *ins
 static int inspect_profile_captured;
 static PyObject *inspect_module;
 
+/* 私有模块状态拥有cache引用；全局变量只借用当前owner，atexit期间不提前清理。 */
+#define INSPECT_CACHE_COUNT 21
+typedef struct {
+    PyObject *refs[INSPECT_CACHE_COUNT];
+    PyObject *owner;
+    uint64_t generation;
+    int owned, cleared, freed;
+} InspectProfileState;
+static InspectProfileState *inspect_active_owner;
+static uint64_t inspect_generation;
+static int64_t inspect_owners_created, inspect_owners_cleared, inspect_owners_freed;
+static PyObject **inspect_cache_slots[INSPECT_CACHE_COUNT] = {
+    &inspect_parameter, &inspect_signature, &inspect_bound, &inspect_empty, &inspect_kind,
+    &inspect_kinds[0], &inspect_kinds[1], &inspect_kinds[2], &inspect_kinds[3], &inspect_kinds[4],
+    &inspect_signature_api, &inspect_unwrap_api,
+    &inspect_parameter_fields[0], &inspect_parameter_fields[1], &inspect_parameter_fields[2], &inspect_parameter_fields[3],
+    &inspect_signature_fields[0], &inspect_signature_fields[1], &inspect_bound_fields[0], &inspect_bound_fields[1], &inspect_module
+};
+static void inspect_aliases_null(void) {
+    for (int i = 0; i < INSPECT_CACHE_COUNT; i++) *inspect_cache_slots[i] = NULL;
+    inspect_active_owner = NULL;
+}
+static int inspect_owner_traverse(PyObject *module, visitproc visit, void *arg) {
+    InspectProfileState *state = PyModule_GetState(module);
+    if (state) for (int i = 0; i < INSPECT_CACHE_COUNT; i++) Py_VISIT(state->refs[i]);
+    return 0;
+}
+static int inspect_owner_clear(PyObject *module) {
+    InspectProfileState *state = PyModule_GetState(module);
+    if (!state || !state->owned || state->cleared) return 0;
+    state->cleared = 1; inspect_owners_cleared++;
+    /* 旧owner可能在同profile重建后才析构，绝不能清掉新owner的借用别名。 */
+    if (inspect_active_owner == state && state->owner == module && state->generation == inspect_generation)
+        inspect_aliases_null();
+    for (int i = 0; i < INSPECT_CACHE_COUNT; i++) Py_CLEAR(state->refs[i]);
+    return 0;
+}
+static void inspect_owner_free(void *module) {
+    InspectProfileState *state = PyModule_GetState((PyObject *)module);
+    inspect_owner_clear((PyObject *)module);
+    if (state && state->owned && !state->freed) { state->freed = 1; inspect_owners_freed++; }
+}
+static struct PyModuleDef inspect_owner_definition = {
+    PyModuleDef_HEAD_INIT, "_ryupy_inspect_profile", NULL, sizeof(InspectProfileState),
+    NULL, NULL, inspect_owner_traverse, inspect_owner_clear, inspect_owner_free
+};
+static int inspect_owner_publish(int clone) {
+    InspectProfileState *previous = inspect_active_owner;
+    PyObject *module = PyModule_Create(&inspect_owner_definition);
+    if (!module) return -1;
+    InspectProfileState *state = PyModule_GetState(module);
+    if (!state) { Py_DECREF(module); return -1; }
+    state->owner = module; state->generation = ++inspect_generation; state->owned = 1;
+    inspect_owners_created++;
+    for (int i = 0; i < INSPECT_CACHE_COUNT; i++) {
+        state->refs[i] = *inspect_cache_slots[i];
+        if (clone) Py_XINCREF(state->refs[i]);
+    }
+    inspect_active_owner = state;
+    if (PyDict_SetItemString(PyImport_GetModuleDict(), "_ryupy_inspect_profile", module) < 0) {
+        inspect_active_owner = previous;
+        if (previous) {
+            inspect_generation = previous->generation;
+            for (int i = 0; i < INSPECT_CACHE_COUNT; i++) *inspect_cache_slots[i] = previous->refs[i];
+        } else inspect_aliases_null();
+        Py_DECREF(module); return -1;
+    }
+    Py_DECREF(module); return 0;
+}
+/* 仅初始化失败清理仍在本地拥有的引用；正常stop由模块状态在atexit之后释放。 */
 static void inspect_bridge_clear(void) {
-    Py_CLEAR(inspect_parameter); Py_CLEAR(inspect_signature); Py_CLEAR(inspect_bound);
-    Py_CLEAR(inspect_empty); Py_CLEAR(inspect_kind); Py_CLEAR(inspect_module);
-    Py_CLEAR(inspect_signature_api); Py_CLEAR(inspect_unwrap_api);
-    for (int i = 0; i < 5; i++) Py_CLEAR(inspect_kinds[i]);
-    for (int i = 0; i < 4; i++) Py_CLEAR(inspect_parameter_fields[i]);
-    for (int i = 0; i < 2; i++) { Py_CLEAR(inspect_signature_fields[i]); Py_CLEAR(inspect_bound_fields[i]); }
+    if (inspect_active_owner) { inspect_owner_clear(inspect_active_owner->owner); return; }
+    for (int i = 0; i < INSPECT_CACHE_COUNT; i++) Py_CLEAR(*inspect_cache_slots[i]);
+}
+/* Finalize之后只清借用指针和读取整数，绝不触及Python引用计数。 */
+static void inspect_bridge_closed_aliases(void) { inspect_aliases_null(); }
+API int64_t rp_inspect_lifecycle(int field) {
+    if (field == 0) return inspect_active_owner != NULL;
+    if (field == 1) return inspect_owners_created;
+    if (field == 2) return inspect_owners_cleared;
+    if (field == 3) return inspect_owners_freed;
+    if (field == 4) {
+        for (int i = 0; i < INSPECT_CACHE_COUNT; i++) if (*inspect_cache_slots[i]) return 0;
+        return 1;
+    }
+    return -1;
 }
 
 static int inspect_slot_schema(PyObject *type, const char **names, Py_ssize_t count) {
@@ -60,7 +139,19 @@ changed:
     PyErr_SetString(PyExc_NotImplementedError, "inspect trusted type/empty/kind schema was replaced"); return -1;
 }
 static int inspect_bridge_ready(void) {
-    if (inspect_parameter) return inspect_profile_valid();
+    if (inspect_parameter) {
+        if (inspect_profile_valid() < 0) return -1;
+        PyObject *registered = PyDict_GetItemString(PyImport_GetModuleDict(), "_ryupy_inspect_profile");
+        if (!inspect_active_owner || inspect_active_owner->cleared) {
+            PyErr_SetString(PyExc_NotImplementedError, "inspect profile owner is unavailable"); return -1;
+        }
+        if (registered != inspect_active_owner->owner) {
+            if (registered) { PyErr_SetString(PyExc_NotImplementedError, "inspect profile owner was replaced"); return -1; }
+            /* 旧owner仍被调用者持有时，复制已冻结引用重建，不按模块名字重抓用户可变属性。 */
+            return inspect_owner_publish(1);
+        }
+        return 0;
+    }
     if (inspect_profile_captured) {
         PyErr_SetString(PyExc_NotImplementedError, "inspect profile is closed; late reflection cannot recapture user module state"); return -1;
     }
@@ -94,6 +185,7 @@ static int inspect_bridge_ready(void) {
         *field = PyObject_GetAttrString(type, field_names[i]);
         if (!*field || !Py_IS_TYPE(*field, &PyMemberDescr_Type)) goto fail;
     }
+    if (inspect_owner_publish(0) < 0) goto fail;
     inspect_profile_captured = 1;
     return 0;
 fail:
@@ -152,7 +244,7 @@ API int rp_inspect_tag(PyObject *value) {
     if (Py_IS_TYPE(value, (PyTypeObject *)inspect_parameter)) tag = 20;
     if (Py_IS_TYPE(value, (PyTypeObject *)inspect_signature)) tag = 21;
     if (Py_IS_TYPE(value, (PyTypeObject *)inspect_bound)) tag = 22;
-    return tag && inspect_profile_valid() < 0 ? -1 : tag;
+    return tag && inspect_bridge_ready() < 0 ? -1 : tag;
 }
 
 API PyObject *rp_inspect_parameter(PyObject *name, int kind, PyObject *default_value, PyObject *annotation) {

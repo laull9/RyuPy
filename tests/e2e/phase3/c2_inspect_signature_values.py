@@ -1,5 +1,4 @@
-# ryupy: pending
-# ADR0219：真实kind/empty、不可变参数与签名、只读有序映射及构造负例；本轮不运行。
+# ADR0219：真实kind/empty、不可变参数与签名、只读有序映射及构造负例。
 import inspect
 
 Parameter = inspect.Parameter
@@ -94,3 +93,10 @@ kind = Parameter.KEYWORD_ONLY
 print(bool(Parameter.POSITIONAL_ONLY), bool(kind), kind == 3.0, {kind: "numeric"}[3.0])
 print(kind + 1, 10 - kind, kind * "x", kind & 1, -kind, ~kind)
 print(kind >> 1, 2 << kind, inspect._ParameterKind(3.0) is kind)
+for invalid_name in ["\u309b", "\ud800"]:
+    try:
+        Parameter(invalid_name, 1)
+    except ValueError:
+        print("invalid-unicode-identifier")
+print(repr(Parameter("x", 1)))
+print(repr(Parameter("x", 1, default='"')))

@@ -54,7 +54,8 @@ def main() -> None:
     assert type(globals()) is dict and isinstance(globals(), dict)
     assert inspect_builtin_probe([1, 2, 3]) == 3
     assert isinstance(inspect_builtin_probe.__builtins__, dict)
-    assert isinstance(globals()["__builtins__"], dict)
+    # CPython 导入模块默认捕获字典；主脚本入口允许保留 builtins 模块对象。
+    assert isinstance(sub.__dict__["__builtins__"], dict)
 
     # 3. 实时 dict 协议：iter / keys / items / in / []= / del d[k] 与 getattr 联动
     sub.__dict__["EXT_INJECTED"] = "from_dict"
@@ -80,7 +81,7 @@ def main() -> None:
     # 5. 初始化失败回滚：sys.modules 清除，但外部捕获的部分模块保持存活；重导生成新身份
     os.environ["RYUPY_C4_2_FAIL_FLAKY"] = "1"
     try:
-        import cil_pkg.flaky_init  # noqa: F401
+        import cil_pkg.flaky_init as flaky_failed  # noqa: F401
     except RuntimeError as exc:
         assert "simulated flaky cil exec failure" in str(exc)
     else:

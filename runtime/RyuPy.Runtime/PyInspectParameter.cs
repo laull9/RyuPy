@@ -79,5 +79,5 @@ public sealed class PyInspectParameter : PyNativeObject
         return result;
     }
     /// <inheritdoc/>
-    public override string PythonRepr() => "<Parameter " + PyRepr.Repr(PythonStr()) + ">";
+    public override string PythonRepr() => "<Parameter \"" + PythonStr() + "\">";
 }

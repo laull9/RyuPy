@@ -64,7 +64,7 @@ public static class PyInspectCallable
             PyFunction function => Function(function, evalStr),
             PyPartial partial => Partial(partial, follow, seen, evalStr),
             PyClass cls => Class(cls, follow, seen, evalStr),
-            PyInstance instance => Resolve(PyObject.GetAttr(instance, "__call__"), follow, seen, evalStr),
+            PyInstance instance => Instance(instance, follow, seen, evalStr),
             PyBuiltinFunction { Name: "len" } => new PyInspectSignature([P("obj", 0)], PyInspectModule.Empty),
             PyType { Name: "float" } => new PyInspectSignature([P("x", 0, 0.0)], PyInspectModule.Empty),
             PyType { Name: "object" } => new PyInspectSignature([], PyInspectModule.Empty),
@@ -96,6 +96,23 @@ public static class PyInspectCallable
         if (evalStr && (signature.ReturnAnnotation is string || parameters.Exists(p => p.Annotation is string)))
             throw new PyNotImplementedError("inspect.signature eval_str with string annotations is not supported");
         return signature;
+    }
+    private static PyInspectSignature Instance(PyInstance instance, bool follow, HashSet<object> seen, bool evalStr)
+    {
+        if (instance.ForeignInstance is { } foreign) return Resolve(foreign, follow, seen, evalStr);
+        if (!instance.Class.TryLookup("__call__", out PyClass owner, out object? raw))
+            throw new PyValueError("no signature found for callable instance");
+        // 查询类型原始槽再绑定，实例同名字段不能替代特殊方法；绑定结果不统一再drop。
+        object? bound;
+        if (raw is PyProperty property)
+        {
+            if (property.Getter is null) throw new PyAttributeError("unreadable __call__ property");
+            bound = PyObject.InvokeBound(property.Getter, owner, instance, [], [], []);
+        }
+        else if (raw is PyInstance descriptor && descriptor.Class.TryLookup("__get__", out PyClass descriptorOwner, out object? getter))
+            bound = PyObject.InvokeBound(getter, descriptorOwner, descriptor, [instance, instance.Class], [], []);
+        else bound = PyObject.Bind(raw, owner, instance);
+        return Resolve(bound, follow, seen, evalStr);
     }
     private static PyInspectSignature Class(PyClass cls, bool follow, HashSet<object> seen, bool evalStr)
     {

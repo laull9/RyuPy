@@ -9,6 +9,7 @@ public sealed partial class CPythonHost : IPyInspectForeignBridge
     private void RequireInspectProfile()
     {
         if (!inspectProfileReady) throw new PyNotImplementedError("inspect bridge requires --cpython-dynamic-module inspect at host bootstrap");
+        if (SignatureNative.rp_inspect_prepare() < 0) ThrowError();
     }
     internal void InstallInspectBridge(bool requested)
     {
@@ -20,6 +21,19 @@ public sealed partial class CPythonHost : IPyInspectForeignBridge
         }
         PyInspectForeign.Current = this;
     }
+    private void WriteInspectReport(System.Text.Json.Utf8JsonWriter writer)
+    {
+        writer.WriteStartObject("native_inspect_profile"); writer.WriteBoolean("enabled", inspectProfileReady);
+        if (inspectProfileReady)
+        {
+            writer.WriteNumber("active", SignatureNative.rp_inspect_lifecycle(0));
+            writer.WriteNumber("owners_created", SignatureNative.rp_inspect_lifecycle(1));
+            writer.WriteNumber("owners_cleared", SignatureNative.rp_inspect_lifecycle(2));
+            writer.WriteNumber("owners_freed", SignatureNative.rp_inspect_lifecycle(3));
+            writer.WriteNumber("aliases_null", SignatureNative.rp_inspect_lifecycle(4));
+        }
+        writer.WriteEndObject();
+    }
     internal void RemoveInspectBridge()
     { if (ReferenceEquals(PyInspectForeign.Current, this)) PyInspectForeign.Current = null; }
 
@@ -27,6 +41,8 @@ public sealed partial class CPythonHost : IPyInspectForeignBridge
     internal object? InspectAttribute(object? target, string name)
     {
         if (!inspectProfileReady) return PyObject.GetAttr(target, name);
+        if (target is PyFunction && name is "__signature__" or "__code__"
+            || target is ForeignMethodTarget && name is "__signature__" or "__globals__") RequireInspectProfile();
         if (name == "__code__" && target is PyFunction direct && PyInspectFunctionKind.IsOrdinaryModule(direct))
             throw new PyAttributeError("opaque CIL callable has no CPython __code__");
         if (target is ForeignMethodTarget method && name is "__signature__" or "__globals__") target = method.Function;

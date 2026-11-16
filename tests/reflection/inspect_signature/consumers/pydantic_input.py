@@ -1,4 +1,3 @@
-# ryupy: pending
 # 真实Pydantic2.14.3/core2.50.4：模型签名生成、validator参数判定和真实校验回调。
 import inspect
 from typing import Annotated

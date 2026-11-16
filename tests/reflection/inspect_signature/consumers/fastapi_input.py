@@ -1,4 +1,3 @@
-# ryupy: pending
 # 真实FastAPI0.158.1：解析原生CIL依赖签名、真实globals、OpenAPI、请求校验与回调。
 import inspect
 from fastapi import Depends, FastAPI

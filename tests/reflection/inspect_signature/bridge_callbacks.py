@@ -1,4 +1,3 @@
-# ryupy: pending
 # 真实CPinspect消费者所调用的CIL模块：函数元数据/签名对象来回保持同一身份。
 import inspect
 

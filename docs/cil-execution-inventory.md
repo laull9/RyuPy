@@ -13,11 +13,12 @@
 ## 1. 历史盘点快照与当前源码状态
 
 本页保留 `5d36db1e` 的 C0 历史取样；已提交首轮实现为 `cbb92535`，后续性能记录为
-`21122fb6`。下表“当前源码”按 2026-11-16 共享工作树实数核对。第二轮完整检查已通过：
+`21122fb6`。下表及第 2–8 节保留第二轮 `9ef7a363` 的执行盘点快照；第三轮变更见第 9.4 节。
+第二轮完整检查已通过：
 3384 项 C#、495 项 e2e；公共 ABI 的 1843 项基准签名全部保留。
 冻结 Release 六版本产品、三形态审计和 26 项性能配对通过，详见[第二轮验收](cil-execution-second-slices-validation.md)。
 
-| 维度 | 历史基准 `5d36db1e` | 已提交首轮 `cbb92535` | 当前源码 |
+| 维度 | 历史基准 `5d36db1e` | 已提交首轮 `cbb92535` | 第二轮源码 |
 | :--- | :--- | :--- | :--- |
 | C0 审计 | 尚无帧审计 | 固定 3.12.13 PEP 523 审计与严格拒绝门 | 保留；provider 报告 `complete=false`、`startup_complete=false` |
 | C1 顶层 Python helper | 9 个 | 3 个 | 默认 1 个 `_rp_wrap_method`；显式方法候选 0 个 |
@@ -331,6 +332,25 @@ TraceV1 七项 PE 保护和普通路径零分配断言保留。完整 frame/code
 
 ---
 
+### 9.4 第三轮执行盘点增量
+
+[ADR-0220](adr/0220-native-compiled-import-hooks.md) 已移除 Python finder/loader 的两个类、
+三个成员和三个描述符别名。默认只剩 `_rp_wrap_method` 与内部 `_rp_method`，共两个 def；
+显式 native-methods 候选安装源码为空。`rp_install_imports` 旧 ABI 保留，默认只执行 wrapper
+安装；`rp_op(29)` 固定返回 NotImplementedError。原生 finder 创建真实 ModuleSpec，loader
+仍复用 Runtime 唯一初始化点，完整 PEP451 事务接入按 ADR-0221 继续。
+
+C1 三版本两模式 198 项类桥通过；最终两模式 JIT/AOT 删除输入搬迁的已删内部帧均为零。
+默认 startup/runtime/shutdown 为 826/2251/37，候选为 825/2249/37；默认 wrapper 两函数
+各一帧，候选均零，完整审计标志继续为 false。
+
+[ADR-0219](adr/0219-native-inspect-signature.md) 的原生签名与真实宿主值对象桥通过核心、
+atexit/owner、attrs/Pydantic/FastAPI 共 11 组 JIT/AOT 删除输入搬迁；字符串求值、延迟注解、
+精确 CodeType 和原复杂应用全闭包继续开放。[ADR-0218](adr/0218-native-async-for.md) 的
+显式原生 async for 候选 21 项及七组真实 AOT 搬迁通过，完整调度和 IO 仍待办。
+当前 shim 静态 DllImport 声明 102 项；Runtime 历史 1843 项公共签名全部保留，当前 1967 项。
+本轮最终产品与性能记录见[第三轮验收](cil-execution-third-slices-validation.md)。
+
 ## 10. 阶段状态与剩余实现项
 
 ### 10.1 C0 完成记录与历史集成证据
@@ -348,11 +368,12 @@ C0 的执行入口/启动链/ABI 消费者盘点、严格内核路线选择和�
 
 ### 10.2 C1–C5 整阶段继续待办
 
-- **C1**：完成 finder/loader、别名和默认 wrapper 的静态替换，删除 `rp_install_imports` 与死分派
-  `rp_op(29)`，真实精确 ABI 消费者、SanBudget 和生命周期门逐项保护；默认晋升与旧实现删除分开。
+- **C1**：完成默认 wrapper 退出、旧 `rp_install_imports` 源码 ABI 与精确函数布局消费者准入；
+  finder/loader 和别名已静态替换，`rp_op(29)` 已固定拒绝源码执行。SanBudget 和生命周期门
+  逐项保护；默认晋升与旧实现删除分开。
 - **C2**：完成真实框架反射/inspect、动态对象与缓存失效、完整 code/frame/traceback 消费域、
   attrs 活字典，以及独立源码位置/资源根/可写根；移除 `compiled_sources` 默认 `.py` 锚点。
-- **C3**：完成 async for、异步生成器、事件循环与真实 IO/任务取消/contextvars，明确跨域与线程/GIL
+- **C3**：完成异步生成器、事件循环与真实 IO/任务取消/contextvars，明确跨域与线程/GIL
   合同；greenlet 需独立 resumable-sync ADR，完整 FastAPI 服务生命周期仍待原生准入。
 - **C4**：编译应用/stdlib/框架 Python 闭包，接入严格内核扩展与 CIL 导入路由、产品生命周期及真实
   原生依赖；现有 22 项内核探针及 10 项 stock 对照独立登记，三阶段零执行仍需产品证据。

@@ -1,4 +1,3 @@
-# ryupy: pending
 # ADR0219：同一函数读取当前元数据，旧签名固定结构并保留原对象，检查不调用正文。
 import inspect
 

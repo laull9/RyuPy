@@ -1751,7 +1751,7 @@ __await__，返回对象必须已经是迭代器，保留委托终值、send/thr
 协程自身 PEP 479 与子生成器错误保持各自来源。调用参数里的 await 会触发暂停前
 方法绑定和混合星号实参快照；双星号映射与 await 混合的调用继续明确拒绝。
 
-async with 的后续实现见下节；async for、异步生成器/推导式、零参 super 跨暂停上下文继续明确拒绝。
+async with 与 async for 的后续实现见下节；异步生成器/推导式、零参 super 跨暂停上下文继续明确拒绝。
 当前范围为原生普通动态域，显式 Instance 和 CPython awaitable 跨域协议留待后续；
 事件循环、IO、任务取消、contextvars、协程反射字段及未 await 析构警告尚未接入。
 候选 Runtime 没有 CPython ABI 依赖，既有产品 3.9–3.15 版本范围保持。
@@ -1787,3 +1787,28 @@ async with 的后续实现见下节；async for、异步生成器/推导式、�
 字节码、局部变量、完整 frame/code 字段明确拒绝。未知宿主来源不借共享 signature
 伪造代码身份。普通调用不创建帧对象，TraceV1 与既有异常文本保持独立合同。
 事件循环、IO、真正调度取消和 contextvars 继续属于后续阶段。
+
+### 原生 async for 的耗尽边界（ADR-0218）
+
+显式 native-coroutines 候选在循环前调用一次类型级 __aiter__，每轮重新取得类型级
+__anext__ 并等待其结果。只有 next 与 await 产生的内建 StopAsyncIteration 及其子类
+触发自然耗尽；目标赋值、循环正文、清理与 else 的同类异常继续向外传播。
+break 跳过 else，循环本身不隐式调用 aclose；throw/close 沿真实委托与清理链执行。
+实例同名属性不替代类型槽，槽绑定失败与方法执行失败按不同来源报错。
+合成控制流不覆盖真实源码行号，动态 while 的零次执行与删除局部不发布虚假的已绑定事实。
+候选与既有普通生成器保持独立；异步生成器、任意 __getattribute__ 与动态异常别名基类
+仍有单独 pending 输入。macOS arm64 JIT 与七组真实 NativeAOT 删除输入搬迁已验收。
+
+### 原生签名值对象与跨域反射（ADR-0219）
+
+原生 inspect.signature/unwrap 从 canonical 函数的当前默认值、注解和装饰器链取得签名，
+不执行函数体；Parameter/Signature/BoundArguments 支持五类参数、bind/bind_partial、
+apply_defaults 与实时 BoundArguments 字典。既有签名快照保留原 default/annotation 对象，
+后续替换函数元数据只影响新快照。读取默认值参与既有冷观察状态和直调守卫失效。
+
+显式 CPython inspect profile 使用真实宿主 Signature/Parameter/kind/empty 身份及受信 slot
+schema，保留用户替换 API 后的实际对象；未启用 profile 的旧诊断保持。普通 CIL 函数
+没有 CPython CodeType；仅有编译器受信模块级普通函数种类时，外部分类按 opaque callable
+协议观察缺失 __code__，生成器/协程/未知来源保持明确边界。字符串求值、3.14 延迟注解
+与完整 code/frame 留待后续。纯原生、桥和三个框架消费者的范围见 ADR，原复杂项目闭包
+仍按 C4 独立验收。

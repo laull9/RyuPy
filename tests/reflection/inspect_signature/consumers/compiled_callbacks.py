@@ -1,4 +1,3 @@
-# ryupy: pending
 # ADR0219消费者输入：本模块须作为显式Instance编译，供真实外来框架检查并回调CIL。
 calls = []
 

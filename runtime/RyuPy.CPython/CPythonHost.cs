@@ -12,7 +12,6 @@ public sealed record HostStatistics(string State, long BridgeCalls, int ActiveLe
 /// <summary>固定CPython3.12.13、单次初始化的随包宿主。</summary>
 public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyForeignClassBridge
 {
-    private static int processStarted;
     internal static CPythonHost? Instance;
     private readonly object gate = new();
     private readonly int ownerThread = Environment.CurrentManagedThreadId;
@@ -65,8 +64,17 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
         catch (DllNotFoundException) { return LinuxLibcLoad(path, flags); }
     }
 
-    private CPythonHost(HostConfiguration configuration)
+    private static nint LoadPythonLibrary(string libraryPath)
     {
+        nint handle = OperatingSystem.IsMacOS() ? MacLoad(libraryPath, 0xA)
+            : OperatingSystem.IsLinux() ? LinuxDlopen(libraryPath, 0x102) : WindowsLoad(libraryPath);
+        if (handle == 0) throw new DllNotFoundException("无法加载固定libpython：" + libraryPath);
+        return handle;
+    }
+
+    private CPythonHost(HostConfiguration configuration, bool strictKernel = false)
+    {
+        isStrictKernel = strictKernel;
         modules = new(configuration.Modules, StringComparer.Ordinal);
         entryScript = configuration.EntryScript;
         synchronizeContainers = configuration.SynchronizeContainers;
@@ -75,33 +83,44 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
     internal static unsafe CPythonHost Start(string path, string[] argv)
     {
         HostConfiguration configuration = HostConfiguration.Read(path);
-        if (Interlocked.Exchange(ref processStarted, 1) != 0) throw new InvalidOperationException("每进程只允许一次CPython初始化");
-        var host = new CPythonHost(configuration); Instance = host;
+        if (configuration.KernelMode == "strict") return StartStrictUnsealed(path, argv);
+
+        (nint existingPython, nint existingShim) = ProcessNativeBinding.AcquireReservation(
+            BindingProfile.Compat,
+            configuration.Library,
+            configuration.Shim);
+
+        var host = new CPythonHost(configuration, strictKernel: false); Instance = host;
         try
         {
             host.pythonPath = configuration.Library; host.shimPath = configuration.Shim;
             if (OperatingSystem.IsWindows()) ConfigureWindowsSearch(configuration);
             // C扩展从进程全局符号表解析Py*；固定绝对路径加载，绝不探测系统Python。
-            host.pythonLibrary = OperatingSystem.IsMacOS() ? MacLoad(configuration.Library, 0xA)
-                : OperatingSystem.IsLinux() ? LinuxDlopen(configuration.Library, 0x102) : WindowsLoad(configuration.Library);
-            if (host.pythonLibrary == 0) throw new DllNotFoundException("无法加载固定libpython：" + configuration.Library);
-            // 在shim符号绑定之前读取实际库版本；错误ABI有确定诊断，而非偶然缺符号。
-            var versionFunction = (delegate* unmanaged[Cdecl]<nint>)NativeLibrary.GetExport(host.pythonLibrary, "Py_GetVersion");
-            string actualVersion = Marshal.PtrToStringUTF8(versionFunction())!;
+            host.pythonLibrary = existingPython != 0 ? existingPython : LoadPythonLibrary(configuration.Library);
+            if (!NativeLibrary.TryGetExport(host.pythonLibrary, "Py_GetVersion", out _))
+                throw new MissingMethodException("目标 libpython 缺少 Py_GetVersion 导出符号");
+            host.shimLibrary = existingShim != 0
+                ? existingShim
+                : (OperatingSystem.IsWindows() ? WindowsLoad(configuration.Shim) : NativeLibrary.Load(configuration.Shim));
+            if (!NativeLibrary.TryGetExport(host.shimLibrary, "rp_start", out _)
+                || !NativeLibrary.TryGetExport(host.shimLibrary, "rp_python_version", out _))
+                throw new MissingMethodException("compat CPython shim 缺少必需基础导出符号");
+            bool hasBuildVersion = NativeLibrary.TryGetExport(host.shimLibrary, "rp_build_version", out _);
+            if (!hasBuildVersion && configuration.ExpectedVersion != "3.12.13")
+                throw new InvalidDataException("多版本CPython shim缺少构建版本导出");
+
+            ProcessNativeBinding.SetReservedHandles(host.pythonLibrary, host.shimLibrary);
+            ProcessNativeBinding.EnsureResolverRegistered();
+
+            string actualVersion = Marshal.PtrToStringUTF8(Native.rp_python_version()) ?? "";
             if (!actualVersion.StartsWith(configuration.ExpectedVersion + " ", StringComparison.Ordinal))
                 throw new InvalidDataException($"ABI requires CPython {configuration.ExpectedVersion}, loaded {actualVersion}");
-            host.shimLibrary = OperatingSystem.IsWindows() ? WindowsLoad(configuration.Shim) : NativeLibrary.Load(configuration.Shim);
-            // 原固定 3.12.13 shim 沿用已有静态版本 guard；多版本 shim 必须提供头文件版本。
-            if (NativeLibrary.TryGetExport(host.shimLibrary, "rp_build_version", out nint shimVersionAddress))
+            if (hasBuildVersion)
             {
-                var shimVersionFunction = (delegate* unmanaged[Cdecl]<nint>)shimVersionAddress;
-                string shimVersion = Marshal.PtrToStringUTF8(shimVersionFunction())!;
+                string shimVersion = Marshal.PtrToStringUTF8(Native.rp_build_version()) ?? "";
                 if (shimVersion != configuration.ExpectedVersion)
                     throw new InvalidDataException($"shim头文件版本应为 {configuration.ExpectedVersion}，实际为 {shimVersion}");
             }
-            else if (configuration.ExpectedVersion != "3.12.13")
-                throw new InvalidDataException("多版本CPython shim缺少构建版本导出");
-            NativeLibrary.SetDllImportResolver(typeof(Native).Assembly, (name, _, _) => name == Native.Library ? host.shimLibrary : 0);
             host.ConfigureExecutionAudit();
             host.tclTkEnvironment = TclTkEnvironment.Configure(configuration.Home);
             nint[] paths = configuration.SearchPaths.Select(Marshal.StringToCoTaskMemUTF8).ToArray();
@@ -117,6 +136,7 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
             host.InstallInspectBridge(configuration.NativeInspectProfile);
             host.InstallImports();
             if (host.executionAuditEnabled) { using Lease lease = host.Enter(); Native.rp_execution_audit_phase(1); }
+            ProcessNativeBinding.CommitActive();
             return host;
         }
         catch (Exception error)
@@ -124,6 +144,7 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
             if (host.state == 1) { try { host.Dispose(); } catch { } }
             host.tclTkEnvironment?.TryRestore();
             host.state = 3; Instance = null;
+            ProcessNativeBinding.MarkFailed(error.Message);
             throw new InvalidOperationException($"CPython启动失败 [stage=load/init config={path} library={configuration.Library} shim={configuration.Shim}]：{error.Message}", error);
         }
     }
@@ -131,15 +152,18 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
     /// <summary>即时计数，不触发GC或隐式回收。</summary>
     public HostStatistics Statistics
     {
-        get { lock (gate) return new(state == 1 ? "running" : state is 2 or 4 ? "stopping" : "closed", calls, active, handles.Count, Roots.Count, releases.Count, late); }
+        get { lock (gate) return new(state == 1 ? "running" : state is 2 or 4 or 5 ? "stopping" : "closed", calls, active, handles.Count, Roots.Count, releases.Count, late); }
     }
+
+    internal bool IsRefRegistrationBlocked { get { lock (gate) return state is 3 or 5; } }
 
     internal Lease Enter(bool callback = false)
     {
         lock (gate)
         {
+            // state == 5 为 FiniCore 释放栅栏，仅允许 op=0 根移除，拒绝所有新租约与用户回调。
             if (state != 1 && !((state is 2 or 4) && (Environment.CurrentManagedThreadId == ownerThread || state == 2 && callback && active > 0)))
-                throw new ObjectDisposedException("CPython", "解释器关闭中或已关闭");
+                throw new ObjectDisposedException("CPython", "解释器关闭中、FiniCore释放栅栏中或已关闭");
             active++; calls++;
         }
         // 取得GIL时不持有托管锁，Python可以重入同一宿主。
@@ -162,12 +186,23 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
         }
     }
 
-    internal long Track(nint pointer) { lock (gate) { long token = ++nextHandle; handles.Add(token, pointer); return token; } }
+    internal long Track(nint pointer)
+    {
+        lock (gate)
+        {
+            if (state is 3 or 5)
+                throw new ObjectDisposedException("CPython", "FiniCore释放栅栏期间或关闭后禁止登记新原生句柄");
+            long token = ++nextHandle;
+            handles.Add(token, pointer);
+            return token;
+        }
+    }
     internal void Release(long token)
     {
         lock (gate)
         {
             if (!handles.Remove(token, out nint pointer)) { if (state == 3) late++; return; }
+            if (isStrictKernel && state is 4 or 5) { releases.Enqueue(pointer); return; }
             if (state is 3 or 4) { late++; return; }
             releases.Enqueue(pointer);
         }
@@ -201,6 +236,7 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
             // Wait释放gate；现存外部调用和回调可以完成并通知。
             while (active != 0) Monitor.Wait(gate);
         }
+        if (isStrictKernel) { DisposeStrictCore(); return; }
         Exception? observationError = null;
         try
         {
@@ -220,6 +256,7 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
             // Finalize期间的C代理析构/atexit仍可访问Roots；完成后才清除托管根并恢复进程Tcl/Tk环境。
             RemoveInspectBridge();
             Roots.Clear(); imported.Clear(); objects.Clear(); transfers.Clear(); transferIndex.Clear(); lock (gate) { state = 3; handles.Clear(); } Instance = null;
+            ProcessNativeBinding.CommitClosed();
             tclTkEnvironment?.TryRestore();
         }
         WriteReport();

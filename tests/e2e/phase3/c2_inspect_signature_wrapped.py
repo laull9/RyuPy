@@ -1,4 +1,3 @@
-# ryupy: pending
 # ADR0219：显式签名/None与wrapped优先级、身份循环、用户属性异常均须当次差分。
 import inspect
 
