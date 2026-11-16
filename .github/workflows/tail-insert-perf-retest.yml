@@ -1,0 +1,128 @@
+# 仅验证隔离数值列表候选，不修改dev，也不将Runtime合同当作AOT性能验收。
+name: Tail insert performance retest only
+on:
+  push:
+    branches: [ci/tail-insert-perf-retest-20261116]
+permissions:
+  contents: read
+jobs:
+  candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+      MSBUILDDISABLENODEREUSE: '1'
+      DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+      UseSharedCompilation: 'false'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 选择独立SDK安装目录
+        run: echo "DOTNET_INSTALL_DIR=$RUNNER_TEMP/numeric-list-dotnet" >> "$GITHUB_ENV"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - uses: actions/setup-python@v5
+        id: python
+        with:
+          python-version: '3.12.13'
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
+        with:
+          toolchain: '1.99.1'
+          components: rustfmt, clippy
+      - name: 固定环境并记录身份
+        env:
+          FIXED_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/numeric-list-evidence"
+          echo "EVIDENCE=$RUNNER_TEMP/numeric-list-evidence" >> "$GITHUB_ENV"
+          echo "PYTHON=$FIXED_PYTHON" >> "$GITHUB_ENV"
+          echo "RYUPY_FOREACH_PYTHON=$FIXED_PYTHON" >> "$GITHUB_ENV"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git rev-parse HEAD HEAD^{tree} > "$RUNNER_TEMP/numeric-list-evidence/source.txt"
+          # 独立安装目录避免runner自带较新SDK被默认选择，保留门禁失败时的实际版本。
+          dotnet --info > "$RUNNER_TEMP/numeric-list-evidence/dotnet.txt"
+          dotnet --version | tee "$RUNNER_TEMP/numeric-list-evidence/sdk.txt"
+          test "$(readlink -f "$(command -v dotnet)")" = "$DOTNET_INSTALL_DIR/dotnet"
+          test "$(dotnet --version)" = 10.0.403
+          for key in DOTNET DOTNET_HOST_PATH; do echo "$key=$DOTNET_INSTALL_DIR/dotnet" >> "$GITHUB_ENV"; done
+          for key in DOTNET_ROOT DOTNET_ROOT_X64; do echo "$key=$DOTNET_INSTALL_DIR" >> "$GITHUB_ENV"; done
+          echo "DOTNET_MULTILEVEL_LOOKUP=0" >> "$GITHUB_ENV"
+          "$FIXED_PYTHON" -c 'import sys; assert sys.version_info[:3] == (3,12,13); print(sys.version)' > "$RUNNER_TEMP/numeric-list-evidence/python.txt"
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev patchelf binutils time
+      - name: 外壳自检及固定短长源码
+        run: |
+          set -euo pipefail
+          "$PYTHON" -B tests/perf/tail-insert-retest/test_validate.py
+          "$PYTHON" - <<'PY'
+          import pathlib, subprocess
+          ref = '17887d6ccbefee087cc174f591d96d2129cc86be'
+          for path in ('tests/perf/numeric-tail-insert/tail_many.py', 'tests/perf/numeric-tail-insert/head_many.py', 'tests/benchmarks/list_ops.py'):
+              assert pathlib.Path(path).read_bytes() == subprocess.check_output(['git','show', ref + ':' + path])
+          a = pathlib.Path('tests/perf/numeric-tail-insert/tail_many.py').read_bytes()
+          b = pathlib.Path('tests/perf/tail-insert-retest/tail_many_long.py').read_bytes()
+          assert a.count(b'for repeat in range(10):') == 1
+          assert b == a.replace(b'for repeat in range(10):', b'for repeat in range(100):')
+          PY
+      - name: 四轮精确产品独立构建与性能复测
+        run: |
+          set -euo pipefail
+          rounds=(AB BA BA AB)
+          for round in 0 1 2 3; do
+            order="${rounds[$round]}"
+            for ((slot=0; slot<2; slot++)); do
+              arm="${order:$slot:1}"
+              if [[ "$arm" == A ]]; then
+                sha=86c8b97bfa4dd576d861c4b6122c91ac80125217
+              else
+                sha=2128d6bc82e61a6ba6d1601dd475667873019772
+              fi
+              work="$RUNNER_TEMP/tail-retest-$round-$arm"
+              target="$RUNNER_TEMP/tail-target-$round-$arm"
+              cli="$RUNNER_TEMP/tail-cli-$round-$arm"
+              git worktree add --detach "$work" "$sha"
+              test "$(git -C "$work" rev-parse HEAD)" = "$sha"
+              test -z "$(git -C "$work" status --porcelain)"
+              git -C "$work" rev-parse HEAD HEAD^{tree} > "$EVIDENCE/round-$round-$arm-source.txt"
+              (cd "$work"; CARGO_TARGET_DIR="$target" make build RELEASE_DIR="$cli") 2>&1 | tee "$EVIDENCE/round-$round-$arm-build.log"
+              find "$cli" -type f -print0 | sort -z | xargs -0 sha256sum > "$EVIDENCE/round-$round-$arm-cli.sha256"
+              git -C "$work" diff --exit-code
+              rm -rf -- "$target"
+            done
+            "$PYTHON" -B tests/perf/tail-insert-retest/validate.py "$EVIDENCE/round-$round" --round "$round" \
+              --old "$RUNNER_TEMP/tail-cli-$round-A/ryupy" --new "$RUNNER_TEMP/tail-cli-$round-B/ryupy" \
+              2>&1 | tee "$EVIDENCE/round-$round-performance.log"
+          done
+      - name: 核完整576计时和32份SDK清单
+        run: |
+          "$PYTHON" - <<'PY'
+          import json, os, pathlib
+          p = pathlib.Path(os.environ['EVIDENCE'])
+          all_rows = []
+          for r in range(4):
+              d = p / f'round-{r}'
+              assert (d / 'COMPLETE').is_file()
+              rows = json.loads((d / 'samples.json').read_text())
+              assert {(x['round'], x['name']) for x in rows} == {(r,n) for n in ('tail_many','tail_many_long','head_many','list_ops')}
+              assert all(x['build_order'] == ('AB','BA','BA','AB')[r] for x in rows)
+              for x in rows:
+                  assert set(x['samples']) == {'CP','A','B'}
+                  assert all(len(v) == 12 for v in x['samples'].values())
+              all_rows.extend(rows)
+          assert sum(len(v) for x in all_rows for v in x['samples'].values()) == 576
+          manifests = list(p.glob('round-*/*/*-manifest.json'))
+          assert len(manifests) == 32
+          assert all(json.loads(m.read_text())['toolchain']['sdk_version'] == '10.0.403' for m in manifests)
+          (p/'COMPLETE').write_text('performance-only: 576 timings, 32 SDK manifests; no new full-check/relocation claim\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tail-insert-retest-${{ github.sha }}
+          path: ${{ runner.temp }}/numeric-list-evidence
+          if-no-files-found: error
+          retention-days: 14
