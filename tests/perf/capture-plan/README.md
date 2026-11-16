@@ -57,3 +57,14 @@ capture_only只捕获不调用，invoke_only复用预先捕获的目标只调用
 
 CI默认/feature完整门禁及PIC0合同之外，保留四构建轮与正常/禁分层JIT、AOT。
 每进程160批记录，共24进程3840记录。必须逐臂报告，不能挑最佳轮代替全部轮次。
+
+## 保留守卫的冷热拆分实验
+
+scalar_capture_split与scalar_narrow使用同一narrow类、receiver及CallExperimentalScalar2，
+只用独立站点改为CaptureMethodPlanSplit；capture_split_only单独观测捕获，不是完整调用。
+新入口保留每次完整MRO/布局检查、精确实例、外来实例、词法状态、版本、名称及shadow-slot
+判据；只把miss/计划分配拆到NoInlining冷函数，热入口与相同布局遍历加内联提示。
+未按GlobalVersion缓存布局资格，因为ExceptionFactory等setter不保证递增该版本。
+两个入口共享同种缓存实现但使用不同站点，原入口及原八臂保留。
+四构建轮、24进程、每进程200批，共4800记录；同一narrow对象的两完整调用臂逐轮对照。
+内联提示只是候选，需要核机器码和实测，不能承诺收益；不改产品编译器或默认入口。

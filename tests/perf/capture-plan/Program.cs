@@ -30,6 +30,7 @@ PyPic.RegisterExperimentalScalar2(narrowFunction, static (_, _, _, x) => x);
 narrowClass.SetAttr("f", narrowFunction);
 // 初始化类变更会让之前缓存过期，在所有定义完成后固定分解臂的计划。
 scalarProbe = PyPic.CaptureMethodPlan(3513, scalarReceiver, "f");
+object? splitProbe = PyPic.CaptureMethodPlanSplit(3515, narrowReceiver, "f");
 bool picEnabled = Environment.GetEnvironmentVariable("RYUPY_PIC") != "0";
 const int count = 100000;
 object value = 7L;
@@ -42,8 +43,8 @@ while (batch < 20)
 {
     if (batch < 0 && Stopwatch.GetElapsedTime(warmupStart).TotalSeconds >= 3) batch = 0;
     string[] arms = cycle++ % 2 == 0
-        ? ["late", "bound", "plan", "scalar", "scalar_split", "scalar_narrow", "capture_only", "invoke_only"]
-        : ["invoke_only", "capture_only", "scalar_narrow", "scalar_split", "scalar", "plan", "bound", "late"];
+        ? ["late", "bound", "plan", "scalar", "scalar_split", "scalar_narrow", "capture_only", "invoke_only", "scalar_capture_split", "capture_split_only"]
+        : ["capture_split_only", "scalar_capture_split", "invoke_only", "capture_only", "scalar_narrow", "scalar_split", "scalar", "plan", "bound", "late"];
     foreach (string arm in arms)
     {
         object? result = null;
@@ -82,6 +83,16 @@ while (batch < 20)
                     result = PyPic.CallExperimentalScalar2(3514, true, plan, narrowReceiver, "f", value);
                 }
                 break;
+            case "capture_split_only":
+                for (int i = 0; i < count; i++) result = PyPic.CaptureMethodPlanSplit(3515, narrowReceiver, "f");
+                break;
+            case "scalar_capture_split":
+                for (int i = 0; i < count; i++)
+                {
+                    object? plan = PyPic.CaptureMethodPlanSplit(3515, narrowReceiver, "f");
+                    result = PyPic.CallExperimentalScalar2(3515, true, plan, narrowReceiver, "f", value);
+                }
+                break;
             case "scalar":
                 for (int i = 0; i < count; i++)
                 {
@@ -99,9 +110,10 @@ while (batch < 20)
         }
         long ticks = Stopwatch.GetTimestamp() - start;
         allocation = GC.GetAllocatedBytesForCurrentThread() - allocation;
-        if (arm == "capture_only")
+        if (arm is "capture_only" or "capture_split_only")
         {
-            if (picEnabled ? !ReferenceEquals(result, scalarProbe) : result is not PyBoundMethod)
+            object? expected = arm == "capture_only" ? scalarProbe : splitProbe;
+            if (picEnabled ? !ReferenceEquals(result, expected) : result is not PyBoundMethod)
                 throw new Exception("分解捕获身份变化");
         }
         else if (!ReferenceEquals(result, value)) throw new Exception("返回身份变化");

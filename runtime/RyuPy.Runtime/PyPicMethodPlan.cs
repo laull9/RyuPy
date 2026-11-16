@@ -143,6 +143,58 @@ public static partial class PyPic
         return plan;
     }
 
+    // 隔离实验：与原CaptureMethodPlan逐项相同的热判据，仅把miss及分配移到冷函数。
+    // 不缓存布局资格：ExceptionFactory等setter不受GlobalVersion保护。
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static object? CaptureMethodPlanSplit(int site, object? receiver, string name)
+    {
+        if (!Enabled || (uint)site >= MaxSites || receiver is not PyInstance instance
+            || instance.GetType() != typeof(PyInstance) || instance.ForeignInstance is not null)
+            return PyOps.CaptureMethodTarget(receiver, name);
+        PyClass cls = instance.Class;
+        cls.RequireLexicalFactoryReady();
+        if (!IsPlainCaptureClassInline(cls)) return PyOps.CaptureMethodTarget(receiver, name);
+        long version = PyClass.GlobalVersion;
+        for (int index = site * EntriesPerSite; index < (site + 1) * EntriesPerSite; index++)
+        {
+            ref CapturedPlanEntry entry = ref CapturedPlans[index];
+            if (entry.Plan is not null && ReferenceEquals(entry.Class, cls) && entry.Version == version
+                && string.Equals(entry.Name, name, StringComparison.Ordinal)
+                && (entry.ShadowSlot < 0 || !instance.IsSlotSet(entry.ShadowSlot)))
+                return entry.Plan;
+        }
+        return CaptureMethodPlanMiss(site, instance, name, cls, version);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static object? CaptureMethodPlanMiss(int site, PyInstance instance, string name,
+        PyClass cls, long version)
+    {
+        if (instance.TryOwnAttribute(name, out _) || !cls.TryLookup(name, out PyClass owner, out object? raw)
+            || raw is not PyFunction function)
+            return PyOps.CaptureMethodTarget(instance, name);
+        var plan = new CapturedClassPlan(owner, function);
+        CapturedPlans[NextVictim(CapturedPlanVictims, site)] = new CapturedPlanEntry
+        {
+            Class = cls, Name = name, Version = version, Plan = plan,
+            ShadowSlot = cls.TryGetInstanceSlot(name, out int slot) ? slot : -1,
+        };
+        return plan;
+    }
+
+    // 仍在每次命中前遍历完整MRO并读取全部布局字段；不能用版本命中绕过。
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsPlainCaptureClassInline(PyClass cls)
+    {
+        foreach (PyClass item in cls.MroClasses())
+            if (item.HasSlotLayout || item.HasDictC3Layout || item.HasStringLayout || item.HasListLayout
+                || item.HasDictLayout || item.NamedTupleLayout is not null || item.IsTypingGenericFamily
+                || item.IsTypingIoFamily || item.HasEnumMetadata || item.IsNativeRuntimeClass
+                || item.HasForeignHierarchy || item.BuiltinBase is not null || item.ExceptionFactory is not null)
+                return false;
+        return true;
+    }
+
     private static bool IsPlainCaptureClass(PyClass cls)
     {
         foreach (PyClass item in cls.MroClasses())
