@@ -99,6 +99,34 @@ static int native_method_unsupported_set(NativeMethod *self, PyObject *value, vo
     (void)value;
     Py_XDECREF(native_method_unsupported_get(self, closure)); return -1;
 }
+/* 反射只在显式读取时进入 target；wrapper 自有 signature override 仍属于其原字典。
+ * 不转发 name/defaults/annotations 等现有独立元数据，避免改变候选既有绑定合同。 */
+static PyObject *native_method_canonical_get(NativeMethod *self, void *closure) {
+    const char *name = (const char *)closure;
+    if (strcmp(name, "__signature__") == 0 && self->dictionary) {
+        PyObject *override = PyDict_GetItemString(self->dictionary, name);
+        if (override) return Py_NewRef(override);
+    }
+    if (!self->target) { PyErr_SetString(PyExc_RuntimeError, "RyuPy native method was cleared"); return NULL; }
+    PyObject *value = PyObject_GetAttrString(self->target, name);
+    if (!value && strcmp(name, "__globals__") == 0
+        && (PyErr_ExceptionMatches(PyExc_AttributeError) || PyErr_ExceptionMatches(PyExc_NotImplementedError))) {
+        /* 无受信 globals 的宿主目标仍保留既有 code/layout 边界诊断。 */
+        PyErr_Clear(); return native_method_unsupported_get(self, NULL);
+    }
+    return value;
+}
+static int native_method_signature_set(NativeMethod *self, PyObject *value, void *closure) {
+    (void)closure;
+    if (!value) {
+        if (self->dictionary && PyDict_DelItemString(self->dictionary, "__signature__") == 0) return 0;
+        PyErr_Clear(); PyErr_SetString(PyExc_AttributeError, "native method has no own __signature__ override"); return -1;
+    }
+    PyObject *dictionary = PyObject_GenericGetDict((PyObject *)self, NULL);
+    if (!dictionary) return -1;
+    int result = PyDict_SetItemString(dictionary, "__signature__", value); Py_DECREF(dictionary); return result;
+}
+
 #define METHOD_OFFSET(field) ((void *)offsetof(NativeMethod, field))
 static PyGetSetDef native_method_getsets[] = {
     {"__name__", (getter)native_method_text_get, (setter)native_method_text_set, NULL, METHOD_OFFSET(name)},
@@ -110,7 +138,8 @@ static PyGetSetDef native_method_getsets[] = {
     {"__kwdefaults__", (getter)native_method_value_get, (setter)native_method_mapping_set, NULL, METHOD_OFFSET(kwdefaults)},
     {"__dict__", PyObject_GenericGetDict, PyObject_GenericSetDict, NULL, NULL},
     {"__code__", (getter)native_method_unsupported_get, (setter)native_method_unsupported_set, NULL, NULL},
-    {"__globals__", (getter)native_method_unsupported_get, (setter)native_method_unsupported_set, NULL, NULL},
+    {"__signature__", (getter)native_method_canonical_get, (setter)native_method_signature_set, NULL, "__signature__"},
+    {"__globals__", (getter)native_method_canonical_get, (setter)native_method_unsupported_set, NULL, "__globals__"},
     {"__closure__", (getter)native_method_unsupported_get, (setter)native_method_unsupported_set, NULL, NULL},
     {NULL, NULL, NULL, NULL, NULL}
 };

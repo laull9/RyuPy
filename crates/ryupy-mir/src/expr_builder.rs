@@ -150,6 +150,7 @@ impl<'a> ExprBuilder<'a> {
             ExprKind::YieldFrom(value) => self.build_yield_from(*value),
             ExprKind::Await { value, context } => self.build_await(*value, *context),
             ExprKind::ExceptionTraceback(value) => self.build_exception_traceback(*value),
+            ExprKind::AsyncIteration { value, op } => self.build_async_iteration(*value, *op),
             ExprKind::ModuleVar(var) => self.build_module_name(*var),
             ExprKind::Local(loc) => {
                 let mir_local = self.local_map[loc];
@@ -479,6 +480,9 @@ impl<'a> ExprBuilder<'a> {
             // 本切仅迁移KeyError，保保存别名的真实绑定；不扩大其它异常的构造合同。
             Builtin::Exception("KeyError") => return self.default_builtin_value("KeyError"),
             Builtin::Exception("SyntaxError") => return self.default_builtin_value("SyntaxError"),
+            Builtin::Exception("StopAsyncIteration") => {
+                return self.default_builtin_value("StopAsyncIteration");
+            }
             // 异常类作为值：`isinstance(e, Exception)` / `raise E` 等。
             Builtin::Exception(type_name) => type_name,
             Builtin::Int => "int",

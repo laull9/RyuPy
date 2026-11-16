@@ -128,6 +128,7 @@ fn compile_module(
 ) -> Result<CompiledModule> {
     let info = ryupy_hir::ModuleInfo {
         foreign_class_construction: sess.cpython_provider.is_some(),
+        introspection_profile: crate::instance_modules::inspect_profile(sess),
         instance_globals: plan.instance_globals(),
         instance_capabilities: plan.capabilities,
         name: module.name.clone(),

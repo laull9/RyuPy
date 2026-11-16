@@ -83,6 +83,7 @@ public static class PyNativeModules
         });
         PyModules.RegisterNative("itertools", PyItertools.CreateAttributes());
         PyModules.RegisterNative("functools", PyFunctools.CreateAttributes());
+        PyInspectModule.Register();
         PyModules.RegisterNative("operator", PyOperator.CreateAttributes());
         PyModules.RegisterNative("contextlib", PyContextLib.CreateAttributes());
         PyModules.RegisterNative("typing", PyTyping.CreateAttributes());

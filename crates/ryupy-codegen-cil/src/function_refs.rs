@@ -6,6 +6,7 @@ pub(crate) struct FunctionRefs {
     pub metadata: MethodRefIndex,
     pub definition: MethodRefIndex,
     pub definition_with_source: MethodRefIndex,
+    pub introspection_kind: MethodRefIndex,
     pub module: MethodRefIndex,
     pub defaults_unobserved: MethodRefIndex,
     pub generic_register: MethodRefIndex,
@@ -22,6 +23,7 @@ impl FunctionRefs {
         let call_ref = res.push_type_reference(type_ref! { RyuPy.Runtime.PyCall in #runtime });
         let call: MethodType = BaseType::class(call_ref).into();
         Self {
+            introspection_kind: res.push_method_reference(method_ref! { static void @ops::FunctionIntrospectionKind(object, long) }),
             generic_register: res.push_method_reference(method_ref! { static void @ops::RegisterGenericFunction(object, @call) }),
             generic_call: res.push_method_reference(method_ref! { static object @ops::CallValueGeneric(object, object[], object[], object[]) }),
             finalize_ordinary_class: res.push_method_reference(method_ref! { static void @ops::FinalizeOrdinaryClass(object) }),

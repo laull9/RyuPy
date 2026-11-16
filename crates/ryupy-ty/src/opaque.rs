@@ -45,6 +45,7 @@ pub(crate) fn safe_uses(function: &Function, facts: &TypeckResults) -> bool {
             | ExprKind::Starred(operand)
             | ExprKind::YieldFrom(operand)
             | ExprKind::ExceptionTraceback(operand)
+            | ExprKind::AsyncIteration { value: operand, .. }
             | ExprKind::Await { value: operand, .. } => vec![*operand],
             ExprKind::Binary { lhs, rhs, .. }
             | ExprKind::Compare { lhs, rhs, .. }

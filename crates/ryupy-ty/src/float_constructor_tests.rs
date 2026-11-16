@@ -12,6 +12,7 @@ fn float_constructor_shapes_do_not_discard_arguments_or_demote_numeric_fast_path
         &parsed,
         &ryupy_hir::ModuleInfo {
             foreign_class_construction: false,
+            introspection_profile: false,
             instance_capabilities: Default::default(),
             name: "__main__".into(),
             package: String::new(),

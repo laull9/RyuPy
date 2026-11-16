@@ -58,23 +58,9 @@ public sealed partial class CPythonHost
     private void InstallImports()
     {
         using Lease lease = Enter();
-        Native.rp_decref(Check(Native.rp_install_imports("""
-import sys as _rp_sys
-import importlib.util as _rp_util
-class _RyuPyLoader:
-    def create_module(self, spec):
-        return _rp_load(spec.name)
-    def exec_module(self, module):
-        pass
-class _RyuPyFinder:
-    def find_spec(self, fullname, path=None, target=None):
-        if _rp_has(fullname):
-            return _rp_util.spec_from_loader(fullname, _RyuPyLoader(), is_package=_rp_package(fullname))
-_rp_sys.meta_path.insert(0, _RyuPyFinder())
-_rp_staticmethod = staticmethod
-_rp_classmethod = classmethod
-_rp_property = property
-""" + (nativeMethodsEnabled ? "" : LegacyMethodWrapper))));
+        // 旧导出 ABI 保留；产品仅安装默认方法 factory，候选空源码不进入求值器。
+        Native.rp_decref(Check(Native.rp_install_imports(nativeMethodsEnabled ? "" : LegacyMethodWrapper)));
+        Native.rp_decref(Check(Native.rp_install_native_imports()));
     }
 
 }

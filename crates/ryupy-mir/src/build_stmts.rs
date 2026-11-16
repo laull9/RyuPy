@@ -77,7 +77,9 @@ impl FunctionBuilder<'_> {
         let hir_body = &self.hir.functions[self.current_hir_fn].body;
         let stmt = &hir_body.stmts[stmt_id];
         let line = stmt.line;
-        self.emit_line(line);
+        if line != 0 {
+            self.emit_line(line);
+        }
         match &stmt.kind {
             StmtKind::Yield(value) => {
                 let value = match value {
@@ -278,6 +280,14 @@ impl FunctionBuilder<'_> {
                 self.current_bb = join_bb;
             }
             StmtKind::While { cond, body, orelse } => {
+                let assigned_before = self
+                    .types
+                    .is_dynamic(self.current_hir_fn)
+                    .then(|| self.assigned_locals.clone());
+                if let Some(before) = &assigned_before {
+                    // 回边可能经过del/except清理：下一轮的条件与正文首读也必须检查真实槽。
+                    self.restore_loop_assignments(before, &[body]);
+                }
                 let cond_bb = self.new_block();
                 let body_bb = self.new_block();
                 let else_bb = self.new_block();
@@ -308,6 +318,9 @@ impl FunctionBuilder<'_> {
                 }
 
                 // else 体
+                if let Some(before) = &assigned_before {
+                    self.restore_loop_assignments(before, &[body]);
+                }
                 self.current_bb = else_bb;
                 for &s in orelse {
                     self.build_stmt(s);
@@ -316,6 +329,9 @@ impl FunctionBuilder<'_> {
                     self.terminate_current(Terminator::Goto(exit_bb));
                 }
                 self.current_bb = exit_bb;
+                if let Some(before) = &assigned_before {
+                    self.restore_loop_assignments(before, &[body, orelse]);
+                }
             }
             StmtKind::Break => {
                 let (_, break_bb) = *self

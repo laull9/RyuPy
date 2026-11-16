@@ -57,6 +57,14 @@ pub(super) fn build(
                 include_str!("../../../runtime/RyuPy.CPython/native/managed_descriptor.h"),
             ),
             (
+                "import_hooks.h",
+                include_str!("../../../runtime/RyuPy.CPython/native/import_hooks.h"),
+            ),
+            (
+                "signature_bridge.h",
+                include_str!("../../../runtime/RyuPy.CPython/native/signature_bridge.h"),
+            ),
+            (
                 "build.sh",
                 include_str!("../../../runtime/RyuPy.CPython/native/build.sh"),
             ),

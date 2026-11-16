@@ -236,6 +236,17 @@ pub(crate) fn build_program_cores(
                 .map(|info| crate::DefinitionInfo {
                     lexical_qualname: info.lexical_qualname.clone(),
                     firstlineno: info.firstlineno,
+                    introspection_kind: hir.info.introspection_profile.then_some(
+                        if hir_fn.is_coroutine {
+                            crate::PythonFunctionKind::Coroutine
+                        } else if hir_fn.is_generator {
+                            crate::PythonFunctionKind::Generator
+                        } else if hir.top_functions.contains(&hir_fn_id) {
+                            crate::PythonFunctionKind::OrdinaryModule
+                        } else {
+                            crate::PythonFunctionKind::OrdinaryNonModule
+                        },
+                    ),
                 }),
             params: Vec::new(),
             ret: ret_ty,

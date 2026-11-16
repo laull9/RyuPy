@@ -24,6 +24,7 @@ fn program() -> Program {
         definition: Some(DefinitionInfo {
             lexical_qualname: "Owner.factory.<locals>.child".into(),
             firstlineno: 37,
+            introspection_kind: None,
         }),
         name: "child".into(),
         codegen_name: "internal_symbol".into(),
@@ -79,6 +80,7 @@ fn function_definition_link_preserves_python_source_without_prefix() {
         &DefinitionInfo {
             lexical_qualname: "Owner.factory.<locals>.child".into(),
             firstlineno: 37,
+            introspection_kind: None,
         }
     );
 }

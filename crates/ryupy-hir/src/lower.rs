@@ -383,6 +383,7 @@ pub fn lower_module_with_native_exceptions(
         vars: &mut vars,
         module_scope: true,
         forbid_lexical_class: false,
+        coroutine_scope: false,
         direct_stmt_index: 0,
         package: &info.package,
         classes: &classes,
@@ -509,6 +510,8 @@ pub(crate) struct StmtLowerCtx<'a> {
     /// 是否位于模块顶层；函数导入仍在原语句位置执行。
     pub(crate) module_scope: bool,
     pub(crate) forbid_lexical_class: bool,
+    /// 原生协程可删除持久化动态局部；这与普通函数f_locals反射可见性分开。
+    pub(crate) coroutine_scope: bool,
     /// 当前模块的 `__package__`，用于把相对导入换算成绝对模块名。
     pub(crate) package: &'a str,
     /// 已解析的类（`except` 需要判断用户类是否属于异常家族）。

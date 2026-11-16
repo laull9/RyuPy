@@ -133,6 +133,8 @@ pub(super) fn stage(plan: &Plan, output: &Path) -> Result<()> {
         "shim": native::shim_name(),
         "search_paths": search_paths, "native_search_paths": native_search_paths,
         "stdlib_provider": "cpython", "modules": plan.modules, "container_transfer": plan.container_transfer,
+        // 真inspect donor/API身份只能在用户回调前按显式能力请求冻结。
+        "native_inspect_profile": plan.delegation.dynamic_modules.iter().any(|name| name == "inspect"),
     });
     if let Some(entry_rel) = &entry_script {
         config["entry_script"] = json!(entry_rel);

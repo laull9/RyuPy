@@ -49,7 +49,7 @@ public static class Bootstrap
     }
 }
 
-internal sealed record HostConfiguration(string Home, string Library, string Shim, string[] SearchPaths, string[] Modules, bool SynchronizeContainers, string[] NativeSearchPaths, string ExpectedVersion, string? EntryScript = null)
+internal sealed record HostConfiguration(string Home, string Library, string Shim, string[] SearchPaths, string[] Modules, bool SynchronizeContainers, string[] NativeSearchPaths, string ExpectedVersion, string? EntryScript = null, bool NativeInspectProfile = false)
 {
     internal static HostConfiguration Read(string filename)
     {
@@ -110,6 +110,7 @@ internal sealed record HostConfiguration(string Home, string Library, string Shi
             root.TryGetProperty("native_search_paths", out JsonElement nativePaths)
                 ? nativePaths.EnumerateArray().Select(p => ResolveValue(p.GetString()!)).ToArray() : [],
             expectedVersion,
-            entryScript);
+            entryScript,
+            root.TryGetProperty("native_inspect_profile", out JsonElement inspectProfile) && inspectProfile.GetBoolean());
     }
 }

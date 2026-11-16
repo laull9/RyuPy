@@ -14,6 +14,7 @@ fn primitive_attribute_fallback_keeps_unrelated_numeric_function_static() {
         &parsed,
         &ryupy_hir::ModuleInfo {
             foreign_class_construction: false,
+            introspection_profile: false,
             instance_capabilities: Default::default(),
             instance_globals: false,
             resolve_file_at_runtime: false,
@@ -66,6 +67,7 @@ fn object_local_alias_demotes_only_its_function() {
         &parsed,
         &ryupy_hir::ModuleInfo {
             foreign_class_construction: false,
+            introspection_profile: false,
             instance_capabilities: Default::default(),
             instance_globals: false,
             resolve_file_at_runtime: false,

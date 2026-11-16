@@ -135,6 +135,8 @@ static char init_error[4096];
 #include "execution_audit.h"
 #include "method_descriptor.h"
 #include "class_construction.h"
+#include "import_hooks.h"
+#include "signature_bridge.h"
 
 /* 回调失败必须已设置Python异常，绝不能让托管异常穿过C栈。 */
 static PyObject *forward(Managed *self, int op, PyObject *a, PyObject *b, PyObject *c, int64_t n, const char *s) {
@@ -266,9 +268,11 @@ API PyObject *rp_install_imports(const char *source) {
         Py_DECREF(function);
         if (status < 0) goto error;
     }
-    PyObject *result = PyRun_String(source, Py_file_input, globals, globals);
-    if (!result) goto error;
-    Py_DECREF(result);
+    if (source && *source) {
+        PyObject *result = PyRun_String(source, Py_file_input, globals, globals);
+        if (!result) goto error;
+        Py_DECREF(result);
+    }
     if (PyDict_SetItemString(PyImport_GetModuleDict(), "_ryupy_imports", module) < 0) goto error;
     Py_DECREF(module);
     Py_RETURN_NONE;
@@ -282,8 +286,10 @@ API void rp_gil_release(int state) { PyGILState_Release((PyGILState_STATE)state)
 API int rp_stop(void) {
     PyEval_RestoreThread(initial_thread); initial_thread = NULL;
     rp_execution_audit_phase(2);
+    native_import_hooks_clear();
     Py_CLEAR(native_method_type); Py_CLEAR(native_static_method_type); Py_CLEAR(managed_descriptor_type);
     int result = Py_FinalizeEx();
+    inspect_bridge_closed_aliases();
     audit_finalized = audit_enabled;
     managed_type = NULL;
     return result;
@@ -354,7 +360,7 @@ API PyObject *rp_op(int op, PyObject *a, PyObject *b, PyObject *c, int64_t n, co
         case 26: return PySequence_Tuple(a);
         case 27: { int result = PyObject_IsInstance(a,b); return result < 0 ? NULL : PyBool_FromLong(result); }
         case 28: return PySlice_New(a, b, c);
-        case 29: return PyRun_String(s, Py_file_input, PyEval_GetBuiltins(), PyEval_GetBuiltins());
+        case 29: PyErr_SetString(PyExc_NotImplementedError, "rp_op(29) source evaluation is retired"); return NULL;
         case 30: if (PyDict_DelItemString(PyImport_GetModuleDict(), s) < 0) { PyErr_Clear(); } Py_RETURN_NONE;
         case 31: return PyNumber_Index(a);
     }

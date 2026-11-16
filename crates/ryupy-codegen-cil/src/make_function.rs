@@ -80,6 +80,18 @@ pub(crate) fn emit(
             ctx.runtime_refs.py_function_ctor_env,
         )));
     }
+    if let Some(kind) = nested
+        .definition
+        .as_ref()
+        .and_then(|definition| definition.introspection_kind)
+    {
+        // 保留同一个新函数在栈顶；登记消费Duplicate，不重建function/defaults/env。
+        ins.push(Instruction::Duplicate);
+        ins.push(Instruction::LoadConstantInt64(kind as i64));
+        ins.push(Instruction::call(
+            ctx.runtime_refs.function_objects.introspection_kind,
+        ));
+    }
     if let Some(identity) = nested.specialization_identity_global {
         // 私有特化锚点只指向本次实际创建的原对象，不读取或覆盖公开函数/defaults槽。
         ins.push(Instruction::Duplicate);

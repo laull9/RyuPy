@@ -223,6 +223,7 @@ fn expr_children(kind: &ExprKind) -> Vec<ExprId> {
         }
         ExprKind::Starred(inner)
         | ExprKind::ExceptionTraceback(inner)
+        | ExprKind::AsyncIteration { value: inner, .. }
         | ExprKind::YieldFrom(inner)
         | ExprKind::Await { value: inner, .. } => {
             vec![*inner]
@@ -545,6 +546,7 @@ impl FunctionChecker<'_> {
             | ExprKind::Yield(_)
             | ExprKind::YieldFrom(_)
             | ExprKind::Await { .. }
+            | ExprKind::AsyncIteration { .. }
             | ExprKind::ExceptionTraceback(_) => {
                 for child in expr_children(&expr.kind) {
                     self.check_expr(child);

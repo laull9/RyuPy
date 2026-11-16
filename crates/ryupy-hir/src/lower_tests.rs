@@ -28,6 +28,7 @@ print(p.x)
         &parsed,
         &ModuleInfo {
             foreign_class_construction: false,
+            introspection_profile: false,
             instance_capabilities: Default::default(),
             instance_globals: false,
             resolve_file_at_runtime: false,
@@ -68,6 +69,7 @@ print(f(10))
         &parsed,
         &ModuleInfo {
             foreign_class_construction: false,
+            introspection_profile: false,
             instance_capabilities: Default::default(),
             instance_globals: false,
             resolve_file_at_runtime: false,
@@ -101,6 +103,7 @@ def classify(n: int) -> int:
         &parsed,
         &ModuleInfo {
             foreign_class_construction: false,
+            introspection_profile: false,
             instance_capabilities: Default::default(),
             instance_globals: false,
             resolve_file_at_runtime: false,
@@ -130,6 +133,7 @@ for i in range(10):
         &parsed,
         &ModuleInfo {
             foreign_class_construction: false,
+            introspection_profile: false,
             instance_capabilities: Default::default(),
             instance_globals: false,
             resolve_file_at_runtime: false,
@@ -163,6 +167,7 @@ fn integer_literals_above_u64_use_exact_big_integer_hir() {
             &parsed,
             &ModuleInfo {
                 foreign_class_construction: false,
+                introspection_profile: false,
                 instance_capabilities: Default::default(),
                 instance_globals: false,
                 resolve_file_at_runtime: false,

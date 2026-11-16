@@ -370,9 +370,9 @@ public sealed partial class CPythonHost
         try
         {
             _wrapMethodFn = nativeMethodsEnabled ? 0 : Check(Native.rp_op(2, module, s: "_rp_wrap_method"));
-            _staticMethodFn = Check(Native.rp_op(2, module, s: "_rp_staticmethod"));
-            _classMethodFn = Check(Native.rp_op(2, module, s: "_rp_classmethod"));
-            _propertyFn = Check(Native.rp_op(2, module, s: "_rp_property"));
+            _staticMethodFn = Check(Native.rp_descriptor_type(2));
+            _classMethodFn = Check(Native.rp_descriptor_type(3));
+            _propertyFn = Check(Native.rp_descriptor_type(1));
             // 缓存真实 object 原生描述符；参数绑定和错误仍由 CPython 槽位处理，
             // 四条基础操作不再建立转发用 Python 函数帧。
             nint objectType = Check(Native.rp_builtin("object"));

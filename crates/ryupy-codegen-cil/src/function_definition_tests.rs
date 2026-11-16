@@ -12,6 +12,7 @@ fn function_definition_registers_once_in_cold_signature_initialization() {
             Some(DefinitionInfo {
                 lexical_qualname: "Container.make.<locals>.child".into(),
                 firstlineno: 19,
+                introspection_kind: None,
             }),
         ),
         ("unknown_implicit", None),

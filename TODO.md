@@ -33,19 +33,29 @@ CreateSuper 历史 Object 返回公共 ABI 已恢复，真实 `5d36db1e` 的 184
   自动/手工 set_name、隐式 new、property 写删、继承 classmethod 及身份/能力缓存负例已验。
   三版本各两模式 30 类桥共 180 项、Runtime 类相关 69 项通过；五输入 JIT/AOT 删除输入搬迁，
   重入输入默认/候选均通过。原生方法仍显式候选，NativeStaticMethod 不增加普通方法实例字段。
-- [ ] **C1 剩余胶水与默认门**：静态 finder/loader、三个别名、默认 `_rp_wrap_method` / `_rp_method`，
-  删除 `rp_install_imports` 和死分派 `rp_op(29)`；冻结包/循环/重试/sys.modules/关闭合同，
+- [x] **C1 原生导入钩子（ADR-0220）**：两个 Python finder/loader 类、三个成员与三个别名已移除；
+  三版本两模式 198 类桥及最终冻结 CLI 两模式 JIT/AOT 删除输入搬迁通过，关闭首次导入与
+  已删内部帧归零通过。`rp_op(29)` 保留旧 ABI 并固定拒绝源码执行。
+- [ ] **C1 剩余胶水与默认门**：默认 `_rp_wrap_method` / `_rp_method`、旧 `rp_install_imports` 源码 ABI；
+  完整 PEP451 两阶段模块事务及默认原生方法晋升，
   精确 FunctionType/code/frame 消费者逐项准入，普通 MI AOT 保护门保留。
 - [x] **C2 通用伴生核心定向合同（ADR-0214）**：冻结多模块图的准入 typed 顶层定义保持单一
   canonical/defaults/来源，缺省参数实际补齐后走通用体；递归/传递、dataclass 普通构造及 range
   通用降级已有三版本 oracle、JIT/AOT 搬迁和真实 CIL/PE 结构证据。
+- [x] **C2 原生签名反射首切（ADR-0219）**：五类参数、绑定/默认值、wrapped 与 canonical 元数据；
+  显式受信 CPython inspect profile 输出真实宿主值对象。核心、桥、atexit/owner 与
+  attrs/Pydantic/FastAPI 共 11 组 JIT/AOT 删除输入搬迁通过；Parameter repr 冷修正后
+  v2 的 values/bridge/atexit 再验通过，普通函数布局和 typed ABI 保留。
 - [ ] **C2 剩余反射与成本**：完整供参任意对象 typed 边界、单模块未知扩展、typed 恢复、
-  inspect/框架消费者、完整 code/frame、attrs 活字典与源码/资源/可写根分离；代码体积、冷登记及
+  字符串/延迟注解、完整 code/frame、原复杂框架全闭包、attrs 活字典与源码/资源/可写根分离；代码体积、冷登记及
   最终 Release 配对单列，现有 `.py` 元数据锚点尚未移除。
 - [x] **C3 async with 与有限 traceback 定向合同（ADR-0215）**：默认关闭的 feature 内覆盖真实
   enter/exit 挂起、清理/抑制/取消注入与同步 with 的 as 失败清理；只读 traceback 头、有限节点和
   受信 frame/code 视图。六组新源码三版本 oracle、JIT、两份 AOT 删除输入搬迁及七 PE 保护已有证据。
-- [ ] **C3 后续调度与跨域**：async for、异步生成器、Task/Future/事件循环、真实 IO、contextvars、
+- [x] **C3 原生 async for（ADR-0218）**：显式候选 21 项及七组真实 NativeAOT 删除输入搬迁通过；
+  六输入三版本 CPython oracle 一致。窄耗尽保护、真实行号、动态 while 出口/回边绑定与跨暂停
+  删除局部已修复，保留三个明确 pending 语言边界。
+- [ ] **C3 后续调度与跨域**：异步生成器、Task/Future/事件循环、真实 IO、contextvars、
   任务取消/事务关闭、跨暂停 super 与跨域 awaitable；完整 frame/code 仍明确拒绝。
 - [ ] **greenlet / resumable-sync ADR**：原生换栈跨 CLR/PInvoke 活动帧阻断 GC 栈扫描与异常展开，
   当前不可直接准入。先设计同步调用链的显式可恢复 CIL continuation/驻留状态，再验证
@@ -61,6 +71,11 @@ CreateSuper 历史 Object 返回公共 ABI 已恢复，真实 `5d36db1e` 的 184
   冻结 Release 的六版本产品与三形态执行审计、26 项性能全部通过。墙钟整体 -0.03%，
   generators/exception/sieve 等单项成本见[第二轮验收](docs/cil-execution-second-slices-validation.md)，
   历史不利与修复前失败样本保留。
+- [x] **第三轮功能集成**：原生导入、签名反射、async for；最终 make check 为 3399 C# /
+  501 e2e，1843 项历史公共签名全保留，六版本及三形态产品通过。见[第三轮验收](docs/cil-execution-third-slices-validation.md)。
+- [ ] **第三轮性能收敛**：全量 26 项相对 `5d36db1e` 墙钟 +0.82%；相对第二轮的十二次直接配对
+  generators +4.91%、calls +2.89%、dynamic +2.98%、exceptions +0.85%。一次性启动增量
+  2712 B，扣启动后的逐生成器/异常分配不变。保留全部样本，后续定位并优化。
 
 构建期按依赖生成 CIL 为默认方向；任意运行期新代码的 JIT 能力独立规划。
 现有兼容模式维持回归，候选域缺口明确诊断。完全移除 libpython 与底层化分开登记。

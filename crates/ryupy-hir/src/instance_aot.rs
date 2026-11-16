@@ -13,6 +13,21 @@ pub fn validate_instance_aot_direct_globals(
     parsed: &ParsedModule,
     direct_globals: bool,
 ) -> Vec<Diagnostic> {
+    validate_profile(parsed, direct_globals, false)
+}
+
+/// 显式inspect provider只放开急切注解语法；driver随后必须验证真实Dynamic ABI与context无逃逸。
+pub fn validate_instance_aot_inspect_profile(
+    parsed: &ParsedModule,
+    direct_globals: bool,
+) -> Vec<Diagnostic> {
+    validate_profile(parsed, direct_globals, true)
+}
+fn validate_profile(
+    parsed: &ParsedModule,
+    direct_globals: bool,
+    introspection_profile: bool,
+) -> Vec<Diagnostic> {
     let mut errors = crate::instance_globals::validate(
         &parsed.module.body,
         parsed.file,
@@ -23,7 +38,10 @@ pub fn validate_instance_aot_direct_globals(
             relative_from_import: true,
         },
     );
-    let mut scan = Scan::default();
+    let mut scan = Scan {
+        introspection_profile,
+        ..Default::default()
+    };
     for statement in &parsed.module.body {
         scan.visit_stmt(statement);
     }
@@ -42,6 +60,7 @@ pub fn validate_instance_aot_direct_globals(
 
 #[derive(Default)]
 struct Scan {
+    introspection_profile: bool,
     function_depth: usize,
     class_depth: usize,
     functions: usize,
@@ -81,7 +100,8 @@ impl<'a> Visitor<'a> for Scan {
                 {
                     self.reject(def.range, "类方法装饰器/未支持类协议");
                 }
-                if def.returns.is_some()
+                if !self.introspection_profile
+                    && def.returns.is_some()
                     && def.parameters.vararg.is_none()
                     && def.parameters.kwarg.is_none()
                     && def.parameters.iter().all(|p| p.annotation().is_some())

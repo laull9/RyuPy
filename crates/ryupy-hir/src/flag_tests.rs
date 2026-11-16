@@ -9,6 +9,7 @@ fn lower(source: &str, native: &[&str]) -> (crate::Module, Vec<ryupy_base::Diagn
         &parsed,
         &ModuleInfo {
             foreign_class_construction: false,
+            introspection_profile: false,
             instance_capabilities: Default::default(),
             instance_globals: false,
             resolve_file_at_runtime: false,

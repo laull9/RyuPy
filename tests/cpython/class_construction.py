@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""C1 三版本真实类桥：同次 oracle、选中 shim、30项类协议与候选/默认两条方法路径。"""
+"""C1 三版本真实类桥与导入合同：同次 oracle、选中 shim、候选/默认方法路径。"""
 import argparse
 from pathlib import Path
 import shutil
@@ -8,7 +8,7 @@ import sys
 sys.dont_write_bytecode = True
 from support import ROOT, checked, environment, execute, external_workspace
 
-CASES = ('native_class_construction', 'native_class_construction_failure', 'native_class_metadata', 'native_class_prepare_metadata', 'native_class_construction_reentry')
+CASES = ('native_class_construction', 'native_class_construction_failure', 'native_class_metadata', 'native_class_prepare_metadata', 'native_class_construction_reentry', 'native_import_hooks')
 
 
 def main():
@@ -36,6 +36,17 @@ def main():
             shim_name = 'libryupy_cpython.dylib' if sys.platform == 'darwin' else 'libryupy_cpython.so'
             checked(execute(['sh', ROOT / 'runtime/RyuPy.CPython/native/build.sh', home, selected, series],
                             cwd=root, env=env), '真实shim构建')
+            library = Path(home) / 'lib'
+            abi = selected / 'native-import-abi'
+            checked(execute([shutil.which('cc'), '-Wall', '-Wextra', '-Werror',
+                             '-I' + str(Path(home) / 'include' / ('python' + series)),
+                             ROOT / 'tests/cpython/native_import_abi.c',
+                             '-L' + str(selected), '-lryupy_cpython', '-L' + str(library), '-lpython' + series,
+                             '-Wl,-rpath,' + str(selected), '-Wl,-rpath,' + str(library), '-o', abi],
+                            cwd=selected, env=env), version + ' native import ABI build')
+            stdlib = library / ('python' + series)
+            checked(execute([abi, home, stdlib, stdlib / 'lib-dynload'], cwd=selected, env=env),
+                    version + ' native import ABI')
             oracle_env = dict(env, PYTHONPATH=str(ROOT / 'tests/cpython/fixtures'))
             for name in CASES:
                 checked(execute([python, '-B', ROOT / 'tests/cpython/cases' / (name + '.py')],

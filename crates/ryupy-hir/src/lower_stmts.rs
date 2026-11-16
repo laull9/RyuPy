@@ -333,10 +333,11 @@ impl StmtLowerCtx<'_> {
                                 );
                             }
                         }
-                        // 普通函数裸局部删除仅复用原始槽；闭包与复杂目标仍拒绝。
+                        // 裸局部删除复用原始槽；协程槽由状态机持久化，不要求开放f_locals。
                         ast::Expr::Name(name)
                             if !self.module_scope
-                                && self.body.function_locals.is_some()
+                                && (self.body.function_locals.is_some()
+                                    || self.coroutine_scope)
                                 && !self
                                     .func_scope
                                     .cells

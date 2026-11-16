@@ -20,6 +20,10 @@ pub(crate) struct GeneratorRefs {
     pub coroutine_await_start: MethodRefIndex,
     pub coroutine_enter_await_start: MethodRefIndex,
     pub coroutine_exit_await_start: MethodRefIndex,
+    pub coroutine_next_await_start: MethodRefIndex,
+    pub async_iter_start: MethodRefIndex,
+    pub async_iter_next: MethodRefIndex,
+    pub async_iter_is_stop: MethodRefIndex,
 }
 
 impl GeneratorRefs {
@@ -35,6 +39,15 @@ impl GeneratorRefs {
         let ops = res.push_type_reference(type_ref! { RyuPy.Runtime.PyOps in #runtime });
         let ops: MethodType = BaseType::class(ops).into();
         Self {
+            coroutine_next_await_start: res.push_method_reference(
+                method_ref! { static object @ops::CoroutineNextAwaitStart(object) },
+            ),
+            async_iter_start: res
+                .push_method_reference(method_ref! { static object @ops::AsyncIterStart(object) }),
+            async_iter_next: res
+                .push_method_reference(method_ref! { static object @ops::AsyncIterNext(object) }),
+            async_iter_is_stop: res
+                .push_method_reference(method_ref! { static object @ops::AsyncIterIsStop(object) }),
             coroutine_enter_await_start: res.push_method_reference(
                 method_ref! { static object @ops::CoroutineEnterAwaitStart(object) },
             ),

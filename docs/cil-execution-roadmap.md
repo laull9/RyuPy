@@ -67,9 +67,9 @@ Python 动态类与函数优先表示为运行时对象和元数据，操作由�
 | 阶段 | 已验证子合同 | 当前整阶段状态 |
 | --- | --- | --- |
 | C0 | 执行入口、ABI 消费者、启动/关闭链、严格内核选型与基线冻结 | 完成 |
-| C1 | object/super helper 移除；原生方法显式候选；两阶段类构造、prepared mapping、重入身份与失败清理 | 进行中；Python finder/loader、默认 wrapper、三个别名及 `rp_install_imports` 仍保留 |
-| C2 | 实时默认值；冻结多模块图的通用 CIL 伴生核心及传递调用 | 进行中；完整框架反射、动态对象与源码/资源根分离继续待办 |
-| C3 | 默认关闭的 coroutine/await、async with 与有限真实 traceback 视图 | 进行中；完整调度、IO、async for/异步生成器及跨域 awaitable 继续待办 |
+| C1 | object/super helper 移除；原生方法显式候选；两阶段类构造、prepared mapping、重入身份与失败清理；原生 finder/loader 与真实描述符类型 | 进行中；默认 wrapper 与旧源码安装 ABI 保留，完整 PEP451 两阶段模块事务待接入 |
+| C2 | 实时默认值；通用 CIL 伴生核心；原生签名反射与三个真实框架消费者 JIT/AOT 搬迁 | 进行中；字符串/延迟注解、完整 code/frame、原复杂项目闭包及源码/资源根分离继续待办 |
+| C3 | 默认关闭的 coroutine/await、async with、async for 与有限真实 traceback 视图 | 进行中；完整调度、IO、异步生成器及跨域 awaitable 继续待办 |
 | C4 | macOS arm64 独立 3.12.13 严格内核、UTF-8/stdio、冻结扩展与静态 CIL 导入 ABI；22 内核探针和 10 stock 对照通过 | 进行中；真实 C# host/CLI、完整闭包编译与产品零执行待办 |
 | C5 | 保留现有兼容默认与候选隔离 | 待办；默认晋升与旧执行路径退出分别验收 |
 
@@ -96,12 +96,14 @@ Python 动态类与函数优先表示为运行时对象和元数据，操作由�
 
 已验子合同：[ADR-0209](adr/0209-base-object-native-descriptors.md)、
 [ADR-0211](adr/0211-native-method-descriptor-candidate.md)、
-[ADR-0213](adr/0213-native-two-phase-class-construction.md)。当前默认内部源码仍有 1 个顶层 helper、
-1 个转发闭包及 finder/loader 的 3 个成员方法，共 5 个 def、2 个 class、3 个别名；
-原生方法候选保留 3 个成员 def、2 个 class、3 个别名。类构造定向门为三版本各两模式
+[ADR-0213](adr/0213-native-two-phase-class-construction.md)、
+[ADR-0220](adr/0220-native-compiled-import-hooks.md)。当前默认内部源码仅有 1 个顶层 helper、
+1 个转发闭包，共 2 个 def；finder/loader 两个 class、三个成员与三个别名均已静态替换，
+原生方法候选安装源码为空。类构造定向门为三版本各两模式
 30 项真实类桥、五个输入的 JIT/AOT 删除输入搬迁，重入输入含默认/候选两模式。
 自动 set_name 使用精确专用代理，已有 opaque 身份与迟增能力严格拒绝；普通 MI AOT 保护门保留。
-下一切静态 finder/loader 需明确初始化时序、包/循环导入/失败重试/sys.modules 身份与关闭；
+原生导入三版本各两模式 33 项类桥共 198 项通过，两模式 JIT/AOT 删除输入搬迁、包/循环/
+失败重试/sys.modules 身份与关闭首次导入通过。完整 PEP451 两阶段事务留待 ADR-0221；
 方法候选的精确 FunctionType/code/frame 缺口仍阻断默认晋升。
 
 完成门：内部导入、类构建和回调链无 Python 胶水执行；现有跨域继承、重入、异常、
@@ -145,6 +147,10 @@ frame 限 f_code/f_lineno，code 限 co_name/co_filename。六组新源码三版
 JIT、两份 AOT 删除输入搬迁及 TraceV1 七项 PE 保护已有定向证据；完整 frame/code、
 跨暂停 super、跨域 awaitable、事件循环和真实服务生命周期继续待办。
 
+[ADR-0218](adr/0218-native-async-for.md) 增加 async for 窄耗尽保护、逐轮特殊方法绑定及
+真实行号，修复动态 while 出口/回边的绑定事实。显式候选 21 项、七组真实 NativeAOT 删除
+输入搬迁通过，六个输入在 3.9.25/3.12.13/3.13.3 oracle 一致；异步生成器与调度继续待办。
+
 **greenlet 阻断**：原生同步换栈跨越 CLR/PInvoke 活动托管帧不满足 GC 栈扫描与异常展开合同，
 当前不能直接准入。后续须独立 resumable-sync ADR，把所需同步 Python 调用链降为显式可恢复的
 CIL continuation/驻留状态，再验证 ThreadState/GIL、contextvars、重入、线程亲和性及真实
@@ -167,8 +173,9 @@ SQLAlchemy 事务/取消/关闭。符号扫描与现有 async 状态机证据各
 内核前置子合同见 [ADR-0216](adr/0216-strict-kernel-native-stdio.md) 与
 [kernel README](../runtime/kernel/README.md)：主代理已在 macOS arm64 真实源码重建 3.12.13，十五独立模式
 覆盖严格拒绝、UTF-8、标准流与关闭；五个 stdio/codecs 模式还与同次未改 CPython 对照。
-扩展/router 目前仅独立候选文件，尚未接入 transform、未构建、未运行；动态扩展、包与 CIL
-反向导入、产品接入及其它版本/平台均留在 C4，当前兼容 provider 的审计仍不完整。
+扩展/router 已接入源码变换并通过完整内核构建；累计 22 项严格内核探针、30 个测试扩展及
+10 项 stock CPython 对照通过，后续 Loader 关键字参数回归也已全量验证。真实 Host/CLI、
+完整 CIL 闭包与其它版本/平台留在 C4，当前兼容 provider 的审计仍不完整。
 
 完成门：原版本/原入口的固定二十项目及两真实应用逐项记录 CIL 覆盖；已通过项目
 保持原行为。严格候选产品启动/运行/关闭全部无 CPython 字节码执行，原生扩展仍真实可用。

@@ -12,8 +12,12 @@
 mod annotation_format;
 mod annotation_stmts;
 mod assign_target;
+mod async_for;
+#[cfg(test)]
+mod async_for_tests;
 mod aug_assign;
 mod await_context;
+mod expr_types;
 pub use await_context::AwaitContext;
 mod chain_assign;
 pub mod class;
@@ -141,7 +145,10 @@ mod instance_aot_lambda;
 #[cfg(test)]
 mod instance_aot_tests;
 mod instance_globals;
-pub use instance_aot::{validate_instance_aot, validate_instance_aot_direct_globals};
+pub use instance_aot::{
+    validate_instance_aot, validate_instance_aot_direct_globals,
+    validate_instance_aot_inspect_profile,
+};
 mod ordinary_dynamic;
 pub use ordinary_dynamic::{
     OrdinaryDynamicEligibility, has_defined_functions, instance_ast_supported,
