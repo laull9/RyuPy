@@ -242,6 +242,12 @@ fn legacy_host_apis_upgrade_base_startup_without_resetting_inspect() {
 #[test]
 #[ignore = "显式NativeAOT裁图/删除输入和build/中文空格搬迁门"]
 fn native_startup_aot_trims_only_unused_inspect() {
+    if std::env::var("E2E_PYTHON_ONLY").as_deref() == Ok("1") {
+        eprintln!(
+            "Python用例自检跳过显式NativeAOT裁图与搬迁；移除E2E_PYTHON_ONLY后使用--ignored单独执行此门。"
+        );
+        return;
+    }
     differential(&["tests/native_startup/plain.py"], &[], false, true, false);
     differential(
         &[
