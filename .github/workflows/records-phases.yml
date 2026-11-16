@@ -1,7 +1,7 @@
 name: Records native phase diagnosis
 on:
   push:
-    branches: [ci/records-phases-20261116]
+    branches: [ci/records-phases-sdk-20261116]
   workflow_dispatch:
 permissions:
   contents: read
@@ -18,22 +18,40 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: 独立SDK安装目录
+        run: echo "DOTNET_INSTALL_DIR=$RUNNER_TEMP/records-dotnet" >> "$GITHUB_ENV"
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.403'
       - uses: actions/setup-python@v5
+        id: python
         with:
           python-version: '3.12.13'
       - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
         with:
           toolchain: '1.99.1'
+      - name: 固定实际host与SDK
+        env:
+          FIXED_PYTHON: ${{ steps.python.outputs.python-path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir "$RUNNER_TEMP/records-phases"
+          echo "EVIDENCE=$RUNNER_TEMP/records-phases" >> "$GITHUB_ENV"
+          dotnet --info > "$RUNNER_TEMP/records-phases/dotnet.txt"
+          dotnet --version | tee "$RUNNER_TEMP/records-phases/sdk.txt"
+          readlink -f "$(command -v dotnet)" | tee "$RUNNER_TEMP/records-phases/host-path.txt"
+          test "$(readlink -f "$(command -v dotnet)")" = "$DOTNET_INSTALL_DIR/dotnet"
+          test "$(dotnet --version)" = 10.0.403
+          for key in DOTNET DOTNET_HOST_PATH; do echo "$key=$DOTNET_INSTALL_DIR/dotnet" >> "$GITHUB_ENV"; done
+          for key in DOTNET_ROOT DOTNET_ROOT_X64; do echo "$key=$DOTNET_INSTALL_DIR" >> "$GITHUB_ENV"; done
+          echo "DOTNET_MULTILEVEL_LOOKUP=0" >> "$GITHUB_ENV"
+          echo "PYTHON=$FIXED_PYTHON" >> "$GITHUB_ENV"
+          "$FIXED_PYTHON" -c 'import sys; assert sys.version_info[:3] == (3,12,13); print(sys.version)' > "$RUNNER_TEMP/records-phases/python.txt"
       - name: Fixed product independent builds and samples
         shell: bash
         run: |
           set -euo pipefail
-          export EVIDENCE="$RUNNER_TEMP/records-phases"
-          mkdir "$EVIDENCE"
-          echo "EVIDENCE=$EVIDENCE" >> "$GITHUB_ENV"
           sudo apt-get update -qq
           sudo apt-get install -y clang zlib1g-dev patchelf binutils
           uname -a > "$EVIDENCE/uname.txt"
@@ -44,12 +62,14 @@ jobs:
           for round in 0 1 2 3; do
             product="$RUNNER_TEMP/records-product-$round"
             git worktree add --detach "$product" a1419ac5c41376e984969fea1eda435acc672a5e
-            printf '%s\n' '{"sdk":{"version":"10.0.403","rollForward":"disable","allowPrerelease":false}}' > "$product/global.json"
-            (cd "$product"; make build) > "$EVIDENCE/build-$round.log" 2>&1
-            sha256sum "$product/target/release/ryupy" > "$EVIDENCE/cli-$round.sha256"
-            python3 -B tests/perf/records-phases/run.py --product "$product" --cli "$product/target/release/ryupy" --out "$EVIDENCE/round-$round" --round "$round"
+            target="$RUNNER_TEMP/records-target-$round"
+            cli="$RUNNER_TEMP/records-cli-$round"
+            git -C "$product" rev-parse HEAD HEAD^{tree} > "$EVIDENCE/product-$round.txt"
+            (cd "$product"; CARGO_TARGET_DIR="$target" make build RELEASE_DIR="$cli") > "$EVIDENCE/build-$round.log" 2>&1
+            sha256sum "$cli/ryupy" > "$EVIDENCE/cli-$round.sha256"
+            "$PYTHON" -B tests/perf/records-phases/run.py --product "$product" --cli "$cli/ryupy" --out "$EVIDENCE/round-$round" --round "$round"
             git -C "$product" diff --exit-code
-            rm -rf "$product/target"
+            rm -rf -- "$target"
           done
           python3 - "$EVIDENCE" <<'PY'
           import json,sys

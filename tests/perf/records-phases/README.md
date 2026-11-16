@@ -11,3 +11,6 @@
 不归档完整二进制/SDK树：采样后删除本诊断独占构建目录，保留真实清单、原生hash、MIR/CIL和双流；这是运行证据而非可恢复二进制包。
 
 新增time导入及计时全局变量可能改变模块优化；函数AST相同不保证发射完全相同，两输入MIR/CIL均保留。runtimeconfig与已安装运行时清单是选择约束证据，不等于进程加载追踪。
+
+首轮43804453820仅SDK环境门失败：runner默认选择11.0.100，未进行产品构建或测试。修订采用独立DOTNET_INSTALL_DIR、host readlink与10.0.403实测断言，传播DOTNET/HOST_PATH/ROOT/ROOT_X64。使用独立CARGO_TARGET_DIR及显式RELEASE_DIR取得make发行CLI，不向固定产品树写global.json，保留git diff门。
+JIT使用绝对DOTNET_HOST_PATH；额外独立非计时运行记录COREHOST_TRACEFILE以核实际Framework/host路径，完整双流仍相等。trace不启用于288计时样本或分配统计。

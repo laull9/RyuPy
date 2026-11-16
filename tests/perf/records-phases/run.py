@@ -43,7 +43,7 @@ for name,source in [('records',original),('phases',phase)]:
     for backend in ['jit','aot']:
         exe,_,error,status=measure.build_case(a.product,a.cli,bench,directory/backend,backend=backend,native=True,command_evidence=directory/(backend+'-command.json'))
         assert exe is not None,(status,error)
-        commands[backend.upper()]=(['dotnet',str(exe)] if backend=='jit' else [str(exe)])
+        commands[backend.upper()]=([os.environ['DOTNET_HOST_PATH'],str(exe)] if backend=='jit' else [str(exe)])
         if backend=='jit':
             files=[exe,*exe.parent.glob('*.runtimeconfig.json'),*exe.parent.glob('RyuPy.Runtime.dll')]
             (directory/'jit-hashes.json').write_text(json.dumps({str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in files},indent=2))
@@ -83,6 +83,11 @@ for name,source in [('records',original),('phases',phase)]:
         assert {'alloc_bytes','main_ms'}<=result.stats.keys()
         (directory/(arm+'-stats.json')).write_text(json.dumps(result.stats,indent=2))
         (directory/(arm+'-stats.stdout')).write_bytes(result.stdout)
+    trace_env=env | {'COREHOST_TRACE':'1','COREHOST_TRACEFILE':str(directory/'jit-host-trace.txt')}
+    traced=measure.run_once(commands['JIT'],trace_env,a.product,None)
+    traced_output,_=semantic(traced.stdout,name=='phases')
+    assert traced.exit_code==0 and traced.stderr==b'' and traced_output==expected
+    assert (directory/'jit-host-trace.txt').stat().st_size>0
     # 完成后只留原始测量/清单/双流/发射和hash，不归档完整SDK构建树。
     shutil.rmtree(directory/'jit')
     shutil.rmtree(directory/'aot')
