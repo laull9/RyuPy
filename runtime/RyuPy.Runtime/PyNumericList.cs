@@ -14,6 +14,17 @@ public sealed partial class PyList
     private PyList(bool numeric) => _numeric = new List<PyNumericSlot>();
     internal static PyList CreateNumeric() => new(true);
 
+    // 仅GetSlice归一化后的真子集进入；每个被选槽在源中缓存原盒，结果为独立object背板。
+    // 近全/累计观察仍可保留16B槽及盒；不以比例阈值改变表示，完整Copy/Items仍统一物化。
+    private PyList GetNumericSlice(long start, long step, long count)
+    {
+        var result = new PyList((int)count);
+        long index = start;
+        for (long i = 0; i < count; i++, index += step)
+            result._items!.Add(GetItem(index));
+        return result;
+    }
+
     [MethodImpl(MethodImplOptions.NoInlining)]
     private List<object?> MaterializeAll()
     {

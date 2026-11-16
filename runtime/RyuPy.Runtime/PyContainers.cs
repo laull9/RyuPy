@@ -223,7 +223,8 @@ public sealed partial class PyList
     {
         var (start, _, step, count) = slice.Indices(Count);
         // 结果包装独占新建背板；直接填入，避免公共IEnumerable构造器再次复制。
-        // 源Items访问仍保留原物化时点；空切片不观察或物化源，元素引用不重建。
+        // 数值真子集仅观察选中槽；完整覆盖、bool与object保留原物化路径。
+        if (_numeric is not null && count < Count) return GetNumericSlice(start, step, count);
         var result = new PyList((int)count);
         long index = start;
         for (long i = 0; i < count; i++, index += step)
