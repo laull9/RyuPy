@@ -2,6 +2,7 @@
 use dotnetdll::prelude::*;
 
 pub(crate) struct BindingRefs {
+    pub runtime: AssemblyRefIndex,
     pub checked: MethodRefIndex,
     pub create: MethodRefIndex,
     pub delegate_ctor: MethodRefIndex,
@@ -59,6 +60,7 @@ impl BindingRefs {
         })
         .collect();
         Self {
+            runtime,
             checked: res.push_method_reference(method_ref! { static int @owner::CheckedI32(object, string, string) }),
             create: res.push_method_reference(method_ref! { static @function @owner::CreateI32Binary(string, @func) }),
             delegate_ctor: res.push_method_reference(method_ref! { void @func::.ctor(object, nint) }),

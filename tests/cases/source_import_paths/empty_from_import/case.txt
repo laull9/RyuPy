@@ -1,0 +1,3 @@
+entry = entry.py
+pending = true
+# 原CP四臂的empty子案独立三源；本源同版CP及产品JIT仍待CI执行。

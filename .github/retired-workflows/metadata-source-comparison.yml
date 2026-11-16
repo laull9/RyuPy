@@ -1,0 +1,118 @@
+# 独立分支首次精确标题只做两源诊断；不调用旧验收workflow、不更新兼容计数。
+name: NOT-ACCEPTANCE metadata两源单次对照
+on:
+  push:
+    branches: [ci/metadata-source-comparison-001]
+permissions:
+  contents: read
+concurrency:
+  group: metadata-source-comparison-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  select:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs:
+      run: ${{ steps.mode.outputs.run }}
+    steps:
+      # 字节精确比较，不把提交消息插进shell；dispatch/重试均不运行产品。
+      - id: mode
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          event = json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text())
+          head = event.get('head_commit') or {}
+          allowed = (os.environ.get('GITHUB_EVENT_NAME') == 'push'
+              and os.environ.get('GITHUB_REF') == event.get('ref') == 'refs/heads/ci/metadata-source-comparison-001'
+              and os.environ.get('GITHUB_RUN_ATTEMPT') == '1'
+              and head.get('message') == 'diagnostic-not-acceptance: metadata-source-comparison-001'
+              and head.get('id') == event.get('after') == os.environ.get('GITHUB_SHA'))
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
+              stream.write('run=' + str(allowed).lower() + '\n')
+          PY
+  compare:
+    needs: select
+    if: needs.select.outputs.run == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 85
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONDONTWRITEBYTECODE: '1'
+    defaults:
+      run:
+        working-directory: controller
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: controller
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 9dafab99fdc4f3320b2f2239b7702e5dc51d701b
+          path: source-A
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: bba4fc7a5253c67482c5dd1e7d0ea198d5f497cf
+          path: source-B
+          persist-credentials: false
+      - name: 控制器纯自测（不运行产品）
+        run: python3 -B tests/validation/metadata_source_comparison/test_run.py
+      - name: 唯一固定工具准备（不重试）
+        run: |
+          mkdir -p target/metadata-source-comparison-prepare
+          status=0
+          python3 -B tests/aot/wcwidth_ci/prepare.py > target/metadata-source-comparison-prepare/stdout 2> target/metadata-source-comparison-prepare/stderr || status=$?
+          printf '%s\n' "$status" > target/metadata-source-comparison-prepare/exit
+          exit "$status"
+      - name: 两源各一次工具构建与2CP4compile4JIT
+        run: '"$PYTHON" -B tests/validation/metadata_source_comparison/run.py'
+      - name: 失败亦保留所有原流与实际产品（排除大CLI另包）
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: metadata-source-comparison-evidence-${{ github.sha }}-1
+          path: |
+            controller/target/metadata-source-comparison
+            !controller/target/metadata-source-comparison/*/tools/ryupy
+            controller/target/metadata-source-comparison-prepare
+            ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
+          if-no-files-found: error
+          retention-days: 3
+      - name: 独立保留两源真实CLI与匹配Runtime
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: metadata-source-comparison-tools-${{ github.sha }}-1
+          path: |
+            controller/target/metadata-source-comparison/*/tools
+            controller/target/metadata-source-comparison/*/tools.json
+          if-no-files-found: warn
+          retention-days: 3
+      - name: 固定诊断口径
+        if: always()
+        run: |
+          printf '%s\n' 'NOT-ACCEPTANCE：只判断A已有或A→B变化，不足单独归因类工厂。' \
+            '两源相同失败不是修复；原golden失败最终非零。metadata/class-body原红不覆写。' \
+            '本轮未运行AOT、全项目矩阵、全套回归或性能；不增加兼容分子。' >> "$GITHUB_STEP_SUMMARY"
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+          p = Path('target/metadata-source-comparison/result.json')
+          if not p.is_file():
+              print('RED: 诊断结果未生成；准备/checkout/采集失败，产品未获验证。')
+          else:
+              data = json.loads(p.read_text())
+              for domain, row in data.get('comparisons', {}).items():
+                  for variant, observation in row['observations'].items():
+                      print(domain, variant, 'PASS' if observation.get('golden_pass') else 'RED', observation.get('exit', observation.get('status')))
+                  print(domain, 'A/B same_observation:', row['same_observation'])
+              for stage, record in data.get('stages', {}).items():
+                  if record.get('status') == 'failed': print('RED identity/collection window:', stage, record.get('error'))
+              if data.get('fatal'): print('RED fatal:', data['fatal']['error'])
+          PY

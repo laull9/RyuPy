@@ -1,0 +1,50 @@
+# 原诊断job逐字段迁移；caller独占路由，权限不扩大。
+name: 首边诊断原流程
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  trace-edge-diagnostic:
+    name: diagnostic-not-acceptance 首边原流
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 单次诊断runner纯mock自测
+        run: python3 -B -m unittest discover -s tests/validation/generator_product -p test_diagnostic_once.py
+      - name: 仅准备同版固定SHA官方Rust组件
+        run: |
+          mkdir -p target/trace-v1-edge-prepare
+          printf '%s\n' '["python3", "-B", "tests/aot/wcwidth_ci/prepare.py", "--rust-only"]' > target/trace-v1-edge-prepare/prepare.argv.json
+          status=0
+          python3 -B tests/aot/wcwidth_ci/prepare.py --rust-only > target/trace-v1-edge-prepare/prepare.stdout 2> target/trace-v1-edge-prepare/prepare.stderr || status=$?
+          printf '%s\n' "$status" > target/trace-v1-edge-prepare/prepare.exit
+          exit "$status"
+      - name: 一次普通CLI构建、三个诊断测试、原A编译60秒（预期仍E0310）
+        run: python3 -B tests/validation/generator_product/diagnostic_once.py
+      - name: 明示本轮全门not-run
+        if: always()
+        run: |
+          printf '%s\n' '## diagnostic-not-acceptance' \
+            '本轮只采一次原A编译拒绝。无产品运行，不是验收通过。' \
+            'not-run: CP fixtures、B/C/D/HOT、NativeAOT、原Rust验收组、S2、S1、full make check、20 projects、Legacy baseline与dynamic frames。' \
+            '这些门本轮略过，既有失败状态与accepted不改变。' >> "$GITHUB_STEP_SUMMARY"
+      - name: 保留首次诊断失败原流（不是产品验收）
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: diagnostic-not-acceptance-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/trace-v1-edge-diagnostic
+            target/trace-v1-edge-prepare
+            ${{ runner.temp }}/wcwidth-rust-tools/download-identity.json
+          if-no-files-found: error
+          retention-days: 3

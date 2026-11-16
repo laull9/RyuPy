@@ -1,7 +1,7 @@
 //! 真源码默认优化差分：模块方法先取值，参数重绑不替换当前调用目标。
 use ryupy_driver::{BuildOptions, Session};
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Command, Output};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
@@ -32,6 +32,7 @@ fn root_with_stamp(stamp: u128) -> OwnedRoot {
     ));
     // 只有独占创建成功才取得清理权；预存目录不删除、不复用。
     std::fs::create_dir(&path).unwrap();
+    eprintln!("module capture evidence: {}", path.display());
     OwnedRoot(path)
 }
 
@@ -74,19 +75,33 @@ const SOURCES: &[(&str, &str)] = &[
     ),
 ];
 
+// 在任何失败断言前保存原流，OwnedRoot一直保留到最终断言完成。
+fn save_output(root: &OwnedRoot, label: &str, output: &Output) {
+    std::fs::write(root.0.join(format!("{label}.stdout")), &output.stdout).unwrap();
+    std::fs::write(root.0.join(format!("{label}.stderr")), &output.stderr).unwrap();
+    std::fs::write(
+        root.0.join(format!("{label}.exit")),
+        format!("{:?}\n", output.status.code()),
+    )
+    .unwrap();
+}
+
 fn compare_module_calls(replacement: Option<&str>) {
+    let root = root();
     let workspace = ryupy_driver::runtime::workspace_root();
     let python = std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into());
     let version = Command::new(&python)
         .args(["-c", "import sys; assert sys.implementation.name == 'cpython'; print('.'.join(map(str, sys.version_info[:3])))"])
         .output().unwrap();
+    save_output(&root, "python-version", &version);
     assert!(version.status.success());
+    assert!(version.stderr.is_empty());
     let pinned = std::fs::read_to_string(workspace.join("tests/pinned-python.txt")).unwrap();
     assert_eq!(
         String::from_utf8_lossy(&version.stdout).trim(),
         pinned.trim()
     );
-    let root = root();
+    assert_eq!(pinned.trim(), "3.12.13");
     for (name, text) in SOURCES {
         std::fs::write(root.0.join(name), text).unwrap();
     }
@@ -95,10 +110,13 @@ fn compare_module_calls(replacement: Option<&str>) {
     }
     let input = root.0.join("main.py");
     let expected = Command::new(&python)
+        .arg("-B")
         .arg(&input)
         .current_dir(&root.0)
         .output()
         .unwrap();
+    save_output(&root, "cpython", &expected);
+    assert_eq!(expected.status.code(), Some(0));
     assert!(
         expected.status.success(),
         "{}",
@@ -117,6 +135,7 @@ fn compare_module_calls(replacement: Option<&str>) {
     )
     .unwrap();
     let actual = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
+    save_output(&root, "ryupy", &actual);
     assert_eq!(
         actual.status.code(),
         Some(0),
@@ -134,7 +153,6 @@ fn ordinary_module_calls_preserve_captured_values_before_argument_callbacks() {
 }
 
 #[test]
-#[ignore = "已知旧债：源码def静态Func读取在全局重绑后仍取原函数；完整CP正期望保留"]
 fn static_function_identity_after_rebinding_matches_python() {
     compare_module_calls(Some(include_str!(
         "../../../tests/fixtures/module_call_capture/static_identity_pending.py"

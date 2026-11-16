@@ -1,0 +1,4 @@
+# 未执行CP/JIT；通用PyFunction.__class__旧缺口，不注册active或以NI替代。
+from typing import NamedTuple
+from types import FunctionType
+assert NamedTuple.__class__ is FunctionType

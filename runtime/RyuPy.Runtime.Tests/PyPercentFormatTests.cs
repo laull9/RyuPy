@@ -74,7 +74,8 @@ public class PyPercentFormatTests
     [Fact]
     public void UnsupportedSpecificationsFailInsteadOfSilentlyApproximating()
     {
-        foreach (string format in new[] { "%5s", "%.*s", "%+d", "%f" })
+        Assert.Equal("+12", PyPercentFormat.Format("%+d", 12L));
+        foreach (string format in new[] { "%5s", "%.*s", "%f" })
             Assert.Throws<PyNotImplementedError>(() => PyPercentFormat.Format(format, 1L));
         Assert.Equal("%", PyPercentFormat.Format("%%", new PyDict()));
         Assert.Equal("plain", PyPercentFormat.Format("plain", new PyList([1L])));

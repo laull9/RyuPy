@@ -8,6 +8,8 @@ internal static class PyMathConversion
 {
     internal static double Real(object? value)
     {
+        if (value is IPyForeignObject foreign) return (double)foreign.ReadScalar("float");
+        if (value is PyInstance { ForeignInstance: { } foreignDerived }) return (double)foreignDerived.ReadScalar("float");
         if (value is double || PyInt.IsInt(value)) return PyOps.ToDouble(value!);
         if (PyObject.TryMethod(value, "__float__", [], out object? floating))
         {

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace RyuPy.Runtime;
 
@@ -10,6 +11,18 @@ internal static class PyWarningFilters
     internal sealed record Rule(string Action, object Category, BigInteger Line, string? Module = null);
     private static List<Rule> _rules = Defaults();
     private static readonly HashSet<object> Registry = new(PyKeyComparer.Instance);
+    // 仅新来源协议使用真实环境弱键；换过滤版本整体换表，不永久根住Instance字典。
+    private sealed class EnvironmentRegistry
+    {
+        internal readonly HashSet<object> Keys = new(PyKeyComparer.Instance);
+    }
+    private static ConditionalWeakTable<object, EnvironmentRegistry> Environments = new();
+
+    private static void Invalidate()
+    {
+        Registry.Clear();
+        Environments = new();
+    }
 
     private static List<Rule> Defaults() =>
     [
@@ -55,7 +68,7 @@ internal static class PyWarningFilters
             _rules.Remove(rule);
             _rules.Insert(0, rule);
         }
-        Registry.Clear();
+        Invalidate();
     }
 
     // catch_warnings恢复规则列表，不恢复warning registry的旧版本。
@@ -63,27 +76,43 @@ internal static class PyWarningFilters
     {
         List<Rule> previous = _rules;
         _rules = new List<Rule>(_rules);
-        Registry.Clear();
+        Invalidate();
         return previous;
     }
     internal static void Restore(List<Rule> previous)
     {
         _rules = previous;
-        Registry.Clear();
+        Invalidate();
     }
 
     internal static string Action(object? text, object category, string module, int line)
     {
-        string action = "default";
-        foreach (Rule rule in _rules)
-            if (Matches(category, rule.Category) && (rule.Line == 0 || rule.Line == line)
-                && (rule.Module is null || rule.Module == module))
-            { action = rule.Action; break; }
+        string action = Select(category, module, line);
         if (action is "ignore" or "error" or "always") return action;
         // 非Warning message本身就是去重键，不先str；仅抑制动作才需要Python哈希/相等。
         // 固定CPython 3.12的warn以模块registry处理once；warn_explicit的全局once不在本实现范围。
         var key = new PyTuple([action, text, category, module,
             (long)(action == "default" ? line : 0)]);
         return Registry.Add(key) ? "always" : "ignore";
+    }
+
+    internal static string ActionKnown(object? text, object category, string module, int line, object environment)
+    {
+        string action = Select(category, module, line);
+        // 保有限原message合同：always/ignore/error不提前hash任意message。
+        if (action is "ignore" or "error" or "always") return action;
+        var keys = Environments.GetValue(environment, static _ => new EnvironmentRegistry()).Keys;
+        if (!keys.Add(new PyTuple([text, category, (long)line]))) return "ignore";
+        if (action == "default") return "always";
+        // CP3.12的warn在该环境中让module/once共用二元altkey；不含action/可变name。
+        return keys.Add(new PyTuple([text, category])) ? "always" : "ignore";
+    }
+
+    private static string Select(object category, string module, int line)
+    {
+        foreach (Rule rule in _rules)
+            if (Matches(category, rule.Category) && (rule.Line == 0 || rule.Line == line)
+                && (rule.Module is null || rule.Module == module)) return rule.Action;
+        return "default";
     }
 }

@@ -1,0 +1,248 @@
+{
+  "packages": [
+    {
+      "package": "attrs",
+      "version": "23.2.0",
+      "filename": "attrs-23.2.0.tar.gz",
+      "sha256": "935dc3b529c262f6cf76e50877d35a4bd3c1de194fd41f47a2b7ae8f19971f30",
+      "url": "https://files.pythonhosted.org/packages/e3/fc/f800d51204003fa8ae392c4e8278f256206e7a919b708eef054f5f4b650d/attrs-23.2.0.tar.gz",
+      "top_level_names": [
+        "attrs-23.2.0"
+      ],
+      "store_directory": "attrs-23.2.0",
+      "archive_included": false
+    },
+    {
+      "package": "binaryornot",
+      "version": "0.4.4",
+      "filename": "binaryornot-0.4.4.tar.gz",
+      "sha256": "359501dfc9d40632edc9fac890e19542db1a287bbcfa58175b66658392018061",
+      "url": "https://files.pythonhosted.org/packages/a7/fe/7ebfec74d49f97fc55cd38240c7a7d08134002b1e14be8c3897c0dd5e49b/binaryornot-0.4.4.tar.gz",
+      "top_level_names": [
+        "binaryornot-0.4.4"
+      ],
+      "store_directory": "binaryornot-0.4.4",
+      "archive_included": false
+    },
+    {
+      "package": "chardet",
+      "version": "5.2.0",
+      "filename": "chardet-5.2.0.tar.gz",
+      "sha256": "1b3b6ff479a8c414bc3fa2c0852995695c4a026dcd6d0633b2dd092ca39c1cf7",
+      "url": "https://files.pythonhosted.org/packages/f3/0d/f7b6ab21ec75897ed80c17d79b15951a719226b9fababf1e40ea74d69079/chardet-5.2.0.tar.gz",
+      "top_level_names": [
+        "chardet-5.2.0"
+      ],
+      "store_directory": "chardet-5.2.0",
+      "archive_included": false
+    },
+    {
+      "package": "click",
+      "version": "8.1.7",
+      "filename": "click-8.1.7.tar.gz",
+      "sha256": "ca9853ad459e787e2192211578cc907e7594e294c7ccc834310722b41b9ca6de",
+      "url": "https://files.pythonhosted.org/packages/96/d3/f04c7bfcf5c1862a2a5b845c6b2b360488cf47af55dfa79c98f6a6bf98b5/click-8.1.7.tar.gz",
+      "top_level_names": [
+        "click-8.1.7"
+      ],
+      "store_directory": "click-8.1.7",
+      "archive_included": false
+    },
+    {
+      "package": "colorama",
+      "version": "0.4.6",
+      "filename": "colorama-0.4.6.tar.gz",
+      "sha256": "08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44",
+      "url": "https://files.pythonhosted.org/packages/d8/53/6f443c9a4a8358a93a6792e2acffb9d9d5cb0a5cfd8802644b7b1c9a02e4/colorama-0.4.6.tar.gz",
+      "top_level_names": [
+        "colorama-0.4.6"
+      ],
+      "store_directory": "colorama-0.4.6",
+      "archive_included": false
+    },
+    {
+      "package": "docopt",
+      "version": "0.6.2",
+      "filename": "docopt-0.6.2.tar.gz",
+      "sha256": "49b3a825280bd66b3aa83585ef59c4a8c82f2c8a522dbe754a8bc8d08c85c491",
+      "url": "https://files.pythonhosted.org/packages/a2/55/8f8cab2afd404cf578136ef2cc5dfb50baa1761b68c9da1fb1e4eed343c9/docopt-0.6.2.tar.gz",
+      "top_level_names": [
+        "docopt-0.6.2"
+      ],
+      "store_directory": "docopt-0.6.2",
+      "archive_included": false
+    },
+    {
+      "package": "markdown",
+      "version": "3.5.2",
+      "filename": "Markdown-3.5.2.tar.gz",
+      "sha256": "e1ac7b3dc550ee80e602e71c1d168002f062e49f1b11e26a36264dafd4df2ef8",
+      "url": "https://files.pythonhosted.org/packages/11/28/c5441a6642681d92de56063fa7984df56f783d3f1eba518dc3e7a253b606/Markdown-3.5.2.tar.gz",
+      "top_level_names": [
+        "Markdown-3.5.2"
+      ],
+      "store_directory": "markdown-3.5.2",
+      "archive_included": false
+    },
+    {
+      "package": "networkx",
+      "version": "3.3",
+      "filename": "networkx-3.3.tar.gz",
+      "sha256": "0c127d8b2f4865f59ae9cb8aafcd60b5c70f3241ebd66f7defad7c4ab90126c9",
+      "url": "https://files.pythonhosted.org/packages/04/e6/b164f94c869d6b2c605b5128b7b0cfe912795a87fc90e78533920001f3ec/networkx-3.3.tar.gz",
+      "top_level_names": [
+        "networkx-3.3"
+      ],
+      "store_directory": "networkx-3.3",
+      "archive_included": false
+    },
+    {
+      "package": "progress",
+      "version": "1.6",
+      "filename": "progress-1.6.tar.gz",
+      "sha256": "c9c86e98b5c03fa1fe11e3b67c1feda4788b8d0fe7336c2ff7d5644ccfba34cd",
+      "url": "https://files.pythonhosted.org/packages/2a/68/d8412d1e0d70edf9791cbac5426dc859f4649afc22f2abbeb0d947cf70fd/progress-1.6.tar.gz",
+      "top_level_names": [
+        "progress-1.6"
+      ],
+      "store_directory": "progress-1.6",
+      "archive_included": false
+    },
+    {
+      "package": "pyfiglet",
+      "version": "1.0.2",
+      "filename": "pyfiglet-1.0.2.tar.gz",
+      "sha256": "758788018ab8faaddc0984e1ea05ff330d3c64be663c513cc1f105f6a3066dab",
+      "url": "https://files.pythonhosted.org/packages/a0/f2/2649b2acace54f861eccd4ab163bfd914236fc93ddb1df02dad2a2552b14/pyfiglet-1.0.2.tar.gz",
+      "top_level_names": [
+        "pyfiglet-1.0.2"
+      ],
+      "store_directory": "pyfiglet-1.0.2",
+      "archive_included": false
+    },
+    {
+      "package": "pyparsing",
+      "version": "3.1.2",
+      "filename": "pyparsing-3.1.2.tar.gz",
+      "sha256": "a1bac0ce561155ecc3ed78ca94d3c9378656ad4c94c1270de543f621420f94ad",
+      "url": "https://files.pythonhosted.org/packages/46/3a/31fd28064d016a2182584d579e033ec95b809d8e220e74c4af6f0f2e8842/pyparsing-3.1.2.tar.gz",
+      "top_level_names": [
+        "pyparsing-3.1.2"
+      ],
+      "store_directory": "pyparsing-3.1.2",
+      "archive_included": false
+    },
+    {
+      "package": "python-dateutil",
+      "version": "2.9.0.post0",
+      "filename": "python-dateutil-2.9.0.post0.tar.gz",
+      "sha256": "37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3",
+      "url": "https://files.pythonhosted.org/packages/66/c0/0c8b6ad9f17a802ee498c46e004a0eb49bc148f2fd230864601a86dcf6db/python-dateutil-2.9.0.post0.tar.gz",
+      "top_level_names": [
+        "python-dateutil-2.9.0.post0"
+      ],
+      "store_directory": "python-dateutil-2.9.0.post0",
+      "archive_included": false
+    },
+    {
+      "package": "six",
+      "version": "1.16.0",
+      "filename": "six-1.16.0.tar.gz",
+      "sha256": "1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926",
+      "url": "https://files.pythonhosted.org/packages/71/39/171f1c67cd00715f190ba0b100d606d440a28c93c7714febeca8b79af85e/six-1.16.0.tar.gz",
+      "top_level_names": [
+        "six-1.16.0"
+      ],
+      "store_directory": "six-1.16.0",
+      "archive_included": false
+    },
+    {
+      "package": "sortedcontainers",
+      "version": "2.4.0",
+      "filename": "sortedcontainers-2.4.0.tar.gz",
+      "sha256": "25caa5a06cc30b6b83d11423433f65d1f9d76c4c6a0c90e3379eaa43b9bfdb88",
+      "url": "https://files.pythonhosted.org/packages/e8/c4/ba2f8066cceb6f23394729afe52f3bf7adec04bf9ed2c820b39e19299111/sortedcontainers-2.4.0.tar.gz",
+      "top_level_names": [
+        "sortedcontainers-2.4.0"
+      ],
+      "store_directory": "sortedcontainers-2.4.0",
+      "archive_included": false
+    },
+    {
+      "package": "tabulate",
+      "version": "0.9.0",
+      "filename": "tabulate-0.9.0.tar.gz",
+      "sha256": "0095b12bf5966de529c0feb1fa08671671b3368eec77d7ef7ab114be2c068b3c",
+      "url": "https://files.pythonhosted.org/packages/ec/fe/802052aecb21e3797b8f7902564ab6ea0d60ff8ca23952079064155d1ae1/tabulate-0.9.0.tar.gz",
+      "top_level_names": [
+        "tabulate-0.9.0"
+      ],
+      "store_directory": "tabulate-0.9.0",
+      "archive_included": false
+    },
+    {
+      "package": "termcolor",
+      "version": "2.4.0",
+      "filename": "termcolor-2.4.0.tar.gz",
+      "sha256": "aab9e56047c8ac41ed798fa36d892a37aca6b3e9159f3e0c24bc64a9b3ac7b7a",
+      "url": "https://files.pythonhosted.org/packages/10/56/d7d66a84f96d804155f6ff2873d065368b25a07222a6fd51c4f24ef6d764/termcolor-2.4.0.tar.gz",
+      "top_level_names": [
+        "termcolor-2.4.0"
+      ],
+      "store_directory": "termcolor-2.4.0",
+      "archive_included": false
+    },
+    {
+      "package": "texttable",
+      "version": "1.7.0",
+      "filename": "texttable-1.7.0.tar.gz",
+      "sha256": "2d2068fb55115807d3ac77a4ca68fa48803e84ebb0ee2340f858107a36522638",
+      "url": "https://files.pythonhosted.org/packages/1c/dc/0aff23d6036a4d3bf4f1d8c8204c5c79c4437e25e0ae94ffe4bbb55ee3c2/texttable-1.7.0.tar.gz",
+      "top_level_names": [
+        "texttable-1.7.0"
+      ],
+      "store_directory": "texttable-1.7.0",
+      "archive_included": false
+    },
+    {
+      "package": "toml",
+      "version": "0.10.2",
+      "filename": "toml-0.10.2.tar.gz",
+      "sha256": "b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f",
+      "url": "https://files.pythonhosted.org/packages/be/ba/1f744cdc819428fc6b5084ec34d9b30660f6f9daaf70eead706e3203ec3c/toml-0.10.2.tar.gz",
+      "top_level_names": [
+        "toml-0.10.2"
+      ],
+      "store_directory": "toml-0.10.2",
+      "archive_included": false
+    },
+    {
+      "package": "tomli",
+      "version": "2.0.1",
+      "filename": "tomli-2.0.1.tar.gz",
+      "sha256": "de526c12914f0c550d15924c62d72abc48d6fe7364aa87328337a31007fe8a4f",
+      "url": "https://files.pythonhosted.org/packages/c0/3f/d7af728f075fb08564c5949a9c95e44352e23dee646869fa104a3b2060a3/tomli-2.0.1.tar.gz",
+      "top_level_names": [
+        "tomli-2.0.1"
+      ],
+      "store_directory": "tomli-2.0.1",
+      "archive_included": false
+    },
+    {
+      "package": "wcwidth",
+      "version": "0.2.13",
+      "filename": "wcwidth-0.2.13.tar.gz",
+      "sha256": "72ea0c06399eb286d978fdedb6923a9eb47e1c486ce63e9b4e64fc18303972b5",
+      "url": "https://files.pythonhosted.org/packages/6c/63/53559446a878410fc5a5974feb13d31d78d752eb18aeba59c7fef1af7598/wcwidth-0.2.13.tar.gz",
+      "top_level_names": [
+        "wcwidth-0.2.13"
+      ],
+      "store_directory": "wcwidth-0.2.13",
+      "archive_included": false
+    }
+  ],
+  "independent_of_original_host_paths": true,
+  "official_archives_included": false,
+  "requires_network_unless_archives_supplied": true,
+  "scope": "Only the 20 locked P0 official sources. Build SDK/toolchain dependencies are separate and not fully bundled."
+}

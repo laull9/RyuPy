@@ -1,8 +1,9 @@
+// 模块缓存查询保留原实时读取/列表快照；唯一写入口仅允许新增真实模块别名。
 using System.Linq;
 
 namespace RyuPy.Runtime;
 
-/// <summary>sys.modules的受控实时视图；可查询实际已导入对象，拒绝伪造/删除模块缓存。</summary>
+/// <summary>sys.modules的受控视图；查询真实缓存，仅允许受限新增模块别名，不伪装可写dict。</summary>
 public sealed class PyModuleView : PyNativeObject
 {
     /// <inheritdoc />
@@ -30,9 +31,9 @@ public sealed class PyModuleView : PyNativeObject
         "get" => PyNativeFunctions.Create(name, ["key", "default"], [null, PyNone.Instance], 1,
             args => args[0] is string key && PyModules.TryCached(key, out PyModule? module) ? module : args[1]),
         "__setitem__" => PyNativeFunctions.Create(name, ["key", "value"], [null, null], 2,
-            _ => throw new PyNotImplementedError("sys.modules mutation is not supported")),
+            args => PyModules.AddCacheAlias(args[0], args[1]), ["posonly", "posonly"]),
         "__delitem__" => PyNativeFunctions.Create(name, ["key"], [null], 1,
-            _ => throw new PyNotImplementedError("sys.modules mutation is not supported")),
+            _ => throw PyModules.CacheAliasUnsupported("deletion is not implemented")),
         _ => throw Missing(name),
     };
 

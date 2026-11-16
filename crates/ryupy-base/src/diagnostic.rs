@@ -21,8 +21,16 @@ pub struct Label {
     pub message: String,
 }
 
+/// 仅由产生点标注的可延期失败；错误码/消息不构成软化依据。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DeferredFailure {
+    ParseRejected,
+    SupportBoundary,
+}
+
 #[derive(Clone, Debug)]
 pub struct Diagnostic {
+    pub deferred_failure: Option<DeferredFailure>,
     pub severity: Severity,
     /// 稳定的错误码，例如 `E0001`。后续写进 docs/errors.md 便于检索。
     pub code: Option<&'static str>,
@@ -37,6 +45,7 @@ impl Diagnostic {
         let message = message.into();
         Self {
             severity: Severity::Error,
+            deferred_failure: None,
             code: None,
             primary: Label {
                 span,
@@ -46,6 +55,11 @@ impl Diagnostic {
             secondary: Vec::new(),
             notes: Vec::new(),
         }
+    }
+
+    pub fn with_deferred_failure(mut self, kind: DeferredFailure) -> Self {
+        self.deferred_failure = Some(kind);
+        self
     }
 
     pub fn with_code(mut self, code: &'static str) -> Self {

@@ -124,7 +124,12 @@ fn dump_stmt(
         StmtKind::ImportFrom {
             module: imported,
             names,
+            relative,
         } => {
+            let imported = relative
+                .as_ref()
+                .map(|(level, name)| format!("{}{name}", ".".repeat(*level as usize)))
+                .unwrap_or_else(|| imported.clone());
             let items = names
                 .iter()
                 .map(|(name, bind)| {
@@ -333,9 +338,13 @@ fn dump_stmt(
             }
             for &handler_id in handlers {
                 let handler = &body.handlers[handler_id];
-                let header = match &handler.types {
-                    None => "except:".to_string(),
-                    Some(types) => format!("except {}:", types.join(" | ")),
+                let header = if let Some(target) = handler.type_expr {
+                    format!("except dynamic {}:", dump_expr(module, body, target))
+                } else {
+                    match &handler.types {
+                        None => "except:".to_string(),
+                        Some(types) => format!("except {}:", types.join(" | ")),
+                    }
                 };
                 match handler.name {
                     Some(binding) => writeln!(
@@ -378,6 +387,8 @@ fn dump_list(module: &Module, body: &Body, items: &[ExprId]) -> String {
 pub(crate) fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String {
     let expr = &body.exprs[expr_id];
     match &expr.kind {
+        ExprKind::ClassFreeLocal(local) => format!("class_free({})", body.locals[*local].name),
+        ExprKind::ClassCellRead(class) => format!("class_cell({})", module.classes[*class].name),
         ExprKind::ClassLookup { name, fallback } => format!(
             "class_lookup({name}, {})",
             dump_expr(module, body, *fallback)
@@ -391,6 +402,7 @@ pub(crate) fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String
                 .unwrap_or_else(|| "None".to_owned())
         ),
         ExprKind::UnresolvedGlobal(name) => format!("<unresolved {name}>"),
+        ExprKind::ModuleMetadata(module, name) => format!("module_metadata({module}, {name})"),
         ExprKind::ModuleFile(name) => format!("module_file({name})"),
         ExprKind::Missing => "<missing>".to_string(),
         ExprKind::Literal(lit) => match lit {
@@ -485,6 +497,9 @@ pub(crate) fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String
                 dump_expr(module, body, *rhs)
             )
         }
+        ExprKind::CompareChain { operands, ops } => {
+            format!("chain({}: {:?})", dump_list(module, body, operands), ops)
+        }
         ExprKind::BoolOp { op, lhs, rhs } => {
             format!(
                 "({} {op:?} {})",
@@ -512,6 +527,9 @@ pub(crate) fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String
                 })
                 .collect();
             format!("{callee_str}({})", args_str.join(", "))
+        }
+        ExprKind::ContextMethod { base, name } => {
+            format!("context_method({}, {name})", dump_expr(module, body, *base))
         }
         ExprKind::Attribute { base, name } => format!("{}.{name}", dump_expr(module, body, *base)),
         ExprKind::FString(parts) => {

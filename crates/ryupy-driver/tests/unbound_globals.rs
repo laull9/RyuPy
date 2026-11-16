@@ -13,7 +13,39 @@ fn static_global_load_checks_bound_and_freezes_typed_value() {
     ] {
         let mut session = Session::default();
         let output = dump(&mut session, &path, stage).expect("静态全局绑定检查应可降级");
-        insta::assert_snapshot!(name, output);
+        match stage {
+            Stage::Types => {
+                assert!(
+                    output.contains("module var Idx::<ModuleVar>(3): Int"),
+                    "{name}"
+                );
+                assert!(output.contains("func Idx::<Function>(0) [Static]: [] -> Int"));
+            }
+            Stage::Mir => {
+                let read = output
+                    .split("fn read_number(")
+                    .nth(1)
+                    .unwrap()
+                    .split("fn main(")
+                    .next()
+                    .unwrap();
+                assert!(read.contains(") -> i64"), "{name}");
+                assert!(
+                    read.find("CheckGlobalBound(global@4, const \"number\")")
+                        .unwrap()
+                        < read.find(" = global@3;").unwrap()
+                );
+                let main = output.split("fn main(").nth(1).unwrap();
+                assert!(
+                    main.find("g4 = const false").unwrap()
+                        < main.find("g3 = const 42_i64").unwrap()
+                );
+                assert!(
+                    main.find("g3 = const 42_i64").unwrap() < main.find("g4 = const true").unwrap()
+                );
+            }
+            _ => unreachable!(),
+        }
     }
 }
 

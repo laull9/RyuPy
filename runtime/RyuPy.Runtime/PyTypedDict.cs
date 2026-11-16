@@ -19,7 +19,7 @@ public static class PyTypedDict
                 throw new PyNotImplementedError("TypedDict fields currently require a dict");
             if (arguments[2] is not bool total)
                 throw new PyNotImplementedError("TypedDict total currently requires a bool");
-            string module = PyModules.ModuleForFile(PyTraceback.GetCallerLocation(1).File) ?? "__main__";
+            object module = PyTraceback.CallerSource(1).TypedDictModule();
             return Create(name, module, null, total, fields);
         }, ["posonly", "posonly", "kwonly"]);
 
@@ -57,7 +57,7 @@ public static class PyTypedDict
         return result;
     }
 
-    private static PyTypedDictType Create(string name, string module, PyTypedDictType? parent,
+    private static PyTypedDictType Create(string name, object module, PyTypedDictType? parent,
         bool total, PyDict fields)
     {
         var annotations = new PyDict();
@@ -72,13 +72,25 @@ public static class PyTypedDict
         foreach ((object? key, object? value) in fields.Entries())
         {
             if (key is not string field) throw new PyTypeError("TypedDict field names must be strings");
+            PyTypingGeneric.GuardExport(PyTyping.CreateAttributes());
+            // 字段表达式已全部求值；先读取当前禁止集合，再按真实顶层 alias 分类。
+            // native alias 不比较其 origin，也不递归拒绝它内部保存的 ClassVar。
+            object? classVar = PyTypingClassVar.ReadExport();
+            if (value is PyTypingGenericAlias) PyTypingGeneric.ValidateTypeArgument(value);
+            PyTypingClassVar.ValidateAlias(value, classVar);
             // 不伪造ForwardRef，也不将尚未实现的Required/NotRequired误按total分类。
             if (value is string || value is PyTypingAlias { Name: "Required" or "NotRequired" }
                 || value is PyTypingForm { Name: "Required" or "NotRequired" })
                 throw new PyNotImplementedError("TypedDict forward references and field qualifiers are not supported yet");
-            if (value is not (null or PyNone or PyType or PyClass or PyNativeType or PyTypingAlias or PyTypingForm or PyTypedDictType))
+            if (value is not (null or PyNone or PyType or PyClass or PyNativeType or PyTypingAlias or PyTypingForm or PyTypedDictType or PyTypingTypeVar))
                 throw new PyNotImplementedError("TypedDict currently supports concrete type annotations");
-            annotations.Set(field, value is null or PyNone ? PyType.Get("NoneType") : value);
+            object normalized = value is null or PyNone ? PyType.Get("NoneType") : value;
+            // 只消费当前新字段；空字段及继承字段不新增全局读取，旧 ForwardRef 边界仍在前。
+            bool acceptedSpecial = PyTypingNoReturn.TypedDictMembership(normalized);
+            if (!acceptedSpecial && normalized is PyTypingForm { Name: "ClassVar" or "NoReturn" } form)
+                throw PyTypingClassVar.Error(new PyTypeError($"Plain typing.{form.Name} is not valid as type argument"));
+            if (!acceptedSpecial && PyTypingGeneric.IsRoot(normalized)) PyTypingGeneric.ValidateTypeArgument(normalized);
+            annotations.Set(field, normalized);
             required.Remove(field);
             optional.Remove(field);
             (total ? required : optional).Add(field);
@@ -95,7 +107,10 @@ public sealed class PyTypedDictType : PyNativeObject, IPyNativeCallable
 {
     internal object? Doc { get; set; } = PyNone.Instance;
     internal string Name { get; }
-    internal string Module { get; }
+    private readonly object rawModule;
+    // 直接class repr和PyTyping.Display共用此guard，绝不隐式CLR字符串化raw对象。
+    internal string Module => rawModule as string
+        ?? throw new PyNotImplementedError("TypedDict representation with a non-string module is not supported");
     internal bool Total { get; }
     internal PyDict Annotations { get; }
     internal HashSet<string> Required { get; }
@@ -103,10 +118,10 @@ public sealed class PyTypedDictType : PyNativeObject, IPyNativeCallable
     private readonly PyFrozenSet _requiredKeys;
     private readonly PyFrozenSet _optionalKeys;
 
-    internal PyTypedDictType(string name, string module, bool total, PyDict annotations,
+    internal PyTypedDictType(string name, object module, bool total, PyDict annotations,
         HashSet<string> required, HashSet<string> optional)
     {
-        Name = name; Module = module; Total = total; Annotations = annotations;
+        Name = name; rawModule = module; Total = total; Annotations = annotations;
         Required = required; Optional = optional;
         _requiredKeys = new PyFrozenSet(required);
         _optionalKeys = new PyFrozenSet(optional);
@@ -118,7 +133,7 @@ public sealed class PyTypedDictType : PyNativeObject, IPyNativeCallable
     public override object? GetAttr(string name) => name switch
     {
         "__class__" => PyType.Get("_TypedDictMeta"),
-        "__name__" or "__qualname__" => Name, "__module__" => Module,
+        "__name__" or "__qualname__" => Name, "__module__" => rawModule,
         "__doc__" => Doc,
         "__annotations__" => Annotations, "__total__" => Total,
         "__required_keys__" => _requiredKeys, "__optional_keys__" => _optionalKeys,

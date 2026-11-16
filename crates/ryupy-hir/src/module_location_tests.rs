@@ -10,6 +10,8 @@ fn lower(enabled: bool) -> Module {
     let (module, errors) = lower_module(
         &parsed,
         &ModuleInfo {
+            instance_capabilities: Default::default(),
+            instance_globals: false,
             resolve_file_at_runtime: enabled,
             name: "pkg.unit".into(),
             package: "pkg".into(),
@@ -64,5 +66,51 @@ fn legacy_dump_keeps_literal_without_machine_specific_location() {
             .exprs
             .iter()
             .any(|(_, expr)| matches!(expr.kind, ExprKind::ModuleFile(_)))
+    );
+}
+
+#[test]
+fn module_metadata_has_dynamic_slots_only_for_runtime_builds() {
+    for enabled in [false, true] {
+        let module = lower(enabled);
+        for name in ["__spec__", "__loader__", "__cached__", "__path__"] {
+            let var = module
+                .vars
+                .iter()
+                .find(|(_, var)| var.name.as_str() == name);
+            assert_eq!(var.is_some(), enabled, "{name}");
+            if let Some((_, var)) = var {
+                assert!(var.is_global, "元数据重绑定必须走动态槽：{name}");
+                assert!(var.annotation.is_none());
+            }
+        }
+    }
+}
+
+#[test]
+fn module_metadata_initializes_each_real_slot_once_before_user_code() {
+    let module = lower(true);
+    let body = &module.functions[module.main].body;
+    for (index, name) in ["__spec__", "__loader__", "__cached__", "__path__"]
+        .iter()
+        .enumerate()
+    {
+        let StmtKind::Assign {
+            target: AssignTarget::ModuleVar(var),
+            value,
+        } = &body.stmts[body.root[index + 3]].kind
+        else {
+            panic!("缺少元数据前言")
+        };
+        assert_eq!(module.vars[*var].name.as_str(), *name);
+        assert!(matches!(&body.exprs[*value].kind,
+            ExprKind::ModuleMetadata(module, attr) if module.as_str() == "pkg.unit" && attr.as_str() == *name));
+    }
+    assert_eq!(
+        body.exprs
+            .iter()
+            .filter(|(_, expr)| matches!(expr.kind, ExprKind::ModuleMetadata(_, _)))
+            .count(),
+        4
     );
 }

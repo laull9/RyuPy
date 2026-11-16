@@ -16,15 +16,17 @@ import subprocess
 import sys
 import tempfile
 
+from pinned_python import resolve as resolve_python
+
 
 ROOT = Path(__file__).resolve().parent.parent
 PROJECTS = ROOT / "tests" / "projects"
 STORE = ROOT / "third_party" / "projects"
 
 
-def read_manifest():
+def read_manifest(projects=PROJECTS):
     rows = []
-    manifest = PROJECTS / "manifest.tsv"
+    manifest = projects / "manifest.tsv"
     for raw in manifest.read_text(encoding="utf-8-sig").splitlines():
         line = raw.rstrip("\n")
         if not line.strip() or line.startswith("#") or line.startswith("id\t"):
@@ -59,7 +61,7 @@ def package_root(dest):
     return root
 
 
-def source_dirs(rows):
+def source_dirs(rows, store=STORE):
     """所有已抓取的源码目录（含传递依赖），用作 PYTHONPATH。"""
     dirs = []
     for row in rows:
@@ -69,7 +71,7 @@ def source_dirs(rows):
                 name, _, version = dep.strip().partition("==")
                 candidates.append(f"{name}-{version}")
         for name in candidates:
-            path = STORE / name
+            path = store / name
             if not path.is_dir():
                 raise SystemExit(
                     f"缺少源码 {path}，先运行 python3 tests/fetch_projects.py"

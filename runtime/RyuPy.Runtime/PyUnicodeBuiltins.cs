@@ -16,6 +16,8 @@ public static partial class PyOps
                 if (text.Length == 2 && char.IsSurrogatePair(text, 0))
                     return char.ConvertToUtf32(text, 0);
                 throw OrdLength(PyText.Length(text));
+            case PyStringInstance text:
+                return UnicodeOrd(text.Value);
             case PyBytes bytes:
                 if (bytes.Count == 1) return bytes.Bytes[0];
                 throw OrdLength(bytes.Count);

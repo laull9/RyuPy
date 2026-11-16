@@ -1,0 +1,7 @@
+# 原CP完整期待：本切不修通用FlattenArgs错误帧。
+def convert():
+    return bool(*3)
+try:
+    raise ValueError('original')
+except ValueError:
+    convert()

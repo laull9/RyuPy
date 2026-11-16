@@ -1,0 +1,6 @@
+# 固定CPython正预期；RyuPy真实PE验证前必须保持pending。
+entry = entry.py
+pending = false
+expect_exit = 0
+env = PYTHONDONTWRITEBYTECODE=1
+env = PYTHONHASHSEED=0

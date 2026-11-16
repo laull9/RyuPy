@@ -8,10 +8,11 @@ public sealed class PyDateTimeValue : PyNativeObject
 {
     internal readonly long Microseconds;
     internal readonly bool IsDateTime;
-    internal readonly PyDateTimeZone? Zone;
+    internal readonly object? Zone;
     private readonly int _fold;
+    private long? _hash;
     private DateTime Calendar => new(Microseconds * 10, DateTimeKind.Unspecified);
-    internal PyDateTimeValue(long value, bool datetime, PyDateTimeZone? zone, int fold)
+    internal PyDateTimeValue(long value, bool datetime, object? zone, int fold)
     { Microseconds = value; IsDateTime = datetime; Zone = zone; _fold = fold; }
     internal static object Create(object?[] args, bool datetime)
     {
@@ -51,13 +52,11 @@ public sealed class PyDateTimeValue : PyNativeObject
                 case "date": return PyDateTimeModule.Zero(name, () => new PyDateTimeValue(Microseconds / PyDateTimeModule.Day * PyDateTimeModule.Day, false, null, 0));
                 case "time": return PyDateTimeModule.Zero(name, () => new PyDateTimeClock(Microseconds % PyDateTimeModule.Day, null, _fold));
                 case "timetz": return PyDateTimeModule.Zero(name, () => new PyDateTimeClock(Microseconds % PyDateTimeModule.Day, Zone, _fold));
-                case "utcoffset": return PyDateTimeModule.Zero(name, () => Zone is null ? null : new PyDateTimeDelta(Zone.Offset));
-                case "dst": return PyDateTimeModule.Zero(name, () => null);
-                case "tzname": return PyDateTimeModule.Zero(name, () => Zone?.PythonStr());
+                case "utcoffset": return PyDateTimeModule.Zero(name, () => PyDateTimeZoneProtocol.Delta(Zone, "utcoffset", this));
+                case "dst": return PyDateTimeModule.Zero(name, () => PyDateTimeZoneProtocol.Delta(Zone, "dst", this));
+                case "tzname": return PyDateTimeModule.Zero(name, () => PyDateTimeZoneProtocol.Name(Zone, this));
                 case "astimezone": return PyDateTimeModule.Function(name, ["tz"], [null], 0, a => ChangeZone(a[0]));
-                case "timestamp": return PyDateTimeModule.Zero(name, () => Zone is null
-                    ? throw new PyNotImplementedError("naive timestamp requires an unsupported platform local timezone")
-                    : (Microseconds - Zone.Offset - new DateTime(1970, 1, 1).Ticks / 10) / 1000000.0);
+                case "timestamp": return PyDateTimeModule.Zero(name, Timestamp);
             }
         }
         return name switch
@@ -68,7 +67,7 @@ public sealed class PyDateTimeValue : PyNativeObject
             "replace" => ReplaceFunction(),
             "__add__" or "__radd__" => PyDateTimeModule.One(name, value => value is PyDateTimeDelta delta ? Shift(delta, false) : PyNotImplemented.Instance),
             "__sub__" => PyDateTimeModule.One(name, Subtract),
-            "__hash__" => PyDateTimeModule.Zero(name, () => PyHash.Of(new PyTuple([TypeName, Zone is not null, Microseconds - (Zone?.Offset ?? 0)]))),
+            "__hash__" => PyDateTimeModule.Zero(name, Hash),
             _ => throw Missing(name),
         };
     }
@@ -88,31 +87,57 @@ public sealed class PyDateTimeValue : PyNativeObject
     {
         if (value is PyDateTimeDelta delta) return Shift(delta, true);
         if (value is not PyDateTimeValue other || other.IsDateTime != IsDateTime) return PyNotImplemented.Instance;
-        if ((Zone is null) != (other.Zone is null)) throw new PyTypeError("can't subtract offset-naive and offset-aware datetimes");
-        return new PyDateTimeDelta(Microseconds - (Zone?.Offset ?? 0) - other.Microseconds + (other.Zone?.Offset ?? 0));
+        long difference = Microseconds - other.Microseconds;
+        if (ReferenceEquals(Zone, other.Zone)) return new PyDateTimeDelta(difference);
+        long? left = Offset(), right = other.Offset();
+        if (left == right) return new PyDateTimeDelta(difference);
+        if (left is null || right is null) throw new PyTypeError("can't subtract offset-naive and offset-aware datetimes");
+        return new PyDateTimeDelta(difference - left.Value + right.Value);
     }
+    private long? Offset() => PyDateTimeZoneProtocol.Offset(Zone, this);
+    private PyDateTimeValue WithFold(int fold) => new(Microseconds, IsDateTime, Zone, fold);
     private object Compare(string op, object? value)
     {
         if (value is not PyDateTimeValue other || other.IsDateTime != IsDateTime) return PyNotImplemented.Instance;
-        if ((Zone is null) != (other.Zone is null))
-        { if (op is "__eq__" or "__ne__") return op == "__ne__"; throw new PyTypeError("can't compare offset-naive and offset-aware datetimes"); }
-        return PyDateTimeModule.Compare(op, (Microseconds - (Zone?.Offset ?? 0)).CompareTo(other.Microseconds - (other.Zone?.Offset ?? 0)));
+        if (ReferenceEquals(Zone, other.Zone)) return PyDateTimeModule.Compare(op, Microseconds.CompareTo(other.Microseconds));
+        long? left = Offset(), right = other.Offset();
+        bool equality = op is "__eq__" or "__ne__";
+        if ((left is null) != (right is null))
+        { if (equality) return op == "__ne__"; throw new PyTypeError("can't compare offset-naive and offset-aware datetimes"); }
+        int compare = (Microseconds - (left ?? 0)).CompareTo(other.Microseconds - (right ?? 0));
+        // PEP495只在跨zone比较本来相等时探测另一fold；同zone不得调用虚拟偏移。
+        if (compare == 0 && equality && (WithFold(1 - _fold).Offset() != left || other.WithFold(1 - other._fold).Offset() != right))
+            return op == "__ne__";
+        return PyDateTimeModule.Compare(op, compare);
     }
-    private object ChangeZone(object? value)
+    private object? ChangeZone(object? value)
     {
         var zone = PyDateTimeModule.Zone(value);
-        if (Zone is null || zone is null) throw new PyNotImplementedError("astimezone requires explicit fixed timezones");
+        if (zone is null) throw new PyNotImplementedError("astimezone requires an explicit timezone; platform local timezone is unsupported");
         if (ReferenceEquals(zone, Zone)) return this;
-        BigInteger next = new BigInteger(Microseconds) - Zone.Offset + zone.Offset;
+        long offset = Offset() ?? throw new PyNotImplementedError("naive astimezone requires an unsupported platform local timezone");
+        long next = Microseconds - offset;
         if (next < 0 || next > DateTime.MaxValue.Ticks / 10) throw new PyOverflowError("date value out of range");
-        return new PyDateTimeValue((long)next, true, zone, 0);
+        return PyDateTimeZoneProtocol.FromUtc(zone, new PyDateTimeValue(next, true, zone, 0));
+    }
+    private object Timestamp()
+    {
+        long offset = Offset() ?? throw new PyNotImplementedError("naive timestamp requires an unsupported platform local timezone");
+        return (Microseconds - offset - new DateTime(1970, 1, 1).Ticks / 10) / 1000000.0;
+    }
+    private object Hash()
+    {
+        if (_hash is { } hash) return hash;
+        var value = _fold == 0 ? this : WithFold(0);
+        long? offset = IsDateTime ? value.Offset() : null;
+        return (_hash = PyHash.Of(new PyTuple([TypeName, offset is not null, Microseconds - (offset ?? 0)]))).Value;
     }
     private string DateString() => Calendar.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
     private string Iso(object? separator, object? specification)
     {
         if (separator is not string text || PyText.Length(text) != 1) throw new PyTypeError("isoformat() separator must be a single character");
         if (specification is not string spec) throw new PyTypeError("timespec must be str");
-        return DateString() + text + PyDateTimeClock.Format(Microseconds % PyDateTimeModule.Day, spec) + (Zone?.Suffix() ?? "");
+        return DateString() + text + PyDateTimeClock.Format(Microseconds % PyDateTimeModule.Day, spec) + PyDateTimeZoneProtocol.Suffix(Zone, this);
     }
     /// <inheritdoc/>
     public override string PythonStr() => IsDateTime ? Iso(" ", "auto") : DateString();
@@ -125,7 +150,7 @@ public sealed class PyDateTimeValue : PyNativeObject
             result += $", {Calendar.Hour}, {Calendar.Minute}";
             if (Calendar.Second != 0 || Microseconds % 1000000 != 0) result += $", {Calendar.Second}";
             if (Microseconds % 1000000 != 0) result += $", {Microseconds % 1000000}";
-            if (Zone is not null) result += ", tzinfo=" + Zone.PythonRepr(); if (_fold != 0) result += ", fold=1";
+            if (Zone is not null) result += ", tzinfo=" + PyRepr.Repr(Zone); if (_fold != 0) result += ", fold=1";
         }
         return result + ")";
     }

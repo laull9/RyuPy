@@ -1,0 +1,56 @@
+# ryupy: pending
+# 固定CP3.12.13的有限名字intern参考；只比较相对身份，不打印地址或随机hash。
+import collections
+import json
+import sys
+
+if sys.implementation.name != 'cpython' or sys.version_info[:3] != (3, 12, 13):
+    raise SystemExit('需要固定CPython 3.12.13')
+
+# join含两个非空片段，避免单元素join直接返原对象，也不把完整名字写成常量。
+first_name = ''.join(['Runtime', 'Record'])
+second_name = ''.join(['Runtime', 'Record'])
+first_field = ''.join(['runtime', '_field'])
+second_field = ''.join(['runtime', '_field'])
+inputs = {
+    'case': 'inputs',
+    'typename_equal': first_name == second_name,
+    'typename_same': first_name is second_name,
+    'field_equal': first_field == second_field,
+    'field_same': first_field is second_field,
+}
+print(json.dumps(inputs, sort_keys=True))
+assert inputs['typename_equal'] and not inputs['typename_same']
+assert inputs['field_equal'] and not inputs['field_same']
+
+first = collections.namedtuple(first_name, [first_field], module='intern.reference')
+second = collections.namedtuple(second_name, [second_field], module='intern.reference')
+metadata = {
+    'case': 'metadata',
+    'fresh_class': first is not second,
+    'typename_equal': first.__name__ == second.__name__ == first_name,
+    'typename_interned': first.__name__ is second.__name__,
+    'field_equal': first._fields[0] == second._fields[0] == first_field,
+    'field_interned': first._fields[0] is second._fields[0],
+    'same_class_name_stable': first.__name__ is first.__name__,
+    'same_class_fields_stable': first._fields is first._fields,
+    'same_class_field_stable': first._fields[0] is first._fields[0],
+}
+print(json.dumps(metadata, sort_keys=True))
+for key, result in metadata.items():
+    if key != 'case':
+        assert result is True, key
+
+first_value = first(7)
+second_value = second(7)
+values = {
+    'case': 'values',
+    'first_type': type(first_value) is first,
+    'second_type': type(second_value) is second,
+    'tuple_values_equal': tuple(first_value) == tuple(second_value) == (7,),
+    'field_values_equal': getattr(first_value, first_field) == getattr(second_value, second_field) == 7,
+}
+print(json.dumps(values, sort_keys=True))
+for key, result in values.items():
+    if key != 'case':
+        assert result is True, key

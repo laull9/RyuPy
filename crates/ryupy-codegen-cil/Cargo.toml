@@ -6,6 +6,10 @@ edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
+[features]
+# 仅隔离S2a测试产物；不用于默认项目或发布。
+trace-adapter-test = ["ryupy-mir/trace-adapter-test"]
+
 [dependencies]
 ryupy-base.workspace = true
 ryupy-mir.workspace = true

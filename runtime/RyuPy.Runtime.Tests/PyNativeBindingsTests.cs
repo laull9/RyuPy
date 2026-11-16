@@ -61,7 +61,7 @@ public class PyNativeBindingsTests
     }
 
     [Fact]
-    public void OnlyThreeLoaderErrorsMapToPreparedImportErrorWithoutHostPaths()
+    public void OnlyThreeLoaderErrorsPreserveLoadReasonAndPythonContext()
     {
         var outer = new PyValueError("outer"); object? token = PyErrors.EnterHandler(outer);
         long depth = PyTraceback.PushFrame("binding_call.py", "load");
@@ -73,8 +73,8 @@ public class PyNativeBindingsTests
             foreach (Exception loader in loaders)
             {
                 var error = Assert.IsType<PyImportError>(PyNativeBindings.LoadFailure(loader, "logical_math", "sum_i32"));
-                Assert.Equal("cannot load declared native library 'logical_math' symbol 'sum_i32'", error.Message);
-                Assert.DoesNotContain(loader.Message, error.Message);
+                Assert.StartsWith("cannot load declared native library 'logical_math' symbol 'sum_i32': ", error.Message);
+                Assert.Contains(loader.Message, error.Message);
                 Assert.Same(outer, error.Context);
                 Assert.Equal(new PyStackFrame("binding_call.py", "load", 29), error.Frames[0]);
             }

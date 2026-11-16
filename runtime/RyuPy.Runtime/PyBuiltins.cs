@@ -25,8 +25,10 @@ public static partial class PyOps
     ) => name switch
     {
         "object" => PyBaseObject.Create(args, kwNames),
+        "slice" => PySlice.Create(args, kwNames),
         "exit" or "quit" => CallValue(PySiteQuitters.Get(name), args, kwNames, kwValues),
         "len" => BuiltinLen(args, kwNames),
+        "format" => PyBuiltinFormat.Invoke(args, kwNames),
         "pow" => PyPowerBuiltin.Invoke(args, kwNames, kwValues),
         "ord" => WithKeywords(name, args, kwNames, () => UnicodeOrd(Single(name, args))),
         "chr" => WithKeywords(name, args, kwNames, () => UnicodeChr(Single(name, args))),
@@ -62,28 +64,14 @@ public static partial class PyOps
         "round" => BuiltinRound(args, kwNames),
         "range" => BuiltinRange(args, kwNames),
         "hash" => WithKeywords(name, args, kwNames, () => (long)PyHash.Of(Single(name, args))),
-        "repr" => WithKeywords(name, args, kwNames, () => PyRepr.Repr(Single(name, args))),
-        "str" => WithKeywords(
-            name,
-            args,
-            kwNames,
-            () => args.Length == 0 ? string.Empty : PyRepr.Str(args[0])
-        ),
-        "bool" => WithKeywords(
-            name,
-            args,
-            kwNames,
-            () => args.Length == 0 ? false : Truthy(args[0])
-        ),
+        "repr" => WithKeywords(name, args, kwNames, () => PyRepr.ReprObject(Single(name, args))),
+        "str" => PyStringConstructor.Invoke(args, kwNames, kwValues),
+        "bool" => BuiltinBool(args, kwNames),
         "int" => PyIntConstructor.Invoke(args, kwNames, kwValues),
-        "float" => WithKeywords(
-            name,
-            args,
-            kwNames,
-            () => args.Length == 0 ? 0.0 : ToFloatValue(args[0]!)
-        ),
+        "float" => PyFloatConstructor.Invoke(args, kwNames, kwValues),
         "abs" => BuiltinAbs(args, kwNames),
-        "iter" => WithKeywords(name, args, kwNames, () => PyIter.Create(Single(name, args))),
+        "iter" => WithKeywords(name, args, kwNames, () =>
+            Single(name, args) is PyMappingProxy proxy ? proxy.Iterate() : PyIter.Create(args[0])),
         "next" => BuiltinNext(args, kwNames),
         "id" => WithKeywords(name, args, kwNames, () => Identity(Single(name, args))),
         "isinstance" => BuiltinIsInstance(args, kwNames),
@@ -91,10 +79,12 @@ public static partial class PyOps
         "property" => BuiltinProperty(args, kwNames),
         "staticmethod" => BuiltinDescriptorWrapper(args, kwNames, "staticmethod", static v => new PyStaticMethod(v)),
         "classmethod" => BuiltinDescriptorWrapper(args, kwNames, "classmethod", static v => new PyClassMethod(v)),
-        "super" => WithKeywords(name, args, kwNames, () => PyMethodContext.MakeSuper()),
+        "super" => PyLexicalSuper.LegacyConstruct(args, kwNames),
         "getattr" => BuiltinGetAttr(args, kwNames),
         "hasattr" => BuiltinHasAttr(args, kwNames),
         "setattr" => BuiltinSetAttr(args, kwNames),
+        "delattr" => PyAttributeDeletion.Invoke(args, kwNames),
+        "locals" => UnsupportedFunctionLocals(args, kwNames),
         "open" => PyIO.Open(args, kwNames, kwValues),
         "input" => BuiltinInput(args, kwNames),
         "print" => BuiltinPrint(args, kwNames, kwValues),
@@ -156,8 +146,11 @@ public static partial class PyOps
 
     private static object? BuiltinLen(object?[] args, string[] names)
     {
-        RejectUnknownKeywords("len", names);
-        return Len(Single("len", args));
+        // 实参已求值和展开；只准备本层绑定错误，不包住用户长度协议正文。
+        if (names.Length != 0) throw LengthError(new PyTypeError("len() takes no keyword arguments"));
+        if (args.Length != 1)
+            throw LengthError(new PyTypeError($"len() takes exactly one argument ({args.Length} given)"));
+        return Len(args[0]);
     }
 
     private static object BuiltinSequenceConstruct(
@@ -178,18 +171,7 @@ public static partial class PyOps
     )
     {
         var dict = new PyDict();
-        if (args.Length > 1)
-        {
-            throw new PyTypeError($"dict expected at most 1 argument, got {args.Length}");
-        }
-        if (args.Length == 1)
-        {
-            dict.Update(args[0]);
-        }
-        for (int i = 0; i < names.Length; i++)
-        {
-            dict.Set(names[i], values[i]);
-        }
+        CallDictUpdate(dict, args, names, values, construct: true);
         return dict;
     }
 
@@ -220,6 +202,15 @@ public static partial class PyOps
     {
         RejectUnknownKeywords("reversed", names);
         object? value = Single("reversed", args);
+        if (value is PyListInstance list) return PyListProtocols.Reversed(list);
+        if (value is PyDictInstance dict) return PyDictSubclassDispatch.Reversed(dict) ?? PyNone.Instance;
+        if (value is PyDictView { UseLayoutProtocol: true } view) return PyDictViewProtocols.Iter(view, reverse: true);
+        // 普通实例也必须优先使用类型上的反向协议，不能先迭代物化（可能无限或有副作用）。
+        if (value is PyInstance instance && instance.Class.TryLookup("__reversed__", out _, out object? raw))
+        {
+            if (raw is null or PyNone) throw new PyTypeError($"'{instance.Class.Name}' object is not reversible");
+            if (PyObject.TryMethod(value, "__reversed__", [], out object? ordinary)) return ordinary ?? PyNone.Instance;
+        }
         if (value is PyNativeObject && PyObject.TryMethod(value, "__reversed__", [], out object? reversed))
             return reversed ?? PyNone.Instance;
         object?[] items = ToSequence(value);
@@ -258,28 +249,8 @@ public static partial class PyOps
         return new PyZipIter(inputs);
     }
 
-    private static object BuiltinSum(object?[] args, string[] names, object?[] values)
-    {
-        RejectUnknownKeywords("sum", names, "start");
-        if (args.Length < 1)
-        {
-            throw new PyTypeError("sum expected at least 1 argument, got 0");
-        }
-        object? total = KeywordValue(names, values, "start") ?? 0L;
-        if (args.Length > 1 && Array.IndexOf(names, "start") < 0)
-        {
-            total = args[1];
-            if (args.Length > 2)
-            {
-                throw new PyTypeError("sum takes at most 2 arguments");
-            }
-        }
-        foreach (object? item in ToSequence(args[0]))
-        {
-            total = Binary(Add, total ?? PyNone.Instance, item ?? PyNone.Instance);
-        }
-        return total ?? PyNone.Instance;
-    }
+    private static object BuiltinSum(object?[] args, string[] names, object?[] values) =>
+        BuiltinSumFast(args, names, values);
 
     private static object? BuiltinMinMax(
         string name,
@@ -502,6 +473,8 @@ public static partial class PyOps
             return generator.Next(args.Length == 2 ? args[1] : null, args.Length == 2);
         if (args[0] is PyMap map)
             return map.Next(args.Length == 2 ? args[1] : null, args.Length == 2);
+        if (args[0] is PyStarMap starMap)
+            return starMap.Next(args.Length == 2 ? args[1] : null, args.Length == 2);
         if (args[0] is PyInstance instance)
         {
             try
@@ -558,17 +531,6 @@ public static partial class PyOps
         if (args.Length != 2)
         {
             throw new PyTypeError($"isinstance expected 2 arguments, got {args.Length}");
-        }
-        if (args[1] is PyTuple alternatives)
-        {
-            foreach (object? candidate in alternatives.Items)
-            {
-                if (MatchesType(args[0], candidate))
-                {
-                    return true;
-                }
-            }
-            return false;
         }
         return MatchesType(args[0], args[1]);
     }

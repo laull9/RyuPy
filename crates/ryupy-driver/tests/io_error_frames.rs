@@ -1,14 +1,11 @@
 //! 真 JIT 缺数据负例：open 在进入 with 前失败，仍报告模块调用者与加载函数的原始行号。
+#[path = "../src/test_temp.rs"]
+mod test_temp;
 use ryupy_driver::{BuildOptions, Session};
 
 #[test]
 fn io_missing_file_preserves_python_caller_frames() {
-    let stamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let root = std::env::temp_dir().join(format!("ryupy-io-frames-{}-{stamp}", std::process::id()));
-    std::fs::create_dir(&root).unwrap();
+    let root = test_temp::Root::new("io-error-frames");
     let entry = root.join("main.py");
     std::fs::write(
         &entry,
@@ -37,5 +34,4 @@ fn io_missing_file_preserves_python_caller_frames() {
         .expect("必须保留open失败帧");
     assert!(caller < callee, "{stderr}");
     assert!(stderr.contains("FileNotFoundError:"), "{stderr}");
-    std::fs::remove_dir_all(root).unwrap();
 }

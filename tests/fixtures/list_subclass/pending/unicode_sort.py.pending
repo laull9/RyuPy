@@ -1,0 +1,5 @@
+class L(list):
+    pass
+x = L(['\U00010000', '\ue000'])
+x.sort()
+print([ord(c) for c in x])

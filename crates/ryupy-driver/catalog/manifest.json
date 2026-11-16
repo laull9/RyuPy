@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "evidence_sha256": "fcf1782cee6fa881a9f2e26b55b901dd89393857ddfc97735d77ad3515644eea",
+  "source_identity": "锁定CI42932089715源码字节；CP参考基线3.12.13，源码upstream tag未另作网络核验",
+  "format": "USTAR; regular files only; mode 0644; uid/gid/mtime 0; empty uname/gname",
+  "members": {
+    "_markupbase.py": {
+      "bytes": 14653,
+      "sha256": "cb14dd6f2e2439eb70b806cd49d19911363d424c2b6b9f4b73c9c08022d47030",
+      "lines": 396,
+      "evidence_member": "inputs/stdlib/_markupbase.py"
+    },
+    "html/__init__.py": {
+      "bytes": 4775,
+      "sha256": "923d82d821e75e8d235392c10c145ab8587927b3faf9c952bbd48081eebd8522",
+      "lines": 132,
+      "evidence_member": "inputs/stdlib/html/__init__.py"
+    },
+    "html/entities.py": {
+      "bytes": 75512,
+      "sha256": "d9c65fb2828dbc1f3e399058a341d51e9375ec5bca95a8e92599c41bd5b78bde",
+      "lines": 2513,
+      "evidence_member": "inputs/stdlib/html/entities.py"
+    },
+    "html/parser.py": {
+      "bytes": 20858,
+      "sha256": "952f1d7dd5be98b6f78801c6904a38e3e2beceb4783efb76c5e22948f0a58092",
+      "lines": 535,
+      "evidence_member": "inputs/stdlib/html/parser.py"
+    },
+    "LICENSE.txt": {
+      "bytes": 13936,
+      "sha256": "3b2f81fe21d181c499c59a256c8e1968455d6689d269aa85373bfb6af41da3bf",
+      "lines": 279,
+      "evidence_member": "licenses/CPython-LICENSE.txt"
+    }
+  }
+}

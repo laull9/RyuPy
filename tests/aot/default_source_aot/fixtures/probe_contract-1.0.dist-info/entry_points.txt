@@ -1,0 +1,6 @@
+[probe.active]
+lazy = probe_pkg.lazy:value
+deferred = probe_pkg.deferred:value
+
+[probe.other]
+outside = probe_pkg.outside:value

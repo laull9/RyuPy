@@ -1,0 +1,22 @@
+# ryupy: pending
+# parser具有真实状态/事件协议，不能用导入成功代表支持，也不能由escape替代。
+from html.parser import HTMLParser
+
+
+class Recorder(HTMLParser):
+    def handle_starttag(self, tag, attrs):
+        events.append(('start', tag, attrs))
+
+    def handle_data(self, data):
+        events.append(('data', data))
+
+    def handle_endtag(self, tag):
+        events.append(('end', tag))
+
+
+events = []
+parser = Recorder()
+parser.feed('<b>x&amp;y</b>')
+parser.close()
+assert events == [('start', 'b', []), ('data', 'x&y'), ('end', 'b')]
+print(events)

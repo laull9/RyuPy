@@ -6,6 +6,8 @@
 //!
 //! 约束：本 crate 不得依赖任何其它 `ryupy-*` crate。
 
+mod instance_capabilities;
+pub use instance_capabilities::InstanceCapabilities;
 pub mod diagnostic;
 pub mod source;
 

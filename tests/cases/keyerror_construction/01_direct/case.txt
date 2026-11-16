@@ -1,0 +1,3 @@
+# 候选待真实JIT/Native同源验收，不能以CP合同探针转正。
+entry = entry.py
+pending = true

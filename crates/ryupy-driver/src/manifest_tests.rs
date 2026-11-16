@@ -35,18 +35,23 @@ fn context() -> ManifestContext {
     let report = EmissionReport {
         schema_version: 1,
         entry: descriptor("Main"),
+        entry_slot: 0,
+        function_definitions: vec![],
         modules: vec![ModuleEmission {
+            environment_reason: "existing-contract".into(),
             module_id: 0,
             module_name: "__main__".to_owned(),
             init: init.clone(),
-            getter: descriptor("get_actual"),
-            setter: descriptor("set_actual"),
+            getter: Some(descriptor("get_actual")),
+            setter: Some(descriptor("set_actual")),
             exports: vec!["中文\"name".to_owned()],
         }],
         delegate_references: vec![DelegateReference {
             source: descriptor("register_actual"),
+            source_slot: 1,
             instruction: 12,
             target: Some(init),
+            target_slot: Some(2),
             target_display: "actual init".to_owned(),
             role: "module_init".to_owned(),
             module_id: Some(0),
@@ -72,11 +77,8 @@ fn context() -> ManifestContext {
 }
 
 #[test]
-fn sha256_is_standard_and_streaming_file_matches_current_bytes() {
-    assert_eq!(
-        files::hash_bytes(b"abc"),
-        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-    );
+fn ordinary_file_records_size_without_hashing() {
+    assert!(files::hash_bytes(b"abc").is_empty());
     let temp = Temp::new();
     let path = temp.0.join("input");
     std::fs::write(&path, b"abc").unwrap();
@@ -242,7 +244,7 @@ fn invalid_reports_and_changed_managed_input_cannot_report_success() {
     };
     context.verify_managed_input(&input).unwrap();
     let mut wrong = input;
-    wrong.sha256 = files::hash_bytes(b"changed bytes");
+    wrong.size += 1;
     assert!(context.verify_managed_input(&wrong).is_err());
     context.report.modules[0].module_id = 8;
     assert!(context.validate().is_err());
@@ -324,4 +326,18 @@ fn junction_directory_is_rejected_without_hashing_outside_publish() {
     assert!(status.success());
     assert!(files::collect(&temp.0, &native).is_err());
     std::fs::remove_dir(junction).unwrap();
+}
+
+#[test]
+fn report_versions_preserve_old_projection_and_reject_unknown() {
+    for version in [1, 2] {
+        let mut context = context();
+        context.report.schema_version = version;
+        assert!(context.validate().is_ok());
+    }
+    for version in [0, 3, u32::MAX] {
+        let mut context = context();
+        context.report.schema_version = version;
+        assert!(context.validate().is_err());
+    }
 }

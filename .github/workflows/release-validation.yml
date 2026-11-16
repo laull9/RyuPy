@@ -1,0 +1,38 @@
+# 分支推送不启动矩阵；先核对tag确实属于main，再调用已验收的三套发布测试。
+name: Release validation
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-validation-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  main-tag:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify tag belongs to main
+        run: |
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          python3 -B scripts/check_release_tag.py
+
+  onefile:
+    needs: main-tag
+    uses: ./.github/workflows/cpython-onefile-versions.yml
+
+  standalone:
+    needs: main-tag
+    uses: ./.github/workflows/cpython-standalone.yml
+
+  python-versions:
+    needs: main-tag
+    uses: ./.github/workflows/cpython-versions.yml

@@ -1,0 +1,5 @@
+entry = entry.py
+pending = false
+expect_exit = 0
+# 参考说明（CP清单不接受此字段，默认相同）：expect_stdout = exact
+# 参考说明（CP清单不接受此字段，默认相同）：timeout = 30

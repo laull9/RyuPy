@@ -41,7 +41,12 @@ public static partial class Builtins
     internal static TextWriter DefaultOutput => Out;
 
     /// <summary>把缓冲区内容写到标准输出。进程退出前与写错误报告前调用。</summary>
-    public static void Flush() => Out.Flush();
+    public static void Flush()
+    {
+        if (PyTraceProduct.Enabled)
+            PyIO.Guard(() => { Out.Flush(); return PyNone.Instance; });
+        else Out.Flush();
+    }
 
     /// <summary>写出 <c>int</c>。</summary>
     public static void WriteI64(long value) =>

@@ -1,0 +1,3 @@
+entry = entry.py
+pending = true
+# 延期：str 子类/任意 package 真值和 rsplit 协议；精确字符串支持不涵盖它们。

@@ -1,0 +1,10 @@
+# ryupy: pending
+# 域外旧债：provider.clean没有本地写入标记，内部静态调用仍可能绕过外部属性重绑。
+# 真实导入同目录provider；核心逻辑逐字来自唯一CP参考boundary组。
+import binding_provider as provider
+saved = provider.clean
+def replacement(value):
+    return ['replacement', value]
+provider.clean = replacement
+result = [provider.call_clean(3), saved(4), provider.clean is replacement]
+print(result)

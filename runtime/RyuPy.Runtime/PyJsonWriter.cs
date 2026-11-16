@@ -34,6 +34,7 @@ internal sealed class PyJsonWriter
             {
                 PyTuple tuple => tuple.Items,
                 PyList list => list.Items.ToArray(),
+                PyListInstance list => PyOps.ToSequence(list),
                 _ => throw new PyTypeError("separators must be a two-item sequence"),
             };
             if (parts.Length != 2) throw new PyValueError("separators must contain exactly two items");
@@ -76,8 +77,12 @@ internal sealed class PyJsonWriter
             IEnumerable<string> result = value switch
             {
                 PyList list => Sequence(list.Items, depth),
+                // 循环检测仍使用公开owner，默认槽不可覆盖时可逐项读取真实背板。
+                PyListInstance list => Sequence(list.Payload.Items, depth),
                 PyTuple tuple => Sequence(tuple.Items, depth),
+                PyOrderedDict => throw PyOrderedDict.Unsupported("JSON encoding"),
                 PyDict dict => Object(dict, depth),
+                PyDictInstance dict => SubclassObject(dict, depth),
                 IPyNativeMapping mapping => Object(mapping.Dictionary, depth),
                 _ => Default(value, depth),
             };
@@ -155,6 +160,58 @@ internal sealed class PyJsonWriter
         if (!_sortKeys && version != dict.Version) throw new PyRuntimeError("dictionary changed size during iteration");
         if (_indent is not null) yield return NewLine(depth);
         yield return "}";
+    }
+
+    // dict 派生的 JSON 使用公开 items（不同于 dict(source) 的根存储快路）。
+    // 空字典先返回，不调用覆盖；循环集合一直以 Chunks 中的公开 wrapper 为 owner。
+    private IEnumerable<string> SubclassObject(PyDictInstance dict, int depth)
+    {
+        if (dict.Payload.Count == 0) { yield return "{}"; yield break; }
+        yield return "{";
+        if (_indent is not null) yield return NewLine(depth + 1);
+        IEnumerable<(object? Key, object? Value)> entries = SubclassEntries(dict);
+        if (_sortKeys)
+        {
+            var sorted = new List<object?>();
+            foreach (var (key, value) in entries) sorted.Add(new PyTuple([key, value]));
+            bool stringKeys = true;
+            foreach (object? entry in sorted) stringKeys &= ((PyTuple)entry!).Items[0] is string;
+            PySort.SortBy(sorted, false, entry => stringKeys
+                ? CodePointKey((string)((PyTuple)entry!).Items[0]!) : ((PyTuple)entry!).Items[0]);
+            var pairs = new List<(object?, object?)>();
+            foreach (object? entry in sorted) pairs.Add((((PyTuple)entry!).Items[0], ((PyTuple)entry).Items[1]));
+            entries = pairs;
+        }
+        bool first = true;
+        foreach (var (rawKey, value) in entries)
+        {
+            string? key = rawKey switch
+            {
+                string text => text, null or PyNone => "null", bool flag => flag ? "true" : "false",
+                long or int or BigInteger => Integer(rawKey), double number => Float(number), _ => null,
+            };
+            if (key is null)
+            {
+                if (_skipKeys) continue;
+                throw new PyTypeError($"keys must be str, int, float, bool or None, not {PyRepr.TypeName(rawKey)}");
+            }
+            if (!first) yield return _itemSep + NewLine(depth + 1);
+            first = false; yield return Quote(key); yield return _keySep;
+            foreach (string chunk in Chunks(value, depth + 1)) yield return chunk;
+        }
+        if (_indent is not null) yield return NewLine(depth);
+        yield return "}";
+    }
+
+    private static IEnumerable<(object? Key, object? Value)> SubclassEntries(PyDictInstance dict)
+    {
+        object? items = PyObject.InvokeMethod(dict, "items", [], [], []);
+        IPyIterator iterator = PyMappingProxyIteration.Start(items);
+        while (PyMappingProxyIteration.ReadNext(iterator, out object? item))
+        {
+            var pair = (PyTuple)PyOps.UnpackSequence(item, 2);
+            yield return (pair.Items[0], pair.Items[1]);
+        }
     }
 
     // JSON字符串键按码点排序；不能直接用UTF16 ordinal把补充平面排到BMP末尾字符前。

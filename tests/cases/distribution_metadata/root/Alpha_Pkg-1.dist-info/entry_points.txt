@@ -1,0 +1,5 @@
+[demo]
+same = probe_pkg.target:Box.value
+other = probe_pkg.target:Box
+[mystery]
+X = absent_target:Value

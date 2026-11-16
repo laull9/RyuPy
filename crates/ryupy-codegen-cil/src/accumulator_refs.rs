@@ -2,6 +2,7 @@
 use dotnetdll::prelude::*;
 
 pub(crate) struct AccumulatorRefs {
+    pub records_try: MethodRefIndex,
     pub create: MethodRefIndex,
     pub add: MethodRefIndex,
     pub value: MethodRefIndex,
@@ -11,7 +12,13 @@ impl AccumulatorRefs {
         let ty =
             res.push_type_reference(type_ref! { RyuPy.Runtime.PyNumericAccumulator in #runtime });
         let ty: MethodType = BaseType::class(ty).into();
+        let records =
+            res.push_type_reference(type_ref! { RyuPy.Runtime.PyRecordsIncrement in #runtime });
+        let records: MethodType = BaseType::class(records).into();
         Self {
+            records_try: res.push_method_reference(
+                method_ref! { static bool @records::TryMaterialized(object, object) },
+            ),
             create: res.push_method_reference(method_ref! { static object @ty::Create(object) }),
             add: res.push_method_reference(method_ref! { static void @ty::Add(object, object) }),
             value: res.push_method_reference(method_ref! { static object @ty::Value(object) }),

@@ -1,315 +1,367 @@
-//! 项目级运行入口（M2.0）：编译并运行固定项目集的入口样例，对照 CPython 基线。
-//!
-//! 与 `tests/e2e.rs` 的区别：
-//! - e2e 关注**单个特性**，一个 `.py` 一个用例；
-//! - 这里关注**项目**：入口样例会 `import` 一个真实项目的源码，只有整条链路（模块系统、
-//!   容器、对象、异常）都通了才可能通过。所以它同时是「下一项阻塞」的报告工具。
-//!
-//! 状态口径（与 docs/compatibility.md 一致）：
-//!
-//! | 状态 | 含义 |
-//! | --- | --- |
-//! | `native` | 编译并运行通过，stdout 与 CPython 基线逐字节一致 |
-//! | `unsupported` | 编译被拒（明确诊断），属于已知未实现能力 |
-//! | `failed` | 编译通过但运行失败或输出不一致 |
-//! | `not-evaluated` | 缺基线或入口样例，未运行 |
-//!
-//! 编译成功本身不算通过：必须真的运行并比对输出。
-//!
-//! 运行：
-//! ```text
-//! cargo run -p ryupy-e2e --bin projects            # 全部
-//! cargo run -p ryupy-e2e --bin projects -- --only six,click
-//! ```
-//!
-//! 结果写 `target/e2e/projects.jsonl`，同时打印汇总表。
+//! 固定项目入口的默认 JIT 运行器：复用 driver，保留 JSONL 字段和完整诊断/运行原流。
+//! 此二进制是进度报告器，不自行决定产品准入；`make projects-preserve/promote` 包装完整20项。
+//! `--only` 仅供定向诊断。门禁按项独占目录并用外部期限监督本进程，拒绝旧报告与不完整结果。
+
+#[path = "../project_manifest.rs"]
+mod project_manifest;
 
 use std::collections::BTreeMap;
 use std::io::Write as _;
-use std::path::{Path, PathBuf};
-use std::process::ExitCode;
+use std::path::Path;
+use std::process::{Command, ExitCode, Stdio};
 
-use ryupy_driver::dotnet::RunOptions;
-use ryupy_driver::{BuildOptions, Session, dotnet, runtime::workspace_root};
+use project_manifest::{Options, Project, read_manifest, search_paths};
+use ryupy_driver::{BuildOptions, HasErrors, Session, dotnet, runtime::workspace_root};
 use ryupy_e2e::json_escape;
 
-/// 项目级状态。刻意与用例状态分开：项目的「未实现」是 `unsupported`，不是 `pending`。
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum ProjectStatus {
-    Native,
-    Unsupported,
-    Failed,
-    NotEvaluated,
+struct Outcome {
+    status: &'static str,
+    kind: &'static str,
+    detail: String,
+    run_exit: Option<i32>,
 }
 
-impl ProjectStatus {
-    fn as_str(self) -> &'static str {
-        match self {
-            ProjectStatus::Native => "native",
-            ProjectStatus::Unsupported => "unsupported",
-            ProjectStatus::Failed => "failed",
-            ProjectStatus::NotEvaluated => "not-evaluated",
+impl Outcome {
+    fn new(status: &'static str, kind: &'static str, detail: impl Into<String>) -> Self {
+        Self {
+            status,
+            kind,
+            detail: detail.into(),
+            run_exit: None,
         }
     }
-}
-
-/// manifest 的一行。列定义见 `tests/projects/manifest.tsv` 表头。
-struct Project {
-    id: String,
-    category: String,
-    pypi: String,
-    version: String,
-    import_name: String,
-    entry: PathBuf,
-    scope: String,
-    deps: String,
 }
 
 fn main() -> ExitCode {
-    let mut only: Option<Vec<String>> = None;
-    let mut args = std::env::args().skip(1);
-    while let Some(arg) = args.next() {
-        match arg.as_str() {
-            "--only" => {
-                let value = args.next().unwrap_or_default();
-                only = Some(value.split(',').map(|s| s.trim().to_owned()).collect());
-            }
-            other => {
-                eprintln!("未知参数：{other}（只支持 --only <id,id>）");
-                return ExitCode::from(2);
+    match execute() {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(err) => {
+            eprintln!("项目运行器失败：{err}");
+            ExitCode::from(2)
+        }
+    }
+}
+
+fn execute() -> Result<(), String> {
+    let root = workspace_root();
+    let options = Options::parse(&root)?;
+    let projects_dir = root.join("tests/projects");
+    let projects = read_manifest(&projects_dir.join("manifest.tsv"))?;
+    if let Some(only) = &options.only {
+        for id in only {
+            if !projects.iter().any(|p| &p.id == id) {
+                return Err(format!("未知项目 ID：{id}"));
             }
         }
     }
-
-    let root = workspace_root();
-    let projects_dir = root.join("tests/projects");
-    let projects = match read_manifest(&projects_dir.join("manifest.tsv")) {
-        Ok(list) => list,
-        Err(err) => {
-            eprintln!("读取项目清单失败：{err}");
-            return ExitCode::from(2);
-        }
-    };
-
+    // run-id 模式要求独占输出目录；无论成功失败都不得复用旧产物/报告。
+    if options.run_id.is_empty() {
+        std::fs::create_dir_all(&options.output).map_err(|e| e.to_string())?;
+    } else {
+        std::fs::create_dir(&options.output).map_err(|e| e.to_string())?;
+    }
     let mut results = Vec::new();
-    let mut counts: BTreeMap<ProjectStatus, usize> = BTreeMap::new();
-    println!("{:<18} {:<14} {:<14} 阻塞 / 说明", "项目", "类别", "状态");
+    let mut counts = BTreeMap::new();
+    let mut infrastructure_failure = false;
     for project in &projects {
-        if let Some(only) = &only
-            && !only.iter().any(|id| id == &project.id)
+        if options
+            .only
+            .as_ref()
+            .is_some_and(|ids| !ids.contains(&project.id))
         {
             continue;
         }
-        let (status, detail) = run_project(&root, &projects_dir, project);
-        *counts.entry(status).or_insert(0) += 1;
+        let directory = options.output.join(&project.id);
+        std::fs::create_dir_all(&directory).map_err(|e| e.to_string())?;
+        let outcome = match run_project(&options, project, &directory) {
+            Ok(outcome) => outcome,
+            Err(err) => Outcome::new("not-evaluated", "infrastructure", err),
+        };
+        infrastructure_failure |=
+            matches!(outcome.kind, "infrastructure" | "compiler-error" | "crash");
+        *counts.entry(outcome.status).or_insert(0usize) += 1;
         println!(
-            "{:<18} {:<14} {:<14} {}",
-            project.id,
-            project.category,
-            status.as_str(),
-            detail
+            "{:<18} {:<14} {}",
+            project.id, outcome.status, outcome.detail
         );
-        results.push((project, status, detail));
+        results.push((project, outcome));
     }
-
-    let path = root.join("target/e2e/projects.jsonl");
-    if let Err(err) = write_results(&path, &results) {
-        eprintln!("写入结果失败：{err}");
-    }
-
-    println!("\n汇总：");
-    for (status, count) in &counts {
-        println!("  {:<14} {count}", status.as_str());
-    }
-    let native = counts.get(&ProjectStatus::Native).copied().unwrap_or(0);
+    let path = options.output.join("projects.jsonl");
+    write_results(&path, &options.run_id, &results).map_err(|e| e.to_string())?;
     println!(
-        "结果：{}；native {native}/{}（分母是固定项目集，不因失败而缩小）",
+        "结果：{}；native {}/{}；仅进度报告，未执行保留/晋升判定",
         path.display(),
+        counts.get("native").copied().unwrap_or(0),
         results.len()
     );
-
-    // 项目集在 M2.0 阶段本来就不该全通过：这里只做进度报告，不作为提交门禁。
-    ExitCode::SUCCESS
+    if infrastructure_failure {
+        return Err("至少一项存在运行器/编译器异常".to_owned());
+    }
+    Ok(())
 }
 
-fn run_project(root: &Path, projects_dir: &Path, project: &Project) -> (ProjectStatus, String) {
-    let baseline = projects_dir.join("baselines").join(&project.id);
-    let expected_stdout = baseline.join("stdout.txt");
-    if !project.entry.exists() || !expected_stdout.exists() {
-        return (
-            ProjectStatus::NotEvaluated,
-            format!(
-                "缺 {} 或基线（先跑 tests/run_projects_baseline.py）",
-                project.entry.display()
-            ),
-        );
-    }
-    let expected = match std::fs::read(&expected_stdout) {
-        Ok(bytes) => bytes,
-        Err(err) => return (ProjectStatus::Failed, format!("读取基线失败：{err}")),
+/// 固定CPython即时生成预期；每臂独立cwd，绝不读取历史stdout或忽略基线失败。
+fn project_oracle(
+    options: &Options,
+    project: &Project,
+    out: &Path,
+) -> Result<std::process::Output, String> {
+    let version = include_str!("../../../../tests/pinned-python.txt").trim();
+    let python = if let Ok(value) = std::env::var("PYTHON") {
+        value
+    } else {
+        let found = Command::new("uv")
+            .args(["python", "find", version])
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !found.status.success() {
+            return Err("缺少固定CPython".into());
+        }
+        String::from_utf8(found.stdout)
+            .map_err(|e| e.to_string())?
+            .trim()
+            .to_owned()
     };
+    let actual = Command::new(&python)
+        .args([
+            "-S",
+            "-B",
+            "-c",
+            "import platform; print(platform.python_version())",
+        ])
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !actual.status.success() || String::from_utf8_lossy(&actual.stdout).trim() != version {
+        return Err(format!("项目oracle要求CPython {version}"));
+    }
+    let cwd = out.join("cpython-cwd");
+    std::fs::create_dir(&cwd).map_err(|e| e.to_string())?;
+    let paths =
+        std::env::join_paths(search_paths(&options.store, project)?).map_err(|e| e.to_string())?;
+    let expected = Command::new(&python)
+        .args(["-S", "-B"])
+        .arg(&project.entry)
+        .env("PYTHONPATH", paths)
+        .env("PYTHONHASHSEED", "0")
+        .env("PYTHONDONTWRITEBYTECODE", "1")
+        .env("PYTHON_COLORS", "0")
+        .env("NO_COLOR", "1")
+        .current_dir(cwd)
+        .stdin(Stdio::null())
+        .output()
+        .map_err(|e| format!("CPython oracle执行失败：{e}"))?;
+    std::fs::write(out.join("cpython.stdout"), &expected.stdout).map_err(|e| e.to_string())?;
+    std::fs::write(out.join("cpython.stderr"), &expected.stderr).map_err(|e| e.to_string())?;
+    if !expected.status.success() {
+        return Err(format!(
+            "CPython oracle失败：{}",
+            String::from_utf8_lossy(&expected.stderr)
+        ));
+    }
+    Ok(expected)
+}
 
-    let out_dir = root.join("target/e2e/projects").join(&project.id);
-    let mut sess = Session::default();
+/// 只允许省略本轮CP真实SyntaxWarning块；产品新增/改写warning仍须失败。
+fn stderr_matches(actual: &[u8], expected: &[u8]) -> bool {
+    let lines: Vec<_> = expected.split_inclusive(|byte| *byte == b'\n').collect();
+    let mut offsets = vec![0usize];
+    let mut index = 0;
+    while index < lines.len() {
+        let line = lines[index];
+        let optional = line.starts_with(b"SyntaxWarning:")
+            || line
+                .windows(16)
+                .position(|part| part == b": SyntaxWarning:")
+                .is_some_and(|position| {
+                    let prefix = &line[..position];
+                    prefix.contains(&b':')
+                        && prefix
+                            .rsplit(|byte| *byte == b':')
+                            .next()
+                            .is_some_and(|number| {
+                                !number.is_empty() && number.iter().all(u8::is_ascii_digit)
+                            })
+                });
+        let mut block = line.to_vec();
+        index += 1;
+        if optional && index < lines.len() && matches!(lines[index].first(), Some(b' ' | b'\t')) {
+            block.extend_from_slice(lines[index]);
+            index += 1;
+        }
+        let mut next: Vec<_> = offsets
+            .iter()
+            .filter_map(|offset| {
+                actual[*offset..]
+                    .starts_with(&block)
+                    .then_some(offset + block.len())
+            })
+            .collect();
+        if optional {
+            next.extend_from_slice(&offsets);
+        }
+        next.sort_unstable();
+        next.dedup();
+        offsets = next;
+        if offsets.is_empty() {
+            return false;
+        }
+    }
+    offsets.contains(&actual.len())
+}
+
+fn run_project(options: &Options, project: &Project, out: &Path) -> Result<Outcome, String> {
+    let expected = project_oracle(options, project, out)?;
+    if !project.entry.is_file() {
+        return Err("入口缺失".to_owned());
+    }
     let opts = BuildOptions {
         input: project.entry.clone(),
-        out_dir: out_dir.clone(),
+        out_dir: out.to_path_buf(),
         aot: false,
-        search_paths: project_search_paths(root, project),
+        search_paths: search_paths(&options.store, project)?,
     };
-    let artifacts = match ryupy_driver::build(&mut sess, &opts) {
+    // 所有显式实验、额外字体、模块实例配置保持 Session 默认值，不读取外部配置冒充默认。
+    let mut session = Session::default();
+    let build = ryupy_driver::build(&mut session, &opts);
+    // 额外审计文件不改变P0的ID/默认CLI mode或成功标准，失败图也保计划与完成相位。
+    std::fs::write(
+        out.join("module-environment.json"),
+        session
+            .module_environment_report_json()
+            .map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())?;
+    let diagnostics = session.render_diagnostics(false);
+    std::fs::write(out.join("compile.diagnostics.txt"), &diagnostics).map_err(|e| e.to_string())?;
+    let artifacts = match build {
         Ok(artifacts) => artifacts,
-        Err(err) => {
-            // 编译被拒是可预期状态：把第一条诊断当作「下一项阻塞」。
-            // 诊断文本里既有源码片段也有 `[E0100] Error: ...` 这样的标题行，优先取后者。
-            let rendered = sess.render_diagnostics(false);
-            let first = rendered
+        Err(error) => {
+            std::fs::write(out.join("compile.error.txt"), format!("{error:#}"))
+                .map_err(|e| e.to_string())?;
+            let first = diagnostics
                 .lines()
-                .find(|line| {
-                    let trimmed = line.trim_start();
-                    trimmed.starts_with('[') || trimmed.starts_with("Error:")
-                })
-                .or_else(|| rendered.lines().find(|line| !line.trim().is_empty()))
-                .unwrap_or("（无诊断文本）");
-            return (
-                ProjectStatus::Unsupported,
-                format!("{}（{err}）", first.trim()),
+                .find(|line| line.trim_start().starts_with('['))
+                .unwrap_or("无源码诊断");
+            return Ok(
+                if error.is::<HasErrors>() && session.diagnostics.has_errors() {
+                    Outcome::new("unsupported", "diagnostic", first)
+                } else {
+                    Outcome::new("failed", "compiler-error", format!("{error:#}"))
+                },
             );
         }
     };
-
-    let run_opts = RunOptions {
-        cwd: Some(out_dir.clone()),
-        ..RunOptions::default()
-    };
-    match dotnet::run_dll_with(&artifacts.dll, &run_opts) {
-        Ok(output) if !output.status.success() => {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            let last = stderr
-                .lines()
-                .rev()
-                .find(|l| !l.trim().is_empty())
-                .unwrap_or("（无 stderr）");
-            (ProjectStatus::Failed, format!("运行失败：{last}"))
-        }
-        Ok(output) if output.stdout == expected => (
-            ProjectStatus::Native,
-            format!("输出一致（import {}）", project.import_name),
-        ),
-        Ok(output) => (
-            ProjectStatus::Failed,
-            format!(
-                "输出不一致：期望 {} 字节，实际 {} 字节",
-                expected.len(),
-                output.stdout.len()
-            ),
-        ),
-        Err(err) => (ProjectStatus::Failed, format!("启动 dotnet 失败：{err}")),
-    }
-}
-
-/// 项目源码 + 传递依赖的模块搜索根。
-///
-/// sdist 解包后通常多一层 `<name>-<version>/`，部分项目再使用 `src/` 布局；
-/// 这里只负责找到「能直接 `import <包名>` 的父目录」，不解析安装元数据。
-fn project_search_paths(root: &Path, project: &Project) -> Vec<PathBuf> {
-    let store = root.join("third_party/projects");
-    let mut packages: Vec<(&str, &str)> = vec![(&project.pypi, &project.version)];
-    if project.deps.trim() != "-" {
-        for dep in project.deps.split(',') {
-            let dep = dep.trim();
-            if let Some((name, version)) = dep.split_once("==") {
-                packages.push((name, version));
-            }
-        }
-    }
-    packages
-        .into_iter()
-        .filter_map(|(name, version)| package_source_root(&store, name, version))
-        .collect()
-}
-
-fn package_source_root(store: &Path, name: &str, version: &str) -> Option<PathBuf> {
-    let mut current = store.join(format!("{name}-{version}"));
-    if !current.is_dir() {
-        return None;
-    }
-    loop {
-        // `src/` 布局：直接把它作为搜索根。
-        if current.join("src").is_dir() {
-            return Some(current.join("src"));
-        }
-        // sdist 顶层只有一个目录时，真正的源码在那层目录里，继续往下找。
-        let mut dirs = Vec::new();
-        let mut files = 0usize;
-        for entry in std::fs::read_dir(&current).ok()? {
-            let entry = entry.ok()?;
-            if entry.file_type().ok()?.is_dir() {
-                dirs.push(entry.path());
+    // 原流直接落盘，父门禁可监测大小并终止整个进程组；不让 wait_with_output 无限积内存。
+    let stdout_file = std::fs::File::create(out.join("jit.stdout")).map_err(|e| e.to_string())?;
+    let stderr_file = std::fs::File::create(out.join("jit.stderr")).map_err(|e| e.to_string())?;
+    let jit_cwd = out.join("jit-cwd");
+    std::fs::create_dir(&jit_cwd).map_err(|e| e.to_string())?;
+    let status = Command::new(dotnet::dotnet_exe())
+        .arg(&artifacts.dll)
+        .current_dir(&jit_cwd)
+        .stdin(Stdio::null())
+        .stdout(stdout_file)
+        .stderr(stderr_file)
+        .status()
+        .map_err(|e| format!("启动/等待 dotnet 失败：{e:#}"))?;
+    let stdout = std::fs::read(out.join("jit.stdout")).map_err(|e| e.to_string())?;
+    let stderr = std::fs::read(out.join("jit.stderr")).map_err(|e| e.to_string())?;
+    let mut outcome = if !status.success() {
+        let text = String::from_utf8_lossy(&stderr);
+        let detail = text
+            .lines()
+            .rev()
+            .find(|line| !line.trim().is_empty())
+            .unwrap_or("无 stderr");
+        // 非 Python 的 CLR/宿主崩溃不可被当作普通未支持项掩盖。
+        let python_error = text
+            .lines()
+            .any(|line| line.starts_with("Traceback (most recent call last):"));
+        Outcome::new(
+            "failed",
+            if status.code().is_some() && python_error {
+                "runtime-error"
             } else {
-                files += 1;
-            }
-        }
-        if files == 0 && dirs.len() == 1 {
-            current = dirs.remove(0);
-            continue;
-        }
-        return Some(current);
-    }
+                "crash"
+            },
+            detail,
+        )
+    } else if stdout != expected.stdout || !stderr_matches(&stderr, &expected.stderr) {
+        Outcome::new(
+            "failed",
+            "output-mismatch",
+            "运行成功但原始流与同次CPython合同不一致",
+        )
+    } else {
+        Outcome::new("native", "", "运行成功，原始流与同次固定CPython一致")
+    };
+    outcome.run_exit = status.code();
+    Ok(outcome)
 }
 
 fn write_results(
     path: &Path,
-    results: &[(&Project, ProjectStatus, String)],
+    run_id: &str,
+    results: &[(&Project, Outcome)],
 ) -> std::io::Result<()> {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
     let mut buffer = Vec::new();
-    for (project, status, detail) in results {
-        let detail: String = detail.chars().take(2000).collect();
+    for (project, result) in results {
+        let fields = [
+            ("id", project.id.as_str()),
+            ("pypi", &project.pypi),
+            ("version", &project.version),
+            ("status", result.status),
+            ("entry", &project.entry.display().to_string()),
+            ("scope", &project.scope),
+            ("deps", &project.deps),
+            ("detail", &result.detail),
+            ("failure_kind", result.kind),
+            ("run_id", run_id),
+            ("mode", "default-jit"),
+        ];
+        write!(buffer, "{{")?;
+        for (index, (key, value)) in fields.iter().enumerate() {
+            if index > 0 {
+                write!(buffer, ",")?;
+            }
+            write!(buffer, "\"{}\":\"{}\"", key, json_escape(value))?;
+        }
         writeln!(
             buffer,
-            "{{\"id\":\"{}\",\"pypi\":\"{}\",\"version\":\"{}\",\"status\":\"{}\",\"entry\":\"{}\",\"scope\":\"{}\",\"deps\":\"{}\",\"detail\":\"{}\"}}",
-            json_escape(&project.id),
-            json_escape(&project.pypi),
-            json_escape(&project.version),
-            status.as_str(),
-            json_escape(&project.entry.display().to_string()),
-            json_escape(&project.scope),
-            json_escape(&project.deps),
-            json_escape(&detail),
+            ",\"run_exit\":{}}}",
+            result
+                .run_exit
+                .map_or_else(|| "null".to_owned(), |v| v.to_string())
         )?;
     }
-    std::fs::write(path, buffer)
+    // 原子发布标记此调用已完成；产品准入继续由包装门禁逐ID判定。
+    let temporary = path.with_extension("jsonl.tmp");
+    std::fs::write(&temporary, buffer)?;
+    std::fs::rename(temporary, path)
 }
 
-fn read_manifest(path: &Path) -> Result<Vec<Project>, String> {
-    let text = std::fs::read_to_string(path).map_err(|e| format!("{}：{e}", path.display()))?;
-    let text = text.trim_start_matches('\u{feff}');
-    let mut out = Vec::new();
-    for (lineno, raw) in text.lines().enumerate() {
-        let line = raw.trim_end();
-        if line.trim().is_empty() || line.starts_with('#') || line.starts_with("id\t") {
-            continue;
-        }
-        let cols: Vec<&str> = line.split('\t').collect();
-        if cols.len() < 8 {
-            return Err(format!("第 {} 行列数不足（需要 8 列）：{line}", lineno + 1));
-        }
-        out.push(Project {
-            id: cols[0].to_owned(),
-            category: cols[1].to_owned(),
-            pypi: cols[2].to_owned(),
-            version: cols[3].to_owned(),
-            import_name: cols[4].to_owned(),
-            entry: path.parent().unwrap_or(Path::new(".")).join(cols[5]),
-            scope: cols[6].to_owned(),
-            deps: cols[7].to_owned(),
-        });
+#[cfg(test)]
+mod tests {
+    use super::stderr_matches;
+
+    #[test]
+    fn only_current_oracle_warnings_can_be_omitted() {
+        let expected = b"/source.py:4: SyntaxWarning: known\n  x is 1\nbusiness\n";
+        assert!(stderr_matches(expected, expected));
+        assert!(stderr_matches(b"business\n", expected));
+        assert!(!stderr_matches(
+            b"SyntaxWarning: unknown\nbusiness\n",
+            expected
+        ));
+        assert!(!stderr_matches(
+            b"/source.py:4: SyntaxWarning: changed\n  x is 1\nbusiness\n",
+            expected
+        ));
+        assert!(!stderr_matches(
+            b"/source.py:5: SyntaxWarning: known\n  x is 1\nbusiness\n",
+            expected
+        ));
+        assert!(!stderr_matches(b"changed business\n", expected));
+        assert!(!stderr_matches(b"", b"business: SyntaxWarning: keep\n"));
     }
-    if out.is_empty() {
-        return Err("清单为空".to_owned());
-    }
-    Ok(out)
 }

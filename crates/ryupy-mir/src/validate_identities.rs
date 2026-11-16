@@ -1,4 +1,4 @@
-//! 特化身份槽只能由程序集初始化器写入；禁止复用公开/签名/默认值槽，防止身份guard被重绑定绕过。
+//! 特化身份槽只能由MakeFunction机械写入；禁止复用公开/签名/默认值槽，防止身份guard被绕过。
 use crate::mir::*;
 use rustc_hash::FxHashSet;
 

@@ -1,0 +1,17 @@
+# 公共调用展开旧缺口原源：不把错误文案差异改成正常通过。
+a=b'a'
+f=a.translate
+try:a.translate(None,delete=b'a',**{'delete':b'b'})
+except TypeError as e:print('bytes-direct',str(e))
+try:f(None,delete=b'a',**{'delete':b'b'})
+except TypeError as e:print('bytes-saved',str(e))
+try:bytes.translate(a,None,delete=b'a',**{'delete':b'b'})
+except TypeError as e:print('bytes-root',str(e))
+a=bytearray(b'a')
+f=a.translate
+try:a.translate(None,delete=b'a',**{'delete':b'b'})
+except TypeError as e:print('bytearray-direct',str(e))
+try:f(None,delete=b'a',**{'delete':b'b'})
+except TypeError as e:print('bytearray-saved',str(e))
+try:bytearray.translate(a,None,delete=b'a',**{'delete':b'b'})
+except TypeError as e:print('bytearray-root',str(e))

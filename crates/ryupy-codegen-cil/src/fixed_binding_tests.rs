@@ -21,12 +21,17 @@ pub(crate) fn fixture() -> (LinkedProgram, FixedI32Binding) {
         MirType::Unit,
     ));
     let export = program.globals.alloc(GlobalDecl {
+        storage: ryupy_mir::GlobalStorage::LegacyStatic,
         name: "declared_add".into(),
         ty: MirType::Dynamic,
     });
     let module = program.modules.alloc(ModuleDef {
+        instance_capabilities: Default::default(),
+        execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
+        environment_reason: "existing-contract".into(),
         location: Default::default(),
         file_backed_by_global: true,
+        is_package: false,
         protected_exports: vec![],
         name: "native_math".into(),
         package: String::new(),
@@ -46,6 +51,7 @@ pub(crate) fn fixture() -> (LinkedProgram, FixedI32Binding) {
             export,
             module_ref: "ryupy_cabi_probe".into(),
             entry_point: "ryupy_demo_add_i32".into(),
+            signature: None,
         },
     )
 }

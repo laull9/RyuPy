@@ -1,0 +1,6 @@
+# ryupy: pending
+# 普通内建异常类型__module__是已见独立缺口，不是getopt解析合同；原report完整源另归档。
+try:
+    raise TypeError('builtin-type-metadata')
+except TypeError as error:
+    print(type(error).__module__, type(error).__name__, error.args, str(error))

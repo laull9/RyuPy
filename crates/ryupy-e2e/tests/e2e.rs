@@ -42,7 +42,10 @@ fn main() {
     let python_only = std::env::var("E2E_PYTHON_ONLY").is_ok_and(|v| v == "1");
 
     let mut cases = Vec::new();
-    ryupy_e2e::discover_single_files(&root.join("tests/e2e"), &mut cases);
+    if let Err(err) = ryupy_e2e::discover_single_files(&root.join("tests/e2e"), &mut cases) {
+        eprintln!("单文件清单解析失败：{err}");
+        std::process::exit(2);
+    }
     match ryupy_e2e::discover_case_dirs(&root.join("tests/cases")) {
         Ok(mut dirs) => cases.append(&mut dirs),
         Err(err) => {
@@ -141,7 +144,10 @@ fn run_case(root: &Path, case: &CaseSpec, python_only: bool) -> Result<(), Faile
     }
 
     // 2. 实际结果：RyuPy 编译 + dotnet 运行
-    let mut sess = Session::default();
+    let mut sess = Session {
+        instance_modules: case.instance_modules.clone(),
+        ..Session::default()
+    };
     let opts = BuildOptions {
         input: case.entry.clone(),
         out_dir: out_dir.clone(),

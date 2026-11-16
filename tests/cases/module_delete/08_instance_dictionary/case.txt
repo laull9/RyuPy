@@ -1,0 +1,3 @@
+# 完整源在候选002实际PE通过，stdout逐字匹配固定CP golden；正常门禁继续复核。
+entry = entry.py
+instance_module = subject

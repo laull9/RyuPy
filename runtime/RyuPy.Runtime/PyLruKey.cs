@@ -28,11 +28,37 @@ internal sealed class PyLruKey
         }
         _parts = parts.ToArray(); Hash = PyHash.Of(new PyTuple(_parts));
     }
+    internal PyLruKey(in PyLruStringPair probe)
+    {
+        _parts = [probe.First, probe.Second];
+        _fast = false; Hash = probe.Hash;
+    }
+
+    internal bool Equal(in PyLruStringPair probe)
+    {
+        if (_fast || _parts.Length != 2) return false;
+        // 保留stored-left与完整两项比较；用户相等/真值转换可重入或改变调用数组。
+        return (ReferenceEquals(_parts[0], probe.First) || PyHash.Equal(_parts[0], probe.First))
+            && (ReferenceEquals(_parts[1], probe.Second) || PyHash.Equal(_parts[1], probe.Second));
+    }
+
     internal bool Equal(PyLruKey other)
     {
         if (_fast != other._fast || _parts.Length != other._parts.Length) return false;
         for (int i = 0; i < _parts.Length; i++)
             if (!ReferenceEquals(_parts[i], other._parts[i]) && !PyHash.Equal(_parts[i], other._parts[i])) return false;
         return true;
+    }
+}
+
+// 仅保存精确string引用与原tuple哈希；不得装箱/捕获到委托，miss才创建持久键。
+internal readonly struct PyLruStringPair
+{
+    internal readonly string First, Second;
+    internal readonly long Hash;
+    internal PyLruStringPair(string first, string second)
+    {
+        First = first; Second = second;
+        Hash = PyHash.TwoStringTupleHash(first, second);
     }
 }

@@ -1,3 +1,4 @@
+// 生成器恢复输入与旧EH路由辅助；数组及字段载体共享发送、异常消费合同。
 namespace RyuPy.Runtime;
 
 public static partial class PyOps
@@ -9,15 +10,26 @@ public static partial class PyOps
     public static object GeneratorRetry() => RetryMarker;
 
     /// <summary>在生成器入口或 yield 恢复点消费发送值及注入异常。</summary>
-    /// <param name="frame">程序计数器、发送值、注入异常、待处理异常及局部槽数组。</param>
+    /// <param name="frame">生成器数组帧或字段状态控制载体。</param>
     public static object? GeneratorInput(object frame)
     {
-        if (frame is not object?[] slots || slots.Length < 4)
-            throw new PyRuntimeError("invalid generator frame state");
-        object? injected = slots[2];
-        object? sent = slots[1];
-        slots[1] = null;
-        slots[2] = null;
+        object? injected, sent;
+        if (frame is PyGeneratorState state)
+        {
+            injected = state.Injected;
+            sent = state.Sent;
+            state.Injected = null;
+            state.Sent = null;
+        }
+        else
+        {
+            if (frame is not object?[] slots || slots.Length < 4)
+                throw new PyRuntimeError("invalid generator frame state");
+            injected = slots[2];
+            sent = slots[1];
+            slots[1] = null;
+            slots[2] = null;
+        }
         if (injected is PyBaseException exception)
         {
             PyTraceback.Attach(exception);

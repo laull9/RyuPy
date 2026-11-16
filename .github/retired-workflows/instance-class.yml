@@ -1,0 +1,67 @@
+# 显式普通类AOT独立门；不让新域失败阻断固定20/旧Native/ABI/S1。
+name: 显式普通类真实NativeAOT
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  instance-class:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 110
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 先运行检查器纯反例
+        timeout-minutes: 2
+        run: python3 -B -m unittest discover -s tests/aot/instance_class -p 'test_*.py'
+      - name: 固定官方工具准备
+        timeout-minutes: 10
+        run: |
+          mkdir -p target/instance-class-prepare
+          status=0
+          python3 -B tests/aot/wcwidth_ci/prepare.py > target/instance-class-prepare/stdout 2> target/instance-class-prepare/stderr || status=$?
+          printf '%s\n' "$status" > target/instance-class-prepare/exit
+          exit "$status"
+      - name: 同源PE与managed前置及严格Native搬迁
+        timeout-minutes: 95
+        run: '"$PYTHON" -B tests/aot/instance_class/run.py'
+      - name: 失败保完整原流和小产物
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: instance-class-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/instance-class-evidence
+            !target/instance-class-evidence/tools/**
+            !target/instance-class-evidence/native-build/**
+            !target/instance-class-evidence/relocated/**
+            !target/instance-class-evidence/**/native-dist.tar.gz
+            target/instance-class-prepare
+            ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
+          if-no-files-found: warn
+          retention-days: 3
+      - name: 单份实际Native与工具
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: instance-class-native-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/instance-class-evidence/tools
+            target/instance-class-evidence/**/native-dist.tar.gz
+          if-no-files-found: warn
+          retention-days: 3
+      - name: 明确有限域及保留失败
+        if: always()
+        run: |
+          printf '%s\n' '显式普通类AOT有限域；默认项目分子不由本门改变。' \
+            '旧无resources负例与有效部署分账；class-body未捕获帧差异未修。' \
+            'CP/managed/Native原位和搬移分别留原流；任一失败不冒全过。' \
+            '固定20、S1/ABI/fullcheck和旧AOT仍由独立jobs核验。' >> "$GITHUB_STEP_SUMMARY"

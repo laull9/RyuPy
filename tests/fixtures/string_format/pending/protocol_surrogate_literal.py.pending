@@ -1,0 +1,184 @@
+# ryupy: pending
+# 审计渲染：导航、转换、late slot与原异常对象；只走已支持对象协议。
+events = []
+class Node:
+    @property
+    def a(self):
+        events.append('property:a')
+        return self
+    def __getattr__(self, key):
+        events.append(('attr', key))
+        return self
+    def __getitem__(self, key):
+        events.append(('item', type(key).__name__, key))
+        return self
+    def __format__(self, spec):
+        events.append(('format', spec))
+        return 'v'
+n = Node()
+assert '{0.a[x].b[2]}'.format(n) == 'v'
+assert events == ['property:a', ('item', 'str', 'x'), ('attr', 'b'), ('item', 'int', 2), ('format', '')]
+for key in ('-1', '+1', "'x'", 'x:y', ' ', 'a.b', '!', ':', '{', '}', '['):
+    events.clear()
+    assert ('{0[' + key + ']}').format(n) == 'v'
+    assert events == [('item', 'str', key), ('format', '')]
+for key in ('0', '00', '٠', '𝟎'):
+    events.clear()
+    assert ('{0[' + key + ']}').format(n) == 'v'
+    assert events == [('item', 'int', 0), ('format', '')]
+for text, message, expected in (
+    ('{0.a[x]tail}', "Only '.' or '[' may follow ']' in format field specifier", ['property:a', ('item', 'str', 'x')]),
+    ('{0.a.}', 'Empty attribute in format string', ['property:a']),
+    ('{0[]}', 'Empty attribute in format string', []),
+    ('{0.a!q}', 'Unknown conversion specifier q', ['property:a']),
+    ('{0.a!ss}', "expected ':' after conversion specifier", []),
+):
+    events.clear()
+    try:
+        text.format(n)
+    except ValueError as error:
+        assert str(error) == message
+        assert events == expected
+    else:
+        raise AssertionError('expected navigation error')
+
+class Outer:
+    def __format__(self, spec):
+        raise AssertionError('stale slot')
+class Mutator:
+    def __format__(self, spec):
+        events.append('inner')
+        def replacement(self, spec):
+            events.append(('new', spec))
+            return 'changed'
+        Outer.__format__ = replacement
+        return 'width'
+events.clear()
+assert '{0:{1}}'.format(Outer(), Mutator()) == 'changed'
+assert events == ['inner', ('new', 'width')]
+class Converted:
+    def __str__(self):
+        events.append('str')
+        return 'x'
+    def __repr__(self):
+        events.append('repr')
+        return 'é😀\ud800'
+    def __format__(self, spec):
+        raise AssertionError('conversion bypassed')
+class Width:
+    def __format__(self, spec):
+        events.append('width')
+        return '>3'
+events.clear()
+assert '{0!s:{1}}'.format(Converted(), Width()) == '  x'
+assert events == ['str', 'width']
+events.clear()
+assert '{0!a}'.format(Converted()) == '\\xe9\\U0001f600\\ud800'
+assert events == ['repr']
+class Control:
+    def __repr__(self):
+        return 'A\n\x01'
+assert '{0!a}'.format(Control()) == 'A\n\x01'
+
+class S(str):
+    def __str__(self):
+        raise AssertionError('nested spec converted')
+class Spec:
+    def __format__(self, spec):
+        return S('width')
+class CheckSpec:
+    def __format__(self, spec):
+        assert type(spec) is str
+        assert spec == 'width'
+        return 'ok'
+# nested spec精确化来自固定官方源码推导，在本源CP先确认。
+assert '{0:{1}}'.format(CheckSpec(), Spec()) == 'ok'
+class Reentrant:
+    def __format__(self, spec):
+        return '{} {}'.format('a', 'b')
+assert '{} {}'.format(Reentrant(), 'outer-second') == 'a b outer-second'
+
+sentinel = RuntimeError('sentinel')
+class Fails:
+    def __getattr__(self, key):
+        events.append('attr')
+        raise sentinel
+    def __getitem__(self, key):
+        events.append('item')
+        raise sentinel
+    def __str__(self):
+        events.append('str')
+        raise sentinel
+    def __repr__(self):
+        events.append('repr')
+        raise sentinel
+    def __format__(self, spec):
+        events.append('format')
+        raise sentinel
+class Good:
+    def __format__(self, spec):
+        events.append('good')
+        return 'F<>'
+for text, args, expected in (
+    ('{0.a:{1}}', (Fails(), Good()), ['attr']),
+    ('{0[x]:{1}}', (Fails(), Good()), ['item']),
+    ('{0!s:{1}}', (Fails(), Good()), ['str']),
+    ('{0!r:{1}}', (Fails(), Good()), ['repr']),
+    ('{0:{1}}', (Good(), Fails()), ['format']),
+    ('{0:{1}}', (Fails(), Good()), ['good', 'format']),
+):
+    events.clear()
+    try:
+        text.format(*args)
+    except RuntimeError as error:
+        assert error is sentinel
+        assert error.args == ('sentinel',)
+        assert events == expected
+    else:
+        raise AssertionError('sentinel swallowed')
+class Callable:
+    def __call__(self, spec):
+        assert spec == 'spec'
+        return 'callable'
+class Static:
+    @staticmethod
+    def __format__(spec):
+        assert spec == 'spec'
+        return 'static'
+class ClassSlot:
+    @classmethod
+    def __format__(cls, spec):
+        assert cls is ClassSlot
+        assert spec == 'spec'
+        return 'class'
+class PropertySlot:
+    @property
+    def __format__(self):
+        return Callable()
+class CallSlot:
+    __format__ = Callable()
+for value, expected in ((Static(), 'static'), (ClassSlot(), 'class'), (PropertySlot(), 'callable'), (CallSlot(), 'callable')):
+    if type(value) is not PropertySlot:
+        value.__format__ = lambda spec: 'instance-incorrect'
+    assert '{0:spec}'.format(value) == expected
+
+class BadReturns:
+    def __format__(self, spec):
+        return 7
+    def __str__(self):
+        return 7
+    def __repr__(self):
+        return 7
+for text, message in (
+    ('{0}', '__format__ must return a str, not int'),
+    ('{0!s}', '__str__ returned non-string (type int)'),
+    ('{0!r}', '__repr__ returned non-string (type int)'),
+    ('{0!a}', '__repr__ returned non-string (type int)'),
+):
+    try:
+        text.format(BadReturns())
+    except TypeError as error:
+        assert str(error) == message
+    else:
+        raise AssertionError('invalid protocol return accepted')
+print('string-format-protocol-ok')

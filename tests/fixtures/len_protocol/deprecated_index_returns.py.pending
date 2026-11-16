@@ -1,0 +1,20 @@
+# 固定CP3.12.13真实正期望；警告和整数子类尚未支持，不改为接受NotImplementedError。
+import warnings
+class ChildInt(int): pass
+class IndexBool:
+    def __index__(self): return True
+class IndexChild:
+    def __index__(self): return ChildInt(2)
+class Length:
+    def __init__(self, value): self.value = value
+    def __len__(self): return self.value
+with warnings.catch_warnings(record=True) as records:
+    warnings.simplefilter('always')
+    assert len(Length(ChildInt(2))) == 2
+    assert len(records) == 0
+    assert len(Length(IndexBool())) == 1
+    assert len(Length(IndexChild())) == 2
+    assert len(records) == 2
+    assert all(item.category is DeprecationWarning for item in records)
+print('direct-child-no-warning', 2)
+print('index-warning', [item.category.__name__ for item in records])

@@ -1,0 +1,34 @@
+# ryupy: pending
+# 共享调用展开及tuple索引的旧欠账是真正CP行为，不改本轮核心错误期望。
+from collections import namedtuple
+
+Pair = namedtuple('Pair', 'x y', module='fixture.pending')
+try:
+    Pair(**{'x': 1}, **{'x': 2, 'y': 3})
+except TypeError as error:
+    assert 'multiple values for keyword argument' in str(error)
+    print('duplicate-keywords', type(error).__name__, str(error))
+else:
+    raise AssertionError('duplicate expanded keyword was accepted')
+
+try:
+    Pair(**{1: 2})
+except TypeError as error:
+    assert str(error) == 'keywords must be strings'
+    print('nonstr-keyword', type(error).__name__, str(error))
+else:
+    raise AssertionError('non-string keyword was accepted')
+
+events = []
+
+
+class Index:
+    def __index__(self):
+        events.append('index')
+        return 1
+
+
+value = Pair(1, 2)
+assert value[Index()] == (1, 2)[Index()] == 2
+assert events == ['index', 'index']
+print('index-protocol', events)

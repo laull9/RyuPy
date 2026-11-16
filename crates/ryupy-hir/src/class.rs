@@ -8,7 +8,7 @@
 //!    - `def` 变成方法函数（`self` 是普通参数）；
 //!    - `@property` / `@staticmethod` / `@classmethod` 保留为修饰器标记。
 //!
-//! 单继承只接受一个基类：之前定义的普通类、内建异常类或身份已确认的原生TestCase。多重继承、
+//! 单继承接受之前定义的普通类、已验证原生类，以及Name/Attribute/最外层Subscript动态基类。多重继承、
 //! 元类与 `__getattribute__` 等暂缓能力都在这里明确报错，不静默降级。
 //!
 //! 类体属性的求值位置属于**模块入口函数**（Python 在 `class` 语句执行时求值），
@@ -19,7 +19,7 @@ use ryupy_base::{Diagnostic, FileId, Ranged, Span};
 use ryupy_syntax::ast;
 
 use crate::expr::ExprLowerCtx;
-use crate::hir::{Body, Class, ClassBase, ExprId, Field, FuncId, Name};
+use crate::hir::{Body, Class, ClassBase, ClassItem, ClassItemKind, ExprId, Field, FuncId, Name};
 use crate::scope::{FunctionScope, GlobalScope};
 
 /// 类体里一条 `def` 的登记信息（第一遍收集时产生）。
@@ -48,6 +48,14 @@ pub fn parse_class_def(
     diags: &mut Vec<Diagnostic>,
 ) -> Option<Class> {
     let class_name = Name::from(class_def.name.as_str());
+    if crate::native_bases::unsupported_custom_exception_base(class_def, globals) {
+        diags.push(unsupported_class_statement(
+            file,
+            class_def.range(),
+            "原生自定义初始化异常的用户派生尚未支持",
+        ));
+        return None;
+    }
 
     let (is_dataclass, frozen) =
         crate::decorators::dataclass_flags(class_def, &globals.dataclass_markers, file, diags);
@@ -71,7 +79,84 @@ pub fn parse_class_def(
 
     // 原生基类仅对白名单身份放行，仍保留表达式求值；其它基类继续原有诊断。
     let native = crate::native_bases::resolve(class_def, globals);
-    let parsed_base = if let Some(expr) = crate::typed_dict::candidate(class_def, globals) {
+    let ordinary_mi = globals.ordinary_mi.contains(&class_def.range);
+    let ordinary_mi_bases = if ordinary_mi {
+        let args = class_def.arguments.as_ref()?;
+        if globals.instance_globals
+            || is_dataclass
+            || args.args.iter().any(|base| {
+                crate::native_bases::resolve_expr(base, globals).is_some()
+                    || crate::typed_dict::candidate_expr(base, globals)
+            })
+            || !args.keywords.is_empty()
+            || args
+                .args
+                .iter()
+                .any(|base| matches!(base, ast::Expr::Starred(_)))
+        {
+            diags.push(unsupported_class_statement(
+                file,
+                class_def.range(),
+                "普通多继承仅支持Legacy普通类；Instance、专用布局、关键字和展开基类仍未支持",
+            ));
+            return None;
+        }
+        Some(
+            args.args
+                .iter()
+                .map(|expr| {
+                    lower_class_expr(
+                        None,
+                        file,
+                        globals,
+                        module_vars,
+                        nested_funcs,
+                        nested_defaults,
+                        main_body,
+                        diags,
+                        expr,
+                    )
+                })
+                .collect(),
+        )
+    } else {
+        None
+    };
+    let parsed_base = if ordinary_mi {
+        None
+    } else if globals.instance_globals {
+        if is_dataclass {
+            diags.push(unsupported_class_statement(
+                file,
+                class_def.range(),
+                "实例dataclass",
+            ));
+        }
+        match &class_def.arguments {
+            Some(args) if !args.keywords.is_empty() || args.args.len() > 1 => {
+                diags.push(unsupported_class_statement(
+                    file,
+                    class_def.range(),
+                    "实例类关键字与多重继承",
+                ));
+                None
+            }
+            Some(args) => args.args.first().map(|expr| {
+                ClassBase::Runtime(lower_class_expr(
+                    None,
+                    file,
+                    globals,
+                    module_vars,
+                    nested_funcs,
+                    nested_defaults,
+                    main_body,
+                    diags,
+                    expr,
+                ))
+            }),
+            None => None,
+        }
+    } else if let Some(expr) = crate::typed_dict::candidate(class_def, globals) {
         let total = crate::typed_dict::validate(class_def, is_dataclass, file, diags);
         Some(ClassBase::TypedDict {
             total,
@@ -214,6 +299,19 @@ pub fn parse_class_def(
     };
 
     let mut class_names = crate::class_scope::ClassScope::default();
+    class_names.legacy_class_body = !globals.instance_globals;
+    if globals.instance_globals {
+        class_names.lexical_class = classes
+            .iter()
+            .find_map(|(id, class)| (class.range == class_def.range).then_some(id));
+    }
+    // 仅实际MakeClass路径由runtime冷初始化；Enum/TypedDict仍用各自协议。
+    let runtime_namespace =
+        enum_members.is_none() && !matches!(base, Some(ClassBase::TypedDict { .. }));
+    if runtime_namespace {
+        class_names.insert(Name::from("__module__"));
+        class_names.insert(Name::from("__qualname__"));
+    }
     if crate::class_body::has_annotations(&class_def.body) {
         class_names.insert(Name::from("__annotations__"));
     }
@@ -224,8 +322,35 @@ pub fn parse_class_def(
         .map(|method| (method.range, method))
         .collect();
 
-    let body = crate::class_body::lower_items(
-        &class_def.body,
+    // docstring资格只看外层首语句；递归if及后续字符串不能获得该资格。
+    let mut body = Vec::new();
+    let mut statements = class_def.body.as_slice();
+    if runtime_namespace
+        && let Some(ast::Stmt::Expr(first)) = statements.first()
+        && matches!(&*first.value, ast::Expr::StringLiteral(_))
+    {
+        let value = lower_class_expr(
+            Some(&class_names),
+            file,
+            globals,
+            module_vars,
+            nested_funcs,
+            nested_defaults,
+            main_body,
+            diags,
+            &first.value,
+        );
+        let name = Name::from("__doc__");
+        class_names.insert(name.clone());
+        body.push(ClassItem {
+            kind: ClassItemKind::Attr { name, value },
+            range: first.range(),
+        });
+        statements = &statements[1..];
+    }
+    body.extend(crate::class_body::lower_items(
+        statements,
+        classes,
         &mut class_names,
         file,
         globals,
@@ -241,15 +366,24 @@ pub fn parse_class_def(
         diags,
         &mut fields,
         &mut declared_fields,
-    );
+    ));
 
     if !is_dataclass && fields.is_empty() {
         // 普通类不要求字段，这里只是让 `fields` 的用途明确：仅 dataclass 使用。
     }
 
+    // 动态基与后代的公开槽已由runtime_bases预登记。此标志只延后发布，
+    // 不按import文本猜MI；runtime wrapper仍区分真实MI与原单基布局。
+    let deferred_runtime_base = !globals.instance_globals
+        && !is_dataclass
+        && matches!(base, Some(ClassBase::Runtime(_) | ClassBase::Expr(_)));
     Some(Class {
+        lexical: None,
+        has_class_cell: false,
         name: class_name,
         base,
+        ordinary_mi_bases,
+        deferred_runtime_base,
         fields,
         declared_fields,
         enum_members,

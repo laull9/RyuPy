@@ -1,0 +1,35 @@
+# ryupy: pending
+# CP未绑定helper也能作用于非生成类duck receiver；首切不能把自身NI当CP语义。
+from collections import namedtuple
+
+Pair = namedtuple('Pair', 'left right', module='fixture.pending')
+shared = []
+events = []
+
+
+class Duck:
+    _fields = ('public_left', 'public_right')
+
+    def __iter__(self):
+        events.append('iter')
+        yield 1
+        yield shared
+
+    def _make(self, values):
+        result = list(values)
+        events.append('make')
+        return result
+
+
+duck = Duck()
+mapping = Pair._asdict(duck)
+assert list(mapping) == ['public_left', 'public_right']
+assert mapping['public_right'] is shared
+args = Pair.__getnewargs__(duck)
+assert type(args) is tuple and args == (1, shared) and args[1] is shared
+changed = Pair._replace(duck, left=9)
+assert type(changed) is list and changed == [9, shared] and changed[1] is shared
+assert events == ['iter', 'iter', 'iter', 'make']
+assert Pair.__repr__((1, 2)) == 'tuple(left=1, right=2)'
+print('helper-duck', list(mapping), args[1] is shared, changed[1] is shared,
+      events, Pair.__repr__((1, 2)))

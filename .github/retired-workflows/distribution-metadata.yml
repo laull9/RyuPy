@@ -1,0 +1,92 @@
+# 新metadata独立门；旧jobs依赖不改，两个阶段只共享本轮冻结工具，不重复构建。
+name: 显式分发快照真实产品验收
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  distribution-metadata:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONDONTWRITEBYTECODE: '1'
+      RYUPY_VALIDATION_MODE: distribution-metadata
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 控制及原selector纯mock自测
+        timeout-minutes: 2
+        run: |
+          python3 -B -m unittest discover -s tests/validation -p distribution_metadata_selftest.py
+          python3 -B -m unittest discover -s tests/validation/generator_product -p test_diagnostic_once.py
+      - name: 原固定官方工具准备双流
+        timeout-minutes: 10
+        run: |
+          mkdir -p target/distribution-metadata-prepare
+          status=0
+          python3 -B tests/aot/wcwidth_ci/prepare.py > target/distribution-metadata-prepare/stdout 2> target/distribution-metadata-prepare/stderr || status=$?
+          printf '%s\n' "$status" > target/distribution-metadata-prepare/exit
+          exit "$status"
+      - name: 一次runtime与CLI构建和独立CP/JIT域
+        id: jit
+        timeout-minutes: 60
+        run: '"$PYTHON" -B tests/validation/distribution_metadata.py --phase jit'
+      - name: Native前轻量checkpoint含原TRX及PE和moduleplan
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: metadata-checkpoint-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/distribution-metadata-evidence/*.json
+            target/distribution-metadata-evidence/*.stdout
+            target/distribution-metadata-evidence/*.stderr
+            target/distribution-metadata-evidence/trx
+            target/distribution-metadata-evidence/products
+            target/distribution-metadata-prepare
+          if-no-files-found: warn
+          retention-days: 3
+      - name: 重核同源state工具后单合成Native和真实Markdown AOT
+        # 文件存在只控制是否有状态可读；脚本会在任何产品前重核HEAD/tree/全部hash。
+        if: ${{ !cancelled() && hashFiles('target/distribution-metadata-evidence/state.json') != '' }}
+        timeout-minutes: 42
+        run: '"$PYTHON" -B tests/validation/distribution_metadata.py --phase native'
+      - name: 失败仍保完整小证据与唯一candidate source
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: metadata-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/distribution-metadata-evidence
+            !target/distribution-metadata-evidence/tools/**
+            !target/distribution-metadata-evidence/native-build/**
+            !target/distribution-metadata-evidence/relocated/**
+            !target/distribution-metadata-evidence/**/native-dist.tar.gz
+            !target/distribution-metadata-evidence/host/obj/**
+            target/distribution-metadata-prepare
+            ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
+          if-no-files-found: error
+          retention-days: 3
+      - name: 单份CLI及runtime和Native归档
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: metadata-tools-native-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/distribution-metadata-evidence/tools
+            target/distribution-metadata-evidence/**/native-dist.tar.gz
+          if-no-files-found: warn
+          retention-days: 3
+      - name: 明确默认项目与旧红灯口径
+        if: always()
+        run: |
+          printf '%s\n' '## 显式closed snapshot，默认分子变化0' \
+            '真实Markdown plain48B/full77B保持原流；full或AOT失败仍红，不以合成Native替代。' \
+            '本模式仅搜索core_supported/slots/ParserBase JIT；三项Native本模式not-run，历史通过不冒领同HEAD。' \
+            '原search core/warnings本模式not-run，历史红灯不改。' \
+            '默认20、10 machine-protected及pyfiglet additional共11逐ID保护由原独立jobs验收；不以本模式结果冒领或晋升。' >> "$GITHUB_STEP_SUMMARY"

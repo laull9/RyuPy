@@ -56,7 +56,7 @@ fn fake(opts: &BuildOptions, data: &[u8], schema: u64) -> Result<Artifacts> {
     let mut artifacts = vec![
         json!({"relative_path":native.file_name().unwrap().to_str().unwrap(),"role":"native_executable","size":data.len(),"sha256":manifest_files::hash_bytes(data)}),
     ];
-    if schema == 2 {
+    if matches!(schema, 2 | 4..=6) {
         let resource = publish.join("_internal/resources/v1/data.txt");
         std::fs::create_dir_all(resource.parent().unwrap())?;
         std::fs::write(resource, b"data")?;
@@ -155,7 +155,7 @@ fn concurrent_lock_is_never_removed_or_reused() {
 }
 #[test]
 fn all_manifest_schemas_and_resource_subtree_survive() {
-    for schema in 1..=3 {
+    for schema in 1..=6 {
         let c = Case::new();
         let a = build(&c.opts, |o, _owned| fake(o, b"native", schema)).unwrap();
         let value = files::verify_manifest(a.manifest.unwrap().parent().unwrap()).unwrap();
@@ -165,7 +165,7 @@ fn all_manifest_schemas_and_resource_subtree_survive() {
             value["build_inputs"][0]["sha256"],
             manifest_files::hash_bytes(b"managed")
         );
-        if schema == 2 {
+        if matches!(schema, 2 | 4..=6) {
             assert_eq!(
                 std::fs::read(c.dist().join("_internal/resources/v1/data.txt")).unwrap(),
                 b"data"
@@ -340,4 +340,143 @@ fn owned_short_roots_reject_conflicts_and_escaping_without_cleanup() {
         fake(opts, b"native", 1)
     })
     .unwrap();
+}
+
+#[test]
+fn os_sidecars_are_ignored_in_build_dist_and_publish_without_hiding_real_changes() {
+    let c = Case::new();
+    build(&c.opts, |o, _owned| {
+        let a = fake(o, b"first", 2)?;
+        let publish = a.manifest.as_ref().unwrap().parent().unwrap();
+        // 假定 Finder/Explorer 在 publish 阶段写入了精确的 OS 旁件。
+        std::fs::write(publish.join(".DS_Store"), b"finder-meta")?;
+        std::fs::write(publish.join("_internal/Thumbs.db"), b"explorer-meta")?;
+        Ok(a)
+    })
+    .unwrap();
+    // OS 旁件不得被复制进最终 dist。
+    assert!(!c.dist().join(".DS_Store").exists());
+    assert!(!c.dist().join("_internal/Thumbs.db").exists());
+    // owner 元数据不得包含普通文件 sha256 字段。
+    let owner_text = std::fs::read_to_string(c.build().join(files::OWNER)).unwrap();
+    assert!(!owner_text.contains("\"sha256\""));
+
+    // 之后桌面环境在 build/dist 写入 .DS_Store / Thumbs.db 不得阻断后续增量发布。
+    std::fs::write(c.build().join(".DS_Store"), b"finder-build").unwrap();
+    std::fs::write(c.dist().join("Thumbs.db"), b"explorer-dist").unwrap();
+    build(&c.opts, |o, _owned| fake(o, b"second", 2)).unwrap();
+
+    // 锁文件、tmp 临时文件与非精确旁件绝不能被忽略。
+    for non_ignored in ["build.lock", "temp.tmp", ".DS_Store.bak", "Thumbs.db.tmp"] {
+        let d = Case::new();
+        build(&d.opts, |o, _owned| fake(o, b"base", 1)).unwrap();
+        std::fs::write(d.dist().join(non_ignored), b"foreign").unwrap();
+        assert!(
+            build(&d.opts, |_, _owned| panic!("must not compile")).is_err(),
+            "必须拒绝非精确 OS 旁件：{non_ignored}"
+        );
+    }
+
+    // .DS_Store / Thumbs.db 若是目录（非普通旁件文件）不得被静默忽略。
+    let dir_case = Case::new();
+    build(&dir_case.opts, |o, _owned| fake(o, b"base", 1)).unwrap();
+    std::fs::create_dir(dir_case.dist().join(".DS_Store")).unwrap();
+    assert!(build(&dir_case.opts, |_, _owned| panic!("must not compile")).is_err());
+
+    // 保持文件长度不变但改写内容（更新 mtime）必须被拒绝。
+    let mut mtime_case = Case::new();
+    build(&mtime_case.opts, |o, _owned| fake(o, b"abcd", 1)).unwrap();
+    let exe_name = if cfg!(windows) {
+        "入口 & app.exe"
+    } else {
+        "入口 & app"
+    };
+    let target_exe = mtime_case.dist().join(exe_name);
+    // 显式推进 mtime，避免高速测试同时间戳覆盖导致系统时钟分辨率掩盖变更。
+    std::thread::sleep(std::time::Duration::from_millis(20));
+    std::fs::write(&target_exe, b"wxyz").unwrap();
+    assert!(build(&mtime_case.opts, |_, _owned| panic!("must not compile")).is_err());
+    let _ = &mut mtime_case;
+}
+
+#[cfg(unix)]
+#[test]
+fn os_sidecar_symlinks_and_permission_changes_remain_rejected() {
+    use std::os::unix::fs::{PermissionsExt, symlink};
+    for name in [".DS_Store", "Thumbs.db"] {
+        let c = Case::new();
+        build(&c.opts, |o, _owned| fake(o, b"one", 1)).unwrap();
+        symlink(c.root.join("入口 & app.py"), c.dist().join(name)).unwrap();
+        assert!(
+            build(&c.opts, |_, _owned| panic!("must not compile")).is_err(),
+            "符号链接 {name} 必须被拒绝"
+        );
+    }
+
+    // 权限改动必须继续被拒绝。
+    let c = Case::new();
+    let a = build(&c.opts, |o, _owned| fake(o, b"perm", 1)).unwrap();
+    let exe = a.native_exe.unwrap();
+    std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o644)).unwrap();
+    assert!(build(&c.opts, |_, _owned| panic!("must not compile")).is_err());
+}
+
+#[test]
+fn legacy_owner_without_modified_and_with_sha256_migrates_cleanly_or_rejects_tamper() {
+    let c = Case::new();
+    build(&c.opts, |o, _owned| fake(o, b"first", 1)).unwrap();
+    let owner_path = c.build().join(files::OWNER);
+    let current: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&owner_path).unwrap()).unwrap();
+    let strip_modified_add_sha = |list: &serde_json::Value| -> serde_json::Value {
+        serde_json::Value::Array(
+            list.as_array()
+                .unwrap()
+                .iter()
+                .map(|node| {
+                    let mut obj = node.as_object().unwrap().clone();
+                    obj.remove("modified");
+                    obj.insert("sha256".into(), json!(""));
+                    serde_json::Value::Object(obj)
+                })
+                .collect(),
+        )
+    };
+    let legacy = json!({
+        "version": current["version"],
+        "source": current["source"],
+        "stem": current["stem"],
+        "build": strip_modified_add_sha(&current["build"]),
+        "dist": strip_modified_add_sha(&current["dist"]),
+    });
+    std::fs::write(&owner_path, serde_json::to_vec_pretty(&legacy).unwrap()).unwrap();
+
+    // 旧版 owner 匹配真实树时应迁移成功并写出无 sha256 的新版 owner。
+    build(&c.opts, |o, _owned| fake(o, b"second", 1)).unwrap();
+    let migrated_text = std::fs::read_to_string(&owner_path).unwrap();
+    assert!(!migrated_text.contains("\"sha256\""));
+    assert!(migrated_text.contains("\"modified\""));
+
+    // 若旧版 owner 存在的同时 dist 被外部篡改，必须给出明确诊断并保留原 dist。
+    let d = Case::new();
+    build(&d.opts, |o, _owned| fake(o, b"base", 1)).unwrap();
+    let d_owner = d.build().join(files::OWNER);
+    let d_cur: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&d_owner).unwrap()).unwrap();
+    let d_legacy = json!({
+        "version": d_cur["version"],
+        "source": d_cur["source"],
+        "stem": d_cur["stem"],
+        "build": strip_modified_add_sha(&d_cur["build"]),
+        "dist": strip_modified_add_sha(&d_cur["dist"]),
+    });
+    std::fs::write(&d_owner, serde_json::to_vec_pretty(&d_legacy).unwrap()).unwrap();
+    std::fs::write(d.dist().join("tampered"), b"x").unwrap();
+    let err = build(&d.opts, |_, _owned| panic!("must not compile")).unwrap_err();
+    assert!(format!("{err:#}").contains("旧版owner"), "{err:#}");
+
+    // 非法未知字段必须明确拒绝。
+    std::fs::write(&d_owner, b"{\"version\":1,\"unknown\":true}").unwrap();
+    let bad_err = build(&d.opts, |_, _owned| panic!("must not compile")).unwrap_err();
+    assert!(format!("{bad_err:#}").contains("不兼容"), "{bad_err:#}");
 }

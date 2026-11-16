@@ -1,0 +1,58 @@
+# ryupy: pending
+# 根描述符及 set 子类布局仍独立未支持，保 CP 正例/精确错误，不扩通用框架。
+# 来源为参考 66-73 行；本提取源码尚未独立执行。
+values = {10, 20}
+alias = values
+assert set.clear(values) is None
+assert values is alias and len(alias) == 0
+
+for mode in ['extra', 'keyword', 'missing', 'wrong']:
+    values = {10, 20}
+    try:
+        if mode == 'extra':
+            set.clear(values, 0)
+        elif mode == 'keyword':
+            set.clear(values, bad=2)
+        elif mode == 'missing':
+            set.clear()
+        else:
+            set.clear([])
+    except TypeError as error:
+        if mode == 'extra':
+            assert str(error) == 'set.clear() takes no arguments (1 given)'
+        elif mode == 'keyword':
+            assert str(error) == 'set.clear() takes no keyword arguments'
+        elif mode == 'missing':
+            assert str(error) == 'unbound method set.clear() needs an argument'
+        else:
+            assert str(error) == "descriptor 'clear' for 'set' objects doesn't apply to a 'list' object"
+    else:
+        raise AssertionError('根描述符应拒绝非法调用')
+    assert sorted(values) == [10, 20]
+
+
+class Child(set):
+    pass
+
+
+values = Child([10, 20])
+alias = values
+method = values.clear
+assert method() is None and len(values) == 0 and values is alias
+
+
+events = []
+
+
+class Override(set):
+    def clear(self):
+        events.append('override clear')
+        return 'override result'
+
+
+values = Override([10, 20])
+assert values.clear() == 'override result'
+assert sorted(values) == [10, 20] and events == ['override clear']
+assert set.clear(values) is None and len(values) == 0
+assert events == ['override clear']
+print('ROOT_SUBCLASS_COMPLETED')

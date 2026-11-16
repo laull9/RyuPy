@@ -11,21 +11,27 @@
 //!
 //! 函数体内部的局部变量 ID 属于函数自己的 arena，不需要改写。
 
+use crate::link_values::remap_rvalue;
 use la_arena::Arena;
 use rustc_hash::FxHashMap;
 
 use crate::mir::{
-    BasicBlock, Body, Callee, ClassDef, ClassDefId, FnId, Function, GlobalDecl, GlobalId,
-    LinkedProgram, LocalDecl, MirType, ModuleDef, ModuleId, Operand, Program, Rvalue, Statement,
-    Terminator,
+    BasicBlock, Body, ClassDef, ClassDefId, FnId, Function, GlobalDecl, GlobalId, LinkedProgram,
+    LocalDecl, MirType, ModuleDef, ModuleId, Operand, Program, Statement, Terminator,
 };
 
 /// 一个模块的元信息（由 driver 从模块图提供）。
 #[derive(Debug, Clone)]
 pub struct UnitMeta {
+    pub instance_capabilities: ryupy_base::InstanceCapabilities,
+    pub execution: crate::ModuleExecutionKind,
+    /// 编译计划的审计原因；不作为运行时语义开关。
+    pub environment_reason: String,
     /// 实际build显式注入；普通dump使用LegacyDiagnostic。
     pub location: crate::ModuleLocation,
     pub file_backed_by_global: bool,
+    /// 实际源码解析分支证明的包身份，不从文件名或公开属性推断。
+    pub is_package: bool,
     /// 静态异常 handler 依赖的导入别名，不允许跨模块 setter 重绑定。
     pub protected_exports: Vec<String>,
     pub name: String,
@@ -39,6 +45,14 @@ pub struct UnitMeta {
 ///
 /// `entry` 是入口模块在 `units` 里的下标（`__main__`）。
 pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
+    link_with_origins(units, entry, None)
+}
+
+pub(crate) fn link_with_origins(
+    units: Vec<(Program, UnitMeta)>,
+    entry: usize,
+    mut origins: Option<&mut Vec<crate::trace_lowering::LinkRemap>>,
+) -> LinkedProgram {
     let mut functions: Arena<Function> = Arena::default();
     let mut classes: Arena<ClassDef> = Arena::default();
     let mut globals: Arena<GlobalDecl> = Arena::default();
@@ -60,6 +74,7 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
             global_map.insert(
                 old,
                 globals.alloc(GlobalDecl {
+                    storage: decl.storage.clone(),
                     name: format!("{prefix}{}", decl.name),
                     ty: remap_type(&decl.ty, &class_map),
                 }),
@@ -68,12 +83,19 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
         let mut fn_map: FxHashMap<FnId, FnId> = FxHashMap::default();
         for (old, func) in program.functions.iter() {
             let new_id = functions.alloc(Function {
+                is_comprehension: func.is_comprehension,
+                module_state: func.module_state,
+                instance_capabilities: func.instance_capabilities,
+                module_state_source: func.module_state_source,
                 name: func.name.clone(),
                 codegen_name: format!("{prefix}{}", func.codegen_name),
                 source_file: func.source_file.clone(),
+                definition: func.definition.clone(),
                 params: func.params.clone(),
                 ret: remap_type(&func.ret, &class_map),
                 body: Body {
+                    direct_globals_contracts: Vec::new(),
+                    source_handler_contracts: Vec::new(),
                     locals: Arena::default(),
                     blocks: Arena::default(),
                     entry: la_arena::Idx::from_raw(0.into()),
@@ -96,14 +118,42 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
                 defaults_global: func.defaults_global.map(|g| global_map[&g]),
                 signature_global: func.signature_global.map(|g| global_map[&g]),
                 env: func.env,
+                dynamic_origin: func.dynamic_origin.map(|origin| {
+                    crate::mir::DynamicFunctionOrigin {
+                        owner: origin.owner,
+                        source_global: origin.source_global.map(|g| global_map[&g]),
+                    }
+                }),
             });
             fn_map.insert(old, new_id);
         }
 
+        // 来源槽先分配，FnId映射就绪后才回填其完整所属关系；不能保留unit内的旧序号。
+        for (old, decl) in program.globals.iter() {
+            if let crate::GlobalStorage::CodeSource {
+                entry,
+                functions: members,
+                legacy_entry,
+            } = &decl.storage
+            {
+                globals[global_map[&old]].storage = crate::GlobalStorage::CodeSource {
+                    entry: fn_map[entry],
+                    functions: members.iter().map(|id| fn_map[id]).collect(),
+                    legacy_entry: legacy_entry.as_ref().map(|value| crate::LegacySourceEntry {
+                        initial_name: value.initial_name.clone(),
+                        name_global: global_map[&value.name_global],
+                    }),
+                };
+            }
+        }
         // 2. 类定义：字段 / 基类 / 工厂槽位都要改写。
         for (old, cls) in program.classes.iter() {
             let new_id = class_map[&old];
             classes[new_id] = ClassDef {
+                class_cell: cls
+                    .class_cell
+                    .as_ref()
+                    .map(|cell| remap_class_cell(cell, &fn_map, &global_map)),
                 name: cls.name.clone(),
                 codegen_name: format!("{prefix}{}", cls.codegen_name),
                 fields: cls
@@ -112,6 +162,7 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
                     .map(|(name, ty)| (name.clone(), remap_type(ty, &class_map)))
                     .collect(),
                 is_value_type: cls.is_value_type,
+                is_generator_state: cls.is_generator_state,
                 is_dataclass: cls.is_dataclass,
                 base: cls.base.map(|b| class_map[&b]),
                 builtin_base: cls.builtin_base.clone(),
@@ -132,6 +183,17 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
                 });
             }
             let body = Body {
+                direct_globals_contracts: func
+                    .body
+                    .direct_globals_contracts
+                    .iter()
+                    .map(|fact| {
+                        let mut fact = fact.clone();
+                        fact.callee_value = remap_operand(&fact.callee_value, &global_map);
+                        fact
+                    })
+                    .collect(),
+                source_handler_contracts: func.body.source_handler_contracts.clone(),
                 locals,
                 blocks: remap_blocks(&func.body.blocks, &fn_map, &class_map, &global_map),
                 entry: func.body.entry,
@@ -140,6 +202,7 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
                     .regions
                     .iter()
                     .map(|region| crate::mir::Region {
+                        source_handler_chain: region.source_handler_chain,
                         kind: match &region.kind {
                             crate::mir::RegionKind::Catch { type_names } => {
                                 crate::mir::RegionKind::Catch {
@@ -182,6 +245,9 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
             }
         }
 
+        if let Some(origins) = origins.as_deref_mut() {
+            origins.push(crate::trace_lowering::LinkRemap::new(&fn_map, &global_map));
+        }
         // 4. 模块导出表。
         let exports = meta
             .exports
@@ -198,8 +264,12 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
             })
             .collect();
         module_ids.push(modules.alloc(ModuleDef {
+            instance_capabilities: meta.instance_capabilities,
+            execution: meta.execution,
+            environment_reason: meta.environment_reason,
             location: meta.location,
             file_backed_by_global: meta.file_backed_by_global,
+            is_package: meta.is_package,
             protected_exports: meta.protected_exports,
             name: meta.name,
             package: meta.package,
@@ -212,8 +282,12 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
     let entry_module = module_ids.get(entry).copied().unwrap_or_else(|| {
         // 空程序（理论上不会出现）：补一个空入口模块，避免 panic。
         modules.alloc(ModuleDef {
+            instance_capabilities: Default::default(),
+            execution: crate::ModuleExecutionKind::LegacySingleton,
+            environment_reason: "existing-contract".into(),
             location: Default::default(),
             file_backed_by_global: false,
+            is_package: false,
             protected_exports: Vec::new(),
             name: "__main__".to_owned(),
             package: String::new(),
@@ -224,6 +298,12 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
     });
 
     LinkedProgram {
+        external_provider: None,
+        candidate_modules: Vec::new(),
+        optional_sources: None,
+        metadata_unavailable: None,
+        distribution_metadata: None,
+        trace_product: None,
         functions,
         classes,
         globals,
@@ -232,7 +312,7 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
     }
 }
 
-fn remap_type(ty: &MirType, class_map: &FxHashMap<ClassDefId, ClassDefId>) -> MirType {
+pub(super) fn remap_type(ty: &MirType, class_map: &FxHashMap<ClassDefId, ClassDefId>) -> MirType {
     match ty {
         MirType::Class(id) => MirType::Class(class_map.get(id).copied().unwrap_or(*id)),
         other => other.clone(),
@@ -316,7 +396,7 @@ fn remap_terminator(term: &Terminator, global_map: &FxHashMap<GlobalId, GlobalId
     }
 }
 
-fn remap_operand(op: &Operand, global_map: &FxHashMap<GlobalId, GlobalId>) -> Operand {
+pub(super) fn remap_operand(op: &Operand, global_map: &FxHashMap<GlobalId, GlobalId>) -> Operand {
     match op {
         Operand::Local(_) | Operand::Const(_) => op.clone(),
         Operand::Global(gid) => Operand::Global(global_map[gid]),
@@ -329,192 +409,24 @@ fn remap_operand(op: &Operand, global_map: &FxHashMap<GlobalId, GlobalId>) -> Op
     }
 }
 
-fn remap_rvalue(
-    value: &Rvalue,
-    fn_map: &FxHashMap<FnId, FnId>,
-    class_map: &FxHashMap<ClassDefId, ClassDefId>,
-    global_map: &FxHashMap<GlobalId, GlobalId>,
-) -> Rvalue {
-    match value {
-        Rvalue::Use(op) => Rvalue::Use(remap_operand(op, global_map)),
-        Rvalue::Binary { op, lhs, rhs } => Rvalue::Binary {
-            op: *op,
-            lhs: remap_operand(lhs, global_map),
-            rhs: remap_operand(rhs, global_map),
-        },
-        Rvalue::Unary { op, operand } => Rvalue::Unary {
-            op: *op,
-            operand: remap_operand(operand, global_map),
-        },
-        Rvalue::Cast { kind, operand } => Rvalue::Cast {
-            kind: *kind,
-            operand: remap_operand(operand, global_map),
-        },
-        Rvalue::Call { callee, args } => Rvalue::Call {
-            callee: match callee {
-                Callee::Fn(id) => Callee::Fn(fn_map[id]),
-                Callee::Runtime(rt) => Callee::Runtime(*rt),
-            },
-            args: args.iter().map(|a| remap_operand(a, global_map)).collect(),
-        },
-        Rvalue::NewObject { class, args } => Rvalue::NewObject {
-            class: class_map[class],
-            args: args.iter().map(|a| remap_operand(a, global_map)).collect(),
-        },
-        Rvalue::GetField { obj, field } => Rvalue::GetField {
-            obj: remap_operand(obj, global_map),
-            field: *field,
-        },
-        Rvalue::Box { value, from } => Rvalue::Box {
-            value: remap_operand(value, global_map),
-            from: remap_type(from, class_map),
-        },
-        Rvalue::IsVector128Supported => Rvalue::IsVector128Supported,
-        Rvalue::VectorPackF64 { low, high } => Rvalue::VectorPackF64 {
-            low: remap_operand(low, global_map),
-            high: remap_operand(high, global_map),
-        },
-        Rvalue::VectorBinaryF64 { op, lhs, rhs } => Rvalue::VectorBinaryF64 {
-            op: *op,
-            lhs: remap_operand(lhs, global_map),
-            rhs: remap_operand(rhs, global_map),
-        },
-        Rvalue::VectorLaneF64 { value, lane } => Rvalue::VectorLaneF64 {
-            value: remap_operand(value, global_map),
-            lane: *lane,
-        },
-        Rvalue::IsBoxedF64 { value } => Rvalue::IsBoxedF64 {
-            value: remap_operand(value, global_map),
-        },
-        Rvalue::UnboxExactF64 { value } => Rvalue::UnboxExactF64 {
-            value: remap_operand(value, global_map),
-        },
-        Rvalue::IsBoxedI64 { value } => Rvalue::IsBoxedI64 {
-            value: remap_operand(value, global_map),
-        },
-        Rvalue::UnboxExactI64 { value } => Rvalue::UnboxExactI64 {
-            value: remap_operand(value, global_map),
-        },
-        Rvalue::Unbox { value, to } => Rvalue::Unbox {
-            value: remap_operand(value, global_map),
-            to: remap_type(to, class_map),
-        },
-        Rvalue::DynBinary {
-            op,
-            lhs,
-            rhs,
-            inplace,
-        } => Rvalue::DynBinary {
-            op: *op,
-            lhs: remap_operand(lhs, global_map),
-            rhs: remap_operand(rhs, global_map),
-            inplace: *inplace,
-        },
-        Rvalue::DynCompare { op, lhs, rhs } => Rvalue::DynCompare {
-            op: *op,
-            lhs: remap_operand(lhs, global_map),
-            rhs: remap_operand(rhs, global_map),
-        },
-        Rvalue::DynUnary { op, operand } => Rvalue::DynUnary {
-            op: *op,
-            operand: remap_operand(operand, global_map),
-        },
-        Rvalue::DynTruthy { value } => Rvalue::DynTruthy {
-            value: remap_operand(value, global_map),
-        },
-        Rvalue::CallWithArgs {
-            callee,
-            prefix,
-            args,
-        } => Rvalue::CallWithArgs {
-            callee: *callee,
-            prefix: prefix
-                .iter()
-                .map(|a| remap_operand(a, global_map))
-                .collect(),
-            args: args.iter().map(|a| remap_operand(a, global_map)).collect(),
-        },
-        Rvalue::DynCallValue { callee, args } => Rvalue::DynCallValue {
-            callee: remap_operand(callee, global_map),
-            args: args.iter().map(|a| remap_operand(a, global_map)).collect(),
-        },
-        Rvalue::DynCallMethod {
-            captured,
-            obj,
-            name,
-            args,
-        } => Rvalue::DynCallMethod {
-            captured: captured
-                .as_ref()
-                .map(|value| remap_operand(value, global_map)),
-            obj: remap_operand(obj, global_map),
-            name: name.clone(),
-            args: args.iter().map(|a| remap_operand(a, global_map)).collect(),
-        },
-        Rvalue::GeneratorDelegateStep { delegate } => Rvalue::GeneratorDelegateStep {
-            delegate: remap_operand(delegate, global_map),
-        },
-        Rvalue::MakeGenerator { resume, frame } => Rvalue::MakeGenerator {
-            resume: fn_map[resume],
-            frame: frame
-                .iter()
-                .map(|op| remap_operand(op, global_map))
-                .collect(),
-        },
-        Rvalue::MakeFunction {
-            func,
-            env,
-            defaults,
-        } => Rvalue::MakeFunction {
-            func: fn_map[func],
-            env: env.iter().map(|a| remap_operand(a, global_map)).collect(),
-            defaults: defaults
-                .iter()
-                .map(|a| remap_operand(a, global_map))
-                .collect(),
-        },
-        Rvalue::CatchException => Rvalue::CatchException,
+/// 类 cell 的函数身份随模块合并重映射，局部和块仍属于同一实际 owner。
+fn remap_class_cell(
+    cell: &crate::ClassCellDefinition,
+    functions: &FxHashMap<FnId, FnId>,
+    globals: &FxHashMap<GlobalId, GlobalId>,
+) -> crate::ClassCellDefinition {
+    let mut mapped = cell.clone();
+    mapped.owner = functions[&cell.owner];
+    if let Some(plan) = &mut mapped.lexical
+        && let crate::LexicalClassPublication::Global(global) = &mut plan.publication
+    {
+        *global = globals[global];
     }
-}
-
-impl ClassDef {
-    /// link 阶段先占位，随后整体覆盖。
-    fn placeholder() -> Self {
-        Self {
-            name: String::new(),
-            codegen_name: String::new(),
-            fields: Vec::new(),
-            is_value_type: false,
-            is_dataclass: false,
-            base: None,
-            builtin_base: None,
-            is_exception: false,
-            factory_global: None,
+    for capture in &mut mapped.captures {
+        capture.function = functions[&capture.function];
+        if let crate::ClassCellEnvSource::GeneratorFrame { factory, .. } = &mut capture.source {
+            *factory = functions[factory];
         }
     }
-}
-
-impl Function {
-    /// 空程序兜底用；正常流程不会使用。
-    fn placeholder() -> Self {
-        Self {
-            name: String::new(),
-            codegen_name: String::new(),
-            source_file: String::new(),
-            params: Vec::new(),
-            ret: MirType::Unit,
-            body: Body {
-                locals: Arena::default(),
-                blocks: Arena::default(),
-                entry: la_arena::Idx::from_raw(0.into()),
-                regions: Vec::new(),
-            },
-            param_meta: Vec::new(),
-            function_global: None,
-            specialization_identity_global: None,
-            defaults_global: None,
-            signature_global: None,
-            env: None,
-        }
-    }
+    mapped
 }

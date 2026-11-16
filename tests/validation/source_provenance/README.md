@@ -1,0 +1,13 @@
+# 实际代码来源有限闭包门（候选）
+
+固定CP3.12.13、真实源码图、实际PE字段/调用操作数、JIT与新消费者Native联合验收。当前未执行新C#/CLI/JIT/Native，不把Runtime手工载体单测当作编译证明。合同见docs/adr/0145-compiled-source-provenance.md。
+
+fixtures为冻结完整源；warning_origin与functional_typeddict的two/three只差显式include空pkg.data，不改原输入来制造成功。mixed_frames从唯一tests/e2e/phase3/m3_7_source_provenance.py按contract SHA物化，禁止双份canonical维护。
+
+ci/bootstrap.py负责既有hosted source-import-paths之后的串行新门；ci/native.py复用既有baseline工具做新消费者1publish、实际managed PE、三次Native。两者均不代替旧完整default/pilot、20逐ID和旧Native/Trace保护。固定PE表只为本批fixture核实际关键链，只有全部通过才签new admitted；old host单独消费旧locator并核真实图/Runtime身份。实际新PE仍未验证，不把合成自测当产品通过。
+
+Runtime白盒15Fact名单在runtime-tests.json。实际TRX必须名字/数量/Passed精确一致，zero-test或skip失败。旧Runtime/host使用公开固定7545eae82270797cbac2da68e996a7a8a5ba98af并核tree802df207c7b4bd47a188929f70a1077cbbe5cf38；新建旧DLL记录真实hash，不声称与本地研究旧二进制逐字相同。旧/new obj/bin独立，输入前后成员/SHA固定。旧Session独立构建仅关闭debug信息与incremental并限制jobs2，不改优化级别/语义feature；实际旧DLL另留一份证据副本，不作性能对照。
+
+明确保留Static TD旧消费债及非str显示NI。二级fallback None须旧/CP/新三方：若旧正确而新拒绝即硬失败。现Dynamic旧对照不正确只覆盖该具体输入，不能替代模块入口host。缺门一律not-run，不归为通过。
+
+warning_names能力拆分见[WARNING-SPLIT.zh.md](WARNING-SPLIT.zh.md)：原组合源不动，单独保留Legacy编译拒绝和Instance实际PE后JIT拒绝；新增Legacy原回调观察与class-free Instance缺name观察两个正向输入。两新CP各一次已取oracle，不是当前候选的build/PE/JIT/Native验收。冻结映射及负例精确原文在warning-split.json。

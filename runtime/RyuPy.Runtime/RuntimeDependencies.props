@@ -1,0 +1,10 @@
+<!-- 运行时外部依赖的唯一版本表；driver 的 NativeAOT 薄宿主导入同一文件。 -->
+<Project>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.15" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.13" />
+    <None Include="$(MSBuildThisFileDirectory)ThirdPartyNotices.sqlite3.txt"
+          Link="ThirdPartyNotices.sqlite3.txt" CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

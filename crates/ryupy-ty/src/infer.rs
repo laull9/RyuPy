@@ -52,6 +52,9 @@ impl InferCtx {
             (InferTy::Known(ta), InferTy::Known(tb)) => {
                 if *ta == Ty::Error || *tb == Ty::Error {
                     Ok(Ty::Error)
+                } else if *ta == Ty::OpaqueStr {
+                    // 已确立的object槽只接收，不把任何实参反向窄化为str。
+                    Ok(Ty::OpaqueStr)
                 } else if ta.is_dynamic() || tb.is_dynamic() {
                     // 动态值可以与任何类型统一：Python 的变量本来就能装任意对象，
                     // 统一成 Dynamic 后整个函数会降级到动态路径（M2.1）。

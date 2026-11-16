@@ -36,7 +36,11 @@ impl FunctionBuilder<'_> {
     ///
     /// 深度用于两个地方：正常返回时 `PopTo(depth)` 弹掉自己的帧；异常被兜住时
     /// 用depth+1只弹掉被展开的被调用者帧，保留当前帧。
-    pub(crate) fn emit_frame_push(&mut self) {
+    pub(crate) fn emit_frame_push(
+        &mut self,
+        source: crate::GlobalId,
+        signature: Option<crate::GlobalId>,
+    ) {
         // 模块顶层函数在 traceback 里显示为 `<module>`，与 CPython 一致
         let func = &self.hir.functions[self.current_hir_fn];
         let fn_name = if matches!(func.kind, ryupy_hir::FunctionKind::ModuleMain) {
@@ -44,15 +48,23 @@ impl FunctionBuilder<'_> {
         } else {
             func.name.as_str().to_string()
         };
+        let origin = self.frame_origin(source, signature);
+        let mut args = vec![
+            Operand::Const(Constant::Str(self.hir.info.file.clone())),
+            Operand::Const(Constant::Str(fn_name)),
+        ];
+        let runtime = if let Some(origin) = origin {
+            args.push(origin);
+            RuntimeFn::TracePushWithOrigin
+        } else {
+            RuntimeFn::TracePush
+        };
         let depth = self.alloc_temp(MirType::I64);
         self.push_stmt(Statement::Assign {
             dest: depth,
             value: Rvalue::Call {
-                callee: Callee::Runtime(RuntimeFn::TracePush),
-                args: vec![
-                    Operand::Const(Constant::Str(self.hir.info.file.clone())),
-                    Operand::Const(Constant::Str(fn_name)),
-                ],
+                callee: Callee::Runtime(runtime),
+                args,
             },
         });
         self.frame_depth = Some(depth);
@@ -182,18 +194,20 @@ impl FunctionBuilder<'_> {
         let ret_ty = ty_to_mir(&self.types.sigs[self.current_hir_fn].ret);
         let retval = self.retval_local();
         if let Some(dest) = retval {
-            let op = match value {
+            let value = match value {
                 Some(expr) => {
                     let value_ty = self.expr_builder().ty_of(expr);
                     let raw = self.expr_builder().build_expr(expr);
-                    self.expr_builder().coerce(raw, &value_ty, &ret_ty)
+                    Rvalue::Use(self.expr_builder().coerce(raw, &value_ty, &ret_ty))
                 }
-                None => Operand::Const(Constant::I64(0)),
+                // 裸return与显式None/动态落尾共用单例；不能把i64零写进object返回槽。
+                None if matches!(ret_ty, MirType::Dynamic) => Rvalue::Call {
+                    callee: Callee::Runtime(RuntimeFn::DynNone),
+                    args: Vec::new(),
+                },
+                None => Rvalue::Use(Operand::Const(Constant::I64(0))),
             };
-            self.push_stmt(Statement::Assign {
-                dest,
-                value: Rvalue::Use(op),
-            });
+            self.push_stmt(Statement::Assign { dest, value });
         }
         if !self.finally_stack.is_empty() {
             self.set_flow(FLOW_RETURN);
@@ -208,35 +222,6 @@ impl FunctionBuilder<'_> {
             self.epilogue_jumps.push(bb);
         }
         self.start_dead_block();
-    }
-
-    /// 在定义位置求值一个函数的参数默认值，写进它的默认值数组。
-    ///
-    /// 默认值数组由 codegen 的 `__init_functions` 预先分配，这里只填元素，
-    /// 因此 `PyFunction` 持有的是同一份数组，多次调用共享可变默认值。
-    pub(crate) fn emit_function_defaults(&mut self, fn_id: ryupy_hir::FuncId) {
-        let Some(defaults_global) = self.fn_defaults.get(&fn_id).copied().flatten() else {
-            return;
-        };
-        let defaults: Vec<(usize, ExprId)> = self.hir.functions[fn_id]
-            .params
-            .iter()
-            .enumerate()
-            .filter_map(|(index, param)| param.default.map(|expr| (index, expr)))
-            .collect();
-        for (index, expr) in defaults {
-            let op = self.expr_builder().build_expr(expr);
-            let ty = self.expr_builder().ty_of(expr);
-            let value = self.expr_builder().coerce(op, &ty, &MirType::Dynamic);
-            self.push_stmt(Statement::Eval(Rvalue::Call {
-                callee: Callee::Runtime(RuntimeFn::ArraySet),
-                args: vec![
-                    Operand::Global(defaults_global),
-                    Operand::Const(Constant::I64(index as i64)),
-                    value,
-                ],
-            }));
-        }
     }
 
     /// 返回槽位；返回类型是 `None` 时不需要槽位。
@@ -322,6 +307,18 @@ impl FunctionBuilder<'_> {
                 self.assign_local(local, value, from);
             }
             Binding::ModuleVar(var) => {
+                if let Some(state) = self.module_state {
+                    let value = self.coerce_mir(value, from, &MirType::Dynamic);
+                    self.push_stmt(Statement::Eval(Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::InstanceStoreName),
+                        args: vec![
+                            Operand::Local(state),
+                            Operand::Const(Constant::Str(self.hir.vars[var].name.to_string())),
+                            value,
+                        ],
+                    }));
+                    return;
+                }
                 let gid = self.module_vars[&var];
                 let to = self.globals[gid].ty.clone();
                 let value = self.coerce_mir(value, from, &to);
@@ -372,7 +369,7 @@ impl FunctionBuilder<'_> {
     }
 
     /// 把一个操作数从 `from` 表示转换到 `to` 表示（Dynamic 与静态槽位之间）。
-    fn coerce_mir(&mut self, value: Operand, from: &MirType, to: &MirType) -> Operand {
+    pub(crate) fn coerce_mir(&mut self, value: Operand, from: &MirType, to: &MirType) -> Operand {
         if from == to {
             return value;
         }

@@ -24,6 +24,9 @@ public static class PyCopy
 
     private static object? Shallow(object? value)
     {
+        if (value is PyNamedTupleInstance) throw PyNamedTupleLayout.Error(Unsupported(value));
+        if (value is PyListInstance) throw PyListLayout.Own(Unsupported(value));
+        if (value is PyDictInstance) throw PyDictLayout.Own(Unsupported(value));
         if (Atomic(value) || value is PyTuple) return value;
         return value switch
         {
@@ -52,6 +55,10 @@ public static class PyCopy
 
     private static object? Deep(object? value, Dictionary<object, object?> memo, int depth)
     {
+        // 必须在tuple快路及其元素的递归复制之前拒绝，不能先浅化或剥掉生成类身份。
+        if (value is PyNamedTupleInstance) throw PyNamedTupleLayout.Error(Unsupported(value));
+        if (value is PyListInstance) throw PyListLayout.Own(Unsupported(value));
+        if (value is PyDictInstance) throw PyDictLayout.Own(Unsupported(value));
         if (Atomic(value)) return value;
         if (memo.TryGetValue(value!, out object? previous)) return previous;
         if (depth >= 256) throw new PyRecursionError("maximum recursion depth exceeded while copying an object");

@@ -1,6 +1,6 @@
 //! 普通生成器的独立 MIR 降级：Suspend CFG → 工厂函数 + 可恢复 CFG。
 //!
-//! 首版保存所有局部（包含循环迭代器、临时值与共享 cell 引用），不做存活性裁剪。
+//! 保存局部、迭代器、临时值与cell引用；仅跳过已证明只读形参的冗余挂起写回，不做活跃性裁剪。
 //! 帧槽 0 是恢复块编号，槽 1 是本次 send 的值，槽 2 是注入异常、槽 3 是待接异常，槽 4 起按原 LocalId 保存装箱值。生成器运行时负责
 //! running/closed 状态与每次恢复的 traceback 帧；此处只表达显式状态读写和控制流。
 
@@ -11,19 +11,31 @@ pub(crate) fn lower(
     program: &mut Program,
     generators: &[FnId],
     exception_globals: &rustc_hash::FxHashMap<String, GlobalId>,
-) {
-    for &id in generators {
-        lower_one(program, id, exception_globals);
-    }
+) -> Vec<crate::trace_lowering::GeneratorLayout> {
+    lower_with_trace(program, generators, exception_globals, false)
 }
 
-fn empty_body() -> Body {
+pub(crate) fn lower_with_trace(
+    program: &mut Program,
+    generators: &[FnId],
+    exception_globals: &rustc_hash::FxHashMap<String, GlobalId>,
+    product: bool,
+) -> Vec<crate::trace_lowering::GeneratorLayout> {
+    generators
+        .iter()
+        .map(|&id| lower_one(program, id, exception_globals, product))
+        .collect()
+}
+
+pub(super) fn empty_body() -> Body {
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
         stmts: Vec::new(),
         terminator: Terminator::Return(None),
     });
     Body {
+        direct_globals_contracts: Vec::new(),
+        source_handler_contracts: Vec::new(),
         locals: Arena::default(),
         blocks,
         entry,
@@ -85,15 +97,35 @@ fn lower_one(
     program: &mut Program,
     id: FnId,
     exception_globals: &rustc_hash::FxHashMap<String, GlobalId>,
-) {
+    product: bool,
+) -> crate::trace_lowering::GeneratorLayout {
     let function = &mut program.functions[id];
     let mut body = std::mem::replace(&mut function.body, empty_body());
+    let readonly_params =
+        crate::generator_readonly_params::find_readonly_params(function, &body, product);
     let original: Vec<_> = body
         .locals
         .iter()
         .map(|(id, decl)| (id, decl.ty.clone()))
         .collect();
     let original_entry = body.entry;
+    let depths: Vec<_> = body
+        .blocks
+        .iter()
+        .flat_map(|(_, block)| &block.stmts)
+        .filter_map(|stmt| match stmt {
+            Statement::Assign {
+                dest,
+                value:
+                    Rvalue::Call {
+                        callee:
+                            Callee::Runtime(RuntimeFn::TracePush | RuntimeFn::TracePushWithOrigin),
+                        ..
+                    },
+            } => Some(*dest),
+            _ => None,
+        })
+        .collect();
     let mut factory = empty_body();
     for (_, decl) in body.locals.iter() {
         factory.locals.alloc(LocalDecl {
@@ -103,7 +135,10 @@ fn lower_one(
         });
     }
     let frame = local(&mut body.locals, MirType::Dynamic);
+    let original_block_count = body.blocks.len();
     let exceptions = crate::generator_exceptions::Plan::take(&mut body);
+    let exception_routes = exceptions.frame_routes();
+    let mut exit_pcs = Vec::new();
     let mut resume_targets = vec![original_entry];
     for handler in exceptions.handlers() {
         if !resume_targets.contains(&handler) {
@@ -112,14 +147,16 @@ fn lower_one(
     }
     let mut inputs = Vec::new();
 
-    for (_, block) in body.blocks.iter_mut() {
+    for (block_id, block) in body.blocks.iter_mut() {
         // 每次 next 的帧由运行时包住，不能在暂停后把旧深度恢复到新的调用者栈。
         block.stmts.retain(|stmt| {
             !matches!(
                 stmt,
                 Statement::Assign {
                     value: Rvalue::Call {
-                        callee: Callee::Runtime(RuntimeFn::TracePush),
+                        callee: Callee::Runtime(
+                            RuntimeFn::TracePush | RuntimeFn::TracePushWithOrigin
+                        ),
                         ..
                     },
                     ..
@@ -148,6 +185,7 @@ fn lower_one(
                 input,
                 delegated,
             } => {
+                exit_pcs.push((block_id, resume.into_raw().into_u32() as i64));
                 // yield from 的恢复输入由委托步骤转发给子迭代器，不能提前消费/抛出。
                 if !delegated {
                     inputs.push((resume, input));
@@ -156,6 +194,10 @@ fn lower_one(
                     resume_targets.push(resume);
                 }
                 for (slot, ty) in &original {
+                    if readonly_params.contains(slot) {
+                        // 工厂已入帧且绑定不变的Dynamic形参，恢复仍读取，挂起不重复写回。
+                        continue;
+                    }
                     let value = boxed(
                         &mut body.locals,
                         &mut block.stmts,
@@ -178,6 +220,7 @@ fn lower_one(
                 Terminator::Return(Some(value))
             }
             Terminator::Return(value) => {
+                exit_pcs.push((block_id, -1));
                 let state = boxed(
                     &mut body.locals,
                     &mut block.stmts,
@@ -228,6 +271,12 @@ fn lower_one(
         }
     }
     let state_object = local(&mut body.locals, MirType::Dynamic);
+    if product {
+        // 本地槽虽跨暂停保存，但接收深度必须绑定本次实际 Push，而非上一 activation。
+        for depth in depths {
+            restore.push(call(depth, RuntimeFn::TraceV1GeneratorDepth, vec![]));
+        }
+    }
     restore.push(call(
         state_object,
         RuntimeFn::ArrayGet,
@@ -265,8 +314,13 @@ fn lower_one(
         terminator: Terminator::Goto(dispatch),
     });
 
-    exceptions.finish(&mut body, frame, &original, exception_globals);
+    let (block_map, catch_reads) =
+        exceptions.finish(&mut body, frame, &original, exception_globals, product);
 
+    let physical_region = body
+        .regions
+        .first()
+        .map(|region| (region.try_len, region.handler));
     let name = function.name.clone();
     let source_file = function.source_file.clone();
     let codegen_name = format!(
@@ -275,10 +329,24 @@ fn lower_one(
         id.into_raw().into_u32()
     );
     let params = function.params.clone();
+    let origin = function
+        .dynamic_origin
+        .map(|source| Operand::Local(source.owner));
+    let capabilities = function.instance_capabilities;
+    let module_state = function.module_state;
+    let closure_environment = function.env;
     let resume = program.functions.alloc(Function {
+        is_comprehension: false,
+        module_state,
+        instance_capabilities: capabilities,
+        module_state_source: module_state.map(|state| crate::InstanceStateSource::GeneratorFrame {
+            frame,
+            slot: state.into_raw().into_u32() as usize + 4,
+        }),
         name,
         codegen_name,
         source_file,
+        definition: None,
         params: vec![frame],
         ret: MirType::Dynamic,
         body,
@@ -288,7 +356,16 @@ fn lower_one(
         defaults_global: None,
         signature_global: None,
         env: None,
+        dynamic_origin: None,
     });
+
+    crate::class_cells::register_resume(
+        &mut program.classes,
+        id,
+        resume,
+        closure_environment,
+        frame,
+    );
 
     let stmts = &mut factory.blocks[factory.entry].stmts;
     let initial = boxed(
@@ -329,8 +406,32 @@ fn lower_one(
         value: Rvalue::MakeGenerator {
             resume,
             frame: values,
+            origin,
         },
     });
     factory.blocks[factory.entry].terminator = Terminator::Return(Some(Operand::Local(result)));
     program.functions[id].body = factory;
+    crate::trace_lowering::GeneratorLayout {
+        factory: id,
+        resume,
+        initial_pc: original_entry.into_raw().into_u32() as i64,
+        pc_targets: resume_targets
+            .into_iter()
+            .map(|old| {
+                (
+                    old.into_raw().into_u32() as i64,
+                    block_map[old.into_raw().into_u32() as usize],
+                )
+            })
+            .collect(),
+        original_blocks: block_map[..original_block_count].to_vec(),
+        exception_routes,
+        catch_reads,
+        exit_pcs: exit_pcs
+            .into_iter()
+            .map(|(block, pc)| (block_map[block.into_raw().into_u32() as usize], pc))
+            .collect(),
+        physical_region,
+        saved_locals: original.into_iter().map(|(local, _)| local).collect(),
+    }
 }

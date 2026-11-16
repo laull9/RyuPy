@@ -1,10 +1,96 @@
 # 愿景与路线图
 
+## 长期主线：全 CIL 执行，libpython 底层化（2026-11-16）
+
+用户确定下一阶段目标：**应用、纯 Python 标准库和第三方 Python 函数体全部编译为 CIL；
+异步和高级反射由生成的 CIL 与 Runtime 提供，libpython 仅保留对象 ABI 与原生扩展底层能力。**
+最终产品启动、运行、关闭均无 CPython 字节码执行，清除源码委派和内部 Python 胶水。
+libpython 自带 frozen 启动模块纳入执行归属审计；底层化与完全移除 libpython 分别推进。
+
+本轮交付规划，尚未开始新执行路径实现。既有兼容模式和项目成绩维持独立记录。
+决策见 [ADR-0208](adr/0208-cil-execution-libpython-kernel.md)，详细任务、准入与退出条件见
+[全 CIL 实施路线](cil-execution-roadmap.md)，逐项状态见 [TODO](../TODO.md)。
+
+执行顺序为：C0 执行归属/启动链盘点与基线冻结 → C1 内部零 Python 胶水 →
+C2 动态对象/反射与资源位置 → C3 协程状态机/调度 → C4 完整 Python 依赖闭包与底层内核 →
+C5 默认晋升、稳定验证及旧路径退出。C0–C5 全部待办，首切为 C0。
+
+按需代码生成优先发生在构建期，NativeAOT 的动态语义使用预编译操作与数据结构。
+任意运行期新代码的 JIT 能力单独规划。候选路径必须显式选择，缺口给出诊断；
+每个项目完成原入口/原输入、同次 CPython、JIT/NativeAOT、搬迁及性能验证后再晋升。
+默认切换与旧路径删除分别验收，已有成功项目出现新增失败即停止对应切片晋升。
+
+## 历史兼容路线：CPython provider 优先（2026-11-13，现有能力继续维护）
+
+以下 CP1–CP5 保留当时的路线与验收资产；长期执行归属及后续推进顺序以 C0–C5 为准。
+
+项目目标调整为：**以随包 libpython 和通用对象桥获得良好 Python 生态兼容，保留
+Python → CIL → NativeAOT 的编译链，长期对标 Nuitka 的 AOT 打包，并按实测热点优化性能。**
+CP1–CP3显式试点在macOS arm64已通过21项CP/JIT/NativeAOT搬迁、原联合应用及六项生命周期模式；
+真实错版本ABI、handled异常双向状态和混合异常栈均通过。默认native固定20保留门为13/6/1；
+2026-11-14完整make check已exit0。固定项目provider三模式各19/20；macOS/Linux/Windows standalone与Linux
+无Python/.NET/SDK容器通过。跨平台完整对象桥/NumPy、HTTPS和onefile继续推进；
+实际范围见[平台状态](cpython-platform-support.md#52-平台实测状态)。决策见
+[ADR-0181](adr/0181-cpython-provider-first.md)，架构合同见 [CPython provider](cpython-provider.md)。
+
+### 短期顺序
+
+| 顺序 | 目标 | 完成门 |
+| --- | --- | --- |
+| CP1 | 可随包 libpython 宿主和通用对象桥 | 固定发行和 ABI；身份/别名、异常、回调、GIL、生命周期；JIT/NativeAOT 与搬迁 |
+| CP2 | 同一联合应用切换 CPython provider | 保留 HTTP → 编码解压 → 包资源 → SQLite 原程序；同次 CPython 即时比较；真实搬迁及干净机 |
+| CP3 | 一个真实第三方 C 扩展 | 首选 NumPy，锁定版本/平台；扩展加载、计算、回调、异常、生命周期和原生依赖搬迁 |
+
+主线不再扩张逐模块 C# 重写和逐库 C ABI 适配。已实现能力保留回归、维护和性能对照；
+新缺口优先补通用宿主/对象桥，直接复用 CPython 标准库与扩展。
+先在显式兼容配置完成 CP1–CP3，再晋升默认兼容配置；当前 CLI 默认选择保持不变。
+纯 RyuPy 模式继续作为显式轻量与性能路径。
+
+### 长期顺序
+
+- **CP4 分发与覆盖**：扩大标准库真实应用验收，完善资源、metadata、动态导入声明和
+  原生依赖闭包；逐项验收 macOS arm64、Linux x64、Windows x64 standalone，随后交付 onefile。
+- **CP5 性能**：先测跨桥次数、GIL 等待、分配/复制及端到端瓶颈，再做批量调用、typed CIL、
+  守卫特化、buffer 和必要的 C# 原生替换。每项优化同时交付正确性与应用级性能证据。
+- **对标 Nuitka**：固定相同应用、版本、输入与部署条件，对照兼容性、分发体验、启动、
+  吞吐、内存、体积和构建成本；收益按 workload 发布。
+
+### 结构与计量
+
+代码与测试按职责分层，保留稳定用例 ID、入口和必要手写输入；CPython 预期当次生成，
+测试输出放仓库外临时目录。Git 仅保留必要源码、配置与文档，规则见
+[ADR-0182](adr/0182-source-only-test-oracles.md)。迁移步骤见 [仓库结构规划](repository-layout-plan.md)。
+代码和测试按一条发现链一个迁移竖切推进。全历史生成产物清理与强推已完成，
+生成 golden、快照与 patch/diff 已清理；现有测试消费者继续迁移到即时比较。
+固定 20 项继续作为可比较项目集，产品功能兼容率允许已验收的 CPython provider，
+纯 RyuPy 执行率另列。短期先通过 CP1–CP3，之后产品目标至少 16/20；历史原生 16/20
+转为长期优化指标。JIT、NativeAOT、搬迁、平台分别计量。
+
+## 历史路线与已积累能力
+
+以下保留旧排期及阶段编号，供追溯实现与测试；新执行主线采用本页 C0–C5，既有能力继续回归。
+旧条目中的“当前”“接下来”和“后续”均指当时决策，原验收状态保持原记录。
+
 > **2026-11-02恢复与排期更新**：当前代码恢复自已推送M3.10（`a788d86`），其已归档项目能力为5/20。此前未推送M3.11源码随临时工作区丢失，历史10/20及725项C#测试不能当作当前checkout能力。用户已暂停16/20前置，优先原生AOT/JIT，并批准小步提交推送与独立WIP远端备份。详见[ADR0042](adr/0042-aot-jit-recovery-priority.md)；原兼容目标未达成、不勾完成。
 
-> **后续迭代顺序**：用户已再次确认，C ABI属于当前打包主线，继续绑定/部署与有界优化；打包能力闭环后沿TODO继续兼容性适配。16/20只是暂停前置，不是取消或已完成；当前不重新追逐全部项目长尾。
+> **历史迭代顺序**：ADR-0181 曾将 C ABI 打包路线转向 CPython 宿主和对象桥；后续长期顺序采用本页顶部 ADR-0208 的全 CIL 规划。
 
 修订日期：2026-11-02。本文描述后续计划；已实现能力见 [semantics.md](semantics.md)，执行任务见 [TODO.md](../TODO.md)。本次调整记录在 [ADR-0009](adr/0009-project-compatibility-first.md)。
+
+## 2026-11-14 单文件交付
+
+单文件 CLI、完整载荷 onefile、普通多文件入口和 Python 3.9–3.15 自动冻结已实现。
+`ryupy main.py` 直接生成单一 AOT，用户环境和完整版本由编译器探测；`--native` 保留纯 RyuPy。
+本地源码按实际导入链编译，支持 `-I src` 与显式本地插件，忽略未引用开发文件。
+[三平台门禁](cpython-platform-support.md#54-单文件编译器普通项目与自动版本)分别验证编译器独立文件、
+输入删除搬迁、版本及 NumPy。后续重点为完整对象桥跨平台生命周期、更多真实项目、
+HTTPS 证书链和实测热点，固定项目集的 attrs 活字典缺口继续登记。
+
+## 2026-11-13 AOT 打包推进
+
+当前优先交付可搬迁 standalone：源码模块、包数据和 C ABI 库共同进入发布目录。已整合单库多导出 v2 绑定与文件系统 `importlib.resources.as_file(Path)`，分别完成 macOS arm64 真实搬迁和差分测试。资源与绑定组合发布已完成 23 步真实搬迁验收；通用 C ABI v3 进一步支持 13 类标量、void 返回和 UTF-8/bytes 只读借用，已通过静态 AOT、`as_file()` 资源组合与受限环境搬迁（[ADR0173](adr/0173-declarative-cabi-signatures.md)）。接下来推进 SafeHandle 所有权、多库依赖闭包、更多源码模块准入及跨平台目标环境验收。
+
+完整标准库继续按 API、底层依赖和平台登记。版本化 catalog v2 已接入五个纯 Python 原源模块，新增 colorsys 六 API 差分与真实 AOT 搬迁；`ryupy probe` 及普通构建报告列出 provider、来源、版本、依赖缺口与动态不确定性，默认发行已开启认证 catalog 静态准入，动态用户模块保留 pilot 策略门（[ADR0174](adr/0174-versioned-source-catalog-probe.md)）。C#/.NET 已整合 SQLite、HTTP/TLS、gzip/zlib、Base64 与摘要认证的常用 API，并通过跨模块应用搬迁；SQLite/TLS 复用成熟 provider 与系统实现。完整 provider 覆盖与 libpython 宿主继续实施。standalone 与 onefile 的当前结果见上述单文件交付登记。完整接入路线见 [ADR0172](adr/0172-aot-stdlib-provider-plan.md)。
 
 ## 愿景
 
@@ -23,7 +109,7 @@
 - 类型标注提供优化线索。Phase 2 默认兼容路径不因标注而增加 Python 没有的参数类型限制；特化失败返回通用路径。Phase 1 的静态限制仍如实记录。
 - 原生路径不依赖运行时生成 IL。libpython 桥接允许扩大生态覆盖，但会带来 Python 部署、对象生命周期和跨边界调用成本。
 
-## 五个阶段
+## 历史五阶段登记
 
 | 阶段 | 范围 | 验收结果 |
 | --- | --- | --- |

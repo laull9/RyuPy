@@ -14,17 +14,54 @@ fn snapshots_class_if_source_order_and_lazy_lookup() {
     ] {
         let mut session = Session::default();
         let output = dump(&mut session, &path, stage).expect("类体条件应保留源序与惰性回退");
-        insta::assert_snapshot!(name, output);
+        match stage {
+            Stage::Hir => {
+                assert_eq!(
+                    output.matches("def method(self, x=...)").count(),
+                    2,
+                    "{name}"
+                );
+                assert!(
+                    output.contains("after = class_lookup(value, global.value)"),
+                    "{name}"
+                );
+                assert!(output.contains("if global.value:"));
+            }
+            Stage::Mir => {
+                assert_eq!(output.matches("MakeFunction(method;").count(), 2, "{name}");
+                let contains = output.find("RuntimeFn::ClassNamespaceContains").unwrap();
+                let fallback = output[contains..].find("RuntimeFn::LoadName").unwrap();
+                assert!(fallback > 0, "全局回退必须位于存在性检查后的分支");
+                assert!(output[..contains].contains("const 8_i64"));
+                assert!(output[contains..].contains("RuntimeFn::ClassNamespaceGet"));
+            }
+            Stage::Cil => {
+                assert!(
+                    output.contains("PyOps.ClassNamespaceContains(object, string)"),
+                    "{name}"
+                );
+                assert!(output.contains("PyOps.ClassNamespaceGet(object, string)"));
+                assert!(output.contains("PyErrors.LoadName(object, string)"));
+                assert_eq!(
+                    output
+                        .matches(".method public static [System.Runtime]System.Object m0_method(")
+                        .count(),
+                    2
+                );
+            }
+            _ => unreachable!(),
+        }
     }
     std::fs::remove_file(path).unwrap();
 }
 
 #[test]
 fn unsupported_builtin_fallback_is_only_rejected_when_executed() {
+    // locals已有真实builtin值；本测试仍以未实现globals验证惰性fallback，不改断言。
     let root = ryupy_driver::runtime::workspace_root().join("target/test_class_if_fallback");
     std::fs::create_dir_all(&root).unwrap();
     let input = root.join("main.py");
-    std::fs::write(&input, "flag=True\nclass Present:\n    if flag:\n        locals='bound'\n    value=locals\nprint(Present.value)\nflag=False\ntry:\n    class Absent:\n        if flag:\n            locals='bound'\n        value=locals\nexcept NotImplementedError:\n    print('明确拒绝未实现内建回退')\n").unwrap();
+    std::fs::write(&input, "flag=True\nclass Present:\n    if flag:\n        globals='bound'\n    value=globals\nprint(Present.value)\nflag=False\ntry:\n    class Absent:\n        if flag:\n            globals='bound'\n        value=globals\nexcept NotImplementedError:\n    print('明确拒绝未实现内建回退')\n").unwrap();
     let artifact = ryupy_driver::build(
         &mut Session::default(),
         &ryupy_driver::BuildOptions {

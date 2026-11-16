@@ -1,0 +1,4 @@
+entry = entry.py
+# 手动CLI配置，当前runner不支持：include_module = fixturepkg.child
+instance_module = fixturepkg.child
+pending = true

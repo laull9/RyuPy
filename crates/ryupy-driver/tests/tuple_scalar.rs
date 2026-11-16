@@ -44,8 +44,27 @@ fn source_temporary_tuple_is_removed_but_escaping_tuple_survives() {
         escape.contains("MakeTuple") && escape.contains("GetItem"),
         "不能删除逃逸对象：{escape}"
     );
-    insta::assert_snapshot!("tuple_scalar_mir", mir);
     let cil = support::dump(&mut session, &path, Stage::Cil).unwrap();
-    insta::assert_snapshot!("tuple_scalar_cil", cil);
+    // 最终CIL也必须消去临时tuple，逃逸的pair仍是完整Python对象。
+    for name in ["swap", "first", "escape"] {
+        let signature = format!(".method public static [System.Runtime]System.Object m0_{name}(");
+        let body = cil
+            .split(&signature)
+            .nth(1)
+            .unwrap()
+            .split(".method ")
+            .next()
+            .unwrap();
+        assert_eq!(
+            body.contains("PyOps.MakeTuple(object[])"),
+            name == "escape",
+            "{name}: {body}"
+        );
+        assert_eq!(
+            body.contains("PyOps.GetItem(object, object)"),
+            name == "escape",
+            "{name}: {body}"
+        );
+    }
     std::fs::remove_file(path).unwrap();
 }

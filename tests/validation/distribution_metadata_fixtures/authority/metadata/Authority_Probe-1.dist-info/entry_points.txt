@@ -1,0 +1,7 @@
+[chosen]
+selected = neutral_pkg.target:value
+[unselected]
+top = closed_target:token
+dotted = neutral_pkg.missing:value
+native = math:pi
+native_re = re:compile

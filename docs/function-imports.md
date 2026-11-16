@@ -24,10 +24,12 @@ HIR 的 Import/ImportFrom 目标是 Binding（Local / Free / ModuleVar），MIR 
 
 ## 明确边界
 
-不开放动态 `__import__`、import hook、运行时搜索路径修改、星号导入或类体 import。函数本地导入的异常别名不被提升成全模块静态异常身份；以它作为 except 类型（即使别名叫 ValueError）仍明确 E0100，不冒称支持动态 except。函数内 future import 仍非法。
+不开放动态 `__import__`、import hook、运行时搜索路径修改、星号导入或类体 import。函数本地异常别名不提升成全模块身份。ADR0075 的本地候选仅接受 driver 证明原生来源、函数直属且先于 handler 所属直属语句的稳定导入；独立函数表拒绝参数/重绑/删除/条件导入、global/nonlocal/free/cell，任一元组项未证则整条 E0100。局部失败不回退同名 builtin，局部别名不污染 protected_exports。动态 except 仍未开放。函数内 future import 仍非法。
 
 ## 验收与项目证据
 
 `m3_7_function_imports` 目录验证懒执行、缓存身份、dotted/相对导入、逐项失败绑定、失败重试与循环导入；`m3_7_function_import_bindings.py` 验证 local/global/nonlocal、with 清理与生成器执行点。HIR 单测验证作用域和依赖扫描分离，driver 保存 HIR/MIR 快照。
 
 固定项目定向复测（2026-11-01，CPython 3.12.13）：toml、attrs、click、python-dateutil 四项仍 unsupported，未新增 native 项目。首阻断分别推进到不支持语句、Enum 成员表达式、特殊基类和 globals；不能把函数导入接受或两条差分当成项目兼容率提升。完整固定分母继续为 20，不用此定向子集改写总通过率。
+
+后续有限候选的局部异常身份、真实 getopt 解析及错误链已通过5项CP/JIT差分；正常完整门禁920C#/228CP/202e2e+30原ignored通过，尚未公开或重跑项目。见[ADR0075](adr/0075-getopt-local-exception-imports.md)。

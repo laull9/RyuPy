@@ -17,23 +17,30 @@ impl ExprBuilder<'_> {
         args: &[CallArg],
         call_ty: &Ty,
     ) -> Operand {
-        let has_keyword = args
-            .iter()
-            .any(|arg| matches!(arg, CallArg::Keyword(..) | CallArg::DoubleStarred(_)));
         match builtin {
             Builtin::Print => self.call_builtin_by_name("print", args),
+            Builtin::Dynamic("locals") if self.supports_function_locals() => {
+                self.build_function_locals(args)
+            }
             Builtin::Dynamic(name) => self.call_builtin_by_name(name, args),
             // 只有固定单位置数值转换可用快路；其它形态必须求完所有实参再绑定。
             Builtin::Int if matches!(args, [CallArg::Positional(_)]) => {
                 self.build_numeric_conversion(args, call_ty, true)
             }
-            Builtin::Float if !has_keyword => self.build_numeric_conversion(args, call_ty, false),
+            Builtin::Float if matches!(args, [CallArg::Positional(_)]) => {
+                self.build_numeric_conversion(args, call_ty, false)
+            }
             Builtin::Abs if matches!(args, [CallArg::Positional(_)]) => self.build_abs(args),
-            Builtin::Str if !has_keyword => {
-                let Some(arg) = args.first() else {
-                    return Operand::Const(Constant::Str(String::new()));
-                };
-                let expr = arg.expr();
+            Builtin::Str
+                if matches!(args, [CallArg::Positional(expr)] if matches!(
+                    self.ty_of(*expr), Ty::Int | Ty::Float | Ty::Bool | Ty::Str | Ty::None
+                ) || matches!(
+                    self.hir.functions[self.current_hir_fn].body.exprs[*expr].kind,
+                    ryupy_hir::ExprKind::Literal(_)
+                )) =>
+            {
+                // 精确旁表或不可覆写的字面量才用string返回ABI；不扩变量/Unary推断。
+                let expr = args[0].expr();
                 let arg_op = self.build_expr(expr);
                 let arg_ty = self.ty_of(expr);
                 let op = self.coerce(arg_op, &arg_ty, &MirType::Dynamic);
@@ -62,6 +69,16 @@ impl ExprBuilder<'_> {
                 let arg_ty = self.ty_of(expr);
                 let op = self.coerce(arg_op, &arg_ty, &MirType::Dynamic);
                 self.runtime_call(RuntimeFn::DynType, vec![op], MirType::Dynamic)
+            }
+            Builtin::Exception("KeyError") => {
+                // 先读当前真实callee，再完整求实参；回调重绑仅影响下次调用。
+                let callable = self.default_builtin_value("KeyError");
+                self.call_value(callable, args)
+            }
+            Builtin::Exception("SyntaxError") => {
+                // 新族也必须完整求值位置/关键字参数，不借旧MakeException吞掉定位参数。
+                let callable = self.default_builtin_value("SyntaxError");
+                self.call_value(callable, args)
             }
             Builtin::Exception(name) => {
                 let mut args_ops = vec![Operand::Const(Constant::Str(name.to_owned()))];

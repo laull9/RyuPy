@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <!-- 符号随同一DLL字节交付，NativeAOT无需回读共享obj目录的外部PDB。 -->
+    <DebugType>embedded</DebugType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+  <ItemGroup><ProjectReference Include="../RyuPy.Runtime/RyuPy.Runtime.csproj" /></ItemGroup>
+</Project>

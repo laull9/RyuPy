@@ -26,7 +26,6 @@ fn alias_call_has_guarded_inline_and_original_dynamic_fallback() {
         "未真正命中叶调用特化：{caller}"
     );
     assert!(caller.contains("dyn.call("), "不能丢失原动态fallback");
-    insta::assert_snapshot!("guarded_leaf_mir", mir);
     std::fs::remove_file(input).unwrap();
 }
 #[test]

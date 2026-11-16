@@ -12,6 +12,7 @@ pub fn render() -> String {
         r#"{{
   "runtimeOptions": {{
     "tfm": "net{major}.0",
+    "rollForward": "Major",
     "framework": {{
       "name": "Microsoft.NETCore.App",
       "version": "{major}.0.0"
@@ -29,5 +30,6 @@ mod tests {
         let s = super::render();
         assert!(s.contains("Microsoft.NETCore.App"));
         assert!(s.contains("net10.0"));
+        assert!(s.contains("\"rollForward\": \"Major\""));
     }
 }

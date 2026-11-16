@@ -1,0 +1,23 @@
+# 原 CP 正期待，不替换为接受 NotImplementedError 的断言。
+import warnings
+class ChildInt(int): pass
+class IndexBool:
+    def __index__(self): return True
+class IndexChild:
+    def __index__(self): return ChildInt(2)
+class DirectChild:
+    def __len__(self): return ChildInt(2)
+class LengthBool:
+    def __len__(self): return IndexBool()
+class LengthChild:
+    def __len__(self): return IndexChild()
+with warnings.catch_warnings(record=True) as records:
+    warnings.simplefilter('always')
+    assert bool(DirectChild()) is True
+    assert len(records) == 0
+    assert bool(LengthBool()) is True
+    assert bool(LengthChild()) is True
+    assert len(records) == 2
+    assert all(item.category is DeprecationWarning for item in records)
+print('direct-child-no-warning', True)
+print('index-warning', [item.category.__name__ for item in records])

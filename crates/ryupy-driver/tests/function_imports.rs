@@ -12,7 +12,45 @@ fn snapshots_local_and_closure_import_binding() {
     ] {
         let mut session = Session::default();
         let output = dump(&mut session, &path, stage).expect("函数导入应使用词法绑定");
-        insta::assert_snapshot!(name, output);
+        match stage {
+            Stage::Hir => {
+                assert!(output.contains("cells=[Name(\"alias\")]"), "{name}");
+                assert!(output.contains("from math import sqrt as cell[0]"));
+                assert!(output.contains("import math as math"));
+            }
+            Stage::Mir => {
+                let outer = output
+                    .split("fn outer(")
+                    .nth(1)
+                    .unwrap()
+                    .split("fn load(")
+                    .next()
+                    .unwrap();
+                assert!(
+                    outer.find("RuntimeFn::CellNew").unwrap()
+                        < outer.find("RuntimeFn::CellSet").unwrap(),
+                    "{name}"
+                );
+                assert!(outer.contains("MakeFunction(change; env=[_0]"));
+                let change = output.split("fn change(").nth(1).unwrap();
+                assert!(
+                    change
+                        .find("ImportAttr(const \"math\", const \"sqrt\")")
+                        .unwrap()
+                        < change.find("RuntimeFn::CellSet").unwrap()
+                );
+                let load = output
+                    .split("fn load(")
+                    .nth(1)
+                    .unwrap()
+                    .split("fn main(")
+                    .next()
+                    .unwrap();
+                assert!(load.contains("ImportModule(const \"math\")"));
+                assert!(load.contains("LoadChecked(_0, const \"math\")"));
+            }
+            _ => unreachable!(),
+        }
     }
     std::fs::remove_file(path).unwrap();
 }

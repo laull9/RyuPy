@@ -1,0 +1,3 @@
+entry = entry.py
+pending = true
+# 延期：未登记合法名称在闭世界应 NI；此处保留 CP 实际 None，不作为本轮通过项。

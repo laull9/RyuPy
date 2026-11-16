@@ -1,94 +1,96 @@
-# 快速上手与部署边界
+# 快速上手与部署
 
-当前实现覆盖 Phase 1 与 Phase 2 的 M2.1–M2.10：动态核心、容器、普通类、异常、模块系统、`with` 与有界 PIC。闭包、生成器、推导式、装饰器与标准库移植安排在 Phase 3。支持现状见 [semantics.md](semantics.md)，愿景与排期见 [roadmap.md](roadmap.md)。
+## 发布普通Python项目
 
-## 开发环境
+RyuPy CLI本身为单一文件。把`ryupy`（Windows为`ryupy.exe`）放到PATH，在已安装好业务依赖的项目中运行：
+
+```sh
+ryupy main.py
+# 同一默认形态的显式拼写
+ryupy main.py --onefile
+```
+
+编译器自动选择项目venv、激活环境或PATH中的Python，核验完整版本、机器架构及ABI，
+再收集静态导入的本地模块、已安装的第三方依赖、metadata、资源与原生库。
+当前自动环境范围为正式CPython 3.9–3.15常规GIL。构建工具在私有缓存准备，项目只保留自身依赖。
+
+输出为`./dist/main.onefile/main`，Windows为`main.exe`。只需搬走这个文件即可交付；
+启动时使用独占临时目录，正常退出和已覆盖的中断后清理。
+
+```sh
+ryupy main.py --mode standalone       # 完整独立目录 ./dist/main.dist
+ryupy main.py --mode jit              # 托管程序集
+ryupy main.py --native                # 显式纯RyuPy执行域
+ryupy main.py -o release              # 选择输出根
+ryupy main.py -I src                  # 补充源码搜索根
+ryupy main.py --include-module plugin # 补充动态引用的本地模块
+```
+
+静态导入会自动跟随本地文件和包，包内相对导入保持原来的初始化顺序。字符串动态导入、
+自定义导入器及应用自己的任意外部数据按具体声明和兼容合同处理；包数据随第三方安装RECORD收集。
+[多文件验收](../tests/cpython/multifile_README.md)包含五个本地CIL模块、深层第三方依赖和中文资源，
+实际使用仓库外的唯一CLI构建，再删除CLI、私有缓存、项目源码、venv和所有中间产物后运行AOT，
+严格比较同次CPython三流及业务副作用。
+
+## 自动探测构建环境
+
+CLI为Rust原生程序，内嵌C# Runtime、CPython互操作桥、SQLite依赖和许可。默认从自身字节在私有
+缓存准备完整模块组，使用时无需源码仓库、旁置runtime目录或手写provider JSON。
+
+- 版本、帮助和许可证查询直接运行，不需要.NET或Python。
+- 纯原生JIT编译由Rust完成，运行托管产物需要.NET Runtime 10。
+- NativeAOT发布需要.NET SDK 10及以上和平台C工具链。
+- 自动准备可搬迁Python发行需要curl、tar及Zstandard支持。
+
+.NET按显式DOTNET、PATH、架构对应DOTNET_ROOT和系统安装位置发现；构建前查询本次操作所需能力。
+Python环境一旦选定，完整版本、依赖和ABI错误直接给出诊断。安装环境的操作不修改用户venv。
+
+```sh
+ryupy --help
+ryupy --help-advanced
+ryupy --licenses
+```
+
+`main.build`、`main.dist`和`main.onefile.build`是构建或诊断目录，真正的单文件交付位于`main.onefile`。
+工具核对已拥有的发布输出；完整新候选成功后才替换旧版，失败保留旧版和诊断。
+
+## 从源码构建CLI
 
 | 依赖 | 版本 | 用途 |
 | --- | --- | --- |
-| Rust | stable，2024 edition | 构建编译器 |
-| .NET SDK | 10.x | 构建 C# 运行时与执行测试；后续 AOT 发布 |
-| Python | 3.12+ | 当前 CPython 差分测试；M2.0 将固定具体基准版本 |
+| Rust | stable，2024 edition，MSRV 1.85 | 编译原生CLI |
+| .NET SDK | 10.x | 在OUT_DIR隔离构建并内嵌C#闭包 |
+| Python | 3.12.13 | 仓库固定差分基准 |
 
-```bash
-make runtime
+```sh
+cargo build -p ryupy-cli
 make check
+make build
 ```
 
-这两条命令构建运行时并执行 fmt、clippy、Rust / C# 测试、用例自检与 e2e。项目级覆盖率见 [compatibility.md](compatibility.md)，基准见 `make bench`。
+Cargo构建脚本保留静态模块注册表生成，同时在独立.NET artifacts目录构建完整运行时闭包。
+`make build`生成Release版唯一CLI，分发归档里仅有该文件。可以覆盖`RELEASE_DIR`将交付物写到仓库外。
+Windows编译器静态链接C运行时。各平台实际结果见[平台验收](cpython-platform-support.md)和
+[版本矩阵](../tests/cpython/version_README.md)。
 
-## 编译、运行与查看 IR
+## 开发入口与IR
 
-```bash
-make run FILE=tests/e2e/phase1/m1_5_dataclass.py
-cargo run -q -p ryupy-cli -- build tests/e2e/phase1/m1_0_print_int.py -o out/
-dotnet out/m1_0_print_int.dll
+旧子命令保留既有默认值，`build/run`默认使用纯原生执行域，适合语义开发和历史性能复验：
 
-make dump FILE=tests/e2e/phase1/m1_0_print_int.py EMIT=ast
-make dump FILE=tests/e2e/phase1/m1_0_print_int.py EMIT=hir
-make dump FILE=tests/e2e/phase1/m1_0_print_int.py EMIT=types
-make dump FILE=tests/e2e/phase1/m1_0_print_int.py EMIT=mir
+```sh
+ryupy build main.py -o out
+# 运行生成的托管产物
+dotnet out/main.dll
+ryupy run main.py
+ryupy probe main.py
+ryupy dump main.py --emit hir
+
 make dump FILE=tests/e2e/phase1/m1_0_print_int.py EMIT=cil
-
 make e2e
-make e2e-all   # 包括未来尚未实现的 pending 用例
-make bench     # CPython vs RyuPy Release 的固定输入基准（不进入 make check）
+make bench
 ```
 
-`import` 支持编译时可达的模块与包：搜索顺序是入口文件所在目录 → `-I/--search-path` 指定的额外根（可重复）。项目集用 `-I third_party/projects/...` 加载第三方源码。`from dataclasses import dataclass` 仍是特殊识别的编译期能力；标准库、import hook 与桥接尚未接入。不要据未来路线图推断现有 CLI 已具备这些能力。
-
-```bash
-# 额外搜索根：入口目录优先，然后是给定的第三方源码目录
-cargo run -q -p ryupy-cli -- run app.py -I third_party/projects/six-1.16.0/six-1.16.0
-```
-
-## 当前产物
-
-`build` 默认把产物写在源文件旁的 `__pycache__/<文件名>/`（与 CPython 存放 `foo.cpython-312.pyc`
-的 `__pycache__` 同位），也可以用 `-o` 指定目录：
-
-```text
-out/
-├── m1_0_print_int.dll
-├── m1_0_print_int.runtimeconfig.json
-└── RyuPy.Runtime.dll
-```
-
-构建当前仓库需要 SDK 来生成 `RyuPy.Runtime.dll`。生成的普通程序集通过 .NET Runtime 运行，运行目标机不需要编译器或 Python。编译器自身不调用 CPython 做编译；Python 目前用于差分测试与基准对照。
-
-### 发行包
-
-`make build` 构建 Release 版 CLI 与 C# 运行时，并在 `releases/` 下打包宿主平台产物：
-
-```text
-releases/
-├── ryupy-0.0.1-darwin-arm64/
-│   ├── bin/ryupy                # Rust 编译器 CLI
-│   └── runtime/RyuPy.Runtime.dll
-└── ryupy-0.0.1-darwin-arm64.tar.gz
-```
-
-CLI 查找运行时的顺序是：`RYUPY_RUNTIME_DIR` → 可执行文件旁边的 `runtime/`（`bin/../runtime`
-或同目录）→ 开发期的 `runtime/…/bin/Release/net10.0/`。所以解压后无需设置环境变量即可使用；
-目标机仍需要 .NET Runtime（当前目标框架 net10.0），但不需要 Rust 工具链、.NET SDK 或 Python。
-包名只反映构建机器的平台，`make build` 不做交叉编译。
-
-## 计划中的分发与执行形态
-
-以下内容尚待实现，特别是 `--aot` 虽已有参数入口，`publish_aot` 仍为占位实现。
-
-| 形态 | 目标 | 构建与运行依赖 | 排期 |
-| --- | --- | --- | --- |
-| 原生语义的 JIT 程序 | 项目编译成 CIL，通过 RyuJIT 运行 | 目标机 .NET Runtime；不依赖 libpython，但只能调用已原生实现的 API | 现有静态子集可用，项目支持在 Phase 2 / 3 扩展 |
-| 桥接 JIT 程序 | 必要模块通过 libpython 调用 | .NET Runtime、兼容的 libpython、Python 标准库与扩展依赖 | M3.8，Phase 4 扩展到 NumPy 等非纯 Python 模块 |
-| 原生 AOT 程序 | `ryupy build --aot` 生成目标平台可执行文件 | 构建需 .NET SDK 与目标工具链；运行免装 .NET / Python，仍服从平台系统库依赖 | M5.2，承接旧 M1.6 |
-| 桥接 AOT 程序 | AOT 编译托管部分，保留解释器边界 | 构建需 SDK 与目标工具链；运行仍需 libpython / 标准库 / 扩展，单独验收裁剪与原生加载 | M5.2 独立验证 |
-
-CLI 内嵌预构建运行时、全局缓存与跨平台发行仍属于后续分发设计；当前 `make build` 只产出宿主平台的
-CLI + 运行时压缩包，没有单文件 CLI 发布。产物可跨哪些系统 / 架构运行，以实测支持矩阵为准。
-
-原生通过、桥接通过和已接受偏差的区别见 [compatibility.md](compatibility.md)。Native AOT 的目标平台、构建与加载限制参考 [Microsoft 文档](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/)。
-
-## 后续阶段的 Python 用例
-
-Phase 2–4 用例已经写入 `tests/e2e/` 并标记 pending。`python3 tests/run_python_baseline.py` 自检 Phase 1–3 的 CPython 行为；安装 NumPy 后加 `--phase phase4` 检查扩展基线。辅助包与预期错误退出的运行方式见 [测试说明](../tests/README.md)。这些基线通过不表示 RyuPy 已支持相应功能。
+原生执行域、CPython对象桥和各标准库API的实际覆盖分别登记在[兼容性清单](compatibility.md)、
+[语义规范](semantics.md)和[CPython provider合同](cpython-provider.md)。历史Decimal/tzinfo专项与
+固定项目结果保留原入口和日期，最新发布体验见[ADR-0190](adr/0190-project-cli.md)与
+[ADR-0191](adr/0191-single-file-compiler-cli.md)。

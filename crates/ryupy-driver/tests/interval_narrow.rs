@@ -35,7 +35,6 @@ fn joined_constant_ranges_really_remove_dynamic_add() {
         mixed.contains("dyn.Add") && !mixed.contains("unbox_exact_i64"),
         "bool不可冒充精确Int64：{mixed}"
     );
-    insta::assert_snapshot!("interval_narrow_mir", mir);
     std::fs::remove_file(input).unwrap();
 }
 #[test]

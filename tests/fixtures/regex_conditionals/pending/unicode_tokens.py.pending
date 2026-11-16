@@ -1,0 +1,43 @@
+# ryupy: pending
+"""CP真实正例：Unicode条件名字沿现有非ASCII边界；不注册、不执行、不计支持。"""
+import re
+
+
+def snapshot(match):
+    if match is None:
+        return None
+    return {'group0': match.group(), 'groups': list(match.groups()),
+            'groupdict': match.groupdict(),
+            'spans': [list(match.span(i)) for i in range(match.re.groups + 1)]}
+
+
+CASES = [
+    ("(?P<µ>a)?(?(µ)b|c)", [
+        ("ab", {"group0": "ab", "groupdict": {"µ": "a"}, "groups": ["a"], "spans": [[0, 2], [0, 1]]}),
+        ("c", {"group0": "c", "groupdict": {"µ": None}, "groups": [None], "spans": [[0, 1], [-1, -1]]}),
+    ]),
+    ("(?P<𝔘>a)?(?(𝔘)b|c)", [
+        ("ab", {"group0": "ab", "groupdict": {"𝔘": "a"}, "groups": ["a"], "spans": [[0, 2], [0, 1]]}),
+        ("c", {"group0": "c", "groupdict": {"𝔘": None}, "groups": [None], "spans": [[0, 1], [-1, -1]]}),
+    ]),
+]
+for pattern, cases in CASES:
+    compiled = re.compile(pattern)
+    for subject, expected in cases:
+        assert snapshot(compiled.fullmatch(subject)) == expected
+
+# 非ASCII token同样包含CP应报re.error的输入；本切NI不能伪装为相同错误。
+ERRORS = [
+    ("()(?(१)a|b)", "bad character in group name '१' at position 5", "bad character in group name '१'", 5, 1, 6),
+    ("()(?(１)a|b)", "bad character in group name '１' at position 5", "bad character in group name '１'", 5, 1, 6),
+    ("()(?(©)a|b)", "bad character in group name '©' at position 5", "bad character in group name '©'", 5, 1, 6),
+    ("(?(µ)a|b)", "unknown group name 'µ' at position 3", "unknown group name 'µ'", 3, 1, 4),
+]
+for pattern, message, msg, position, line, column in ERRORS:
+    try:
+        re.compile(pattern)
+    except re.error as error:
+        assert error.pattern is pattern and str(error) == message and error.msg == msg
+        assert (error.pos, error.lineno, error.colno) == (position, line, column)
+    else:
+        raise AssertionError('invalid Unicode condition accepted')

@@ -5,23 +5,22 @@
 //!    `PyBinder.Bind` 完成 Python 的参数绑定（默认值 / `*args` / `**kwargs` / 重复绑定报错），
 //!    再把绑定结果拆箱成静态方法需要的类型，最后装箱返回值。
 //! 2. **调用入口**：模块静态字段 `PyFunction`，持有 thunk 委托、签名与默认值数组。
-//! 3. **模块初始化方法** `__init_functions`：分配默认值数组、签名与函数对象。
+//! 3. **模块初始化方法** `__init_functions`：仅预建签名，不提前创建Python函数身份。
 //!
-//! 默认值数组先分配、由 `__main` 开头的 MIR 语句填充。这样 `PyFunction` 持有的是
-//! 同一个数组引用，多次调用共享同一份可变默认值（与 CPython 一致）。
+//! 默认值数组与函数对象在真实def执行点构造；成功发布才更新公开函数与直调默认值槽。
 
 use std::borrow::Cow;
 
 use dotnetdll::prelude::*;
 use rustc_hash::FxHashMap;
-use ryupy_mir::{FnId, Function, GlobalId, LinkedProgram, MirType};
+use ryupy_mir::{Function, GlobalId, LinkedProgram, MirType};
 
 use crate::stackify_refs::RuntimeRefs;
 use crate::types::ClassTypeMap;
 
 /// 为 MIR 的模块级 `GlobalDecl` 分配静态字段。
 ///
-/// 函数对象、默认值数组与签名有各自的 CLR 类型（`object` / `object[]` / `PySignature`），
+/// 函数对象、默认值槽与签名的 CLR 类型是`object` / `object` / `PySignature`，
 /// MIR 侧统一记成 `Dynamic`；这里按用途覆盖成具体类型，避免每次读取都 `castclass`。
 pub(crate) fn allocate_global_fields(
     res: &mut Resolution<'static>,
@@ -37,7 +36,8 @@ pub(crate) fn allocate_global_fields(
             roles.insert(global, object_member.clone());
         }
         if let Some(global) = func.defaults_global {
-            roles.insert(global, BaseType::vector(object_member.clone()).into());
+            // MIR动态临时可保存实例Defaults；ArrayGet统一接受object，不制造隐式窄类型store。
+            roles.insert(global, object_member.clone());
         }
         if let Some(global) = func.signature_global {
             roles.insert(global, signature_member.clone());
@@ -46,6 +46,13 @@ pub(crate) fn allocate_global_fields(
 
     let mut fields = FxHashMap::default();
     for (id, global) in program.globals.iter() {
+        // 公开实例名字仅存在于真实字典；不得生成第二份静态镜像。
+        if matches!(
+            global.storage,
+            ryupy_mir::GlobalStorage::InstancePublic { .. }
+        ) {
+            continue;
+        }
         let member_ty = roles
             .remove(&id)
             .or_else(|| crate::types::mir_type_to_member_type(&global.ty, class_types))
@@ -63,8 +70,8 @@ pub(crate) fn allocate_global_fields(
 ///
 /// 统一签名 `object (PyFunction, object[], string[], object[])`：第一个参数是函数
 /// 对象自身——慢路径要从实例上取签名 / 默认值 / 闭包环境（M3.0 的嵌套函数没有
-/// 静态默认值槽位）。闭包函数把 `Env` 透传给静态方法的额外尾参数；静态方法的
-/// 签名在 assembly.rs 按 `Function::env` 生成。
+/// 静态默认值槽位）。闭包函数把 `Env` 透传给core；Dynamic函数再追加实际self来源，
+/// 不读取公开名字槽。core签名在assembly.rs按MIR的完整params生成。
 pub(crate) fn emit_thunk(
     res: &mut Resolution<'static>,
     module_class: TypeIndex,
@@ -74,21 +81,23 @@ pub(crate) fn emit_thunk(
     class_types: &ClassTypeMap,
     index: usize,
 ) -> MethodIndex {
+    let owned = func.module_state_source == Some(ryupy_mir::InstanceStateSource::FunctionParameter);
+    let offset = u16::from(owned);
     let object_type = refs.object_type.clone();
     let object_array: MethodType = BaseType::vector(object_type.clone()).into();
     let method_idx = {
         let py_function_mt = refs.py_function_type.clone();
         let string_array: MethodType = BaseType::vector(BaseType::String.into()).into();
-        let sig = MethodSignature::new(
-            false,
-            ReturnType::value(object_type.clone()),
-            vec![
-                Parameter::value(py_function_mt),
-                Parameter::value(object_array.clone()),
-                Parameter::value(string_array),
-                Parameter::value(object_array.clone()),
-            ],
-        );
+        let mut parameters = vec![
+            Parameter::value(py_function_mt),
+            Parameter::value(object_array.clone()),
+            Parameter::value(string_array),
+            Parameter::value(object_array.clone()),
+        ];
+        if owned {
+            parameters.insert(0, Parameter::value(object_type.clone()));
+        }
+        let sig = MethodSignature::new(false, ReturnType::value(object_type.clone()), parameters);
         res.push_method(
             module_class,
             Method::new(
@@ -100,9 +109,8 @@ pub(crate) fn emit_thunk(
         )
     };
 
-    // env 形参不属于 Python 参数：绑定、快路径与默认值数组都按 Python 参数算。
-    let env_extra = usize::from(func.env.is_some());
-    let py_params = &func.params[..func.params.len() - env_extra];
+    // Python参数由MIR显式元数据划界，不能将cells/context/self交给binder。
+    let py_params = &func.params[..func.param_meta.len()];
     let total = py_params.len();
     let simple_positional = func.param_meta.iter().all(|p| {
         matches!(
@@ -118,14 +126,14 @@ pub(crate) fn emit_thunk(
     // （少一次调用帧，对递归深度与热路径都有明显收益）。
     if simple_positional {
         // if (args.Length != total) goto slow
-        ins.push(Instruction::LoadArgument(1));
+        ins.push(Instruction::LoadArgument(1 + offset));
         ins.push(Instruction::LoadLength);
         ins.push(Instruction::Convert(ConversionType::Int32));
         ins.push(Instruction::LoadConstantInt32(total as i32));
         fast_branches.push(ins.len());
         ins.push(Instruction::BranchNotEqual(0));
         // if (kwNames.Length != 0) goto slow
-        ins.push(Instruction::LoadArgument(2));
+        ins.push(Instruction::LoadArgument(2 + offset));
         ins.push(Instruction::LoadLength);
         ins.push(Instruction::Convert(ConversionType::Int32));
         ins.push(Instruction::LoadConstantInt32(0));
@@ -133,7 +141,7 @@ pub(crate) fn emit_thunk(
         ins.push(Instruction::BranchNotEqual(0));
 
         for (index, param) in py_params.iter().enumerate() {
-            ins.push(Instruction::LoadArgument(1));
+            ins.push(Instruction::LoadArgument(1 + offset));
             ins.push(Instruction::LoadConstantInt32(index as i32));
             ins.push(Instruction::LoadElement {
                 skip_range_check: false,
@@ -143,7 +151,7 @@ pub(crate) fn emit_thunk(
             let ty = func.body.locals[*param].ty.clone();
             unbox_parameter(&mut ins, &ty, refs, class_types);
         }
-        emit_load_env(&mut ins, func.env, refs);
+        emit_hidden_args(&mut ins, func, refs);
         ins.push(Instruction::call(static_method));
         emit_box_return(&mut ins, func, refs, class_types);
         ins.push(Instruction::Return);
@@ -160,10 +168,10 @@ pub(crate) fn emit_thunk(
             volatile: false,
             param0: FieldSource::Definition(field_of(func.signature_global, refs)),
         },
-        Instruction::LoadArgument(1),
-        Instruction::LoadArgument(2),
-        Instruction::LoadArgument(3),
-        Instruction::LoadArgument(0),
+        Instruction::LoadArgument(1 + offset),
+        Instruction::LoadArgument(2 + offset),
+        Instruction::LoadArgument(3 + offset),
+        Instruction::LoadArgument(offset),
         Instruction::call(refs.py_function_get_defaults),
         Instruction::call(refs.bind_args),
         Instruction::StoreLocal(0),
@@ -180,29 +188,41 @@ pub(crate) fn emit_thunk(
         let ty = func.body.locals[*param].ty.clone();
         unbox_parameter(&mut ins, &ty, refs, class_types);
     }
-    emit_load_env(&mut ins, func.env, refs);
+    emit_hidden_args(&mut ins, func, refs);
 
     ins.push(Instruction::call(static_method));
     emit_box_return(&mut ins, func, refs, class_types);
     ins.push(Instruction::Return);
 
     let mut body = body::Method::with_locals(vec![LocalVariable::new(object_array)], ins);
-    body.header.maximum_stack_size = py_params.len() + 8;
+    // 完整core参数数包含env/owner，宽签名不能漏算隐藏引用的栈占用。
+    body.header.maximum_stack_size = func.params.len() + 8;
     res[method_idx].body = Some(body);
     method_idx
 }
 
-/// 把 thunk 第 0 个参数（函数对象自身）的 `Env` 压栈：闭包函数透传，
-/// 非闭包不压栈（静态方法没有该形参，压栈与否必须与方法签名一致）。
-fn emit_load_env(ins: &mut Vec<Instruction>, env: Option<ryupy_mir::LocalId>, refs: &RuntimeRefs) {
-    if env.is_some() {
-        ins.push(Instruction::LoadArgument(0));
+/// 两条thunk路径共用隐藏参数顺序：闭包Env、实例context、实际PyFunction自身。
+fn emit_hidden_args(ins: &mut Vec<Instruction>, func: &Function, refs: &RuntimeRefs) {
+    let owned = func.module_state_source == Some(ryupy_mir::InstanceStateSource::FunctionParameter);
+    let self_arg = u16::from(owned);
+    if func.env.is_some() {
+        ins.push(Instruction::LoadArgument(self_arg));
         ins.push(Instruction::call(refs.py_function_get_env));
+    }
+    if owned {
+        ins.push(Instruction::LoadArgument(0));
+    }
+    if func.dynamic_origin.is_some() {
+        ins.push(Instruction::LoadArgument(self_arg));
     }
 }
 
 /// 函数体是否调用过内建 `super()`；用于决定方法调用是否需要维护上下文。
 pub(crate) fn function_uses_super(func: &Function) -> bool {
+    // 实例调用只使用已验证的显式frame，绝不维护旧lookup-owner/TLS上下文。
+    if func.module_state_source.is_some() {
+        return false;
+    }
     func.body.blocks.iter().any(|(_, block)| {
         block.stmts.iter().any(|stmt| match stmt {
             ryupy_mir::Statement::Assign {
@@ -240,13 +260,12 @@ fn emit_box_return(
     }
 }
 
-/// 生成 `__init_functions`：分配默认值数组、签名与函数对象。
+/// 生成 `__init_functions`：预建共享签名，所有可观察函数实例留在def执行点。
 pub(crate) fn emit_init_functions(
     res: &mut Resolution<'static>,
     module_class: TypeIndex,
     program: &LinkedProgram,
     refs: &RuntimeRefs,
-    thunks: &FxHashMap<FnId, MethodIndex>,
 ) -> MethodIndex {
     let method_idx = res.push_method(
         module_class,
@@ -258,11 +277,10 @@ pub(crate) fn emit_init_functions(
         ),
     );
 
-    let object_type = refs.object_type.clone();
     let string_type: MethodType = BaseType::String.into();
     let mut ins = Vec::new();
 
-    for (fn_id, func) in program.functions.iter() {
+    for (function_id, func) in program.functions.iter() {
         let Some(signature_global) = func.signature_global else {
             continue;
         };
@@ -294,64 +312,36 @@ pub(crate) fn emit_init_functions(
             volatile: false,
             param0: signature_field.into(),
         });
-
-        // 顶层函数：分配默认值数组并创建函数对象；嵌套函数的对象在 def 位置创建。
-        let (Some(function_global), Some(defaults_global)) =
-            (func.function_global, func.defaults_global)
-        else {
-            continue;
-        };
-        let function_field = field_of(Some(function_global), refs);
-        let defaults_field = field_of(Some(defaults_global), refs);
-
-        // defaults = new object[参数个数]
-        ins.push(Instruction::LoadConstantInt32(func.params.len() as i32));
-        ins.push(Instruction::NewArray(object_type.clone()));
-        ins.push(Instruction::StoreStaticField {
-            volatile: false,
-            param0: defaults_field.into(),
-        });
-
-        // function = new PyFunction(name, sig, new PyCall(null, &thunk), defaults)
-        ins.push(Instruction::load_string(func.name.clone()));
-        ins.push(Instruction::LoadStaticField {
-            volatile: false,
-            param0: FieldSource::Definition(signature_field),
-        });
-        ins.push(Instruction::LoadNull);
-        let thunk = thunks
-            .get(&fn_id)
-            .copied()
-            .unwrap_or_else(|| panic!("函数 {:?} 缺少 thunk", func.name));
-        ins.push(Instruction::LoadMethodPointer(thunk.into()));
-        ins.push(Instruction::NewObject(UserMethod::Reference(
-            refs.py_call_ctor,
-        )));
-        ins.push(Instruction::LoadStaticField {
-            volatile: false,
-            param0: FieldSource::Definition(defaults_field),
-        });
-        ins.push(Instruction::LoadConstantInt32(
-            if function_uses_super(func) { 1 } else { 0 },
-        ));
-        // 顶层函数没有闭包环境：env 固定 null（M3.0）。
-        ins.push(Instruction::LoadNull);
-        ins.push(Instruction::NewObject(UserMethod::Reference(
-            refs.py_function_ctor,
-        )));
-        if let Some(identity_global) = func.specialization_identity_global {
-            // MIR 明示的私有身份锚点保留同一个原始对象；不再次构造，也不读取可变公开槽。
-            // 本初始化方法在任何用户模块入口执行前运行，后端不判断哪些函数值得特化。
-            ins.push(Instruction::Duplicate);
-            ins.push(Instruction::StoreStaticField {
+        // 每个signature关联实际unit，合成定义可无lexical信息；旧手工MIR保原冷ABI。
+        let source = ryupy_mir::source_provenance::for_function(&program.globals, function_id);
+        if func.definition.is_some() || source.is_some() {
+            ins.push(Instruction::LoadStaticField {
                 volatile: false,
-                param0: field_of(Some(identity_global), refs).into(),
+                param0: signature_field.into(),
             });
+            if let Some(definition) = &func.definition {
+                ins.push(Instruction::load_string(
+                    definition.lexical_qualname.clone(),
+                ));
+                ins.push(Instruction::LoadConstantInt64(i64::from(
+                    definition.firstlineno,
+                )));
+            } else {
+                ins.push(Instruction::LoadNull);
+                ins.push(Instruction::LoadConstantInt64(0));
+            }
+            if let Some(source) = source {
+                ins.push(Instruction::LoadStaticField {
+                    volatile: false,
+                    param0: refs.global_fields[&source].into(),
+                });
+                ins.push(Instruction::call(
+                    refs.function_objects.definition_with_source,
+                ));
+            } else {
+                ins.push(Instruction::call(refs.function_objects.definition));
+            }
         }
-        ins.push(Instruction::StoreStaticField {
-            volatile: false,
-            param0: function_field.into(),
-        });
     }
     ins.push(Instruction::Return);
 

@@ -192,6 +192,10 @@ impl FunctionBuilder<'_> {
             let guard_body = self.new_block();
             self.blocks[guard_bb].terminator = Terminator::Goto(guard_body);
             self.current_bb = guard_body;
+            // S2a仅准入自动handler cleanup；真实catch在PopTo前转发同一Q。
+            #[cfg(feature = "trace-adapter-test")]
+            self.emit_adapter_receive(guard_exc.expect("已检查"), true);
+            self.emit_product_receive(guard_exc.expect("已检查"), true);
             self.emit_frame_restore();
             // 登记当前异常：`finally` 里再抛出的异常要把这条挂成 __context__
             let prev_current = saved_context.expect("finally上下文已保存");
@@ -204,6 +208,7 @@ impl FunctionBuilder<'_> {
             });
             self.set_flow(FLOW_EXCEPTION);
             self.regions.push(Region {
+                source_handler_chain: None,
                 kind: RegionKind::FinallyGuard,
                 try_start: start_bb,
                 try_len: outer_end - start_index,
@@ -278,6 +283,45 @@ impl FunctionBuilder<'_> {
         normals: &mut Vec<BlockId>,
         regions: &mut Vec<Region>,
     ) {
+        let semantics = handlers
+            .first()
+            .map(|id| self.hir.functions[self.current_hir_fn].body.handlers[*id].semantics);
+        if handlers.iter().any(|id| {
+            let handler = &self.hir.functions[self.current_hir_fn].body.handlers[*id];
+            Some(handler.semantics) != semantics
+                || (self.module_state.is_some()
+                    && matches!(
+                        handler.semantics,
+                        ryupy_hir::HandlerSemantics::SourceStatic
+                            | ryupy_hir::HandlerSemantics::SourceDynamic
+                    ))
+                || (!handler.semantics.is_dynamic() && handler.type_expr.is_some())
+                || (self.module_state.is_none()
+                    && handler.semantics == ryupy_hir::HandlerSemantics::InstanceNameDynamic)
+        }) {
+            self.diagnostics.push(
+                ryupy_base::Diagnostic::error(
+                    ryupy_base::Span::new(
+                        self.hir.file,
+                        self.hir.functions[self.current_hir_fn].body.handlers[handlers[0]].range,
+                    ),
+                    "异常链的来源或分派不一致",
+                )
+                .with_code("E0305"),
+            );
+            return;
+        }
+        if semantics.is_some_and(ryupy_hir::HandlerSemantics::is_dynamic) {
+            self.build_dynamic_handlers(
+                handlers,
+                start_bb,
+                inner_end,
+                has_finally,
+                normals,
+                regions,
+            );
+            return;
+        }
         let inner_start = self.block_index(start_bb);
         for &handler_id in handlers {
             let (types, name, handler_body) = {
@@ -330,6 +374,9 @@ impl FunctionBuilder<'_> {
 
             // 0) 被展开的调用栈帧要弹回本函数：异常穿过的那几层不会执行自己的
             //    PopTo，不补这一步，递归守卫的深度会被永久占住。
+            #[cfg(feature = "trace-adapter-test")]
+            self.emit_adapter_receive(exc, false);
+            self.emit_product_receive(exc, false);
             self.emit_frame_restore();
 
             // 1) 登记当前异常（裸 raise 与 __context__ 依赖它）
@@ -363,6 +410,7 @@ impl FunctionBuilder<'_> {
             // 5) 每条 catch 记录各注册一个区域
             if type_names.is_empty() {
                 regions.push(Region {
+                    source_handler_chain: None,
                     kind: RegionKind::CatchAll,
                     try_start: start_bb,
                     try_len: inner_end - inner_start,
@@ -372,6 +420,7 @@ impl FunctionBuilder<'_> {
             } else {
                 for (i, type_name) in type_names.into_iter().enumerate() {
                     regions.push(Region {
+                        source_handler_chain: None,
                         kind: RegionKind::Catch {
                             type_names: vec![type_name],
                         },

@@ -1,0 +1,41 @@
+# 独立 fresh 对象完整用户异常链；绝不调用 bare-raise probe。
+class Original(Exception):
+    pass
+
+class Replacement(Exception):
+    pass
+
+class Final(Exception):
+    pass
+
+original = Original("original-chain")
+replacement = Replacement("replacement-chain")
+final = Final("final-chain")
+
+class Targets:
+    @property
+    def error(self):
+        raise replacement
+
+def original_site():
+    raise original
+
+def dispatch_site():
+    targets = Targets()
+    try:
+        original_site()
+    except targets.error:
+        print("WRONG.selected")
+    except Replacement:
+        print("WRONG.same-try-replacement")
+
+def final_site():
+    try:
+        dispatch_site()
+    except Replacement as caught:
+        print("chain.fields", caught is replacement, caught.__context__ is original,
+              caught.__cause__ is None, caught.__suppress_context__)
+        print("chain.complete", True)
+        raise final from caught
+
+final_site()

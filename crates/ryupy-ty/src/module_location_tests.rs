@@ -1,4 +1,4 @@
-//! 只实际构建的公开__file__槽保对象身份；不扩大其余字符串/整数槽策略。
+//! 合成模块元数据使用对象槽；实际构建的文件槽沿原Dynamic路径，普通字面量保精确类型。
 #[test]
 fn runtime_module_file_is_dynamic_without_demoting_unrelated_module_slots() {
     let source = "ordinary = 'hello'\nnumber = 42\n";
@@ -10,6 +10,8 @@ fn runtime_module_file_is_dynamic_without_demoting_unrelated_module_slots() {
         let (module, errors) = ryupy_hir::lower_module(
             &parsed,
             &ryupy_hir::ModuleInfo {
+                instance_capabilities: Default::default(),
+                instance_globals: false,
                 resolve_file_at_runtime: enabled,
                 name: "pkg.unit".into(),
                 package: "pkg".into(),
@@ -32,12 +34,19 @@ fn runtime_module_file_is_dynamic_without_demoting_unrelated_module_slots() {
             if enabled {
                 crate::Ty::Dynamic
             } else {
-                crate::Ty::Str
+                crate::Ty::OpaqueStr
             }
         );
+        assert_eq!(ty("__name__"), crate::Ty::OpaqueStr);
+        assert_eq!(ty("__package__"), crate::Ty::OpaqueStr);
         assert_eq!(ty("ordinary"), crate::Ty::Str);
         assert_eq!(ty("number"), crate::Ty::Int);
-        let (_, errors) = crate::check_module(&module);
+        let (final_types, errors) = crate::check_module(&module);
         assert!(errors.is_empty(), "{errors:?}");
+        // 前置提示不是最终槽；合成元数据不得触发整main降级而抹掉其它槽的精确类型。
+        assert_eq!(final_types.mode(module.main), crate::FuncMode::Static);
+        for (id, var) in module.vars.iter() {
+            assert_eq!(final_types.module_vars[id], types[id], "{}", var.name);
+        }
     }
 }

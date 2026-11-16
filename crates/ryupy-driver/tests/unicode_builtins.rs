@@ -7,7 +7,13 @@ fn snapshot_unicode_builtins() {
     std::fs::write(&path, "print(ord('🎉'), chr(65))\n").unwrap();
     let mut session = Session::default();
     let output = dump(&mut session, &path, Stage::Mir).expect("ord/chr应走动态内建分派");
-    insta::assert_snapshot!(output.replace(path.to_str().unwrap(), "unicode.py"));
+    assert!(output.contains("DynBuiltin(const \"ord\""));
+    assert!(output.contains("DynBuiltin(const \"chr\""));
+    assert!(output.contains("🎉") && output.contains("const 65_i64"));
+    assert!(
+        output.find("DynBuiltin(const \"chr\"").unwrap()
+            < output.find("RuntimeFn::PrintTarget").unwrap()
+    );
     std::fs::remove_file(path).unwrap();
 }
 
@@ -17,6 +23,9 @@ fn snapshot_unicode_builtin_values() {
     std::fs::write(&path, "f = ord\ng = chr\nprint(f(g(65)))\n").unwrap();
     let mut session = Session::default();
     let output = dump(&mut session, &path, Stage::Mir).expect("ord/chr作为可调用内建值");
-    insta::assert_snapshot!(output.replace(path.to_str().unwrap(), "unicode.py"));
+    assert!(output.contains("BuiltinFunction(const \"ord\")"));
+    assert!(output.contains("BuiltinFunction(const \"chr\")"));
+    assert_eq!(output.matches("dyn.call(").count(), 2);
+    assert!(!output.contains("DynBuiltin(const \"ord\""));
     std::fs::remove_file(path).unwrap();
 }

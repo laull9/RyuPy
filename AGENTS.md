@@ -9,6 +9,10 @@ RyuPy：Rust 编写的 Python → .NET CIL 编译器。所有对话、文档、�
 - 语义规范：`docs/semantics.md`（常用行为对齐 CPython；已登记偏差明确说明，不支持项明确报错）
 - 开发循环：`docs/workflow.md` §3（竖切，一次一个特性）
 - 当前任务：`TODO.md`
+- 长期方向（2026-11-16，规划）：所有 Python 函数体进入 CIL，libpython 仅提供底层 ABI
+  与原生扩展能力，逐步移除 Python 胶水与解释执行。见 `docs/cil-execution-roadmap.md`、
+  ADR-0208；后续首切为 C0 盘点与基线冻结，C0–C5 均待办。当前兼容 provider、C ABI、
+  原生标准库与已有性能资产保留回归，默认晋升与旧路径退出分别验收。
 
 ## 命令
 
@@ -21,6 +25,10 @@ cargo test -p ryupy-e2e -- <名字过滤>
 
 ## 约定
 
+- 仓库只保留必要源码、手写测试输入、配置与文档。禁止提交测试/比较/构建产物、生成 golden、
+  `.snap` 和原始报告；项目中禁止遗留 patch/diff 文件。Python 预期由固定 CPython 同次即时生成，
+  IR/诊断使用源码结构断言。测试输出写仓库外临时目录并清理，详见 ADR-0182。
+
 - 学习项目：人不手写代码，但是得清楚知道作用、流程。
 - 单代码文件不超过600行，超出时拆分模块、设计分层。
 - git提交（2026-11-02用户最新授权）：允许小而完整、已验证的改动及时提交并推送；未完成工作可在独立WIP备份分支明确标注后及时远端保存，不能冒充main验收版本。禁止仅依赖本地/tmp保存未发布工作。
@@ -30,6 +38,7 @@ cargo test -p ryupy-e2e -- <名字过滤>
 - 只有 `ryupy-syntax` 依赖 ruff，只有 `ryupy-codegen-cil` 依赖 dotnetdll，codegen 不得依赖 HIR / ty。
 - 新增 `RuntimeFn` 时同步修改 `runtime/RyuPy.Runtime/` 与 codegen 引用表。
 - 新特性先写 e2e 用例（`# ryupy: pending`），完成后去掉标记。新发现的语义差异追加到 semantics.md §4。
-- 计划与实现分开登记；桥接通过不计入原生项目通过率。标准库逐 API 验收，不能以导入成功代表模块兼容。
+- 计划与实现分开登记；产品功能兼容率与纯 RyuPy 原生执行率分列，桥接结果归属前者。
+  固定版本和入口保留；JIT/NativeAOT、平台与搬迁分别验收；标准库逐 API 验收。
 - 性能实现保留常用结果、身份、别名与副作用；低影响差异经 ADR 接受并登记后可作为高性能默认实现，影响常用结果的扩展由用户显式选择。refcount / 析构时机边界见 compatibility.md。
 - 有取舍的决定写 ADR（`docs/adr/`）。

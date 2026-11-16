@@ -20,10 +20,26 @@ use crate::ty::Ty;
 
 /// 估算每个模块级变量的槽位类型。
 pub fn infer_module_var_types(module: &Module) -> ArenaMap<ModuleVarId, Ty> {
+    if module.info.instance_globals {
+        // 在读取注解/赋值提示之前决定，避免不动点与默认值分析看到过期静态类型。
+        return module
+            .vars
+            .iter()
+            .map(|(id, _)| (id, Ty::Dynamic))
+            .collect();
+    }
     // 每个变量的原始提示（`None` 表示暂时无法确定）。
     let mut hints: ArenaMap<ModuleVarId, Option<Ty>> = ArenaMap::default();
     for (id, var) in module.vars.iter() {
-        hints.insert(id, annotation_ty(module, var));
+        // 可删除的builtin遮蔽名在首次传播前就必须能容纳真实builtin对象。
+        hints.insert(
+            id,
+            if ryupy_hir::uses_deleted_builtin_fallback(var) {
+                Some(Ty::Dynamic)
+            } else {
+                annotation_ty(module, var)
+            },
+        );
     }
 
     // 收集模块顶层的赋值：变量 → 右值表达式。
@@ -33,7 +49,7 @@ pub fn infer_module_var_types(module: &Module) -> ArenaMap<ModuleVarId, Ty> {
     // `for i in range(...)` 的模块级循环变量一定是 int；先写入提示，
     // 避免被「无法从赋值推断」兜底成 Dynamic 而让静态槽位装箱。
     for var in collect_range_vars(module) {
-        if !module.vars[var].is_global && hints[var].as_ref() != Some(&Ty::Dynamic) {
+        if !module.vars[var].is_global && !matches!(hints[var], Some(Ty::Dynamic | Ty::OpaqueStr)) {
             hints.insert(var, Some(Ty::Int));
         }
     }
@@ -44,7 +60,7 @@ pub fn infer_module_var_types(module: &Module) -> ArenaMap<ModuleVarId, Ty> {
     for _ in 0..rounds {
         let mut changed = false;
         for &(var, value) in &assignments {
-            if module.vars[var].is_global {
+            if module.vars[var].is_global || hints[var] == Some(Ty::OpaqueStr) {
                 continue;
             }
             let Some(hint) = expr_hint(module, body, value, &hints) else {
@@ -236,6 +252,7 @@ pub(crate) fn expr_hint(
     }
     match &body.exprs[expr].kind {
         ExprKind::ModuleFile(_) => Some(Ty::Str),
+        ExprKind::ModuleMetadata(_, _) => Some(Ty::Dynamic),
         ExprKind::Literal(lit) => Some(match lit {
             // 超出 i64 的整数必须装箱（BigInteger），槽位类型按 Dynamic 处理。
             Literal::Int(v) if i64::try_from(*v).is_err() => Ty::Dynamic,
@@ -291,7 +308,39 @@ pub(crate) fn expr_hint(
                 }
             }
         }
-        ExprKind::Compare { .. } => Some(Ty::Bool),
+        ExprKind::Compare { op, lhs, rhs } => {
+            // 身份/成员测试固定返回 bool；富比较只在精确静态操作数可证明时固定槽类型。
+            // ndarray 或用户 __lt__ 的原始返回对象必须保留到条件位置才求真。
+            if matches!(
+                op,
+                ryupy_hir::CmpOp::Is
+                    | ryupy_hir::CmpOp::IsNot
+                    | ryupy_hir::CmpOp::In
+                    | ryupy_hir::CmpOp::NotIn
+            ) {
+                return Some(Ty::Bool);
+            }
+            let left = expr_hint(module, body, *lhs, hints)?;
+            let right = expr_hint(module, body, *rhs, hints)?;
+            Some(crate::ops::check_cmp_op(*op, &left, &right).unwrap_or(Ty::Dynamic))
+        }
+        ExprKind::CompareChain { operands, ops } => {
+            let types = operands
+                .iter()
+                .map(|operand| expr_hint(module, body, *operand, hints))
+                .collect::<Option<Vec<_>>>()?;
+            Some(
+                if types.len() == ops.len() + 1
+                    && ops.iter().zip(types.windows(2)).all(|(op, pair)| {
+                        crate::ops::check_cmp_op(*op, &pair[0], &pair[1]) == Some(Ty::Bool)
+                    })
+                {
+                    Ty::Bool
+                } else {
+                    Ty::Dynamic
+                },
+            )
+        }
         ExprKind::BoolOp { lhs, rhs, .. } => {
             let a = expr_hint(module, body, *lhs, hints)?;
             let b = expr_hint(module, body, *rhs, hints)?;
@@ -335,6 +384,8 @@ mod tests {
         let (module, errors) = ryupy_hir::lower_module(
             &parsed,
             &ryupy_hir::ModuleInfo {
+                instance_capabilities: Default::default(),
+                instance_globals: false,
                 resolve_file_at_runtime: false,
                 name: "__main__".into(),
                 package: String::new(),

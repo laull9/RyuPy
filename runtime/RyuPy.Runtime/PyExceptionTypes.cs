@@ -1,3 +1,4 @@
+// Python内建异常类型与CLR异常壳的映射、构造及继承关系查询。
 using System;
 using System.Collections.Generic;
 
@@ -29,18 +30,19 @@ namespace RyuPy.Runtime;
 public class PySystemExit : PyBaseException
 {
     /// <summary>退出码；<c>None</c> 表示 0，字符串表示打印后退出 1。</summary>
-    public object? Code { get; }
+    public object? Code => ForeignObject is PyNativeObject foreign ? foreign.GetAttr("code") : code;
+    private readonly object? code;
 
     /// <summary>构造 <c>SystemExit</c>。</summary>
     /// <param name="code">退出码或消息。</param>
     public PySystemExit(object? code = null)
         : base("SystemExit", "", code is null ? [] : [code])
     {
-        Code = code;
+        this.code = code;
     }
 
     /// <summary>异常消息只在显式格式化时读取，构造不调用用户str。</summary>
-    public override string PyMessage => Code is null ? "" : PyRepr.Str(Code);
+    public override string PyMessage => ForeignObject is PyNativeObject foreign ? foreign.PythonStr() : Code is null ? "" : PyRepr.Str(Code);
 }
 
 /// <summary><c>KeyboardInterrupt</c>。</summary>
@@ -468,10 +470,11 @@ public class PyPermissionError : PyOSError
 public class PyStopIteration : PyException
 {
     /// <summary><c>StopIteration.value</c>。</summary>
-    public object? Value { get; }
+    public object? Value => ForeignObject is PyNativeObject foreign ? foreign.GetAttr("value") : value;
+    private readonly object? value;
 
-    /// <summary>仅在请求消息时格式化；完成生成器不可调用返回值的 __str__。</summary>
-    public override string PyMessage => Value is null ? "" : PyRepr.Str(Value);
+    /// <summary>仅在请求消息时按完整 args 格式化；完成生成器不可调用返回值的 __str__。</summary>
+    public override string PyMessage => ForeignObject is PyNativeObject foreign ? foreign.PythonStr() : PyErrors.UserExceptionMessage(Args);
 
     /// <summary>CLR 消息读取同样使用延迟格式化，不缓存可变返回值。</summary>
     public override string Message => PyMessage;
@@ -482,8 +485,16 @@ public class PyStopIteration : PyException
         : base("StopIteration", "", value is null or PyNone ? [] : [value])
     {
         // 内部迭代完成使用此构造；None 代表无终值，tuple 等对象仍是一个参数。
-        Value = value is PyNone ? null : value;
+        this.value = value is PyNone ? null : value;
     }
+
+    /// <summary>供生成的用户子类保留真实名字与全部参数，不提前格式化。</summary>
+    /// <param name="typeName">Python 类型名。</param>
+    /// <param name="message">保留派生构造 ABI；消息由原始参数延迟生成。</param>
+    /// <param name="args">位置参数；独占浅拷贝，元素身份不变。</param>
+    protected PyStopIteration(string typeName, string message, object?[] args)
+        : base(typeName, "", (object?[])args.Clone())
+        => value = Args.Length == 0 ? null : Args[0];
 }
 
 /// <summary><c>StopAsyncIteration</c>。</summary>
@@ -522,67 +533,3 @@ public class PyEOFError : PyException
 /// <param name="Function">函数名（模块顶层为 <c>&lt;module&gt;</c>）。</param>
 /// <param name="Line">当前行号；0 表示未知。</param>
 public readonly record struct PyStackFrame(string File, string Function, int Line);
-
-/// <summary>异常类型注册表：按 Python 类型名构造对应的 CLR 异常对象。</summary>
-/// <remarks>
-/// 这里集中维护「Python 类型名 → CLR 类」的映射。CIL 的类型化 catch 依赖 CLR 类，
-/// 所以新增可捕获的异常类型必须同时满足两件事：加一个类、在这张表里登记。
-/// 编译期 <c>runtime/RyuPy.Runtime</c> 与 codegen 的引用表也按这张表同步。
-/// </remarks>
-public static class PyExceptionTypes
-{
-    private static readonly Dictionary<string, Func<string, PyBaseException>> Factories = new()
-    {
-        ["BaseException"] = m => new PyBaseException("BaseException", m),
-        ["Exception"] = m => new PyException("Exception", m),
-        ["SystemExit"] = m => new PySystemExit(m),
-        ["KeyboardInterrupt"] = m => new PyKeyboardInterrupt(m),
-        ["GeneratorExit"] = m => new PyGeneratorExit(m),
-        ["ArithmeticError"] = m => new PyArithmeticError(m),
-        ["ZeroDivisionError"] = m => new PyZeroDivisionError(m),
-        ["OverflowError"] = m => new PyOverflowError(m),
-        ["LookupError"] = m => new PyLookupError(m),
-        ["IndexError"] = m => new PyIndexError(m),
-        ["KeyError"] = m => new PyKeyError(m),
-        ["ValueError"] = m => new PyValueError(m),
-        ["UnicodeError"] = m => new PyUnicodeError(m),
-        ["UnicodeDecodeError"] = m => new PyUnicodeDecodeError(m),
-        ["UnicodeEncodeError"] = m => new PyUnicodeEncodeError(m),
-        ["TypeError"] = m => new PyTypeError(m),
-        ["NameError"] = m => new PyNameError(m),
-        ["UnboundLocalError"] = m => new PyUnboundLocalError(m),
-        ["AttributeError"] = m => new PyAttributeError(m),
-        ["FrozenInstanceError"] = m => new PyFrozenInstanceError(m),
-        ["RuntimeError"] = m => new PyRuntimeError(m),
-        ["NotImplementedError"] = m => new PyNotImplementedError(m),
-        ["RecursionError"] = m => new PyRecursionError(m),
-        ["AssertionError"] = m => new PyAssertionError(m),
-        ["ImportError"] = m => new PyImportError(m),
-        ["ModuleNotFoundError"] = m => new PyModuleNotFoundError(m),
-        ["OSError"] = m => new PyOSError(m),
-        ["UnsupportedOperation"] = m => m.Length == 0 ? new PyUnsupportedOperation() : new PyUnsupportedOperation(m),
-        ["IsADirectoryError"] = m => new PyIsADirectoryError(m),
-        ["NotADirectoryError"] = m => new PyNotADirectoryError(m),
-        ["FileNotFoundError"] = m => new PyFileNotFoundError(m),
-        ["FileExistsError"] = m => new PyFileExistsError(m),
-        ["PermissionError"] = m => new PyPermissionError(m),
-        ["StopIteration"] = _ => new PyStopIteration(null),
-        ["StopAsyncIteration"] = _ => new PyStopAsyncIteration(),
-        ["EOFError"] = m => new PyEOFError(m),
-        ["BufferError"] = m => new PyBufferError(m),
-    };
-
-    /// <summary>该名字是否是已知的 Python 异常类型（供编译期诊断使用）。</summary>
-    /// <param name="typeName">Python 类型名。</param>
-    public static bool IsKnown(string typeName) => Factories.ContainsKey(typeName)
-        || PyExceptionHierarchy.IsSubclass(typeName, "Warning");
-
-    /// <summary>按类型名构造异常对象；未知名字退化成 <c>Exception</c> 家族。</summary>
-    /// <param name="typeName">Python 类型名。</param>
-    /// <param name="message">消息。</param>
-    public static PyBaseException Create(string typeName, string message) =>
-        PyExceptionHierarchy.IsSubclass(typeName, "Warning") ? PyWarningTypes.Create(typeName, [message]) :
-        Factories.TryGetValue(typeName, out var factory)
-            ? factory(message)
-            : new PyException(typeName, message);
-}

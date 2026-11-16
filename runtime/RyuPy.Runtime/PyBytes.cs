@@ -56,7 +56,7 @@ public sealed class PyBytes
 }
 
 /// <summary>Python <c>bytearray</c>：可变字节序列。</summary>
-public sealed class PyByteArray
+public sealed partial class PyByteArray
 {
     /// <summary>字节内容。</summary>
     public List<byte> Bytes { get; }

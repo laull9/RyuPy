@@ -29,12 +29,14 @@ pub fn parse(file: FileId, source: &str) -> (ParsedModule, Vec<Diagnostic>) {
         .map(|e| {
             Diagnostic::error(Span::new(file, e.location), e.error.to_string())
                 .with_code("E0001")
+                .with_deferred_failure(ryupy_base::diagnostic::DeferredFailure::ParseRejected)
                 .with_primary_label("语法错误")
         })
         .collect();
     diagnostics.extend(parsed.unsupported_syntax_errors().iter().map(|e| {
         Diagnostic::error(Span::new(file, e.range), e.to_string())
             .with_code("E0002")
+            .with_deferred_failure(ryupy_base::diagnostic::DeferredFailure::ParseRejected)
             .with_primary_label("目标 Python 版本不支持该语法")
     }));
 

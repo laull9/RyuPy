@@ -1,0 +1,8 @@
+# CP合法完整Unicode隐式metavar参考；首切仅此帮助生成路径明确未实现。
+from optparse import OptionParser
+parser = OptionParser(prog='demo', add_help_option=False)
+parser.add_option('--straße', help='value')
+assert '--straße=STRASSE' in parser.format_help()
+values, rest = parser.parse_args(['--straße', 'ok'])
+assert getattr(values, 'straße') == 'ok'
+print(rest)

@@ -1,4 +1,4 @@
-//! 快照仅归一化真实入口路径；实际程序集与进程测试仍保留原始 argv[0]。
+//! IR文本只归一化真实入口路径；实际程序集与进程测试仍保留原始 argv[0]。
 use std::path::Path;
 
 pub fn dump(
@@ -19,3 +19,7 @@ pub fn dump(
         Ok(output)
     }
 }
+
+// 多个集成套件只使用dump，临时根按需要选用。
+#[allow(dead_code)]
+pub mod temp_scope;

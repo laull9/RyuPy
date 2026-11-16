@@ -1,0 +1,92 @@
+# 新dedent独立门：不改旧job依赖；失败仍保实际ELF与发布日志，不替代项目/Markdown门。
+name: textwrap dedent有限同源验收
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  textwrap-dedent:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 构建前纯控制自测与全部冻结输入校验
+        timeout-minutes: 2
+        run: |
+          python3 -B -m unittest discover -s scripts -p textwrap_dedent_selftest.py
+          python3 -B -m unittest discover -s tests/validation/generator_product -p test_diagnostic_once.py
+      - name: 原固定官方工具准备双流
+        timeout-minutes: 10
+        run: |
+          mkdir -p target/textwrap-dedent-prepare
+          printf '%s\n' '["python3", "-B", "tests/aot/wcwidth_ci/prepare.py"]' > target/textwrap-dedent-prepare/argv.json
+          status=0
+          python3 -B tests/aot/wcwidth_ci/prepare.py > target/textwrap-dedent-prepare/stdout 2> target/textwrap-dedent-prepare/stderr || status=$?
+          printf '%s\n' "$status" > target/textwrap-dedent-prepare/exit
+          exit "$status"
+      - name: 独立C#编译与专项fresh进程及CP和JIT
+        timeout-minutes: 45
+        run: '"$PYTHON" -B scripts/textwrap_dedent_validation.py --phase jit'
+      - name: Native前保存原流与TRX和实际PE
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: dedent-checkpoint-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/textwrap-dedent-evidence/*.json
+            target/textwrap-dedent-evidence/*.stdout
+            target/textwrap-dedent-evidence/*.stderr
+            target/textwrap-dedent-evidence/trx*
+            target/textwrap-dedent-evidence/products
+            target/textwrap-dedent-evidence/textwrapper-processes
+            target/textwrap-dedent-prepare
+          if-no-files-found: warn
+          retention-days: 3
+      - name: 重核同源工具后真实ILC及撤编译输入原位和搬移
+        # 仅决定有无state可读；脚本仍先重核HEAD/tree/全部SHA和产品路径，不能恢复旧pass。
+        if: ${{ !cancelled() && hashFiles('target/textwrap-dedent-evidence/state.json') != '' }}
+        timeout-minutes: 85
+        run: '"$PYTHON" -B scripts/textwrap_dedent_validation.py --phase native'
+      - name: 失败仍保全部小证据与唯一候选源码
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: dedent-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/textwrap-dedent-evidence
+            !target/textwrap-dedent-evidence/tools/**
+            !target/textwrap-dedent-evidence/**/native-build/**
+            !target/textwrap-dedent-evidence/**/relocated/**
+            !target/textwrap-dedent-evidence/**/native-dist.tar.gz
+            target/textwrap-dedent-prepare
+            ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
+          if-no-files-found: error
+          retention-days: 3
+      - name: 失败前实际ELF归档与唯一同轮工具
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: dedent-tools-native-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/textwrap-dedent-evidence/tools
+            target/textwrap-dedent-evidence/**/native-dist.tar.gz
+          if-no-files-found: warn
+          retention-days: 3
+      - name: 明确有限支持与旧保护口径
+        if: always()
+        run: |
+          printf '%s\n' '## dedent有限域，默认项目分子变化0' \
+            'CP正门、NI负门、完整正期待pending分别报告；NI不等于CP通过。' \
+            '普通fullcheck新增1个fresh Fact显式skip；专用18场景各新进程须唯一Passed及FRESH_OK marker，不计skip为通过。' \
+            'Native撤除范围仅完整编译输入inputs原路径；repo原fixtures和候选source归档保留，不声称全机器源码清除。' \
+            'metadata真实Markdown full77B和原baseline/fullcheck/projects等同HEAD独立验收，新dedent失败不跳过它们。' \
+            '旧search/noreturn历史专用job保持本模式skip，不能冒领同HEAD通过；通用fullcheck照常运行。' >> "$GITHUB_STEP_SUMMARY"

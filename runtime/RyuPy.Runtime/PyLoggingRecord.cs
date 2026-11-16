@@ -7,13 +7,19 @@ internal sealed class PyLoggingRecord
     internal readonly object? Message;
     internal readonly object?[] Arguments;
     internal PyLoggingRecord(string name, long level, object? message, object?[] arguments)
-    { Name = name; Level = level; Message = message; Arguments = arguments; }
+    {
+        // logger 已完成绑定与等级过滤；在 handler 吞格式化错误之前建立明确的 OD 边界。
+        if (arguments.Length == 1 && arguments[0] is PyOrderedDict)
+            throw PyOrderedDict.Unsupported("logging record mapping");
+        Name = name; Level = level; Message = message; Arguments = arguments;
+    }
     internal string GetMessage()
     {
         string message = PyRepr.Str(Message);
         if (Arguments.Length == 0) return message;
         object arguments = Arguments.Length == 1 && Arguments[0] is PyDict dict && dict.Count != 0
-            ? dict : new PyTuple(Arguments);
+            ? dict : Arguments.Length == 1 && Arguments[0] is PyDictInstance derived && derived.Payload.Count != 0
+                ? derived : new PyTuple(Arguments);
         return PyLoggingPercent.Format(message, arguments);
     }
 }

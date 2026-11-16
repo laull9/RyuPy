@@ -1,0 +1,331 @@
+//! 工厂竖切来源正反例：模板不持singleton，owner/namespace/cell发布身份不能替换。
+use crate::*;
+const SIMPLE: &str = "def make(x):\n    class C:\n        value = x\n        def read(self, initial=x): return initial, x, __class__\n    return C\na = make(1)\nb = make(2)\nprint(a is not b)\n";
+
+fn compile(source: &str, instance: bool) -> Program {
+    let mut db = ryupy_base::SourceDb::default();
+    let file = db.add("lexical.py", source);
+    let (parsed, diagnostics) = ryupy_syntax::parse(file, source);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (hir, diagnostics) = ryupy_hir::lower_module(
+        &parsed,
+        &ryupy_hir::ModuleInfo {
+            instance_globals: instance,
+            ..Default::default()
+        },
+        source,
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (types, diagnostics) = ryupy_ty::check_module(&hir);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (program, _, diagnostics) = build_program(&hir, &types);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    validate::validate(&program).unwrap();
+    program
+}
+fn plan(program: &Program) -> (ClassDefId, ClassCellDefinition) {
+    program
+        .classes
+        .iter()
+        .find_map(|(id, class)| {
+            class
+                .class_cell
+                .as_ref()
+                .filter(|cell| cell.lexical.is_some())
+                .cloned()
+                .map(|cell| (id, cell))
+        })
+        .unwrap()
+}
+#[test]
+fn lexical_class_pipeline_keeps_actual_owner_fresh_cells_and_dynamic_values() {
+    for instance in [false, true] {
+        for source in [
+            SIMPLE,
+            "def make():\n    class Outer:\n        class Inner:\n            value = __class__\n    return Outer\n",
+            "def make(x):\n    class C:\n        if x:\n            def read(self): return __class__\n        else:\n            def read(self): return x, __class__\n    return C\n",
+            "def make():\n    global C\n    class C:\n        def read(self): return __class__\n    return C\n",
+            "def enclosing():\n    C = None\n    def make():\n        nonlocal C\n        class C:\n            def read(self): return __class__\n        return C\n    return make\n",
+        ] {
+            let mut program = compile(source, instance);
+            let (_, cell) = plan(&program);
+            assert_ne!(cell.owner, program.entry);
+            let dump = pretty::dump(&program);
+            assert!(dump.contains("LexicalClassPrepare"));
+            assert!(dump.contains("LexicalClassFinish"));
+            passes::run_pipeline(&mut program, &passes::default_pipeline()).unwrap();
+            validate::validate(&program).unwrap();
+        }
+    }
+}
+#[test]
+fn lexical_class_rejects_namespace_substitution_and_wrong_owner() {
+    for owner in [false, true] {
+        let mut program = compile(SIMPLE, false);
+        let (class, cell) = plan(&program);
+        let plan = program.classes[class].class_cell.as_mut().unwrap();
+        if owner {
+            plan.owner = program.entry;
+        } else {
+            plan.lexical.as_mut().unwrap().namespace = cell.original_class;
+        }
+        assert!(validate::validate(&program).is_err());
+    }
+}
+#[test]
+fn lexical_class_rejects_publication_and_direct_cell_alias_forgery() {
+    let mut program = compile(SIMPLE, false);
+    let (class, cell) = plan(&program);
+    program.classes[class]
+        .class_cell
+        .as_mut()
+        .unwrap()
+        .lexical
+        .as_mut()
+        .unwrap()
+        .publication = LexicalClassPublication::Local(cell.original_class);
+    assert!(validate::validate(&program).is_err());
+    let mut program = compile(
+        "def make():\n    class Outer:\n        class Inner:\n            value = __class__\n    return Outer\n",
+        false,
+    );
+    let (_, cell) = plan(&program);
+    for (_, block) in program.functions[cell.owner].body.blocks.iter_mut() {
+        for statement in &mut block.stmts {
+            if let Statement::Assign { value, .. } = statement
+                && crate::lexical_cell_read::is_direct_read(value, &cell)
+                && let Rvalue::Call { args, .. } = value
+            {
+                args[1] = Operand::Const(Constant::I64(1));
+            }
+        }
+    }
+    assert!(validate::validate(&program).is_err());
+}
+
+#[test]
+fn dead_class_publication_accounts_for_eh_and_hidden_operand_reads() {
+    use crate::passes::MirPass;
+    let source = "def make():\n    try:\n        class C:\n            def read(self): return __class__\n    except ValueError:\n        pass\n";
+    let mut program = compile(source, false);
+    let (_, cell) = plan(&program);
+    let LexicalClassPublication::Local(target) = cell.lexical.as_ref().unwrap().publication else {
+        panic!("预期普通local发布")
+    };
+    let owner = &mut program.functions[cell.owner];
+    assert!(crate::lexical_class_cells::dead_local_publication(
+        owner, &cell
+    ));
+    crate::passes::dead_values::DeadValues.run(owner);
+    assert!(!owner.body.blocks.iter().any(|(_, block)| {
+        block
+            .stmts
+            .iter()
+            .any(|stmt| crate::lexical_class_cells::is_publication(stmt, &cell))
+    }));
+    validate::validate(&program).unwrap();
+    let owner = &mut program.functions[cell.owner];
+    owner.body.regions[0].exc_local = Some(target);
+    assert!(!crate::lexical_class_cells::dead_local_publication(
+        owner, &cell
+    ));
+    let errors = validate::validate(&program).unwrap_err();
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.contains("唯一实际类绑定发布")),
+        "{errors:?}"
+    );
+    for kind in 0..4 {
+        let mut program = compile(source, false);
+        let (_, cell) = plan(&program);
+        let LexicalClassPublication::Local(target) = cell.lexical.as_ref().unwrap().publication
+        else {
+            unreachable!()
+        };
+        let owner = &mut program.functions[cell.owner];
+        let block = &mut owner.body.blocks[owner.body.entry];
+        match kind {
+            0 => block.terminator = Terminator::Return(Some(Operand::Local(target))),
+            1 => {
+                block.terminator = Terminator::Raise {
+                    value: Some(Operand::Local(target)),
+                    cause: None,
+                }
+            }
+            _ => block.stmts.push(Statement::Eval(Rvalue::InstanceZeroCall {
+                callee: Operand::Const(Constant::Null),
+                frame: ZeroCallFrame {
+                    first_parameter: (kind == 2).then_some(target),
+                    class: if kind == 3 {
+                        SuperClassSource::Lexical {
+                            environment: target,
+                            index: 0,
+                        }
+                    } else {
+                        SuperClassSource::Missing
+                    },
+                },
+            })),
+        }
+        assert!(!crate::lexical_class_cells::dead_local_publication(
+            owner, &cell
+        ));
+    }
+}
+
+#[test]
+fn namespace_unsupported_builtin_fallback_survives_pipeline_without_opening_api() {
+    for source in [
+        "def make():\n    class C:\n        eval = 1\n        copied = eval\n    return C.copied\n",
+        "def make(flag):\n    class C:\n        if flag: eval = 1\n        copied = eval\n    return C.copied\n",
+        "eval = 7\ndef make(flag):\n    class C:\n        if flag: eval = 1\n        copied = eval\n    return C.copied\n",
+    ] {
+        let mut program = compile(source, false);
+        passes::run_pipeline(&mut program, &passes::default_pipeline()).unwrap();
+        validate::validate(&program).unwrap();
+    }
+}
+
+#[test]
+fn explicit_aot_class_guard_no_cell_and_old_path_contract() {
+    for cell in [false, true] {
+        for admitted in [false, true] {
+            let source = if cell {
+                "class C:\n    def read(self): return __class__\n"
+            } else {
+                "class C:\n    def read(self): return 1\n"
+            };
+            let mut db = ryupy_base::SourceDb::default();
+            let file = db.add("subject.py", source);
+            let (parsed, errors) = ryupy_syntax::parse(file, source);
+            assert!(errors.is_empty());
+            let info = ryupy_hir::ModuleInfo {
+                instance_globals: true,
+                instance_capabilities: ryupy_base::InstanceCapabilities {
+                    aot_class_guards: admitted,
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            let (hir, errors) = ryupy_hir::lower_module(&parsed, &info, source);
+            assert!(errors.is_empty(), "{errors:?}");
+            let (types, errors) = ryupy_ty::check_module(&hir);
+            assert!(errors.is_empty(), "{errors:?}");
+            let (program, _, errors) = build_program(&hir, &types);
+            assert!(errors.is_empty(), "{errors:?}");
+            validate::validate(&program).unwrap();
+            let count = program
+                .functions
+                .iter()
+                .flat_map(|(_, f)| f.body.blocks.iter())
+                .flat_map(|(_, b)| &b.stmts)
+                .filter(|s| {
+                    matches!(
+                        s,
+                        Statement::Eval(Rvalue::Call {
+                            callee: Callee::Runtime(RuntimeFn::InstanceClassCellGuard),
+                            ..
+                        })
+                    )
+                })
+                .count();
+            assert_eq!(count, usize::from(cell || admitted));
+        }
+    }
+}
+
+#[test]
+fn lexical_mi_freezes_all_bases_before_frame_and_preserves_finish_cell_publication() {
+    let source = "def make(left, right):\n    class C(left(), right()):\n        def owner(self): return __class__\n    return C\n";
+    let mut program = compile(source, false);
+    let (_, cell) = plan(&program);
+    let function = &program.functions[cell.owner];
+    let statements: Vec<_> = function
+        .body
+        .blocks
+        .iter()
+        .flat_map(|(_, b)| &b.stmts)
+        .collect();
+    let calls = |wanted| -> Vec<_> {
+        statements
+            .iter()
+            .enumerate()
+            .filter_map(|(i, s)| {
+                let value = match s {
+                    Statement::Assign { value, .. } | Statement::Eval(value) => value,
+                    _ => return None,
+                };
+                match value {
+                    Rvalue::Call {
+                        callee: Callee::Runtime(actual),
+                        args,
+                    } if *actual == wanted => Some((i, args)),
+                    _ => None,
+                }
+            })
+            .collect()
+    };
+    let prepare = calls(RuntimeFn::LexicalClassPrepare);
+    let finish = calls(RuntimeFn::LexicalClassFinish);
+    let evaluate: Vec<_> = statements
+        .iter()
+        .enumerate()
+        .filter_map(|(i, s)| match s {
+            Statement::Assign {
+                value: Rvalue::DynCallValue { callee, args },
+                ..
+            } => {
+                assert!(args.is_empty());
+                Some((i, callee))
+            }
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        (prepare.len(), finish.len(), evaluate.len()),
+        (1, 1, 2),
+        "{}",
+        crate::pretty::dump(&program)
+    );
+    assert!(matches!(evaluate[0].1, Operand::Local(id) if *id == function.params[0]));
+    assert!(matches!(evaluate[1].1, Operand::Local(id) if *id == function.params[1]));
+    let Operand::Array(bases) = &prepare[0].1[3] else {
+        panic!("所有基值必须完整传给私有frame")
+    };
+    assert_eq!(bases.len(), 2);
+    let mut frozen = Vec::new();
+    for base in bases {
+        let Operand::Local(local) = base else {
+            panic!("base必须先冻结")
+        };
+        let writes: Vec<_> = statements
+            .iter()
+            .enumerate()
+            .filter_map(|(i, s)| {
+                matches!(s, Statement::Assign { dest, .. } if dest == local).then_some(i)
+            })
+            .collect();
+        assert_eq!(writes.len(), 1);
+        frozen.push(writes[0]);
+    }
+    assert!(
+        evaluate[0].0 < frozen[0]
+            && frozen[0] < evaluate[1].0
+            && evaluate[1].0 < frozen[1]
+            && frozen[1] < prepare[0].0
+            && prepare[0].0 < finish[0].0
+    );
+    assert!(
+        calls(RuntimeFn::PrepareOrdinaryMiClass).is_empty(),
+        "不能绕开私有frame"
+    );
+    assert!(calls(RuntimeFn::MakeClass).is_empty());
+    let guards = calls(RuntimeFn::InstanceClassCellGuard);
+    let fills = calls(RuntimeFn::CellSet);
+    assert_eq!(guards.len(), 1);
+    assert!(finish[0].0 < guards[0].0);
+    assert!(fills.iter().any(|(i, _)| *i > guards[0].0));
+    crate::passes::run_pipeline(&mut program, &crate::passes::default_pipeline()).unwrap();
+    validate::validate(&program).unwrap();
+}

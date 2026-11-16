@@ -1,0 +1,12 @@
+# ryupy: pending
+"""通用PyFunction真实defaults反射旧债；普通metadata假写值不构成参数默认值支持。"""
+import textwrap
+from textwrap import TextWrapper
+
+original = TextWrapper.__init__.__defaults__
+try:
+    TextWrapper.__init__.__defaults__ = (original[0], '>') + original[2:]
+    assert TextWrapper(4).wrap('ab cd') == ['>ab', 'cd']
+    assert textwrap.wrap('ab cd', 4) == ['>ab', 'cd']
+finally:
+    TextWrapper.__init__.__defaults__ = original

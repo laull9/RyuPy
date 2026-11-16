@@ -13,7 +13,7 @@ tomli	配置解析	tomli	2.0.1	tomli	entries/tomli_sample.py	loads 基本类型�
 pyparsing	解析	pyparsing	3.1.2	pyparsing	entries/pyparsing_sample.py	Word / Suppress / 解析动作与结果命名	-
 attrs	数据类	attrs	23.2.0	attrs	entries/attrs_sample.py	define / field 默认值与 asdict（元类路径，预期阻塞）	-
 networkx	图算法	networkx	3.3	networkx	entries/networkx_sample.py	Graph 增删边、最短路与度序列	-
-python-dateutil	日期	python-dateutil	2.9.0.post0	dateutil	entries/dateutil_sample.py	parser.parse 与 relativedelta	-
+python-dateutil	日期	python-dateutil	2.9.0.post0	dateutil	entries/dateutil_sample.py	parser.parse 与 relativedelta	six==1.16.0
 click	命令行工具	click	8.1.7	click	entries/click_sample.py	command / option / 参数解析与 Context	-
 docopt	命令行工具	docopt	0.6.2	docopt	entries/docopt_sample.py	usage 解析与默认值	-
 pyfiglet	命令行工具	pyfiglet	1.0.2	pyfiglet	entries/pyfiglet_sample.py	Figlet 渲染与字体列表	-

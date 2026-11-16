@@ -1,0 +1,11 @@
+"""CP正例：非exact bytes输入保m.string，group转plain bytes；不冒首切已支持派生载体。"""
+import re
+
+class Child(bytes):
+    pass
+
+subject = Child(b'abc')
+match = re.fullmatch(b'.+', subject)
+assert match.string is subject
+assert type(match.group()) is bytes and match.group() == b'abc' and match.group() is not subject
+print('pending.bytes-subclass', type(match.group()).__name__, match.group())

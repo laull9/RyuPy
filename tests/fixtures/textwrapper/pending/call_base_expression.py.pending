@@ -1,0 +1,26 @@
+# ryupy: pending
+"""首次T1已证CP通过；通用HIR尚拒绝Call基类表达式，不在TextWrapper切片扩语言语法。"""
+import textwrap
+from textwrap import TextWrapper as TW
+
+base_events = []
+
+
+def get_base():
+    base_events.append('base')
+    return textwrap.TextWrapper
+
+
+class Child(get_base()):
+    def __init__(self, width):
+        super().__init__(width, initial_indent='>')
+
+    def wrap(self, text):
+        return super().wrap(text)
+
+
+child = Child(4)
+assert base_events == ['base'] and Child.__bases__[0] is TW
+assert type(child) is Child and isinstance(child, Child) and isinstance(child, TW)
+assert issubclass(Child, TW) and child.wrap('ab cd') == ['>ab', 'cd']
+assert TW.__init__(child, 5) is None and child.wrap('ab cd') == ['ab cd']

@@ -1,0 +1,22 @@
+# ryupy: pending
+# 保留完整调用者、用户槽、finally 清理与显式 cause；预期非零退出。
+events = []
+class Raises:
+    def __format__(self, spec):
+        events.append('slot')
+        try:
+            raise ValueError('format-inner')
+        except ValueError as cause:
+            raise RuntimeError('format-outer') from cause
+
+def convert(value):
+    try:
+        return format(value, '')
+    finally:
+        events.append('finally')
+        print(events)
+
+def caller():
+    return convert(Raises())
+
+caller()

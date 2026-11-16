@@ -1,0 +1,9 @@
+# ryupy: pending
+# unescape独立真实CP正例；escape完成不等于实体表或HTML解码已实现。
+from html import unescape
+
+plain = ''.join(['unchanged', ' payload'])
+assert unescape(plain) is plain
+assert unescape('&lt;&amp;&#x1f600;') == '<&😀'
+assert unescape('&#0; &#x80;') == '\ufffd €'
+print('unescape', unescape('&lt;&amp;&#x1f600;'), unescape(plain) is plain)

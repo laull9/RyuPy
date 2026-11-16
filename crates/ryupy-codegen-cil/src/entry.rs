@@ -9,6 +9,23 @@ use ryupy_mir::LinkedProgram;
 use crate::assembly::build_resolution;
 use crate::{CodegenError, EmitOptions};
 
+/// SystemExit 的入口专用 ABI 与其他异常处理共享运行时程序集身份。
+pub(crate) fn system_exit_refs(
+    res: &mut Resolution<'static>,
+    runtime: AssemblyRefIndex,
+    traceback: &MethodType,
+) -> (MethodType, MethodRefIndex) {
+    let exit = res.push_type_reference(ExternalTypeReference::new(
+        Some("RyuPy.Runtime".into()),
+        "PySystemExit",
+        ResolutionScope::Assembly(runtime),
+    ));
+    let exit: MethodType = BaseType::class(exit).into();
+    let code =
+        res.push_method_reference(method_ref! { static int @traceback::SystemExitCode(@exit) });
+    (exit, code)
+}
+
 /// 入口包装器：`try { __main(); return 0; } catch (PyBaseException e) { Report(e); return 1; }`。
 ///
 /// 这是 M2.2 的第一块：**未捕获异常必须按 Python 的方式退出**（stderr 上 traceback、
@@ -32,6 +49,8 @@ pub(crate) fn emit_entry_wrapper(
     init_class_factories: MethodIndex,
     source_name: &str,
     source_path: &str,
+    trace_product: Option<MethodRefIndex>,
+    provider: Option<(&str, &crate::provider_refs::ProviderRefs)>,
 ) {
     // 指令布局（分支目标是**指令下标**）：
     //   0: ldstr source_name
@@ -61,7 +80,7 @@ pub(crate) fn emit_entry_wrapper(
     // 系统初始化也位于保护区中，初始化失败与普通Python异常共享退出规则。
     // 处理区必须以 leave 离开、不能直接 ret，否则 CLR 判为非法方法体
     // （InvalidProgramException，且堆栈里看不出是哪一条指令）。
-    let instructions = vec![
+    let mut instructions = vec![
         Instruction::load_string(source_name),
         Instruction::call(set_file),
         Instruction::load_string(source_path),
@@ -90,6 +109,42 @@ pub(crate) fn emit_entry_wrapper(
         Instruction::call(exit_flush),
         Instruction::Return,
     ];
+    // V1根在固定系统初始化之后、任何用户定义初始化之前核验真实runtime ABI。
+    // 旧产品不插入指令，不移动其原EH；V1同步平移全部leave与handler窗口。
+    let mut shift = if let Some(enter) = trace_product {
+        for instruction in &mut instructions {
+            if let Instruction::Leave(target) = instruction {
+                *target += 2;
+            }
+        }
+        instructions.splice(
+            5..5,
+            [Instruction::LoadConstantInt64(1), Instruction::call(enter)],
+        );
+        2
+    } else {
+        0
+    };
+    // provider 在所有用户初始化之前启动；公共退出点关闭，四类退出路径共用同一租约。
+    if let Some((config, refs)) = provider {
+        for instruction in &mut instructions {
+            if let Instruction::Leave(target) = instruction {
+                *target += 3;
+            }
+        }
+        instructions.splice(
+            5..5,
+            [
+                Instruction::load_string(config),
+                Instruction::LoadArgument(0),
+                Instruction::call(refs.start),
+            ],
+        );
+        shift += 3;
+        // Finish 在 finally 中关闭宿主；刷新或关闭失败由同一 ABI 保留稳定退出诊断。
+        let finish = instructions.len() - 2;
+        instructions[finish] = Instruction::call(refs.finish);
+    }
     // 成功路径直接返回槽 0：with_locals 在真实 PE 方法头启用清零，
     // 不能仅依赖转储文本的 .locals init 或某个平台偶然为零的栈内容。
     let mut method_body = body::Method::with_locals(
@@ -101,22 +156,22 @@ pub(crate) fn emit_entry_wrapper(
         body::Exception {
             kind: body::ExceptionKind::TypedException(system_exit_type),
             try_offset: 2,
-            try_length: 7,
-            handler_offset: 9,
+            try_length: 7 + shift,
+            handler_offset: 9 + shift,
             handler_length: 3,
         },
         body::Exception {
             kind: body::ExceptionKind::TypedException(exception_type),
             try_offset: 2,
-            try_length: 7,
-            handler_offset: 12,
+            try_length: 7 + shift,
+            handler_offset: 12 + shift,
             handler_length: 4,
         },
         body::Exception {
             kind: body::ExceptionKind::TypedException(clr_exception_type),
             try_offset: 2,
-            try_length: 7,
-            handler_offset: 16,
+            try_length: 7 + shift,
+            handler_offset: 16 + shift,
             handler_length: 4,
         },
     ])];
@@ -124,7 +179,10 @@ pub(crate) fn emit_entry_wrapper(
 }
 
 pub fn emit(program: &LinkedProgram, opts: &EmitOptions) -> Result<Vec<u8>, CodegenError> {
+    ryupy_mir::generator_product::validate_emission(program).map_err(CodegenError::Unsupported)?;
+    crate::source_provenance::validate(program)?;
     let (res, _) = build_resolution(program, opts);
+    crate::distribution_metadata::validate_heap(program, &res)?;
     res.write(WriteOptions {
         // `true` 生成 PE32 + ILONLY（AnyCPU），不是「32 位程序」：
         // .NET 编译器对 AnyCPU 程序集同样使用 I386 文件头，运行时按目标平台 JIT。
@@ -136,7 +194,10 @@ pub fn emit(program: &LinkedProgram, opts: &EmitOptions) -> Result<Vec<u8>, Code
 }
 
 pub fn dump(program: &LinkedProgram, opts: &EmitOptions) -> Result<String, CodegenError> {
+    ryupy_mir::generator_product::validate_emission(program).map_err(CodegenError::Unsupported)?;
+    crate::source_provenance::validate(program)?;
     let (res, module_class) = build_resolution(program, opts);
+    crate::distribution_metadata::validate_heap(program, &res)?;
     let mut out = String::new();
     out.push_str(&format!(".assembly {}\n{{\n}}\n", opts.assembly_name));
     out.push_str(".assembly extern System.Runtime\n{\n}\n");

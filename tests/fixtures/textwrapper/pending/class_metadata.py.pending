@@ -1,0 +1,18 @@
+# ryupy: pending
+"""普通派生类删除__module__的既有通用缺口；保CP完整错误与原值，不计TextWrapper支持。"""
+from textwrap import TextWrapper
+
+
+class Metadata(TextWrapper):
+    pass
+
+
+before = Metadata.__module__
+try:
+    del Metadata.__module__
+except TypeError as error:
+    message = "cannot delete '__module__' attribute of immutable type 'Metadata'"
+    assert str(error) == message and error.args == (message,)
+else:
+    raise AssertionError('class module deletion accepted')
+assert before == '__main__' and Metadata.__module__ == before

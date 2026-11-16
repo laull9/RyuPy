@@ -86,6 +86,7 @@ public sealed class PyMap : PyToolIterator
     {
         if (iterator is PyGenerator generator) return generator.Next(null, false);
         if (iterator is PyMap map) return map.Next();
+        if (iterator is PyStarMap starMap) return starMap.Next();
         if (iterator is PyInstanceIterator user)
         {
             if (PyObject.TryMethod(user.Instance, "__next__", [], out object? value)) return value;

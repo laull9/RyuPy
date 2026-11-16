@@ -1,0 +1,4 @@
+{
+  "schema_version": 1,
+  "modules": [{"module": "located_pkg", "files": ["data.txt"]}]
+}

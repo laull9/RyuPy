@@ -4,6 +4,8 @@ using Xunit;
 namespace RyuPy.Runtime.Tests;
 
 /// <summary>拒绝哨兵必须继续反射分派，而不是被当作 True；公开值保持单例和 3.12 警告行为。</summary>
+// 警告读取共享帧栈/过滤器；与warnings专项一起串行，避免并行测试改变调用位置或记录目标。
+[Collection("生成器帧栈")]
 public class PyNotImplementedTests
 {
     [Fact]

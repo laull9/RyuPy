@@ -7,7 +7,7 @@
 
 use la_arena::Arena;
 use rustc_hash::FxHashMap;
-use ryupy_base::{Diagnostic, FileId};
+use ryupy_base::{Diagnostic, FileId, Span};
 use ryupy_syntax::ast;
 
 use crate::hir::ModuleVarId;
@@ -70,6 +70,7 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
     if let FnSource::Def(def) = &source {
         crate::closures_decl::validate_declarations(file, def, diagnostics);
     }
+    let is_comprehension = matches!(&source, FnSource::Comprehension(_));
     let is_generator = match &source {
         FnSource::Def(def) => crate::generator_scan::analyze(file, &def.body, diagnostics),
         FnSource::Comprehension(comp) => {
@@ -362,6 +363,20 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
         nested_defaults.annotations.insert(func_id, annotations);
     }
 
+    // 仅def提供直属导入候选；参数、cell/free及声明已全部登记完毕。
+    if let FnSource::Def(def) = &source {
+        func_scope.exception_imports = crate::function_exception_imports::collect(
+            def,
+            &global_scope.native_exception_modules,
+            &func_scope,
+        );
+    }
+
+    // 先按源码编译访问确定可见槽，避免降级合成的局部量泄露。
+    if !is_generator && info.cells.is_empty() && info.free.is_empty() {
+        body.function_locals = crate::function_locals::collect(&source, &body, &params);
+    }
+
     // 降级函数体
     let mut lower_ctx = StmtLowerCtx {
         file,
@@ -371,6 +386,8 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
         module_vars,
         vars,
         module_scope: false,
+        forbid_lexical_class: is_generator || matches!(&source, FnSource::Def(def) if def.is_async),
+        direct_stmt_index: 0,
         package,
         classes,
         nested_funcs: &analysis.nested_funcs,
@@ -383,7 +400,8 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
     match source {
         FnSource::Comprehension(comp) => lower_ctx.lower_comprehension_body(comp),
         FnSource::Def(fn_def) => {
-            for stmt in &fn_def.body {
+            for (index, stmt) in fn_def.body.iter().enumerate() {
+                lower_ctx.direct_stmt_index = index;
                 lower_ctx.lower_stmt_to_root(stmt);
             }
         }
@@ -400,7 +418,27 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
         }
     }
 
+    // 只检查当前函数arena；嵌套函数另有body，不能让子生成器误伤普通外层。
+    // 仅Legacy源码动态链复用MIR逻辑异常路由；实例来源合同仍不允许GeneratorFrame。
+    if is_generator {
+        for (_, handler) in body.handlers.iter() {
+            let legacy_dynamic = !global_scope.instance_globals
+                && handler.semantics == crate::HandlerSemantics::SourceDynamic;
+            if (handler.type_expr.is_some() && !legacy_dynamic)
+                || handler.semantics == crate::HandlerSemantics::InstanceNameDynamic
+            {
+                diagnostics.push(
+                    Diagnostic::error(
+                        Span::new(file, handler.range),
+                        "生成器内动态 except 目标暂未支持",
+                    )
+                    .with_code("E0100"),
+                );
+            }
+        }
+    }
     functions[func_id].docstring = docstring;
+    functions[func_id].is_comprehension = is_comprehension;
     functions[func_id].is_generator = is_generator;
     functions[func_id].params = params;
     functions[func_id].ret = ret;

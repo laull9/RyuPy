@@ -1,0 +1,54 @@
+# 普通MI/C3仅Legacy真实门；旧Native和固定项目保护独立运行，不把原红计通过。
+name: 普通MI与C3有限合同
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  ordinary-mi:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 检查器纯反例和配置
+        run: python3 -B -m unittest discover -s tests/aot/ordinary_mi -p 'test_*.py'
+      - name: 固定官方工具准备
+        timeout-minutes: 10
+        run: |
+          mkdir -p target/ordinary-mi-prepare
+          status=0
+          python3 -B tests/aot/wcwidth_ci/prepare.py > target/ordinary-mi-prepare/stdout 2> target/ordinary-mi-prepare/stderr || status=$?
+          printf '%s\n' "$status" > target/ordinary-mi-prepare/exit
+          exit "$status"
+      - name: 同源四图双PIC、旧动态单基Native与原红边界
+        timeout-minutes: 40
+        run: '"$PYTHON" -B tests/aot/ordinary_mi/run.py'
+      - name: 失败保留每阶段原流和本轮实际工具PE
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ordinary-mi-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/ordinary-mi-evidence
+            !target/ordinary-mi-evidence/runtime-single-*-native-build/**
+            !target/ordinary-mi-evidence/runtime-single-*-relocated/**
+            target/ordinary-mi-prepare
+            ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
+          if-no-files-found: warn
+          retention-days: 3
+      - name: 明确有限域与原三红
+        if: always()
+        run: |
+          printf '%s\n' '普通MI/C3仅Legacy JIT；四图PIC1/PIC0，不改变固定项目分子。' \
+            '原__dict__ JIT红、class-body直接raise编译红、Legacy globals编译红均保留；检查器预期观察不计产品通过。' \
+            '已知MI AOT仍发射前E0100；动态普通单基另核2ELF/4Native（普通成功/实际MI能力拒绝）及双PIC，不宣称MI Native支持。' \
+            'supported_contract_pass与overall_compatibility分别记录，原class-body traceback缺帧未修。' >> "$GITHUB_STEP_SUMMARY"

@@ -30,6 +30,8 @@ pub enum Ty {
     Float,
     Bool,
     Str,
+    /// str注解的任意对象槽；不是exact字符串事实，也不独自触发整函数降级。
+    OpaqueStr,
     /// `None` 的类型；也用作「无返回值」。
     None,
     Class(ClassId),
@@ -42,7 +44,7 @@ pub enum Ty {
 }
 
 impl Ty {
-    /// 该类型在 MIR 里是否需要装箱表示。
+    /// 是否触发原Dynamic推断；OpaqueStr同为object表示，但不独自使函数降级。
     pub fn is_dynamic(&self) -> bool {
         matches!(self, Ty::Dynamic)
     }

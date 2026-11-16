@@ -1,0 +1,4 @@
+# 完整 CP 基线与候选真实 PE 都通过后再转正。
+entry = entry.py
+instance_module = subject
+pending = true

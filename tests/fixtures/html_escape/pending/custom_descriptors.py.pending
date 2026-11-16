@@ -1,0 +1,39 @@
+# ryupy: pending
+# 真正描述符绑定优先于其callable外形；不以错误NI作为CP成功期望。
+from html import escape
+
+
+class ReplaceDescriptor:
+    def __get__(self, instance, owner):
+        events.append('get')
+        def invoke(old, new):
+            events.append((old, new))
+            return instance
+        return invoke
+
+    def __call__(self, *args):
+        raise AssertionError('must bind descriptor before invocation')
+
+
+class DataDescriptor(ReplaceDescriptor):
+    def __set__(self, instance, value):
+        raise AssertionError('not setting the descriptor')
+
+
+class NonData:
+    replace = ReplaceDescriptor()
+
+
+class Data:
+    replace = DataDescriptor()
+
+
+for obj in [NonData(), Data()]:
+    if isinstance(obj, Data):
+        obj.__dict__['replace'] = 7
+    events = []
+    assert escape(obj) is obj
+    assert events == [entry for pair in [('&', '&amp;'), ('<', '&lt;'),
+                                         ('>', '&gt;'), ('"', '&quot;'), ("'", '&#x27;')]
+                      for entry in ['get', pair]]
+    print(events)

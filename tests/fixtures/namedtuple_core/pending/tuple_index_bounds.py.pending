@@ -1,0 +1,10 @@
+# ryupy: pending
+# CP合法的普通tuple既有欠账：index的start/stop；不为namedtuple单独扩协议。
+from collections import namedtuple
+
+Quad = namedtuple('Quad', 'a b c d', module='fixture.pending')
+value = Quad(1, 2, 1, 3)
+plain = (1, 2, 1, 3)
+assert value.index(1, 1) == plain.index(1, 1) == 2
+assert value.index(1, 1, 3) == plain.index(1, 1, 3) == 2
+print('tuple-index-bounds', value.index(1, 1), value.index(1, 1, 3))

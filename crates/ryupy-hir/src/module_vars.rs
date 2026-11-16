@@ -25,6 +25,7 @@ use crate::scope::collect_assigned_names;
 pub(crate) fn collect_module_vars(
     parsed: &ParsedModule,
     info: &ModuleInfo,
+    deleted_names: &rustc_hash::FxHashSet<Name>,
 ) -> (Arena<ModuleVar>, FxHashMap<Name, ModuleVarId>) {
     // ── 模块级变量（M2.7）────────────────────────────────────────────
     //
@@ -40,6 +41,7 @@ pub(crate) fn collect_module_vars(
                     range,
                     annotation,
                     is_global: false,
+                    may_delete: deleted_names.contains(name),
                 })
             })
         };
@@ -51,10 +53,21 @@ pub(crate) fn collect_module_vars(
             Some(TypeRef::Str),
         );
     }
+    if info.resolve_file_at_runtime {
+        for name in ["__spec__", "__loader__", "__cached__", "__path__"] {
+            ensure_var(&Name::from(name), parsed.module.range, None);
+        }
+    }
     if crate::future_imports::annotations(&parsed.module.body)
         && crate::annotation_stmts::has_module_annotations(&parsed.module.body)
     {
         ensure_var(&Name::from("__annotations__"), parsed.module.range, None);
+    }
+    // 只有源码首字符串会在每次执行时写 __doc__；没有 docstring 时不重置旧值。
+    if info.instance_globals
+        && let Some(value) = parsed.module.body.first().and_then(source_docstring)
+    {
+        ensure_var(&Name::from("__doc__"), value.range(), None);
     }
     // 顶层赋值（含 for 目标、except as 等）。
     for (name, range) in collect_assigned_names(&parsed.module.body) {
@@ -127,16 +140,58 @@ pub(crate) fn collect_module_vars(
         // 注解字典可被用户替换为自定义mapping，不能固定为静态dict布局。
         vars[var].is_global = true;
     }
+    // 元数据允许任意类型重绑定；包括普通非包的未绑定__path__哨兵。
+    if info.resolve_file_at_runtime {
+        for name in ["__spec__", "__loader__", "__cached__", "__path__"] {
+            vars[module_var_ids[&Name::from(name)]].is_global = true;
+        }
+    }
     (vars, module_var_ids)
 }
 
+/// 与函数 docstring 一样，只认 AST 首条普通字符串（包括括号与相邻字面量）。
+fn source_docstring(statement: &ast::Stmt) -> Option<&ast::Expr> {
+    let ast::Stmt::Expr(statement) = statement else {
+        return None;
+    };
+    matches!(statement.value.as_ref(), ast::Expr::StringLiteral(_))
+        .then_some(statement.value.as_ref())
+}
+
 impl StmtLowerCtx<'_> {
-    /// 写入 `__name__` / `__package__` / `__file__`。
+    /// 调用方只在模块首语句调用；这是源码赋值而非模块元数据初始化前言。
+    pub(crate) fn lower_instance_docstring(&mut self, statement: &ast::Stmt) -> bool {
+        if !self.global_scope.instance_globals {
+            return false;
+        }
+        let Some(value) = source_docstring(statement) else {
+            return false;
+        };
+        let Some(&var) = self.module_vars.get(&Name::from("__doc__")) else {
+            return false;
+        };
+        let value = self.lower_expr(value);
+        let id = self.body.stmts.alloc(Stmt {
+            kind: StmtKind::Assign {
+                target: AssignTarget::ModuleVar(var),
+                value,
+            },
+            range: statement.range(),
+            line: self.line_of(statement.range().start().to_usize()),
+        });
+        self.body.root.push(id);
+        true
+    }
+
+    /// 写入模块身份；实际构建还复制本次导入的四个动态元数据初值。
     pub(crate) fn emit_special_module_vars(
         &mut self,
         info: &ModuleInfo,
         range: ryupy_base::TextRange,
     ) {
+        if info.instance_globals {
+            return;
+        }
         let specials = [
             ("__name__", info.name.as_str()),
             ("__package__", info.package.as_str()),
@@ -164,6 +219,26 @@ impl StmtLowerCtx<'_> {
                 line: 1,
             });
             self.body.root.push(id);
+        }
+        if info.resolve_file_at_runtime {
+            // 初值从已发布的本次模块读取；后续裸名字与外部属性共享真实槽。
+            for name in ["__spec__", "__loader__", "__cached__", "__path__"] {
+                let name = Name::from(name);
+                let var = self.module_vars[&name];
+                let value = self.body.exprs.alloc(Expr {
+                    kind: ExprKind::ModuleMetadata(Name::from(info.name.as_str()), name),
+                    range,
+                });
+                let stmt = self.body.stmts.alloc(Stmt {
+                    kind: StmtKind::Assign {
+                        target: AssignTarget::ModuleVar(var),
+                        value,
+                    },
+                    range,
+                    line: 1,
+                });
+                self.body.root.push(stmt);
+            }
         }
     }
 

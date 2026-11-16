@@ -1,0 +1,94 @@
+# Scanner独立门；原dedent/metadata/整组项目DAG不依赖此job的成功。
+name: re.Scanner 有限同源验收
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  re-scanner:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 先跑纯控制反例及原DAG保护
+        timeout-minutes: 2
+        run: |
+          python3 -B -m unittest discover -s scripts -p re_scanner_selftest.py
+          python3 -B -m unittest discover -s scripts -p textwrap_dedent_selftest.py
+          python3 -B -m unittest discover -s tests/validation -p distribution_metadata_selftest.py
+          python3 -B -m unittest discover -s tests/validation/generator_product -p test_diagnostic_once.py
+      - name: 原固定官方工具准备及双流
+        timeout-minutes: 10
+        run: |
+          mkdir -p target/re-scanner-prepare
+          printf '%s\n' '["python3", "-B", "tests/aot/wcwidth_ci/prepare.py"]' > target/re-scanner-prepare/argv.json
+          status=0
+          python3 -B tests/aot/wcwidth_ci/prepare.py > target/re-scanner-prepare/stdout 2> target/re-scanner-prepare/stderr || status=$?
+          printf '%s\n' "$status" > target/re-scanner-prepare/exit
+          exit "$status"
+      - name: 独立C#build与精确Fact再实际CLI和全部JIT
+        timeout-minutes: 45
+        run: '"$PYTHON" -B scripts/re_scanner_validation.py --phase jit'
+      - name: Native前保全TRX和原双流及实际PE
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: scanner-checkpoint-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/re-scanner-evidence/*.json
+            target/re-scanner-evidence/*.stdout
+            target/re-scanner-evidence/*.stderr
+            target/re-scanner-evidence/trx
+            target/re-scanner-evidence/products
+            target/re-scanner-prepare
+          if-no-files-found: warn
+          retention-days: 3
+      - name: 重核同轮checkpoint后少图多argv Native及原业务Legacy预检
+        if: ${{ !cancelled() && hashFiles('target/re-scanner-evidence/state.json') != '' }}
+        timeout-minutes: 85
+        run: '"$PYTHON" -B scripts/re_scanner_validation.py --phase native'
+      - name: 失败仍保小证据与本轮候选源码
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: scanner-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/re-scanner-evidence
+            !target/re-scanner-evidence/tools/**
+            !target/re-scanner-evidence/**/native-build/**
+            !target/re-scanner-evidence/attr-list-native-build/**
+            !target/re-scanner-evidence/**/relocated/**
+            !target/re-scanner-evidence/attr-list-relocated/**
+            !target/re-scanner-evidence/**/native-dist.tar.gz
+            target/re-scanner-prepare
+            ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
+          if-no-files-found: error
+          retention-days: 3
+      - name: 失败仍保已产生ELF及唯一工具
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: scanner-tools-native-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/re-scanner-evidence/tools
+            target/re-scanner-evidence/**/native-dist.tar.gz
+          if-no-files-found: warn
+          retention-days: 3
+      - name: 固定分账
+        if: always()
+        run: |
+          printf '%s\n' '## Scanner有限合同，默认项目分子变化0' \
+            '本专用job复核已冻结CP原流，不重跑已完成的局部oracle窗口。' \
+            '四候选图、NI负门、完整CP正面pending独立统计；NI不是完整CP支持。' \
+            'attr_list要求实际JIT完整202B；Legacy AOT先图/资源资格，失败保原诊断。' \
+            '原完整extra的178B源文件与77B golden及默认20入口不变；本门不替代它们。' \
+            'TRX、PE、双流与Native失败ELF均保留，不只保存summary。' >> "$GITHUB_STEP_SUMMARY"

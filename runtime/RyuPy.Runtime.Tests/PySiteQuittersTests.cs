@@ -154,7 +154,7 @@ public sealed class PySiteQuittersTests : IDisposable
     }
 
     [Fact]
-    public void NativeClassMetadataRebindingDoesNotChangeOrdinaryClassDefaults()
+    public void NativeClassMetadataRebindingKeepsOrdinaryDefaultsAndExplicitModule()
     {
         PyClass type = Exit.Class; object? original = PyObject.GetAttr(type, "__module__");
         try
@@ -165,8 +165,13 @@ public sealed class PySiteQuittersTests : IDisposable
                 Assert.Equal(value is string ? "<class 'other.Quitter'>" : "<class 'Quitter'>", type.ToString());
             }
             Assert.Throws<PyTypeError>(() => type.DeleteAttr("__module__"));
-            var ordinary = new PyClass("Ordinary"); ordinary.SetAttr("__module__", "old-ignored-value");
-            Assert.Equal("__main__", PyObject.GetAttr(ordinary, "__module__")); Assert.Equal("<class 'Ordinary'>", ordinary.ToString());
+            var ordinary = new PyClass("Ordinary");
+            Assert.Equal("__main__", PyObject.GetAttr(ordinary, "__module__"));
+            string explicitModule = new string("ordinary-module".ToCharArray());
+            ordinary.SetAttr("__module__", explicitModule);
+            Assert.Same(explicitModule, PyObject.GetAttr(ordinary, "__module__"));
+            // 普通类repr仍是既有有限边界；真实属性读取不再忽略显式namespace值。
+            Assert.Equal("<class 'Ordinary'>", ordinary.ToString());
             Assert.NotNull(typeof(PyClass).GetConstructor([typeof(string)]));
         }
         finally { type.SetAttr("__module__", original); }

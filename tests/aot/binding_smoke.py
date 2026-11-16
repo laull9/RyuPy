@@ -18,7 +18,7 @@ from manifest_verify import MANIFEST_NAME, dependency_binaries, read_sdk_version
 from platform_runner import Runner
 from platform_support import host, clean_environment, audit
 from single_file import prepare_single_file, verify_single_file
-from smoke import IMAGE
+from docker_image import prepare_image
 
 
 def file_digest(path):
@@ -90,7 +90,9 @@ def main():
         env = {**os.environ, 'DOTNET':dotnet, 'PYTHONUTF8':'1', 'PYTHONIOENCODING':'utf-8', 'DOTNET_CLI_UI_LANGUAGE':'en-US'}
         command('python-version', [python,'-c',"import sys; assert sys.implementation.name=='cpython' and sys.version_info[:3]==(3,12,13); print(sys.version)"], env=env, timeout=30)
         command('dotnet-info', [dotnet,'--info'], env=env, timeout=30)
-        if args.rid == 'linux-x64': command('docker-pull', [tool('docker'),'pull',IMAGE], env=env, timeout=120)
+        if args.rid == 'linux-x64':
+            docker = tool('docker')
+            image = prepare_image(run, docker, work, env)
         result['cli'] = file_digest(ryupy)
         source = work/'source'; source.mkdir(); fixtures = Path(__file__).with_name('binding_fixtures')
         for name in ('binding_app.py','numeric_reference.py'): shutil.copy2(fixtures/name, source/name)
@@ -184,8 +186,8 @@ def main():
         app('aot-type',[bare,'type'],cwd=bare.parent,app_env=clean,mode='type')
         if args.rid == 'linux-x64':
             script = 'for tool in dotnet python python3 python3.12; do if command -v "$tool" >/dev/null 2>&1; then exit 97; fi; done; exec "$1"'
-            app('aot-clean-container',[tool('docker'),'run','--rm','--network','none','--read-only','--mount',
-                f'type=bind,src={bare.parent},dst=/app,readonly','--workdir','/app','--entrypoint','/bin/sh',IMAGE,
+            app('aot-clean-container',[docker,'run','--pull=never','--rm','--network','none','--read-only','--mount',
+                f'type=bind,src={bare.parent},dst=/app,readonly','--workdir','/app','--entrypoint','/bin/sh',image,
                 '-c',script,'binding-smoke','/app/'+bare.name],cwd=work,app_env=env)
             result['clean_machine_without_runtime_tested'] = True
         assert len(result['applications']) == (10 if args.rid=='linux-x64' else 9)

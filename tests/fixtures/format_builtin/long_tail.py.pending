@@ -1,0 +1,49 @@
+# ryupy: pending
+# 长尾正例合同；.pending后缀且不被driver引用，不自动执行。文件本身尚未跑CP。
+# 重复**key的正确成功条件是捕获真实TypeError，不接受NotImplementedError替代。
+try:
+    format(1, **{'x': 1}, **{'x': 2})
+except TypeError as error:
+    assert str(error) == "format() got multiple values for keyword argument 'x'"
+else:
+    raise AssertionError('duplicate keyword accepted')
+
+events = []
+def mark(label, value):
+    events.append(label)
+    return value
+class Source:
+    def __iter__(self):
+        events.append('iter')
+        yield mark('yield', 42)
+        events.append('stop')
+assert format(*mark('source', Source()), mark('spec', 'x')) == '2a'
+assert events == ['source', 'iter', 'yield', 'stop', 'spec']
+
+class Text(str):
+    pass
+result = Text('RESULT')
+class Custom:
+    def __format__(self, spec):
+        return result
+obj = Custom()
+assert f'{obj}' is result
+assert f'x{obj}' is not result
+class Default:
+    def __str__(self):
+        return result
+assert object.__format__(Default(), '') is result
+class ViaSuper:
+    def __str__(self):
+        return 'SUPER'
+    def __format__(self, spec):
+        return super().__format__(spec)
+assert format(ViaSuper()) == 'SUPER'
+
+# 下项没有本次单次参考记录；是待独立CP确认的语言预期，不能宣称本次已证。
+class Override(str):
+    def __format__(self, spec):
+        assert spec == 'custom'
+        return result
+assert format(Override('payload'), 'custom') is result
+print('format-long-tail-contract-ok')

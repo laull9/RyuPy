@@ -52,23 +52,48 @@ public static class PyWarnings
         return true;
     }
 
+    // Element 的真值沿同一过滤/记录/异常与调用位置合同，不忽略 CP3.12 可见弃用警告。
+    internal static bool BooleanElement(int children)
+    {
+        Warn("Testing an element's truth value will always return True in future versions.  Use specific 'len(elem)' or 'elem is not None' test instead.",
+            PyType.Get("DeprecationWarning"), 1, null);
+        return children != 0;
+    }
+
+    // 整数协议的窄通知复用真实过滤、caller与stderr；直接bool参数不经过这里。
+    internal static void IndexReturnedStrictSubclass(string typeName) =>
+        Warn($"__index__ returned non-int (type {typeName}).  The ability to return an instance of a strict subclass of int is deprecated, and may be removed in a future version of Python.",
+            PyType.Get("DeprecationWarning"), 1, null);
+
     private static void Warn(object? message, object? category, long stacklevel, object? source)
     {
         if (source is not (null or PyNone))
             throw new PyNotImplementedError("warnings source allocation tracing is not supported");
+        // 类别选择/验证先于None抑制；已有Warning实例忽略显式category。
+        PyBaseException? existing = message is PyBaseException candidate
+            && (candidate is PyWarning || candidate.PythonClass?.IsSubclassOfBuiltin("Warning") == true)
+            ? candidate : null;
+        category = existing is not null ? (object?)existing.PythonClass ?? PyType.Get(existing.PyTypeName)
+            : category is null or PyNone ? PyType.Get("UserWarning") : category;
+        if (!PyWarningFilters.IsCategory(category)) throw new PyTypeError("category must be a Warning subclass");
+        PyCallerSource caller = PyTraceback.CallerSource(stacklevel);
+        string? module = null;
+        if (caller.Known)
+        {
+            // CP先取得选中帧的活globals，再构造/格式化消息；后续用户副作用不重选环境。
+            bool present = caller.TryReadName(out object? rawName);
+            if (present && rawName is null or PyNone) return;
+            module = present && PyStringLayout.TryGet(rawName, out string name) ? name : "<string>";
+        }
         object? text = message;
         PyBaseException warning;
-        if (message is PyBaseException existing
-            && (existing is PyWarning || existing.PythonClass?.IsSubclassOfBuiltin("Warning") == true))
+        if (existing is not null)
         {
             warning = existing;
             text = PyRepr.Str(existing);
-            category = (object?)existing.PythonClass ?? PyType.Get(existing.PyTypeName);
         }
         else
         {
-            category = category is null or PyNone ? PyType.Get("UserWarning") : category;
-            if (!PyWarningFilters.IsCategory(category)) throw new PyTypeError("category must be a Warning subclass");
             warning = category switch
             {
                 PyType type => PyWarningTypes.Create(type.Name, [message]),
@@ -77,12 +102,15 @@ public static class PyWarnings
                 _ => throw new PyTypeError("category must be a Warning subclass"),
             };
         }
-        PyStackFrame frame = PyTraceback.GetCallerLocation(stacklevel);
-        string module = frame.File == "sys" ? "sys" : PyModules.ModuleForFile(frame.File)
+        // 真旧载体仍保消息构造后的旧扫描；新Static已经是Known，不能混入旧表。
+        PyStackFrame frame = caller.Known ? caller.Frame : PyTraceback.GetCallerLocation(stacklevel);
+        module ??= frame.File == "sys" ? "sys" : PyModules.ModuleForFile(frame.File)
             ?? throw new PyNotImplementedError("warning module cannot be resolved for source " + frame.File);
-        string action = PyWarningFilters.Action(text, category!, module, frame.Line);
+        string action = caller.Known
+            ? PyWarningFilters.ActionKnown(text, category!, module, frame.Line, caller.Environment)
+            : PyWarningFilters.Action(text, category!, module, frame.Line);
         if (action == "ignore") return;
-        if (action == "error") throw warning;
+        if (action == "error") throw (PyBaseException)PyErrors.PrepareRaise(warning);
         var record = new PyWarningMessage(warning, category!, frame.File, frame.Line, source);
         if (Records is { } records) { records.Append(record); return; }
         Write(record);
@@ -109,7 +137,12 @@ public static class PyWarnings
         catch (IOException) { }
         catch (UnauthorizedAccessException) { }
         // 默认showwarning忽略IO失败，但自定义write的其它Python异常必须传播。
+        long depth = PyTraceback.CaptureDepth();
         try { PySystem.Write(target, output); }
-        catch (PyOSError) { }
+        catch (PyOSError)
+        {
+            // 仅被吞掉的IO回调恢复调用者帧；其它异常继续携带原始write帧传播。
+            PyTraceback.PopTo(depth + 1);
+        }
     }
 }

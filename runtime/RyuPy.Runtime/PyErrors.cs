@@ -50,6 +50,7 @@ public static partial class PyErrors
         {
             // 显式 Cause 与隐式 Context 可以是同一实例；显示时优先 Cause，不应删掉可读的 Context。
             exception.Context = current;
+            exception.ForeignObject?.SynchronizeException(exception, write: true);
         }
         return exception;
     }
@@ -83,6 +84,14 @@ public static partial class PyErrors
     /// <param name="exception">即将抛出的异常。</param>
     public static object PrepareRaise(object exception)
     {
+        PyBaseException ex = NormalizeRaise(exception);
+        PyTraceback.Attach(ex);
+        return Prepare(ex);
+    }
+
+    // 归一化不附Frames，供隔离测试在旧Attach之前拒绝历史混用；默认顺序保持不变。
+    internal static PyBaseException NormalizeRaise(object exception)
+    {
         // `raise SomeClass` / `raise SomeClass(...)`：类对象先实例化（无参构造）。
         switch (exception)
         {
@@ -93,8 +102,14 @@ public static partial class PyErrors
             case PyType { Name: "error" }:
                 exception = PyRegex.ConstructError([], [], [])!;
                 break;
+            case PyType { Name: "GetoptError" }:
+                exception = PyGetoptError.Construct([], [], []);
+                break;
             case PyType { Name: "JSONDecodeError" }:
                 exception = PyJsonModule.ConstructError([], [], []);
+                break;
+            case PyType type when PyOptParseExceptions.IsType(type.Name):
+                exception = PyOptParseExceptions.Construct(type.Name, [], [], []);
                 break;
             case PyType type when PyExceptionHierarchy.IsKnown(type.Name):
                 exception = PyExceptionTypes.Create(type.Name, string.Empty);
@@ -104,8 +119,8 @@ public static partial class PyErrors
         {
             throw new PyTypeError("exceptions must derive from BaseException");
         }
-        PyTraceback.Attach(ex);
-        return Prepare(ex);
+        ex.ForeignObject?.SynchronizeException(ex, write: false);
+        return ex;
     }
 
     /// <summary>按名字构造异常；<paramref name="arg"/> 为 <c>None</c> 时消息为空。</summary>
@@ -115,6 +130,8 @@ public static partial class PyErrors
     {
         // StopIteration 的首参是终值对象，不能先 str() 再丢失身份或提前执行用户代码。
         // 当前单参 ABI 尚不区分无参和显式 None；二者沿用内部耗尽的空 args 约定。
+        if (PyOptParseExceptions.IsType(typeName)) return PyOptParseExceptions.Construct(typeName, arg is null ? [] : [arg], [], []);
+        if (typeName == "GetoptError") return PyGetoptError.Construct(arg is null ? [] : [arg], [], []);
         if (typeName == "StopIteration") return new PyStopIteration(arg);
         if (typeName == "SystemExit") return new PySystemExit(arg);
         if (PyExceptionHierarchy.IsSubclass(typeName, "Warning"))
@@ -149,7 +166,7 @@ public static partial class PyErrors
     /// 没有参数时为空。生成代码的异常构造函数从这里取消息。
     /// </remarks>
     public static string UserExceptionMessageForBase(string builtinBase, object?[] args) =>
-        PyExceptionHierarchy.IsSubclass(builtinBase, "Warning") || builtinBase is "UnsupportedOperation" or "io.UnsupportedOperation" ? "" : UserExceptionMessage(args);
+        PyExceptionHierarchy.IsSubclass(builtinBase, "Warning") || builtinBase is "StopIteration" or "UnsupportedOperation" or "io.UnsupportedOperation" or "BadZipFile" or "zipfile.BadZipFile" ? "" : UserExceptionMessage(args);
 
     /// <summary>按参数生成显式异常消息；警告仅在真正格式化时调用。</summary>
     public static string UserExceptionMessage(object?[] args)
@@ -177,9 +194,9 @@ public static partial class PyErrors
     {
         if (value is null or PyUnbound)
         {
-            throw new PyUnboundLocalError(
+            throw PyTraceProduct.NativeFresh(new PyUnboundLocalError(
                 $"cannot access local variable '{name}' where it is not associated with a value"
-            );
+            ));
         }
         return value;
     }

@@ -208,3 +208,12 @@ pub(crate) fn prepared_builtin_supported(
     );
     !narrow || (args.len() == 1 && matches!(args[0], CallArg::Positional(_)))
 }
+
+/// 仅当前函数的yield事实，供结构化实例能力预检复用。
+pub(crate) fn contains_yield(body: &[ast::Stmt]) -> bool {
+    let mut scan = Scan::default();
+    for stmt in body {
+        scan.visit_stmt(stmt);
+    }
+    scan.has_yield
+}
