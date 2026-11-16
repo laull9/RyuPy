@@ -10,6 +10,11 @@
 > 现有产品继续包含 CPython 执行域。下列依赖与互操作分层约束继续有效；
 > 执行归属由 driver 冻结，异步/语言语义在 HIR/MIR 显式化，codegen 仅发射已确定操作。
 
+> **2026-11-16 内核路线修订**：按 [ADR-0223](adr/0223-stock-libpython-bounded-glue.md)，
+> 主线复用原版 libpython、静态 shim 和原生 finder/loader，允许逐项审计的必要 Python 胶水。
+> 保留上游 importlib/codec 协议以降低多版本维护成本；热点和业务体继续向 CIL 迁移。
+> 自定义严格内核为可选研究，crate 分层与静态互操作约束继续有效。
+
 > **2026-11-13 已接入的试点架构**：当前crate分层继续有效；随包 libpython 宿主与通用对象桥
 > 见 [cpython-provider.md](cpython-provider.md)。`RyuPy.CPython` 封装 C API、GIL、句柄、
 > 静态回调与确定释放，Runtime提供中性对象/provider合同，driver管理显式归属与分发闭包。

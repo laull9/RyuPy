@@ -1,11 +1,16 @@
 # ADR-0221：C4-2 严格无字节码内核接入宿主、生命周期 Fence 与可执行分切计划
 
 - 日期：2026-11-16
-- 状态：设计已接受，实施按下列切片推进；C4-1 Loader 关键字修复已合入 `676d02c8`
+- 状态：按 ADR-0223 转为可选严格研究，暂停扩展；C4-1 Loader 关键字修复已合入 `676d02c8`
 - 接续：[ADR-0208](0208-cil-execution-libpython-kernel.md)、[ADR-0216](0216-strict-kernel-native-stdio.md)、[ADR-0217](0217-strict-kernel-frozen-extensions-and-cil-import-abi.md)、[ADR-0220](0220-native-compiled-import-hooks.md)
 - 范围：保持普通 `PyDict` 数据布局与热路径零改动、保留 `auto`（3.9–3.15）兼容链路与 [tests/general_projects/README.md](../../tests/general_projects/README.md) `FastAPI >= 3.13.3` 原约束；在 CPython 3.12.13 严格内核上以可执行小切片打通 `RyuPy.CPython`、`RyuPy.Runtime`、`ryupy-codegen-cil` 与 `ryupy-driver`/CLI。
 
 ## 1. 源码核查结论与现状纠偏
+
+用户已接受少量必要 Python 胶水，主线改用原版 libpython，见
+[ADR-0223](0223-stock-libpython-bounded-glue.md)。下述严格内核专属 Fence、导入 ABI 和
+三阶段零字节码合同留在研究 profile。Slice 2 中性冷 namespace 与模块事务可独立复用到
+stock PEP451 loader；复用时另验身份、循环、失败回滚和生命周期，不能依赖 strict-only 符号。
 
 对照当前实施分支（含 ADR-0220 与 C4-1 `676d02c8`），接入需解决以下时序与身份合同：
 
@@ -99,7 +104,7 @@ Compat（`auto` 3.9–3.15）保持既有序列不变；strict 模式按以下 *
 
 | 切片 | 目标与可验证产出 | 依赖 |
 | --- | --- | --- |
-| **Slice 1（首切，推荐立即可实施）**：`ProcessBinding` + 严格加载/FiniCore Fence + 审计闭环 | 落定 `ProcessNativeBinding`（`Reserved`/`Failed` 终态与子进程负例）、strict C shim 分离、三阶段无盲区 `complete=true` 审计与 `FiniCore` 真实 owned `DECREF` 析构计数证明；跑通最小 `math` + `atexit`（无 CIL 导入回调）严格内核验证 | 依赖 C4-1 `676d02c8` |
+| **Slice 1（源码与宿主验证构建就绪）**：`ProcessBinding` + 严格加载/FiniCore Fence + 审计闭环 | 落定 `ProcessNativeBinding`（`Reserved`/`Failed` 不可逆终态、Compat 单次边界与 StrictKernel 同三元组顺序重建）、`ryupy_cpython_strict` 分离、独立 `rp_kernel_set_fini_fence` + 单次静态 `exec_module` trampoline（不与 `cil_callbacks.cleanup` 耦合）、单调 `disable_epoch`/`reset_epoch` 防篡改审计与真实 `FiniCore` 句柄 `DECREF`（允许 `op=0` 拒 `op!=0`/新租约）；12 项独立子进程测试待总控整跑 | 依赖 C4-1 `676d02c8` |
 | **Slice 2**：公开中性冷接口与 `PyModuleInstanceState`/身份归一 | 落定 `IPyModuleNamespace`、`IPyStrictImportProvider`（`sys.modules` 三态）、`PyDict` 零改动冷态 `State`/`Context` 重构、`_strictBuiltinsDict` canonical 身份与 `&PyDict_Type` `TypeOf`/`__class__` 归一（含单元测试） | Slice 1 |
 | **Slice 3**：`create_module = NULL` 两阶段回调、`RunStrictMain` 与 `SealStrict` | 接入 `Entry` 时序重排（`Initialize -> StartStrictUnsealed -> __init_functions -> SealStrict -> RunStrictMain -> Finish`）、`objects`/`reverse`/`ForeignObject` 同步与旧 `fn` `ptr` 回流、`PyNativeModules`（`os.environ`）接入与 `c4_2_strict_kernel_import` 转正 | Slice 2 |
 | **Slice 4**：Driver 严苛分发 + `relocate` + 三形态与 ABI 门禁 | 冻结 `driver`/HIR 编期校验（codegen 只发射）、3.12.13 严格载荷（含 `LICENSE.Python.txt`、零 `.py/.pyc`、拒 `cp313` `.so`）、原生 `.so` 扩展交叉导入及 JIT/NativeAOT/OneFile 中文空格搬迁全门 | Slice 3 |
