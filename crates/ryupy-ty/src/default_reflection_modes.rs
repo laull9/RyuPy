@@ -8,7 +8,7 @@ use ryupy_hir::{Builtin, ClassItem, ClassItemKind, ExprKind, FuncId, Module};
 pub(crate) fn apply(module: &Module, modes: &mut ArenaMap<FuncId, FuncMode>) {
     // 类方法经可变类属性发布；staticmethod即使无初始默认值也能随后新增任意对象默认值。
     for (_, class) in module.classes.iter() {
-        exposed_methods(&class.body, modes);
+        exposed_methods(module, &class.body, modes);
     }
     // 默认值tuple/dict支持动态替换；定义处的标注和初值不足以证明以后值的类型。
     for (id, function) in module.functions.iter() {
@@ -38,7 +38,7 @@ pub(crate) fn apply(module: &Module, modes: &mut ArenaMap<FuncId, FuncMode>) {
                 // 属性、别名赋值、传参、返回、容器与装饰器引用都先保留真实对象参数。
                 // 同时覆盖原来没有默认值、随后经别名增加默认值的函数。
                 ExprKind::Func(target) if !direct_callees.contains(&id) => {
-                    modes.insert(*target, FuncMode::Dynamic);
+                    demote_parameterized(module, *target, modes);
                 }
                 ExprKind::Builtin(Builtin::Dynamic("globals" | "vars" | "eval" | "exec")) => {
                     observes_published_functions = true
@@ -62,20 +62,28 @@ pub(crate) fn apply(module: &Module, modes: &mut ArenaMap<FuncId, FuncMode>) {
     }
     if observes_published_functions {
         for function in &module.top_functions {
-            modes.insert(*function, FuncMode::Dynamic);
+            demote_parameterized(module, *function, modes);
         }
     }
 }
 
-fn exposed_methods(items: &[ClassItem], modes: &mut ArenaMap<FuncId, FuncMode>) {
+// 默认值只能填已有形参；零Python参数函数无法经默认值接收异型输入。
+// 保留其原模式，避免修改__module__/观察注册表使已有Static帧和ABI退化。
+fn demote_parameterized(module: &Module, function: FuncId, modes: &mut ArenaMap<FuncId, FuncMode>) {
+    if !module.functions[function].params.is_empty() {
+        modes.insert(function, FuncMode::Dynamic);
+    }
+}
+
+fn exposed_methods(module: &Module, items: &[ClassItem], modes: &mut ArenaMap<FuncId, FuncMode>) {
     for item in items {
         match &item.kind {
             ClassItemKind::Method { func, .. } => {
-                modes.insert(*func, FuncMode::Dynamic);
+                demote_parameterized(module, *func, modes);
             }
             ClassItemKind::If { body, orelse, .. } => {
-                exposed_methods(body, modes);
-                exposed_methods(orelse, modes);
+                exposed_methods(module, body, modes);
+                exposed_methods(module, orelse, modes);
             }
             _ => {}
         }

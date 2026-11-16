@@ -106,3 +106,11 @@ public sealed partial class PyFunction
         return state;
     }
 }
+
+public static partial class PyOps
+{
+    /// <summary>已验证的私有def锚点与真实callee相同且默认值未进入冷反射状态时允许直调。</summary>
+    public static bool FunctionDefaultsUnobserved(object? callable, object? expected) =>
+        callable is PyFunction function && ReferenceEquals(function, expected)
+        && !PyFunctionDefaults.TryGet(function.Defaults, out _);
+}

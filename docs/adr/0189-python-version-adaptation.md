@@ -50,11 +50,11 @@ macOS arm64：Rust driver 的 CPython 定向测试 22 项通过；driver 全目�
 默认 IO、包资源及缺 libpython/shim/资源负例通过。
 Linux/Windows 真实产品矩阵由主代理及 CI 验收。
 
-部分 PBS full 元数据引用 `licenses/LICENSE.zlib-ng.txt`，归档遗漏该文件。
-构建器读取该 release tag 的 `pythonbuild/downloads.py`，静态解析组件的
-精确版本和 cpython-source-deps 源 URL，再取对应 tag 的 LICENSE.md。
+部分 PBS full 元数据引用 `licenses/LICENSE.zlib-ng.txt` 与 3.14+ `licenses/LICENSE.zstd.txt`，归档遗漏该文件。
+构建器读取该 release tag 的 `pythonbuild/downloads.py`（或 `downloads.json`），静态解析组件的
+精确版本和 cpython-source-deps 源 URL，核对组件与许可文件名后，再取对应 tag 的实际 LICENSE / LICENSE.md。
 补充来源写入产品 `python/license-sources.json`，原始上游 PYTHON.json 保留。
-未知遗漏无补充规则时构建报错。固定 3.12.13 旧 shim 保留静态 guard 兼容；
+未知遗漏无补充规则或上游身份不匹配时构建报错拒绝，禁止放占位许可或跳过缺许可检查。固定 3.12.13 旧 shim 保留静态 guard 兼容；
 新多版本 shim 必须导出并核对其头文件完整版本。
 
 跨平台首轮发现并修正：GitHub API可使用构建环境的GH_TOKEN/GITHUB_TOKEN，凭据仅通过
@@ -63,8 +63,8 @@ curl stdin配置传递且仅用于官方API；匹配缓存先核对精确版本�
 与schema7 optimizations字段按官方20220528的3.9.13真实元数据适配，保留原始JSON。
 报告中的archive_url改为本次实际安装归档，本地观察来源无归档时明确留空。
 
-新增8项可重复发行准备合同测试：新旧Windows资产选择、schema7/8优化字段、官方API凭据
-隔离与精确缓存离线选择/错误元数据拒绝，入口`python -B tests/cpython/test_portable.py`。
+新增15项可重复发行准备合同测试：新旧Windows资产选择、schema7/8优化字段、官方API凭据
+隔离、精确缓存离线选择/错误元数据拒绝，以及3.14+ zstd与旧版zlib-ng官方主源补齐和负例门禁，入口`python -B tests/cpython/test_portable.py`。
 跨平台21项矩阵已全部通过；Linux真实zlib专测与目标容器同时作为门禁。
 
 复审与真实CI修复：许可证、来源与关键发行文件在私有候选中全部齐备后，持有内核文件锁原子发布；

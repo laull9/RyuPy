@@ -14,6 +14,8 @@ internal static class PyNamedTupleBinding
             if (kind is PyParamKind.PositionalOnly or PyParamKind.PositionalOrKeyword) positional++;
         for (int index = 0; index < positional; index++)
             if (!signature.HasDefault[index]) required++;
+        bool reflected = PyFunctionDefaults.TryGet(defaults, out PyFunctionDefaults? state);
+        if (reflected) required = state!.RequiredPositionalCount;
         try
         {
             if (args.Length > positional)
@@ -35,6 +37,8 @@ internal static class PyNamedTupleBinding
         }
         catch (PyTypeError error)
         {
+            // 反射后的缺省槽由实时state决定，不能再用定义期HasDefault重建缺参列表。
+            if (reflected) throw PyNamedTupleLayout.Error(error);
             var missing = new List<string>();
             for (int index = args.Length; index < positional; index++)
                 if (!signature.HasDefault[index] && Array.IndexOf(names, signature.Names[index]) < 0)

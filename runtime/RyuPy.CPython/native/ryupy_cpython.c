@@ -558,6 +558,9 @@ API int rp_run_entry(const char *path, const char *source) {
 }
 /* 跨域类继承支持原语：类型判定、继承查询、容器成员测试、dir() 与借用类型指针。 */
 API int rp_is_type(PyObject *value) { return value && PyType_Check(value) ? 1 : 0; }
+/* 精确识别 super 实例与类型对象；子类保留自身真实类型，普通外部对象不参与归一化。 */
+API int rp_super_kind(PyObject *value) { return value == (PyObject *)&PySuper_Type ? 2 : Py_IS_TYPE(value, &PySuper_Type) ? 1 : 0; }
+API PyObject *rp_super_type(void) { return Py_NewRef((PyObject *)&PySuper_Type); }
 API int rp_is_plain_type(PyObject *value) { return value == (PyObject *)&PyType_Type ? 1 : 0; }
 API int rp_is_subclass(PyObject *cls, PyObject *base) { return PyObject_IsSubclass(cls, base); }
 API int rp_contains(PyObject *container, PyObject *item) { return PySequence_Contains(container, item); }

@@ -5,6 +5,8 @@ namespace RyuPy.CPython;
 
 internal static unsafe class Native
 {
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_super_kind(nint value);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_super_type();
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_native_method(nint target, nint name, nint qualname);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_execution_audit_start();
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern void rp_execution_audit_phase(int phase);

@@ -41,27 +41,6 @@ public sealed partial class CPythonHost
     }
 
     /// <inheritdoc />
-    public bool IsSubclass(object? child, object? parent) => PythonCall(() =>
-    {
-        nint childPtr = TryResolveTypePointer(child);
-        if (childPtr == 0) return false;
-        nint parentPtr = 0;
-        try
-        {
-            parentPtr = TryResolveTypePointer(parent);
-            if (parentPtr == 0) return false;
-            int result = Native.rp_is_subclass(childPtr, parentPtr);
-            if (result < 0) ThrowError();
-            return result != 0;
-        }
-        finally
-        {
-            Native.rp_decref(childPtr);
-            if (parentPtr != 0) Native.rp_decref(parentPtr);
-        }
-    });
-
-    /// <inheritdoc />
     public IPyForeignObject CreateDerivedClass(
         PyClass compiledClass,
         string name,
@@ -173,51 +152,6 @@ public sealed partial class CPythonHost
     });
 
     /// <inheritdoc />
-    public object? GetSuperAttribute(object start, object? receiver, string name) => PythonCall(() =>
-    {
-        EnsureClassBridgeHelpers();
-        nint startPtr = ResolveBasePointer(start);
-        nint receiverPtr = 0;
-        nint superPtr = 0;
-        try
-        {
-            receiverPtr = receiver is null ? Native.rp_none() : ToPython(receiver);
-            superPtr = CallSuperOwned(startPtr, receiverPtr);
-            return FromOwned(Native.rp_op(2, superPtr, s: name));
-        }
-        finally
-        {
-            Native.rp_decref(startPtr);
-            if (receiverPtr != 0) Native.rp_decref(receiverPtr);
-            if (superPtr != 0) Native.rp_decref(superPtr);
-        }
-    });
-
-    /// <inheritdoc />
-    public object? CreateSuper(object start, object? receiver) => PythonCall(() =>
-    {
-        EnsureClassBridgeHelpers();
-        nint startPtr = ResolveBasePointer(start);
-        nint receiverPtr = 0;
-        try
-        {
-            receiverPtr = receiver is null ? Native.rp_none() : ToPython(receiver);
-            return FromOwned(CallSuperOwned(startPtr, receiverPtr));
-        }
-        finally
-        {
-            Native.rp_decref(startPtr);
-            if (receiverPtr != 0) Native.rp_decref(receiverPtr);
-        }
-    });
-
-    // 零参 super 的词法类与接收者已经由托管 PyMethodContext 冻结。
-    // 显式调用真实 PySuper_Type，None 接收者沿旧合同建立单参未绑定代理。
-    private nint CallSuperOwned(nint start, nint receiver) => Native.rp_is_none(receiver) != 0
-        ? CallRawArgs(_superCreateFn, start)
-        : CallRawArgs(_superCreateFn, start, receiver);
-
-    /// <inheritdoc />
     public bool Contains(IPyForeignObject foreignInstance, object? value) => PythonCall(() =>
     {
         PythonObject container = RequireForeignObject(foreignInstance);
@@ -276,14 +210,6 @@ public sealed partial class CPythonHost
         return foreign;
     }
 
-    private nint TryResolveTypePointer(object? value) => value switch
-    {
-        PyClass cls => ResolveForeignTypePointer(cls),
-        PythonObject foreign when ReferenceEquals(foreign.Host, this) => Native.rp_incref(foreign.Pointer),
-        PyType builtin => Check(Native.rp_builtin(builtin.Name)),
-        _ => 0,
-    };
-
     private nint ResolveBasePointer(object? value) => value switch
     {
         PyClass cls => ResolveForeignTypePointer(cls),
@@ -330,6 +256,7 @@ public sealed partial class CPythonHost
             nint mirrorPtr = CallRawArgs(_makeClassFn, namePtr, basesTuple, nsDict);
             var mirror = new PythonObject(this, mirrorPtr);
             _mixinMirrors[cls] = mirror;
+            objects[mirrorPtr] = new WeakReference<object>(cls);
             return Native.rp_incref(mirror.Pointer);
         }
         finally
@@ -533,7 +460,7 @@ public sealed partial class CPythonHost
                 _objectDelAttrFn = Check(Native.rp_op(2, objectType, s: "__delattr__"));
             }
             finally { Native.rp_decref(objectType); }
-            _superCreateFn = Check(Native.rp_builtin("super"));
+            _superCreateFn = Check(Native.rp_super_type());
         }
         finally
         {

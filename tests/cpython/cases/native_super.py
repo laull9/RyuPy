@@ -1,6 +1,6 @@
-# ryupy: pending
 """C1 原生 super 竖切：单继承、零参上下文、显式/未绑定代理及错误参数。"""
 from collections import UserDict
+from bridge_fixture.super_contract import check_super, get_held, make_super, make_super_subclass, rebind
 
 
 class Base(UserDict):
@@ -40,6 +40,41 @@ assert bound.__self_class__ is Leaf
 unbound = super(Leaf)
 assert unbound.__thisclass__ is Leaf
 assert unbound.__self__ is None
+for proxy in (bound, unbound, super(UserDict, value)):
+    assert isinstance(proxy, super)
+    assert type(proxy) is super
+    assert proxy.__class__ is super
+    assert check_super(proxy) is proxy
+incoming = make_super(Leaf, value)
+assert get_held() is incoming
+assert isinstance(incoming, super)
+assert type(incoming) is super
+incoming_unbound = make_super(Leaf)
+rebound = incoming_unbound.__get__(value, Leaf)
+assert type(rebound) is super
+assert isinstance(rebound, super)
+assert rebound.__self__ is value
+assert rebound.__thisclass__ is Leaf
+assert type(rebind(incoming_unbound, value, Leaf)) is super
+subtype, subtype_value = make_super_subclass(Leaf, value)
+assert type(subtype_value) is subtype
+assert isinstance(subtype_value, super)
+assert issubclass(subtype, super)
+
+
+class CompiledSuperSubclass(subtype):
+    pass
+
+
+compiled_subtype_value = CompiledSuperSubclass(Leaf, value)
+assert type(compiled_subtype_value) is CompiledSuperSubclass
+assert isinstance(compiled_subtype_value, super)
+assert issubclass(CompiledSuperSubclass, super)
+assert not isinstance(subtype, super)
+assert not isinstance(CompiledSuperSubclass, super)
+assert not isinstance(value, super)
+assert not isinstance(UserDict(), super)
+assert not issubclass(Leaf, super)
 try:
     super(Leaf, 1)
 except TypeError:

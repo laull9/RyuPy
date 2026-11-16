@@ -18,7 +18,7 @@
 | :--- | :--- | :--- |
 | **Git 引用** | 分支 `feat/adr0208-cil-execution`，Commit `5d36db1e952f1db07aee6563d7a800cc1df94548` | 在 `5d36db1e` 之上的未提交工作区修改与未跟踪文件 |
 | **C0 执行审计** | **无**（尚无 PEP 523 帧观测与审计门） | **新增固定 3.12.13 原生 PEP 523 审计**：[execution_audit.h](../runtime/RyuPy.CPython/native/execution_audit.h)、[CPythonExecutionAudit.cs](../runtime/RyuPy.CPython/CPythonExecutionAudit.cs)、[tests/cpython/execution_audit.py](../tests/cpython/execution_audit.py)、[tests/cil_execution/check_audit.py](../tests/cil_execution/check_audit.py) |
-| **C1 Python 胶水** | `_ryupy_imports` 含 9 个 Python `def` + 2 个查找/加载类 + 3 个别名，含 `_rp_object_new` / `_rp_object_init` / `_rp_object_setattr` / `_rp_object_delattr` | **候选 [ADR-0209](adr/0209-base-object-native-descriptors.md)**：从 [CPythonImports.cs](../runtime/RyuPy.CPython/CPythonImports.cs) 移除 4 个 `_rp_object_*` 转发函数；[CPythonClassBridge.cs](../runtime/RyuPy.CPython/CPythonClassBridge.cs#L519-L529) 直接获取并缓存 `object` 原生描述符；剩余 5 个 Python `def` + 2 个类 + 3 个别名仍在过渡期 |
+| **C1 Python 胶水** | `_ryupy_imports` 含 9 个 Python `def` + 2 个查找/加载类 + 3 个别名，含 `_rp_object_new` / `_rp_object_init` / `_rp_object_setattr` / `_rp_object_delattr` | **候选 [ADR-0209](adr/0209-base-object-native-descriptors.md)**：从 [CPythonImports.cs](../runtime/RyuPy.CPython/CPythonImports.cs) 移除 4 个 `_rp_object_*` 转发函数；[CPythonClassBridge.cs](../runtime/RyuPy.CPython/CPythonClassBridge.cs#L519-L529) 直接获取并缓存 `object` 原生描述符；随后移除 2 个 super helper；默认剩余 3 个 Python `def` + 2 个类 + 3 个别名，原生方法描述符候选再移除方法包装 helper |
 | **其余并行候选** | 无 | 另有并行未提交的 C0 基线文档（[cil-execution-baseline.md](cil-execution-baseline.md)）、`TODO.md`、`Makefile` 及 C2/C3 早期原型（`PyCoroutine*.cs`、`coroutines.rs`、`c2_function_defaults_dynamic.py`）；合流后按实际门禁登记验收 |
 
 ---
@@ -53,18 +53,18 @@
 | `_RyuPyFinder` | Python `class` (`find_spec`) | 存在 | **保留（未移除）** | 插入 `sys.meta_path[0]` | **C1 后续**：改为静态 C finder 对象插入 `sys.meta_path[0]` |
 | `_rp_calculate_meta` | Python `def` | 存在 | **保留（未移除）** | `_rp_make_class` | **C1 后续**：C 侧 `PyType_IsSubtype` / CLR 元类解析 |
 | `_rp_make_class` | Python `def` | 存在 | **保留（未移除）** | `_makeClassFn` (`CreateDerivedClass`, `ResolveForeignTypePointer`) | **C1 后续**：C shim 调用 `types.resolve_bases` 协议 + `__prepare__` + `PyObject_Call(meta, ...)` |
-| `_rp_wrap_method` | Python `def`（内含闭包 `_rp_method(*args, **kwargs)`） | 存在 | **保留（未移除）** | `_wrapMethodFn` (`WrapCallableOwned`)；每次方法回调产生 Python 帧 `_rp_method` | **C1 重点**：改为 C `PyType_Spec` 可调用描述符（携带 `ForeignMethodTarget` 与 `__name__`/`__qualname__`） |
+| `_rp_wrap_method` | Python `def`（内含闭包 `_rp_method(*args, **kwargs)`） | 存在 | **默认保留，原生方法候选移除** | `_wrapMethodFn` (`WrapCallableOwned`)；每次方法回调产生 Python 帧 `_rp_method` | **C1 重点**：改为 C `PyType_Spec` 可调用描述符（携带 `ForeignMethodTarget` 与 `__name__`/`__qualname__`） |
 | `_rp_object_new` | Python `def` | 存在（调用 `object.__new__`） | **已移除**（由 `_objectNewFn = object.__new__` 原生描述符替代） | `AllocateFromBaseObject` | **C1 候选已落地（ADR-0209）**：审计确认该转发帧为 0；待完整 `make check` 与搬迁验收 |
 | `_rp_object_init` | Python `def` | 存在（调用 `object.__init__`） | **已移除**（由 `_objectInitFn = object.__init__` 原生描述符替代） | `InitializeFromBaseObject` | 同上 |
 | `_rp_object_setattr` | Python `def` | 存在（调用 `object.__setattr__`） | **已移除**（由 `_objectSetAttrFn = object.__setattr__` 原生描述符替代） | `SetAttrFromBaseObject` | 同上 |
 | `_rp_object_delattr` | Python `def` | 存在（调用 `object.__delattr__`） | **已移除**（由 `_objectDelAttrFn = object.__delattr__` 原生描述符替代） | `DelAttrFromBaseObject` | 同上 |
-| `_rp_super_getattr` | Python `def` | 存在 | **保留（未移除）** | `_superGetAttrFn` (`GetSuperAttribute`) | **C1 下一最窄切片**：C 调用 `PyObject_CallFunctionObjArgs(&PySuper_Type, ...)` + `PyObject_GetAttr` |
-| `_rp_super_create` | Python `def` | 存在 | **保留（未移除）** | `_superCreateFn` (`CreateSuper`) | **C1 下一最窄切片**：C 调用 `PyObject_CallFunctionObjArgs(&PySuper_Type, ...)` |
+| `_rp_super_getattr` | Python `def` | 存在 | **已移除** | `CPythonHost.GetSuperAttribute` | 真实 super builtin 调用及原生属性查找 |
+| `_rp_super_create` | Python `def` | 存在 | **已移除** | `CPythonHost.CreateSuper` | 中性 PySuper 与真实外部代理共享身份 |
 | `_rp_staticmethod` | Python 全局别名（`= staticmethod`） | 存在 | **保留（未移除）** | `_staticMethodFn` | **C1 后续**：直接 `rp_builtin("staticmethod")` 或 `&PyStaticMethod_Type` |
 | `_rp_classmethod` | Python 全局别名（`= classmethod`） | 存在 | **保留（未移除）** | `_classMethodFn` | **C1 后续**：直接 `rp_builtin("classmethod")` 或 `&PyClassMethod_Type` |
 | `_rp_property` | Python 全局别名（`= property`） | 存在 | **保留（未移除）** | `_propertyFn` | **C1 后续**：直接 `rp_builtin("property")` 或 `&PyProperty_Type` |
 
-> `[静态证据]` 基准 `5d36db1e` 中 `_ryupy_imports` 共包含 **9 个 Python `def` 转发/构建函数 + 2 个 Python 导入钩子类**；当前工作树候选（ADR-0209）移除了 4 个 `_rp_object_*` 函数，仍留存 **5 个 Python `def` + 2 个类 + 3 个别名**，且 `InstallImports()` 仍执行 `import sys, importlib.util, types` 与 `PyRun_String`。
+> `[静态证据]` 基准 `5d36db1e` 中 `_ryupy_imports` 共包含 **9 个 Python `def` 转发/构建函数 + 2 个 Python 导入钩子类**；当前工作树移除了 4 个 `_rp_object_*` 与 2 个 `_rp_super_*` 函数，默认仍留存 **3 个 Python `def` + 2 个类 + 3 个别名**；`RYUPY_CPYTHON_NATIVE_METHODS=1` 候选再移除 `_rp_wrap_method`，且 `InstallImports()` 仍执行 `import sys, importlib.util, types` 与 `PyRun_String`。
 
 ---
 
@@ -104,7 +104,7 @@
    - `op=5/6/7`: `managed_item` / `managed_setitem`（set/del）
    - `op=8/9/10/11/12/13/14/15`: `len`、`bool`、`repr`、`str`、`iter`、`next`、`hash`、`richcompare`。
 3. **跨域方法与属性回调链**：
-   - 编译类继承 CPython 类型时，`ConvertClassMemberOwned`（[CPythonClassBridge.cs](../runtime/RyuPy.CPython/CPythonClassBridge.cs#L355-L406)）将 `PyFunction` / `PyStaticMethod` / `PyClassMethod` / `PyProperty` 包装为 `ForeignMethodTarget`（实现 `IPyNativeCallable`，[CPythonClassBridge.cs](../runtime/RyuPy.CPython/CPythonClassBridge.cs#L577-L588)），**当前仍经过 Python helper `_rp_wrap_method` 生成 Python 闭包函数**。
+   - 编译类继承 CPython 类型时，`ConvertClassMemberOwned`（[CPythonClassBridge.cs](../runtime/RyuPy.CPython/CPythonClassBridge.cs#L355-L406)）将 `PyFunction` / `PyStaticMethod` / `PyClassMethod` / `PyProperty` 包装为 `ForeignMethodTarget`（实现 `IPyNativeCallable`，[CPythonClassBridge.cs](../runtime/RyuPy.CPython/CPythonClassBridge.cs#L577-L588)），**默认经过 Python helper `_rp_wrap_method`；显式原生方法候选使用静态 C 描述符**。
    - 当 Tk 事件循环、NumPy `frompyfunc` 或 CPython `super()` 调用该方法时：C 栈 → Python `_rp_method(*args, **kwargs)` 帧 → `managed_call_slot (op=1)` → `Dispatch` → `Enter(callback: true)` → `ManagedHandledScope` → `PullContainers()` → `ForeignMethodTarget.Invoke` → `PyObject.InvokeBound`（恢复 `PyMethodContext` 支持零参 `super()`）→ `PushContainers()` → `ToPython` / `RestoreCallbackError` → `PyTraceback.PopTo(callbackDepth + 1)` → 退出租约。
 4. **关闭钩子回调链**：`Py_FinalizeEx` 触发 `atexit` 注册的 `ManagedObject` 回调时，以 `state == 2 / 4` 的 `ownerThread` 租约重入 `Dispatch`（[CPythonHost.cs](../runtime/RyuPy.CPython/CPythonHost.cs#L138)）。
 
@@ -159,7 +159,7 @@
 
 ### 7.1 内部托管互操作层消费者：`RyuPy.CPython`
 
-`[静态证据]` [Native.cs](../runtime/RyuPy.CPython/Native.cs#L8-L80) 声明了 **63** 个 `DllImport("ryupy_cpython")` 导出（含工作树新增 5 个 `rp_execution_audit_*`；基准 `5d36db1e` 为 **58** 个），对应 [ryupy_cpython.c](../runtime/RyuPy.CPython/native/ryupy_cpython.c) 消费的 CPython C API 分为五类：
+`[静态证据]` [Native.cs](../runtime/RyuPy.CPython/Native.cs#L8-L80) 声明了 **75** 个 `DllImport("ryupy_cpython")` 导出（基准 `5d36db1e` 为 **67** 个；新增审计 5 项、原生方法描述符 1 项、精确 super 分类 2 项），对应 [ryupy_cpython.c](../runtime/RyuPy.CPython/native/ryupy_cpython.c) 消费的 CPython C API 分为五类：
 
 1. **生命周期与配置**：`PyPreConfig_InitIsolatedConfig`、`Py_PreInitialize`、`PyConfig_InitIsolatedConfig`、`PyConfig_SetBytesString`、`Py_DecodeLocale`、`PyWideStringList_Append`、`Py_InitializeFromConfig`、`PyConfig_Clear`、`Py_IsInitialized`、`Py_FinalizeEx`、`Py_GetVersion`。
 2. **GIL 与线程状态**：`PyGILState_Ensure`、`PyGILState_Release`、`PyEval_SaveThread`、`PyEval_RestoreThread`；以及审计专用的 `<internal/pycore_frame.h>`、`_PyThreadState_UncheckedGet`、`PyThreadState_GetInterpreter`、`_PyInterpreterState_GetEvalFrameFunc` / `SetEvalFrameFunc`、`PySys_AddAuditHook`。
@@ -174,7 +174,7 @@
 | **内建 C 模块（PBS `libpython`）** | `_sqlite3` 等（`PYTHON.json` 列出 106 项内建模块） | `[动态证据]` `_sqlite3` 在 `PyModule_ExecDef` 时调用 `PyImport_ImportModule("functools")` | 必须让 `PyImport_ImportModule` 路由到 RyuPy 已编译 CIL/Runtime 的 `functools`，而非走磁盘 `.py` |
 | **`lib-dynload` 扩展** | `_tkinter.cpython-312-darwin.so`、`_dbm.cpython-312-darwin.so`、`SanBudget` 消费 | `[静态证据]` `nm -u`：`_tkinter` 依赖 `_PyType_FromSpec`、`_PyEval_SaveThread`/`RestoreThread`、`_PyErr_*`；`_dbm` 依赖 `_PyType_FromModuleAndSpec` | 保留 GIL 释放/重入、C `PyType_FromSpec` 与异常 C API；事件回调进入 `ManagedObject.tp_call` |
 | **NumPy 2.3.5 核心与随机扩展** | `numpy/_core/_multiarray_umath.cpython-312-darwin.so`、9 个 `numpy/random/*.so` | `[静态证据]` `nm -u`：`_multiarray_umath` 导入 `_PyImport_ImportModule`、`_PyImport_Import`、`_PyEval_GetBuiltins`、`_PyBuffer_Release`、`_PyMemoryView_*`；**全部 9 个 Cython 生成的 `numpy/random/*.so` 均直接导入 `_PyCode_NewEmpty`、`_PyFrame_New`、`_PyImport_ImportModuleLevelObject`、`_PyType_FromMetaclass`** | **决定性约束**：内核**必须**保留 `PyCodeObject`/`PyFrameObject` C 结构 ABI（供 Cython traceback 构造）且**必须**让 `PyImport_ImportModuleLevelObject` 能在无 `importlib` 字节码时工作 |
-| **FastAPI 技术栈扩展** | `pydantic-core==2.50.4`、`greenlet==3.5.6`、`SQLAlchemy==2.0.52` | `[静态证据]`（[requirements.txt](../tests/general_projects/requirements.txt)；本机未跑三方二进制符号扫描，**待在 C4 逐 wheel 实测**）：PyO3（类型/缓冲/异常/帧）、`greenlet`（依赖 `PyThreadState` / C 栈与 Python 帧切换结构布局） | 严格内核不得擅自破坏 `PyThreadState` / `PyFrame` 公开/常用扩展布局；协程/栈切换消费端须在 C3/C4 逐一实测 |
+| **FastAPI 技术栈扩展** | `pydantic-core==2.50.4`、`greenlet==3.5.6`、`SQLAlchemy==2.0.52` | `[静态证据]` macOS arm64 的 CPython 3.13.3 真实 wheel 已扫描：pydantic-core 单扩展有 161 个 Python 未定义符号，含 `PyEval_SaveThread/RestoreThread`；greenlet 生产扩展有 83 个，含 `PyContext_Type`、`PyThreadState_GetFrame`、`PyFrame_GetBack`；SQLAlchemy 五个扩展共 216 个，含 `PyCode_NewEmpty`、`PyFrame_New`、`PyUnstable_Code_NewWithPosOnlyArgs` | 保留实际版本对象/帧/线程 ABI。符号扫描用于登记静态消费者；C3/C4 继续逐库验证真实调度、布局与回调 |
 | **RyuPy 直接 C ABI 绑定** | `native_binding.rs`（v1–v3 声明）与 [PyNativeBindings.cs](../runtime/RyuPy.Runtime/PyNativeBindings.cs) | `[静态证据]` JIT `DllImport` / AOT `DirectPInvoke`，经 `CheckedI32` + `ReadExactScalar` 仅允许精确整数标量入 C | 本身不依赖 `libpython`；仅当外域 `PythonObject` 传入时经 `IPyForeignObject.ReadScalar` 读标量 |
 
 ---
@@ -229,44 +229,43 @@
 1. **已落地工作树候选（[ADR-0209](adr/0209-base-object-native-descriptors.md) — `object` 四项基础槽）**：
    - **改动**：从 [CPythonImports.cs](../runtime/RyuPy.CPython/CPythonImports.cs) 移除 `_rp_object_new`、`_rp_object_init`、`_rp_object_setattr`、`_rp_object_delattr`；在 [CPythonClassBridge.cs](../runtime/RyuPy.CPython/CPythonClassBridge.cs#L519-L529) 直接获取 `object` 原生描述符并缓存。
    - **实测证据 `[动态证据]`**：主代理验证 4 个转发函数帧计数为 **0**，[BaseObjectDescriptors_PreserveAllocationIdentityAttributesAndErrors](../runtime/RyuPy.CPython.Tests/CPythonClassBridgeTests.cs#L146-L168) 定向通过。
-   - **尚未闭环**：完整 `make check`、固定 CPython 同次差分及 JIT/NativeAOT 删除输入搬迁待验。
+   - **尚未闭环**：集成 `make check` 已通过；固定 CPython 同次差分与单继承 JIT/NativeAOT 删除输入搬迁已通过。
 
-2. **C1 下一首个最窄替换合同（供立项实施）：移除 `_rp_super_create` 与 `_rp_super_getattr` Python 转发函数**
-   - **目标与最小切面**：仅替换 [CPythonImports.cs](../runtime/RyuPy.CPython/CPythonImports.cs#L104-L108) 中剩余 2 个 `super` Python 转发函数（`_rp_super_getattr`、`_rp_super_create`），**不同时**修改 `_rp_make_class`、`_rp_wrap_method` 或 `_RyuPyFinder`/`_RyuPyLoader`（保持单切 1–2 天粒度）。
-   - **替代实现边界**：
-     - 在 [ryupy_cpython.c](../runtime/RyuPy.CPython/native/ryupy_cpython.c) 新增静态 C 导出（或合并进 `rp_op`）：
-       - `rp_super_create(PyObject *start, PyObject *receiver)`：当 `receiver == Py_None` 时调用 `PyObject_CallOneArg((PyObject *)&PySuper_Type, start)`（对应 `super(start)`），否则调用 `PyObject_CallFunctionObjArgs((PyObject *)&PySuper_Type, start, receiver, NULL)`（对应 `super(start, receiver)`），返回新引用；失败保留 CPython 原生 `TypeError`。
-       - `rp_super_getattr(PyObject *start, PyObject *receiver, const char *name)`：内部构造 `super` 代理后调用 `PyObject_GetAttrString(proxy, name)` 并 `Py_DECREF(proxy)`，返回新引用；失败保留原生 `AttributeError` / `TypeError`。
-     - 在 [Native.cs](../runtime/RyuPy.CPython/Native.cs) 添加 P/Invoke 声明，并在 [CPythonClassBridge.cs](../runtime/RyuPy.CPython/CPythonClassBridge.cs#L177-L214) 将 `GetSuperAttribute` / `CreateSuper` 改为直接调用新原生 API，删除 `_superGetAttrFn` / `_superCreateFn` 缓存与 `_ryupy_imports` 中的两个 Python `def`。
-   - **引用与安全不变量**：
-     - 保持 `Enter()` 租约与 GIL 边界、`ToPython` / `FromOwned` 新引用所有权；不绕过 `PySuper_Type` 的原生类型校验与描述器绑定；不新增 `RuntimeFn`、不改动 MIR/HIR/codegen。
-   - **正例与负例要求**：
-     - 正例：零参 `super()`（含 `classmethod` 与实例方法）、显式双参 `super(type, obj)`、单参 `super(type)` 未绑定代理、`UserDict` / `deque` / `tk.Tk` 多层与 MI mixin 继承属性/方法调用（对应 `UserDictSubclass_SupportsSuperInitMethodsAttributesAndOperators`、`CExtensionDequeSubclass_PreservesStorageAndMethods`、`CustomNewAndExplicitAndClassMethodSuper_PreserveMroOrderAndIdentity`）。
-     - 负例：非类型 `start` 抛 `TypeError`、`obj` 非 `start` 子类/实例抛 `TypeError`、不存在属性抛 `AttributeError`。
-   - **验收门禁**：
-     1. 审计验证 `execution_audit` 中不再出现 `_rp_super_create` 与 `_rp_super_getattr` 帧（对应函数帧 = 0）；
-     2. `dotnet test runtime/RyuPy.CPython.Tests` 全部通过（含新增单参 `super(type)` 边界与 `TypeError` 负例）；
-     3. `tests/general_projects/run.py --project sanbudget --compiled-app` JIT/standalone/onefile 删除输入搬迁通过；
-     4. `make check` 全绿（不引入未登记回归）。
-   - **后续 C1 切片顺序（紧接本合同之后）**：
-     - **C1-S2**：静态 C `PyType_Spec` 方法包装器替换 `_rp_wrap_method`（消除所有跨域方法/Tk 按钮/property 回调的 `_rp_method` Python 帧）；
-     - **C1-S3**：静态 C 元类解析与 `PyType_Type` 调用替换 `_rp_calculate_meta` / `_rp_make_class` 及 3 个描述符别名；
-     - **C1-S4**：静态 C `sys.meta_path` 查找/加载器替换 `_RyuPyFinder` / `_RyuPyLoader` 与 `rp_install_imports`（实现 C1 内部零 Python 胶水闭环）。
+2. **C1-S1：super helper 已移除**
+   - 缓存真实 `super` builtin，复用现有静态调用及属性 C API，未新增构造用原生 ABI。
+   - Runtime 以中性 `PySuper` 统一本地/跨域、未绑定及外部反向返回对象的身份。
+   - 真实外部 C3 承担 Mixin 顺序、属性遮蔽和晚改同步，普通 MI AOT 保护门保留。
+   - 单继承 `native_super` 已过 CPython/JIT/NativeAOT/删除输入搬迁；`native_super_mro`
+     仅按 JIT 专项验证。默认及原生方法候选的真实 C# 类桥各 10 项通过。
+
+3. **C1-S2：静态方法描述符候选**
+   - `RYUPY_CPYTHON_NATIVE_METHODS=1` 用 `PyType_Spec` 描述符替换 `_rp_wrap_method`。
+   - `native_method_descriptors` 已过 CPython/JIT/NativeAOT/删除输入搬迁，精确 code/frame
+     消费者保留明确诊断。候选与默认分别维护，见 [ADR-0211](adr/0211-native-method-descriptor-candidate.md)。
+
+4. **后续 C1 切片**
+   - 静态元类解析与类构造替换 `_rp_calculate_meta` / `_rp_make_class` 及三个描述符别名。
+   - 静态 finder/loader 替换 `_RyuPyFinder` / `_RyuPyLoader`，最终删除内部 `rp_install_imports`。
 
 ---
 
 ## 10. 剩余实现项明确清单
 
-### 10.1 C0 本身剩余工作（盘点后仍待收口）
+### 10.1 C0 收口记录
 
-1. **并行工作树审计测试对齐与合流**：本轮共享目录中 `tests/cpython/execution_audit.py`（3.12.13 + 3.13.13）及 `tests/cil_execution/test_audit_gate.py` 已独立跑通，但完整 `make check` 尚未在合流后重跑。
-2. **同提交性能基线采集**：如 [基线文档 §4.4](cil-execution-baseline.md#L155-L167) 冻结，Commit `5d36db1e` 尚未重新运行 26 项 NativeAOT 基准，需在合流清洁状态独占运行补齐。
-3. **FastAPI 扩展 ABI 逐库扫描**：`pydantic-core`、`greenlet`、`SQLAlchemy` 的真实 `.so` 符号表（尤其 `greenlet` 与 `PyThreadState`/frame 布局）尚未在无虚拟环境缓存下扫描，须在对应 venv 就绪后补齐静态符号表证据。
-4. **初始化极早期与绕行盲区记录保留**：在 C4 切换至可重建最小 `libpython` 内核前，`complete` 与 `startup_complete` 保持 `false`，禁止以半程审计申报零字节码执行。
+- 完整 `make check` 已通过：3365 项 C#、486 项编译 e2e；固定二十项目为
+  13 native / 6 unsupported / 1 failed，既有 11 项保护全部保留。
+- 比较基准 `5d36db1e` 经 `git archive` 提取到仓库外并独立构建冻结 CLI，26 项
+  NativeAOT、同次固定 CPython 与全部样本已采集。首轮候选也完成 26 项，发现
+  缺省调用新增 Binder 成本，正在 C2 切片恢复守卫快路，记录于 ADR-0212。
+- FastAPI 的真实 CPython 3.13.3 wheel 静态 ABI 扫描已补齐，见 §7；两个真实项目
+  的 JIT/standalone/onefile 删除输入搬迁在本轮候选通过，SanBudget 保留原业务 CIL 路径。
+- `runtime/kernel` 已按 §8 路线源码重建并通过四项探针；现成 provider 的帧审计继续
+  保持 `complete=false`，严格内核产品接入及完整执行覆盖归 C4。
 
 ### 10.2 C1–C5 后续阶段剩余实现项
 
-- **C1（内部零 Python 胶水）**：完成 ADR-0209 完整门禁验收 → 按第 9.1 节依次移除 `_rp_super_*`、`_rp_wrap_method`、`_rp_make_class`/`_rp_calculate_meta`、`_RyuPyFinder`/`_RyuPyLoader` 与 `rp_install_imports`、删除死分派 `rp_op(29)`；保障 `SanBudget --compiled-app`、21 项核心与 6 项生命周期探针不回退。
+- **C1（内部零 Python 胶水）**：object/super helper 已移除，原生方法描述符保留显式候选；继续替换 `_rp_make_class`/`_rp_calculate_meta`、`_RyuPyFinder`/`_RyuPyLoader` 与 `rp_install_imports`，删除死分派 `rp_op(29)`；保障 `SanBudget --compiled-app`、21 项核心与 6 项生命周期探针不回退。
 - **C2（元数据、动态对象与反射）**：生成函数签名/默认值/注解/闭包元数据；实现 `inspect.signature`、装饰器解包与 `attrs` 活字典 `__dict__` 合同；独立建模 `__file__` / 资源根 / 用户可写数据根，移除 `compiled_sources` 随包 `.py` 锚点并定义 `inspect.getsource` 明确诊断。
 - **C3（原生协程状态机与异步运行时）**：MIR 显式协程/awaitable 状态机，依次覆盖 `await`、`async with`、`async for`、异步生成器与事件循环/任务取消/contextvars，打通 `FastAPI` 无 `--cpython-entry` 与无 `--cpython-module` 原生编译运行。
 - **C4（完整闭包编译与底层 libpython 内核）**：编译应用、纯 Python 标准库（含 `tkinter`/`sqlite3`/`asyncio`/`inspect` 的 Python 层与 `PyTextProviderMethods.Title`）及第三方包装层；接入第 8 节选定的**可重建最小 `libpython` 内核**，消除 6 个 frozen 启动模块与磁盘 `encodings`，打通 `PyImport_ImportModuleLevelObject` 原生 C 路由，并使全生命周期审计达到 `complete=true, startup_complete=true, startup=0, runtime=0, shutdown=0`。

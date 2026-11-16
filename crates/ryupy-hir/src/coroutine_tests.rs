@@ -59,3 +59,38 @@ fn disabled_nested_async_keeps_the_original_single_diagnostic() {
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].message, "嵌套函数暂不支持 async");
 }
+
+#[cfg(feature = "native-coroutines")]
+#[test]
+fn await_call_preparation_does_not_change_yield_identity() {
+    let source = "async def method(receiver, pause):\n    return receiver.method(await pause())\nasync def star(target, values, pause):\n    return target(*values, await pause())\n";
+    let (module, errors) = lower(source);
+    assert!(errors.is_empty(), "{errors:?}");
+    for (_, function) in module.functions.iter().filter(|(_, f)| f.is_coroutine) {
+        assert!(
+            function
+                .body
+                .exprs
+                .iter()
+                .any(|(_, expression)| matches!(expression.kind, ExprKind::PreparedCall { .. }))
+        );
+    }
+    let mut db = ryupy_base::SourceDb::default();
+    let file = db.add("await_identity.py", source);
+    let (parsed, errors) = ryupy_syntax::parse(file, source);
+    assert!(errors.is_empty());
+    for statement in &parsed.module.body {
+        let ryupy_syntax::ast::Stmt::FunctionDef(function) = statement else {
+            unreachable!()
+        };
+        assert!(!crate::generator_scan::contains_yield(&function.body));
+    }
+    let (_, errors) = lower(
+        "async def f(target, pause, mapping):\n    return target(await pause(), **mapping)\n",
+    );
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.message == "调用双星号实参暂未支持跨暂停的映射快照")
+    );
+}

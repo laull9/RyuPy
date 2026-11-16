@@ -62,6 +62,7 @@ public sealed class CPythonBridgeFixture : IDisposable
         var searchPaths = new List<string> { libDir };
         string dynLoad = Path.Combine(libDir, "lib-dynload");
         if (Directory.Exists(dynLoad)) searchPaths.Add(dynLoad);
+        searchPaths.Add(Path.Combine(repoRoot, "tests", "cpython", "fixtures"));
 
         string configPath = Path.Combine(_tempDir, "ryupy-cpython.json");
         var config = new
@@ -73,7 +74,7 @@ public sealed class CPythonBridgeFixture : IDisposable
             library = pyLib,
             shim = shimPath,
             search_paths = searchPaths,
-            modules = new[] { "collections", "builtins", "tkinter", "tkinter.ttk" },
+            modules = new[] { "collections", "builtins", "tkinter", "tkinter.ttk", "bridge_fixture" },
             container_transfer = "proxy",
         };
         File.WriteAllText(configPath, JsonSerializer.Serialize(config));

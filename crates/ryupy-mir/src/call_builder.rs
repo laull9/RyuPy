@@ -87,7 +87,7 @@ impl ExprBuilder<'_> {
             return self.call_published_function(fn_id, args, call_ty);
         }
         let Some(plan) = self.plan_binding(fn_id, args) else {
-            return self.call_published_function(fn_id, args, call_ty);
+            return self.call_defaults_or_published(fn_id, args, call_ty);
         };
         // 冻结的是实际函数引用；参数副作用之后仍从此对象取defaults和Module。
         let origin = self.capture_direct_origin(fn_id);

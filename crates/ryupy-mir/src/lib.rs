@@ -31,6 +31,7 @@ mod build_stmts;
 mod build_try;
 mod call_builder;
 mod call_builtins;
+mod call_defaults;
 mod call_function_origin;
 mod closure_env;
 mod compare_chain;

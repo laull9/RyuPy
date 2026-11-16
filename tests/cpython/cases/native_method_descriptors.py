@@ -1,4 +1,3 @@
-# ryupy: pending
 """C1 方法包装候选：真实CPython描述符消费者、元数据修改与普通调用结果。"""
 from collections import UserDict
 from bridge_fixture.method_descriptor_contract import verify

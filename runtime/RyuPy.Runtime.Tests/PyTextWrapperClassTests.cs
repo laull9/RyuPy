@@ -203,8 +203,56 @@ public sealed class PyTextWrapperClassTests
         Assert.False(Eligible(plan, instance));
         Assert.True(Eligible(isolatedPlan, isolatedInstance));
         Assert.Equal(3L, PyObject.GetAttr(root.Invoke([], [], []), "width"));
-        // module显式width=70覆盖类默认值；不假装Python.__defaults__元数据已实现。
+        // module显式width=70覆盖类默认值；此例核对CLR数组写入，Python反射由下方实测。
         Assert.Equal(new[] { "one two" }, Lines(Call(module["wrap"], "one two")));
+    }
+
+    [Fact]
+    public void ReflectedDefaultsRejectRebuiltFastPlansAndKeepLiveConstruction()
+    {
+        var module = Module(); PyClass root = Root(module);
+        var init = Assert.IsType<PyFunction>(PyObject.GetAttr(root, "__init__"));
+        object? original = root.Invoke([], [], []); object plan = Plan(module);
+        Assert.True(Eligible(plan, original));
+        var positional = Assert.IsType<PyTuple>(PyObject.GetAttr(init, "__defaults__"));
+        Assert.False(Eligible(plan, original));
+        // 先读取再重建时，数组看起来仍相同，实际默认值的权威已是独立冷状态。
+        Assert.False(Eligible(Plan(module), original));
+        foreach (long width in new[] { 3L, 8L })
+        {
+            object?[] values = (object?[])positional.Items.Clone(); values[0] = width;
+            var replacement = new PyTuple(values);
+            PyObject.SetAttr(init, "__defaults__", replacement);
+            Assert.Same(replacement, PyObject.GetAttr(init, "__defaults__"));
+            object? instance = root.Invoke([], [], []);
+            Assert.Equal(width, PyObject.GetAttr(instance, "width"));
+            Assert.Equal(width == 3 ? new[] { "one", "two" } : new[] { "one two" },
+                Lines(Method(instance, "wrap", "one two")));
+            Assert.False(Eligible(Plan(module), instance));
+        }
+        var keywords = Assert.IsType<PyDict>(PyObject.GetAttr(init, "__kwdefaults__"));
+        object token = new PyList([]); keywords.Set("placeholder", token);
+        object? latest = root.Invoke([], [], []);
+        Assert.Same(token, PyObject.GetAttr(latest, "placeholder"));
+        Assert.Equal(new[] { "one two" }, Lines(Method(latest, "wrap", "one two")));
+    }
+
+    [Fact]
+    public void BoundWrapAndFillConsumeRepeatedlyReplacedDefaultText()
+    {
+        var module = Module(); PyClass root = Root(module); object? instance = root.Invoke([4L], [], []);
+        var wrap = Assert.IsType<PyFunction>(PyObject.GetAttr(root, "wrap"));
+        var fill = Assert.IsType<PyFunction>(PyObject.GetAttr(root, "fill"));
+        foreach (string text in new[] { "one two", "red blue" })
+        {
+            PyObject.SetAttr(wrap, "__defaults__", new PyTuple([text]));
+            PyObject.SetAttr(fill, "__defaults__", new PyTuple([text]));
+            Assert.Equal(text.Split(' '), Lines(Method(instance, "wrap")));
+            Assert.Equal(text.Replace(' ', '\n'), Method(instance, "fill"));
+            Assert.False(Eligible(Plan(module), instance));
+        }
+        PyObject.DelAttr(wrap, "__defaults__");
+        Assert.Throws<PyTypeError>(() => Method(instance, "wrap"));
     }
 
     [Fact]

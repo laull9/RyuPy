@@ -354,6 +354,15 @@ def prepare(req):
     raise ValueError(f'官方 PBS 缺少匹配完整版本/目标/常规 GIL 的发行：{version} {triple} {options}；构建停止')
 
 
+# 已严格审查的上游组件许可补齐规则：(组件名, 官方主源对应 tag 的许可文件名)
+# 针对 PBS 历史及新版本归档遗漏的组件许可（如 zlib-ng、3.14+ zstd），
+# 仅允许从 python/cpython-source-deps 官方主源准确版本获取真实许可，禁止伪造占位或跳过检查。
+SUPPLEMENTAL_LICENSE_RULES = {
+    'licenses/LICENSE.zlib-ng.txt': ('zlib-ng', 'LICENSE.md'),
+    'licenses/LICENSE.zstd.txt': ('zstd', 'LICENSE'),
+}
+
+
 def complete_licenses(result):
     """按发行 tag 的组件源版本补齐上游 full 遗漏许可，并保存真实来源记录。"""
     root = Path(result['root'])
@@ -364,7 +373,13 @@ def complete_licenses(result):
     # 本地来源不可就地改动；补充发生在仓库外私有缓存。
     if result.get('project') == 'cpython-local-metadata' and not str(root).startswith(str(Path.home() / '.cache/ryupy/cpython-auto')):
         raise ValueError('本地发行缺少组件许可证：' + ', '.join(missing))
+    sources_path = root / 'license-sources.json'
     sources = {}
+    if sources_path.is_file():
+        try:
+            sources = json.loads(sources_path.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            sources = {}
     with tempfile.TemporaryDirectory(prefix='licenses-') as temporary:
         downloads = Path(temporary) / 'downloads.py'
         fetch(f'https://raw.githubusercontent.com/astral-sh/python-build-standalone/{result["build"]}/pythonbuild/downloads.py', downloads)
@@ -375,14 +390,18 @@ def complete_licenses(result):
             fetch(f'https://raw.githubusercontent.com/astral-sh/python-build-standalone/{result["build"]}/pythonbuild/downloads.json', data)
             definitions = json.loads(data.read_text(encoding='utf-8'))
         for relative in missing:
-            if relative != 'licenses/LICENSE.zlib-ng.txt':
+            rule = SUPPLEMENTAL_LICENSE_RULES.get(relative)
+            if not rule:
                 raise ValueError('上游组件许可缺失且无已审查补充规则：' + relative)
-            component = definitions['zlib-ng']
-            version = component['version']
-            expected = f'https://github.com/python/cpython-source-deps/archive/refs/tags/zlib-ng-{version}.tar.gz'
-            if component['url'] != expected or component['license_file'] != 'LICENSE.zlib-ng.txt':
-                raise ValueError('zlib-ng 上游源身份不匹配')
-            url = f'https://raw.githubusercontent.com/python/cpython-source-deps/zlib-ng-{version}/LICENSE.md'
+            comp_name, license_name = rule
+            if comp_name not in definitions:
+                raise ValueError(f'官方组件来源表缺少 {comp_name} 定义')
+            component = definitions[comp_name]
+            version = component.get('version')
+            expected = f'https://github.com/python/cpython-source-deps/archive/refs/tags/{comp_name}-{version}.tar.gz'
+            if component.get('url') != expected or component.get('license_file') != relative.removeprefix('licenses/'):
+                raise ValueError(f'{comp_name} 上游源身份不匹配')
+            url = f'https://raw.githubusercontent.com/python/cpython-source-deps/{comp_name}-{version}/{license_name}'
             destination = root / relative
             staged = Path(temporary) / 'component-license.txt'
             fetch(url, staged)
@@ -390,7 +409,7 @@ def complete_licenses(result):
                 raise ValueError('上游组件许可证响应为空：' + relative)
             shutil.copy2(staged, destination)
             sources[relative] = url
-    (root / 'license-sources.json').write_text(json.dumps(sources, indent=2))
+    sources_path.write_text(json.dumps(sources, indent=2), encoding='utf-8')
     return result
 
 

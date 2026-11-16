@@ -249,6 +249,8 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
     private void ReleaseCore(object value)
     {
         if (value is PythonObject foreign) { if (!foreign.IsDisposed) objects.Remove(foreign.Pointer); foreign.Dispose(); }
+        else if (value is PySuper { ForeignObject: PythonObject foreignSuper })
+        { if (!foreignSuper.IsDisposed) objects.Remove(foreignSuper.Pointer); foreignSuper.Dispose(); }
         else if (value is PyInstance instance && PyForeignClassBridge.GetForeignInstance(instance) is PythonObject foreignInstance)
         { if (!foreignInstance.IsDisposed) objects.Remove(foreignInstance.Pointer); foreignInstance.Dispose(); }
         else if (value is PyClass cls && PyForeignClassBridge.GetForeignClass(cls) is PythonObject foreignClass)

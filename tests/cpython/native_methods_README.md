@@ -33,7 +33,7 @@ dotnet test runtime/RyuPy.CPython.Tests/RyuPy.CPython.Tests.csproj \
 ```
 
 Linux 将 shim 文件名改为 `libryupy_cpython.so`。把候选开关改为 `0` 后用独立进程
-重复同一八项测试，可保护默认包装器。原生审计仍仅适用具有私有帧头文件的3.12.13；
+重复同一十四项测试，可保护默认包装器。原生审计仍仅适用具有私有帧头文件的3.12.13；
 多版本小宿主门直接使用对应公开/版本适配 ABI，不依赖该审计。
 
 ## 产品输入

@@ -202,6 +202,9 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
             });
             ins.push(Instruction::call(ctx.runtime_refs.py_function_get_defaults));
         }
+        RuntimeFn::FunctionDefaultsUnobserved => ins.push(Instruction::call(
+            ctx.runtime_refs.function_objects.defaults_unobserved,
+        )),
         RuntimeFn::TypeObject => ins.push(Instruction::call(ctx.runtime_refs.type_object)),
         RuntimeFn::LoadDefaultBuiltin => {
             ins.push(Instruction::call(ctx.runtime_refs.load_default_builtin))

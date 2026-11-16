@@ -153,6 +153,7 @@ public sealed partial class PyClass
         GuardDictMutation(name, value, deleting: false);
         GuardTypingIoMutation(name, deleting: false);
         PyTypingGenericMetadata.MutateClass(this, name);
+        PyForeignClassBridge.Current?.SynchronizeMirrorAttribute(this, name, value, deleting: false);
         Attributes[name] = value;
         Touch();
     }
@@ -184,10 +185,12 @@ public sealed partial class PyClass
         GuardStringMutation(name, null, deleting: true);
         GuardListMutation(name, null, deleting: true);
         GuardDictMutation(name, null, deleting: true);
-        if (!Attributes.Remove(name))
+        if (!Attributes.ContainsKey(name))
         {
             return false;
         }
+        PyForeignClassBridge.Current?.SynchronizeMirrorAttribute(this, name, null, deleting: true);
+        Attributes.Remove(name);
         Touch();
         return true;
     }
@@ -313,6 +316,8 @@ public sealed partial class PyClass
     public bool IsSubclassOf(PyClass other)
     {
         if (ReferenceEquals(this, other)) return true;
+        if (ForeignClass is not null)
+            return PyForeignClassBridge.IsSubclass(this, other);
         if (_ordinaryMro is { } mro)
         {
             foreach (PyClass current in mro) if (ReferenceEquals(current, other)) return true;
@@ -324,10 +329,6 @@ public sealed partial class PyClass
             {
                 return true;
             }
-        }
-        if (ForeignMiBases is not null && ForeignClass is { } fc && other.ForeignClass is { } otherFc)
-        {
-            return PyForeignClassBridge.IsSubclass(fc, otherFc);
         }
         return false;
     }
@@ -541,22 +542,6 @@ public sealed class PyBoundMethod
     /// <inheritdoc />
     public override string ToString() =>
         $"<bound method {Owner.Name}.{PyRepr.MethodName(Target)} of {PyRepr.Str(Self)}>";
-}
-
-/// <summary>零参数 `super()` 的结果：从定义类的下一个基类开始查找。</summary>
-public sealed class PySuper
-{
-    /// <summary>当前方法定义所在的类。</summary>
-    public PyClass Owner { get; }
-    /// <summary>当前接收者。</summary>
-    public object? Self { get; }
-
-    /// <summary>构造 super 代理。</summary>
-    public PySuper(PyClass owner, object? self)
-    {
-        Owner = owner;
-        Self = self;
-    }
 }
 
 /// <summary>当前正在执行的方法上下文（零参数 `super()` 依赖它）。</summary>

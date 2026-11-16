@@ -136,7 +136,9 @@ fn differential(name: &str) {
 #[test]
 #[ignore = "显式 NativeAOT 搬迁门，需要本机 AOT 工具链"]
 fn coroutine_aot_relocation_matches_cpython() {
-    differential_mode("tests/coroutines/cleanup.py", true);
+    for source in ["cleanup.py", "call_preparation.py"] {
+        differential_mode(&format!("tests/coroutines/{source}"), true);
+    }
 }
 
 #[test]
@@ -151,4 +153,47 @@ fn coroutine_changes_preserve_existing_generator_protocols() {
     ] {
         differential_mode(&format!("tests/e2e/phase3/{name}"), false);
     }
+}
+
+#[test]
+fn coroutine_call_preparation_matches_cpython() {
+    differential("call_preparation.py");
+}
+
+#[test]
+fn coroutine_await_kwargs_is_explicitly_rejected() {
+    let output = OutputRoot::create();
+    let source = workspace_root().join("tests/coroutines/reject_await_kwargs.py");
+    let python = std::env::var("PYTHON").expect("显式指定固定 CPython oracle");
+    let oracle = Command::new(python)
+        .arg("-B")
+        .arg(&source)
+        .output()
+        .unwrap();
+    assert!(
+        oracle.status.success(),
+        "{}",
+        String::from_utf8_lossy(&oracle.stderr)
+    );
+    assert!(oracle.stderr.is_empty());
+    let mut session = Session::default();
+    let result = ryupy_driver::build(
+        &mut session,
+        &BuildOptions {
+            input: source,
+            out_dir: output.0.join("product"),
+            aot: false,
+            search_paths: vec![],
+        },
+    );
+    assert!(result.is_err(), "含 await 的 **kwargs 调用必须在发射前拒绝");
+    assert_eq!(
+        session
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code == Some("E0100")
+                && diagnostic.message == "调用双星号实参暂未支持跨暂停的映射快照")
+            .count(),
+        2
+    );
 }

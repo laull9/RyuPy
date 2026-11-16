@@ -1748,7 +1748,8 @@ Cargo feature `native-coroutines` 开启原生 async def / await 首切；普通
 函数创建只绑定参数并保存独立状态，函数体由 CIL 恢复入口惰性执行。await 使用类型级
 __await__，返回对象必须已经是迭代器，保留委托终值、send/throw/close、原异常身份和
 跨暂停 finally。协程不能普通迭代，完成后重复恢复及活动协程重复 await 按独立协议报错。
-协程自身 PEP 479 与子生成器错误保持各自来源。
+协程自身 PEP 479 与子生成器错误保持各自来源。调用参数里的 await 会触发暂停前
+方法绑定和混合星号实参快照；双星号映射与 await 混合的调用继续明确拒绝。
 
 async for/with、异步生成器/推导式、零参 super 跨暂停上下文继续明确拒绝。
 当前范围为原生普通动态域，显式 Instance 和 CPython awaitable 跨域协议留待后续；

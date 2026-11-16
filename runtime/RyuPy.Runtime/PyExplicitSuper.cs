@@ -41,7 +41,7 @@ internal static class PyExplicitSuper
         {
             receiverClass.RequireLexicalFactoryReady();
             bool ok = ValidateChain(receiverClass, start, dictReceiver)
-                || (receiverClass.ForeignMiBases is not null && receiverClass.IsSubclassOf(start));
+                || (receiverClass.HasForeignHierarchy && receiverClass.IsSubclassOf(start));
             if (!ok) throw Unrelated();
             return new PySuper(start, receiverClass);
         }
@@ -51,7 +51,7 @@ internal static class PyExplicitSuper
         instance.Class.RequireLexicalFactoryReady();
         // 检查完整链，不能找到start就跳过后面的特殊布局；不调用用户hash/eq/getter。
         bool instanceOk = ValidateChain(instance.Class, start, dictReceiver)
-            || (instance.Class.ForeignMiBases is not null && instance.Class.IsSubclassOf(start));
+            || (instance.Class.HasForeignHierarchy && instance.Class.IsSubclassOf(start));
         if (!instanceOk)
         {
             if (instance.Class.TryLookup("__class__", out _, out _)

@@ -171,6 +171,146 @@ class PortableContracts(unittest.TestCase):
             self.assertTrue(portable.cache_ready(destination, '3.9.13', 'x86_64-pc-windows-msvc', 'pgo'))
             self.assertFalse(list(root.glob('incomplete-final-*')))
 
+    @staticmethod
+    def tree_with_missing_licenses(root, missing_names, version='3.14.7'):
+        """构造缺失特定上游许可的测试发行树。"""
+        metadata = {
+            'version': '8', 'build_options': 'pgo+lto', 'python_version': version,
+            'target_triple': 'aarch64-apple-darwin', 'libpython_link_mode': 'shared',
+            'license_paths': list(missing_names)
+        }
+        root.mkdir(parents=True, exist_ok=True)
+        (root / 'licenses').mkdir(parents=True, exist_ok=True)
+        (root / 'PYTHON.json').write_text(json.dumps(metadata), encoding='utf-8')
+        return metadata
+
+    def test_supplemental_license_rules_coverage(self):
+        """核对已审查补齐规则表：3.14+ zstd 与旧版 zlib-ng。"""
+        self.assertEqual(portable.SUPPLEMENTAL_LICENSE_RULES['licenses/LICENSE.zstd.txt'], ('zstd', 'LICENSE'))
+        self.assertEqual(portable.SUPPLEMENTAL_LICENSE_RULES['licenses/LICENSE.zlib-ng.txt'], ('zlib-ng', 'LICENSE.md'))
+
+    def test_complete_licenses_success_for_3_14_zstd(self):
+        """正例：3.14 准确按上游 downloads 元数据从官方主源补齐 zstd LICENSE。"""
+        with tempfile.TemporaryDirectory(prefix='ryupy-license-zstd-') as temporary:
+            root = Path(temporary) / 'cpython'
+            self.tree_with_missing_licenses(root, ['licenses/LICENSE.zstd.txt'])
+            zstd_license_text = 'BSD License\nFor Zstandard software\nCopyright (c) Meta Platforms, Inc.'
+            definitions_py = (
+                "DOWNLOADS = {\n"
+                "    'zstd': {\n"
+                "        'url': 'https://github.com/python/cpython-source-deps/archive/refs/tags/zstd-1.5.7.tar.gz',\n"
+                "        'version': '1.5.7',\n"
+                "        'license_file': 'LICENSE.zstd.txt'\n"
+                "    }\n"
+                "}\n"
+            )
+            def mock_fetch(url, output=None):
+                if url.endswith('downloads.py'):
+                    Path(output).write_text(definitions_py, encoding='utf-8')
+                elif url == 'https://raw.githubusercontent.com/python/cpython-source-deps/zstd-1.5.7/LICENSE':
+                    Path(output).write_text(zstd_license_text, encoding='utf-8')
+                else:
+                    raise AssertionError('未知请求 URL：' + url)
+
+            with mock.patch.object(portable, 'fetch', side_effect=mock_fetch):
+                result = {'root': str(root), 'url': 'https://example.com/release', 'build': '20260901'}
+                portable.complete_licenses(result)
+                target_file = root / 'licenses/LICENSE.zstd.txt'
+                self.assertTrue(target_file.is_file())
+                self.assertEqual(target_file.read_text(encoding='utf-8'), zstd_license_text)
+                sources = json.loads((root / 'license-sources.json').read_text(encoding='utf-8'))
+                self.assertEqual(sources['licenses/LICENSE.zstd.txt'],
+                                 'https://raw.githubusercontent.com/python/cpython-source-deps/zstd-1.5.7/LICENSE')
+
+    def test_complete_licenses_success_for_zlib_ng(self):
+        """正例：从 downloads.json 补齐旧版 zlib-ng LICENSE.md。"""
+        with tempfile.TemporaryDirectory(prefix='ryupy-license-zlib-') as temporary:
+            root = Path(temporary) / 'cpython'
+            self.tree_with_missing_licenses(root, ['licenses/LICENSE.zlib-ng.txt'], version='3.12.13')
+            zlib_license_text = 'zlib-ng license text'
+            definitions_json = json.dumps({
+                'zlib-ng': {
+                    'url': 'https://github.com/python/cpython-source-deps/archive/refs/tags/zlib-ng-2.2.4.tar.gz',
+                    'version': '2.2.4',
+                    'license_file': 'LICENSE.zlib-ng.txt'
+                }
+            })
+            def mock_fetch(url, output=None):
+                if url.endswith('downloads.py'):
+                    Path(output).write_text("import json\nwith open('x') as f: DOWNLOADS = json.load(f)", encoding='utf-8')
+                elif url.endswith('downloads.json'):
+                    Path(output).write_text(definitions_json, encoding='utf-8')
+                elif url == 'https://raw.githubusercontent.com/python/cpython-source-deps/zlib-ng-2.2.4/LICENSE.md':
+                    Path(output).write_text(zlib_license_text, encoding='utf-8')
+                else:
+                    raise AssertionError('未知请求 URL：' + url)
+
+            with mock.patch.object(portable, 'fetch', side_effect=mock_fetch):
+                result = {'root': str(root), 'url': 'https://example.com/release', 'build': '20260623'}
+                portable.complete_licenses(result)
+                target_file = root / 'licenses/LICENSE.zlib-ng.txt'
+                self.assertTrue(target_file.is_file())
+                self.assertEqual(target_file.read_text(encoding='utf-8'), zlib_license_text)
+
+    def test_complete_licenses_rejects_unreviewed_license(self):
+        """负例：未审查许可缺失时明确报错，拒绝静默忽略或放行。"""
+        with tempfile.TemporaryDirectory(prefix='ryupy-license-unreviewed-') as temporary:
+            root = Path(temporary) / 'cpython'
+            self.tree_with_missing_licenses(root, ['licenses/LICENSE.unknown.txt'])
+            def mock_fetch(url, output=None):
+                if url.endswith('downloads.py'):
+                    Path(output).write_text("DOWNLOADS = {}", encoding='utf-8')
+                else:
+                    raise AssertionError('不应请求：' + url)
+
+            with mock.patch.object(portable, 'fetch', side_effect=mock_fetch):
+                with self.assertRaisesRegex(ValueError, '上游组件许可缺失且无已审查补充规则：licenses/LICENSE.unknown.txt'):
+                    portable.complete_licenses({'root': str(root), 'url': 'u', 'build': '20260901'})
+
+    def test_complete_licenses_negative_cases_for_zstd(self):
+        """负例：3.14 zstd 上游来源不匹配、缺少定义或空响应拒绝。"""
+        with tempfile.TemporaryDirectory(prefix='ryupy-license-neg-zstd-') as temporary:
+            root = Path(temporary) / 'cpython'
+            self.tree_with_missing_licenses(root, ['licenses/LICENSE.zstd.txt'])
+
+            # 1. 官方组件来源表中缺少 zstd 定义
+            with mock.patch.object(portable, 'fetch', side_effect=lambda url, output: Path(output).write_text("DOWNLOADS = {}", encoding='utf-8')):
+                with self.assertRaisesRegex(ValueError, '官方组件来源表缺少 zstd 定义'):
+                    portable.complete_licenses({'root': str(root), 'url': 'u', 'build': '20260901'})
+
+            # 2. 上游 url 不匹配（非官方 cpython-source-deps 源）
+            bad_url_py = "DOWNLOADS = {'zstd': {'url': 'https://evil.com/zstd.tar.gz', 'version': '1.5.7', 'license_file': 'LICENSE.zstd.txt'}}"
+            with mock.patch.object(portable, 'fetch', side_effect=lambda url, output: Path(output).write_text(bad_url_py, encoding='utf-8')):
+                with self.assertRaisesRegex(ValueError, 'zstd 上游源身份不匹配'):
+                    portable.complete_licenses({'root': str(root), 'url': 'u', 'build': '20260901'})
+
+            # 3. 上游 license_file 不匹配
+            bad_file_py = "DOWNLOADS = {'zstd': {'url': 'https://github.com/python/cpython-source-deps/archive/refs/tags/zstd-1.5.7.tar.gz', 'version': '1.5.7', 'license_file': 'WRONG.txt'}}"
+            with mock.patch.object(portable, 'fetch', side_effect=lambda url, output: Path(output).write_text(bad_file_py, encoding='utf-8')):
+                with self.assertRaisesRegex(ValueError, 'zstd 上游源身份不匹配'):
+                    portable.complete_licenses({'root': str(root), 'url': 'u', 'build': '20260901'})
+
+            # 4. 许可证响应为空文件
+            good_py = "DOWNLOADS = {'zstd': {'url': 'https://github.com/python/cpython-source-deps/archive/refs/tags/zstd-1.5.7.tar.gz', 'version': '1.5.7', 'license_file': 'LICENSE.zstd.txt'}}"
+            def empty_fetch(url, output=None):
+                if url.endswith('downloads.py'):
+                    Path(output).write_text(good_py, encoding='utf-8')
+                else:
+                    Path(output).write_text('', encoding='utf-8')
+            with mock.patch.object(portable, 'fetch', side_effect=empty_fetch):
+                with self.assertRaisesRegex(ValueError, '上游组件许可证响应为空：licenses/LICENSE.zstd.txt'):
+                    portable.complete_licenses({'root': str(root), 'url': 'u', 'build': '20260901'})
+
+    def test_complete_licenses_negative_cases_for_zlib_ng(self):
+        """负例：旧版 zlib-ng 上游源身份不匹配。"""
+        with tempfile.TemporaryDirectory(prefix='ryupy-license-neg-zlib-') as temporary:
+            root = Path(temporary) / 'cpython'
+            self.tree_with_missing_licenses(root, ['licenses/LICENSE.zlib-ng.txt'], version='3.12.13')
+            bad_zlib_py = "DOWNLOADS = {'zlib-ng': {'url': 'https://evil.com/zlib.tar.gz', 'version': '2.2.4', 'license_file': 'LICENSE.zlib-ng.txt'}}"
+            with mock.patch.object(portable, 'fetch', side_effect=lambda url, output: Path(output).write_text(bad_zlib_py, encoding='utf-8')):
+                with self.assertRaisesRegex(ValueError, 'zlib-ng 上游源身份不匹配'):
+                    portable.complete_licenses({'root': str(root), 'url': 'u', 'build': '20260623'})
+
 
 if __name__ == '__main__':
     unittest.main()

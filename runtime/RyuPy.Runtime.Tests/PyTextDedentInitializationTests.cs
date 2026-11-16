@@ -41,7 +41,7 @@ public sealed class PyTextDedentInitializationTests(ITestOutputHelper output)
         switch (scenario)
         {
             case "stock_metadata":
-                // 普通metadata不参与真实绑定；不能用假__defaults__属性代替宿主数组。
+                // compile的真实默认值已改变；dedent始终显式传flags=8，结果保持原合同。
                 PyObject.SetAttr(compile, "__name__", "renamed_compile");
                 PyObject.SetAttr(compile, "__module__", "other");
                 PyObject.SetAttr(compile, "__defaults__", new PyTuple([99L]));

@@ -14,6 +14,8 @@ extern void rp_gil_release(int);
 extern const char *rp_init_error(void);
 extern int rp_run_entry(const char *, const char *);
 extern PyObject *rp_native_method(PyObject *, PyObject *, PyObject *);
+extern int rp_super_kind(PyObject *);
+extern PyObject *rp_super_type(void);
 
 static PyObject *callback(intptr_t id, int op, PyObject *a, PyObject *b, PyObject *c, int64_t n, const char *s) {
     (void)id; (void)op; (void)a; (void)b; (void)c; (void)n; (void)s;
@@ -62,6 +64,15 @@ int main(int argc, char **argv) {
     free(source);
     if (result) goto error;
     PyObject *globals = PyModule_GetDict(PyImport_AddModule("__main__"));
+    /* 3.9+ 的静态 super API 保留精确类型区分，不把普通 Python 对象归一化。 */
+    PyObject *super_type = rp_super_type();
+    if (!super_type || rp_super_kind(super_type) != 2) { Py_XDECREF(super_type); goto error; }
+    PyObject *unbound = PyObject_CallFunctionObjArgs(super_type, PyDict_GetItemString(globals, "Subject"), NULL);
+    Py_DECREF(super_type);
+    if (!unbound) goto error;
+    int exact_super = rp_super_kind(unbound) == 1 && rp_super_kind(Py_True) == 0;
+    Py_DECREF(unbound);
+    if (!exact_super) goto error;
     if (install_method(globals, "target", "sample", 0) || install_method(globals, "class_target", "kind", 1) ||
         install_method(globals, "static_target", "twice", 2) || install_method(globals, "property_target", "observed_offset", 3)) goto error;
     PyObject *args = PyTuple_Pack(1, Py_True);

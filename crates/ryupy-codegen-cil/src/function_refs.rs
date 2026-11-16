@@ -7,6 +7,7 @@ pub(crate) struct FunctionRefs {
     pub definition: MethodRefIndex,
     pub definition_with_source: MethodRefIndex,
     pub module: MethodRefIndex,
+    pub defaults_unobserved: MethodRefIndex,
     pub class_namespace_get: MethodRefIndex,
     pub declare_dataclass: MethodRefIndex,
     pub finalize_ordinary_class: MethodRefIndex,
@@ -26,6 +27,7 @@ impl FunctionRefs {
             definition_with_source: res.push_method_reference(method_ref! { static void @ops::FunctionDefinitionWithSource(object, string, long, object) }),
             metadata: res.push_method_reference(method_ref! { static void @ops::FunctionMetadata(object, object, object[], object[]) }),
             module: res.push_method_reference(method_ref! { static void @ops::FunctionModule(object, object) }),
+            defaults_unobserved: res.push_method_reference(method_ref! { static bool @ops::FunctionDefaultsUnobserved(object, object) }),
         }
     }
 }

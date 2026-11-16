@@ -5,6 +5,28 @@ namespace RyuPy.Runtime.Tests;
 
 public sealed class PyFunctionDefaultsTests
 {
+    [Fact]
+    public void DirectGuardRequiresActualIdentityAndRejectsEvenReadOnlyDefaultsObservation()
+    {
+        var signature = Signature(); object?[] shared = [null, 2L, null, 4L];
+        PyFunction first = Function(signature, shared), second = Function(signature, shared);
+        var otherBody = new PyFunction("value", signature, (_, _, _, _) => "other", shared);
+        var rebuilt = new PyFunction("value", signature, first.Body, shared);
+        Assert.True(PyOps.FunctionDefaultsUnobserved(first, first));
+        Assert.False(PyOps.FunctionDefaultsUnobserved(first, second));
+        Assert.False(PyOps.FunctionDefaultsUnobserved(first, otherBody));
+        Assert.False(PyOps.FunctionDefaultsUnobserved(first, rebuilt));
+        Assert.Same(first.Signature, otherBody.Signature);
+        Assert.False(PyOps.FunctionDefaultsUnobserved(PyNone.Instance, PyNone.Instance));
+        PyObject.SetAttr(first, "__module__", "changed");
+        Assert.True(PyOps.FunctionDefaultsUnobserved(first, first));
+        _ = PyObject.GetAttr(first, "__defaults__");
+        Assert.False(PyOps.FunctionDefaultsUnobserved(first, first));
+        Assert.True(PyOps.FunctionDefaultsUnobserved(second, second));
+        _ = PyObject.GetAttr(second, "__kwdefaults__");
+        Assert.False(PyOps.FunctionDefaultsUnobserved(second, second));
+    }
+
     private static PyFunction Function(PySignature signature, object?[] defaults) => new("value", signature,
         (self, args, names, values) => new PyTuple(PyBinder.Bind(signature, args, names, values, self.Defaults)), defaults);
 

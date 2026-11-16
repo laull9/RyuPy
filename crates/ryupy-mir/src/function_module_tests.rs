@@ -72,6 +72,54 @@ fn valid(runtime: RuntimeFn, args: Vec<Operand>, ret: MirType, eval: bool, array
 }
 
 #[test]
+fn defaults_guard_has_exact_two_object_to_bool_abi() {
+    let object = Operand::Const(Constant::Null);
+    let args = vec![object.clone(), object.clone()];
+    assert!(valid(
+        RuntimeFn::FunctionDefaultsUnobserved,
+        args.clone(),
+        MirType::Bool,
+        false,
+        false
+    ));
+    for wrong in [
+        vec![],
+        vec![object.clone()],
+        vec![object.clone(), Operand::Const(Constant::I64(1))],
+        vec![object.clone(), object.clone(), object],
+    ] {
+        assert!(!valid(
+            RuntimeFn::FunctionDefaultsUnobserved,
+            wrong,
+            MirType::Bool,
+            false,
+            false
+        ));
+    }
+    assert!(!valid(
+        RuntimeFn::FunctionDefaultsUnobserved,
+        args.clone(),
+        MirType::Dynamic,
+        false,
+        false
+    ));
+    assert!(!valid(
+        RuntimeFn::FunctionDefaultsUnobserved,
+        args.clone(),
+        MirType::Bool,
+        true,
+        false
+    ));
+    assert!(!valid(
+        RuntimeFn::FunctionDefaultsUnobserved,
+        args,
+        MirType::Bool,
+        false,
+        true
+    ));
+}
+
+#[test]
 fn function_module_requires_two_objects_and_void_eval() {
     let object = Operand::Const(Constant::Null);
     assert!(valid(
