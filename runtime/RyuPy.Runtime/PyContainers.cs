@@ -305,7 +305,10 @@ public sealed partial class PyList
         int position = (int)(index < 0
             ? Math.Max(0L, index + count)
             : Math.Min(index, (long)count));
-        Items.Insert(position, value);
+        // 仅尾插没有槽移位；头/中插保留原物化路径，避免重复移位退化。
+        if (_numeric is { } numeric && position == count && value is double number)
+            numeric.Add(PyNumericSlot.Existing(value, number));
+        else Items.Insert(position, value);
     }
 
     /// <summary><c>pop([i])</c>。</summary>
