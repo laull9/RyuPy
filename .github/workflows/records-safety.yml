@@ -1,7 +1,7 @@
 name: Records full checks and safety gates
 on:
   push:
-    branches: [ci/records-safety-20261116]
+    branches: [ci/records-safety-feature-20261116]
   workflow_dispatch:
 permissions:
   contents: read
@@ -61,9 +61,14 @@ jobs:
             work="$RUNNER_TEMP/check-$arm"
             target="$RUNNER_TEMP/check-target-$arm"
             git worktree add --detach "$work" 5d36db1e952f1db07aee6563d7a800cc1df94548
-            features=""; if [[ "$arm" == feature ]]; then features=records-increment-experiment; fi
+            features=""; if [[ "$arm" == feature ]]; then features=ryupy-driver/records-increment-experiment; fi
             mkdir "$EVIDENCE/check-$arm"
             git -C "$work" rev-parse HEAD HEAD^{tree} > "$EVIDENCE/check-$arm/source.txt"
+            feature_args=()
+            if [[ -n "$features" ]]; then feature_args=(--features "$features"); fi
+            (cd "$work"; cargo metadata --locked --format-version 1 "${feature_args[@]}") > "$EVIDENCE/check-$arm/metadata.json" 2> "$EVIDENCE/check-$arm/metadata.stderr"
+            (cd "$work"; cargo tree -p ryupy-e2e -e features "${feature_args[@]}") > "$EVIDENCE/check-$arm/e2e-features.txt" 2>&1
+            "$PYTHON" tests/perf/records-safety/resolve.py "$EVIDENCE/check-$arm/metadata.json" "$arm" > "$EVIDENCE/check-$arm/resolve.json"
             set +e
             (cd "$work"; CARGO_TARGET_DIR="$target" make check CARGO_FEATURES="$features" DOTNET_TEST_ARGS="--logger trx --results-directory $EVIDENCE/check-$arm") > "$EVIDENCE/check-$arm/full.log" 2>&1
             result=$?

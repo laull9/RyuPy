@@ -14,3 +14,5 @@
 
 Runtime released同样先构建第5组owner，再由NoInlining工厂仅返回弱引用，完整GC断言收回；保留弱引用数组本身，不能把元数据成本当owner泄漏。
 两层第五组创建次序不同：Runtime先建存活/释放组再四批短命，Python先四批再最后组；两层只能各自off/on对照，不逐值比较或把其GC历史当等价。
+
+首轮43814354700默认完整check成功；feature的Runtime3349通过/3skip及Rust测试已跑，但cases-selftest因ryupy-e2e未声明裸records-increment-experiment feature失败，e2e编译执行阶段及后续准入/源码/内存均未运行。修订只把完整check的feature请求改为依赖限定ryupy-driver/records-increment-experiment，沿真实driver→MIR依赖启用，不改Makefile或e2e包；保存Cargo metadata及专门-p ryupy-e2e feature树，强制核driver/MIR节点和e2e→driver边，再原样完整make check。实验仍默认关闭，不因feature解析存在就声称运行期开启。
