@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""C1 三版本真实类桥：同次 oracle、选中 shim、24项类协议与候选/默认两条方法路径。"""
+"""C1 三版本真实类桥：同次 oracle、选中 shim、30项类协议与候选/默认两条方法路径。"""
 import argparse
 from pathlib import Path
 import shutil

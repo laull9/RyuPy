@@ -42,10 +42,26 @@ public sealed partial class CPythonHost
         catch { definition.Dispose(); throw; }
     }
 
+    private sealed record SetNameTarget(object Descriptor);
+
+    private object? InvokeDescriptorSetName(object descriptor, nint owner, nint name)
+    {
+        if (descriptor is not PyInstance instance || !instance.Class.TryLookup("__set_name__", out PyClass declaring, out object? method))
+            return PyNone.Instance;
+        return PyObject.InvokeBound(method, declaring, descriptor, [FromBorrowed(owner), FromBorrowed(name)], [], []);
+    }
+
     private void PrepareConstructionCallback(object target, nint arguments)
     {
-        if (Native.rp_length(arguments) == 0) return;
+        // 普通方法调用不跨 C ABI 读取参数；只有活动类事务才需要构造身份识别。
+        if (classDefinitions.Count == 0 || Native.rp_length(arguments) == 0) return;
         nint receiver = Check(Native.rp_op(18, arguments, n: 0));
+        try { AssociateConstructionReceiver(target, receiver); }
+        finally { Native.rp_decref(receiver); }
+    }
+
+    private void AssociateConstructionReceiver(object target, nint receiver)
+    {
         nint matchedType = 0;
         ClassDefinition? matched = null;
         try
@@ -60,7 +76,7 @@ public sealed partial class CPythonHost
             }
             matched?.AssociateReceiver(matchedType);
         }
-        finally { Native.rp_decref(matchedType); Native.rp_decref(receiver); }
+        finally { Native.rp_decref(matchedType); }
     }
 
     private sealed class ClassDefinition(CPythonHost host, PyClass owner, PythonObject session) : IPyForeignClassDefinition
@@ -144,16 +160,24 @@ public sealed partial class CPythonHost
                     if (type != 0 || Native.rp_error() != 0) return type;
                 }
             }
+            else if (target is SetNameTarget descriptor)
+                return MatchDescriptor(descriptor.Descriptor, receiver);
             else if (target is PyBoundMethod bound && bound.Target is PyFunction
                 && bound.Owner.Attributes.TryGetValue("__set_name__", out object? hook)
                 && ReferenceEquals(hook, bound.Target))
             {
-                foreach (var pair in written)
-                {
-                    if (!ReferenceEquals(pair.Value.Value, bound.Self)) continue;
-                    nint type = Native.rp_class_receiver(session.Pointer, receiver, pair.Key, pair.Value.Native.Pointer, 0, 1);
-                    if (type != 0 || Native.rp_error() != 0) return type;
-                }
+                return MatchDescriptor(bound.Self, receiver);
+            }
+            return 0;
+        }
+
+        private nint MatchDescriptor(object? descriptor, nint receiver)
+        {
+            foreach (var pair in written)
+            {
+                if (!ReferenceEquals(pair.Value.Value, descriptor)) continue;
+                nint type = Native.rp_class_receiver(session.Pointer, receiver, pair.Key, pair.Value.Native.Pointer, 0, 1);
+                if (type != 0 || Native.rp_error() != 0) return type;
             }
             return 0;
         }

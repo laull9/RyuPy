@@ -85,7 +85,7 @@ public sealed partial class CPythonHost
     });
 
     /// <inheritdoc />
-    public PySuper CreateSuper(object start, object? receiver) => PythonCall(() =>
+    public object? CreateSuper(object start, object? receiver) => PythonCall(() =>
     {
         EnsureClassBridgeHelpers();
         nint startPtr = ResolveBasePointer(start);

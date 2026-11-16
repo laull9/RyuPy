@@ -1,4 +1,3 @@
-# ryupy: pending
 """C1 构造回调中的 descriptor/new/property/inherited classmethod 保留单一类和实例身份。"""
 from bridge_fixture.class_construction import EagerBase, SetNameBase
 
@@ -10,11 +9,18 @@ class Desc:
         seen.append(owner)
 
 
-class Named(SetNameBase):
+class Named(EagerBase):
     marker = Desc()
 
 
 assert seen.pop() is Named
+
+
+class ManualNamed(SetNameBase):
+    marker = Desc()
+
+
+assert seen.pop() is ManualNamed
 
 
 class Allocated(EagerBase):
@@ -26,6 +32,12 @@ class Allocated(EagerBase):
 
 
 assert seen.pop() is Allocated
+allocated = Allocated()
+assert seen.pop() is Allocated
+allocated.__new__.__name__ = 'renamed_new'
+again = allocated.__new__(Allocated)
+assert seen.pop() is Allocated
+assert type(again) is Allocated
 
 
 class SetProperty(EagerBase):
@@ -44,7 +56,7 @@ class DelProperty(EagerBase):
 
     def remove(self):
         seen.append(self)
-    value = property(None, None, remove)
+    value = property(None).deleter(remove)
 
 
 assert type(seen.pop()) is DelProperty

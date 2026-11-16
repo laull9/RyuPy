@@ -212,7 +212,7 @@ public sealed partial class CPythonHost
         switch (value)
         {
             case PyFunction fn:
-                return WrapCallableOwned(ownerClass, fn, bindContext: true);
+                return WrapCallableOwned(ownerClass, fn, bindContext: true, staticBinding: string.Equals(name, "__new__", StringComparison.Ordinal));
             case PyStaticMethod sm:
             {
                 nint inner = WrapCallableOwned(ownerClass, sm.Value, bindContext: string.Equals(name, "__new__", StringComparison.Ordinal));
@@ -260,14 +260,14 @@ public sealed partial class CPythonHost
         }
     }
 
-    private nint WrapCallableOwned(PyClass ownerClass, object? value, bool bindContext)
+    private nint WrapCallableOwned(PyClass ownerClass, object? value, bool bindContext, bool staticBinding = false)
     {
         if (value is null or PyNone) return Native.rp_none();
         if (value is PyFunction fn)
         {
             string qualname = TryGetQualname(fn, $"{ownerClass.Name}.{fn.Name}");
             var target = new ForeignMethodTarget(ownerClass, fn, bindContext);
-            nint callable = nativeMethodsEnabled ? CreateNativeMethodOwned(target, fn.Name, qualname)
+            nint callable = nativeMethodsEnabled ? CreateNativeMethodOwned(target, fn.Name, qualname, staticBinding)
                 : CallHelperRaw(_wrapMethodFn, [target, fn.Name, qualname], null, null);
             try { target.CallableReference = new PythonObject(this, Check(Native.rp_callable_reference(callable))); return callable; }
             catch { Native.rp_decref(callable); throw; }

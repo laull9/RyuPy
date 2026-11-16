@@ -196,3 +196,53 @@ class SetNameMeta(type):
 
 
 SetNameBase = type.__new__(SetNameMeta, 'SetNameBase', (object,), {})
+
+
+def descriptor_capabilities(value):
+    kind = type(value)
+    return (hasattr(kind, '__set_name__'), hasattr(kind, '__get__'),
+            hasattr(kind, '__set__'), hasattr(kind, '__delete__'))
+
+
+def echo(value):
+    return value
+
+
+class DecoyMeta(type):
+    def __new__(meta, name, bases, namespace):
+        callback = namespace['on_construct'].__func__
+        decoy = type.__new__(meta, name, bases, {})
+        callback(decoy)
+        return super().__new__(meta, name, bases, dict(namespace))
+
+
+DecoyBase = type.__new__(DecoyMeta, 'DecoyBase', (object,), {})
+identity_observer = None
+
+
+def set_identity_observer(callback):
+    global identity_observer
+    identity_observer = callback
+
+
+class IdentityConflictMeta(type):
+    def __new__(meta, name, bases, namespace):
+        created = super().__new__(meta, name, bases, dict(namespace))
+        identity_observer(created)
+        created.on_construct()
+        return created
+
+
+IdentityConflictBase = type.__new__(IdentityConflictMeta, 'IdentityConflictBase', (object,), {})
+
+
+retained = []
+
+
+def retain(value):
+    retained.append(value)
+    return value
+
+
+def clear_retained():
+    retained.clear()

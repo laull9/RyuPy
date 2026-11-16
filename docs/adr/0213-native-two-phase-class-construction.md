@@ -60,7 +60,7 @@ prepared namespace 和已导出成员引用。失败撤销临时类型关联；�
 - 普通 MI 的 NativeAOT 保护门保留，相关 MI 输入继续 JIT 专项。
 
 本次 macOS arm64 实测：3.9.25 / 3.12.13 / 3.13.3 各以真实 shim 跑默认与原生方法候选
-19 项类桥，全 114 项通过；四个手写类构造输入均在固定 3.12.13 同次 oracle 下通过 JIT 与 NativeAOT，
+30 项类桥，全 180 项通过；五个手写类构造输入均在固定 3.12.13 同次 oracle 下通过 JIT 与 NativeAOT，
 并在删除输入、build 目录和隐藏私有基础发行后从中文空格路径搬迁执行。
 其中 `native_class_prepare_metadata` 同时核验 prepared 名称遮蔽、prepare 修改真实模块名和 namespace
 优先于外层 free-cell 的 LOAD_CLASSDEREF 查找。类体显式 global/nonlocal 保持现有 Diagnostic 禁域，
@@ -70,3 +70,30 @@ prepared namespace 和已导出成员引用。失败撤销临时类型关联；�
 `_rp_make_class` / `_rp_calculate_meta` 与已移除的 object/super helper 帧数均为零，
 保留的 `_rp_wrap_method` 有真实调用帧，严格门按 complete=false / startup_complete=false 拒绝。
 其它平台以及未开放的 Python 类构造协议留给对应验收。
+
+
+## 构造重入与专用 set_name 代理
+
+真实构造重入按全部活动事务匹配：原生 API 核对冻结直接 bases 和真实 MRO 首个字典成员，
+成员须为同一活 callable，或精确内建 staticmethod/classmethod/property 中的同一 callable。
+继承回调还核真实声明类型。callable 使用 owned 弱引用，target 不强持 wrapper；
+这既避免跨堆环，也避免 wrapper 回收后裸地址被复用而误认。多个事务同时匹配、已存在其它
+opaque 身份、元类更换临时类型均明确拒绝；不会替换已经返回给用户的对象视图。
+匹配发生在容器同步和实参转换之前，property getter/setter/deleter 均有相同身份合同。
+
+只有真实 RyuPy 实例类型链拥有 `__set_name__` 才签发 `ryupy.ManagedDescriptor`，复用原代理布局，
+静态特殊槽通过同一 Rootid 回调 CIL；owner 在转换前按真实字典中的同一 descriptor 关联。
+普通代理以及仅有实例同名字段的对象不暴露该槽。专用类型没有 `__get__`、`__set__`、`__delete__`，
+同时定义这些尚未桥接协议时明确拒绝导出。类型删除 set_name 后按实时类型查询无动作；
+已经导出并由 CPython 保活的普通代理若后来新增类型级 set_name，再导出时精确诊断能力变化，
+保持原 native 代理身份。已完成真实 foreign 构造的类跳过原 set_name 未实现守卫，原生类守卫保留。
+
+候选 NativeMethod 不满足 CPython 的 PyFunction 精确检查，type_new 无法替它自动完成隐式 new 绑定。
+按导出键 `__new__` 选择独立 `NativeStaticMethod` 类型，共用完全相同实例布局，仅 descr_get 为静态；
+后续改名字不会改变绑定。prepared mapping 不为归一化再次写入，普通方法也不增加标志字段。
+旧 `rp_native_method` ABI 保留，新 `rp_native_static_method` 仍属于显式候选，默认 wrapper 不变。
+
+新增真实重入输入同时覆盖自动和元类显式 set_name、隐式 new、实例 new 的静态调用及名字修改、
+property 写/删、继承 classmethod。默认与候选均完成 JIT、NativeAOT 和删除输入/build 后搬迁。
+C# 负例保留同名同 bases 的 decoy、提前形成的 opaque 身份、实例同名假 hook、迟增能力及未桥接
+数据描述符；三版本各两模式 30 项全过。首次候选实例 new 的“双实参”失败样本保留于仓库外验证日志。

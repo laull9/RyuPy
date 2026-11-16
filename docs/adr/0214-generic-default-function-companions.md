@@ -78,3 +78,19 @@ owner、无Unbox/NewObject且运行时类调用正向存在。因此本场景不
 JIT、macOS arm64 NativeAOT搬迁结果一致；NativeAOT搬迁后删除原输入/build再运行通过。
 新增MIR定向结构门通过。原`c2_function_defaults_cross_module_pending.py`文件名及源码
 保留，仅移除pending标记，以延续原用例ID。
+
+## 完整门发现的range通用降级修正
+
+全driver门的planner_static真实触发C2错误：伴生体采用旧Dynamic range的i64计数
+优化，在边界插入两个Unbox，被严格通用验证拒绝。修正仅让伴生体先按源序冻结range
+边界、构造已有原生range值，再复用ForEach的iterator/next/value CFG。typed原计数
+核心与普通Dynamic的原计数快路保持；严格Unbox门保持。现有range值域与用户__index__
+等边界沿用既有API合同，见[ADR-0135](0135-foreach-local-accumulator.md)。
+
+新增MIR门同时锁typed I64 ABI/计数运算、generic无Unbox且range构造及三个迭代入口
+各一处、普通Dynamic仍走原计数降级。新增两模块正例覆盖原完整实参、缺省对象身份、
+bool边界、正负步长、break/continue/else、步长0错误与实参修改默认值。固定CPython
+3.9.25/3.12.13/3.13.3、JIT、macOS arm64 NativeAOT搬迁删除输入/build后均逐字一致。
+driver foreach整组6项通过，包含原失败与off/on语义矩阵；known_traceback_locals由主代理
+按新的真实traceback边界单独修正，实验ledger与结构保护保持。此前冻结Release为预修复产物，
+最终性能须从此修正后的源码重建并配对。

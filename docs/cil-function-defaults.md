@@ -136,3 +136,7 @@ UsesSuper方法上下文及接收者不变、注册目标身份不变，3项通�
 普通`@dataclass`构造的反射回归另有两模块正例：其make_box收敛Dynamic、无typed伴生体，
 结构门锁运行时类调用与单一核心。固定CP3.12.13、JIT、删除输入/build后的搬迁NativeAOT
 均通过，保可变默认别名及原类身份；见ADR-0214异构审查反证记录。
+
+伴生体中的range循环使用既有原生range值及通用迭代协议，避免旧Dynamic i64计数优化
+向通用参数插入Unbox；typed及普通Dynamic计数路径保持。新两模块range正例通过三版本
+CP oracle、JIT和删除输入/build后的搬迁NativeAOT；driver foreach整组6门通过，见ADR-0214。

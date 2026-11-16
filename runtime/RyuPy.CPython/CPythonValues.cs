@@ -76,7 +76,13 @@ public sealed partial class CPythonHost
         if (value is PyBaseException { ForeignObject: PythonObject origin }) return Native.rp_incref(origin.Pointer);
         if (value is PyBaseException error) return Native.rp_incref(ExportException(error));
         if (value is PyClass { IsException: true } exceptionClass) return ExceptionClass(exceptionClass);
-        if (reverse.TryGetValue(value, out ManagedReference? reference)) return Native.rp_incref(reference.Pointer);
+        if (reverse.TryGetValue(value, out ManagedReference? reference))
+        {
+            if (HasSetName(value) && Native.rp_is_managed_descriptor(reference.Pointer) == 0)
+                throw new PyNotImplementedError("exported managed proxy cannot add __set_name__ capability while preserving its identity");
+            ValidateSetNameDescriptor(value);
+            return Native.rp_incref(reference.Pointer);
+        }
         nint CacheScalar(nint scalar)
         {
             Check(scalar); var owner = new PythonObject(this, scalar);
@@ -123,10 +129,28 @@ public sealed partial class CPythonHost
         nint identity = (nint)Interlocked.Increment(ref nextRoot);
         Roots[identity] = value;
         nint pointer;
-        try { pointer = Check(Native.rp_managed(identity)); } catch { Roots.TryRemove(identity, out _); throw; }
+        try
+        {
+            bool descriptor = HasSetName(value);
+            ValidateSetNameDescriptor(value);
+            pointer = Check(descriptor ? Native.rp_managed_descriptor(identity) : Native.rp_managed(identity));
+        }
+        catch { Roots.TryRemove(identity, out _); throw; }
         reverse.Add(value, new ManagedReference(identity, pointer));
         return pointer;
     }
+    // 能力只取真实类型链；实例自己的同名字段不能签发特殊槽。已导出普通代理不换身份升级。
+    private static bool HasSetName(object? value) => value is PyInstance instance
+        && instance.Class.TryLookup("__set_name__", out _, out _);
+    private static void ValidateSetNameDescriptor(object? value)
+    {
+        if (HasSetName(value) && value is PyInstance instance
+            && (instance.Class.TryLookup("__get__", out _, out _)
+                || instance.Class.TryLookup("__set__", out _, out _)
+                || instance.Class.TryLookup("__delete__", out _, out _)))
+            throw new PyNotImplementedError("custom descriptor __get__/__set__/__delete__ protocols are not bridged");
+    }
+
     internal nint MakeTuple(object?[] values)
     {
         nint tuple = Check(Native.rp_op(14, n: values.Length));

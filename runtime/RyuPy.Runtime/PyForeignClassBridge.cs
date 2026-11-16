@@ -58,7 +58,7 @@ public interface IPyForeignClassBridge
     object? GetSuperAttribute(object start, object? receiver, string name);
 
     /// <summary>构造真实外部 super，并返回具有统一内建类型身份的中性代理。</summary>
-    PySuper CreateSuper(object start, object? receiver);
+    object? CreateSuper(object start, object? receiver);
 
     /// <summary>查询成员资格（<c>value in foreignInstance</c>）。</summary>
     bool Contains(IPyForeignObject foreignInstance, object? value);
@@ -125,6 +125,14 @@ public static class PyForeignClassBridge
 
     internal static void TryRemove(IPyForeignClassBridge bridge) =>
         Interlocked.CompareExchange(ref _current, null, bridge);
+
+    // 保留历史object返回ABI；在Runtime冷边界把旧provider返回值规范为同一个super类型。
+    internal static PySuper CanonicalSuper(object start, object? receiver) => Require().CreateSuper(start, receiver) switch
+    {
+        PySuper value => value,
+        IPyForeignObject foreign => PySuper.FromForeign(foreign, name => PyObject.GetAttr(foreign, name)),
+        _ => throw new PyRuntimeError("foreign class bridge did not return a super proxy"),
+    };
 
     internal static IPyForeignClassBridge Require() =>
         _current ?? throw (PyBaseException)PyErrors.PrepareRaise(

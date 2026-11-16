@@ -119,7 +119,25 @@ fn check_dynamic(function: &Function) {
     );
     let original = catch.exc_local.unwrap();
     let escaped = guard.exc_local.unwrap();
-    let enters = calls(function, RuntimeFn::HandlerEnter);
+    let native_traceback = !cfg!(feature = "trace-adapter-test");
+    let enters = calls(
+        function,
+        if native_traceback {
+            RuntimeFn::HandlerEnterGuard
+        } else {
+            RuntimeFn::HandlerEnter
+        },
+    );
+    let handled = calls(function, RuntimeFn::TracebackHandled);
+    if native_traceback {
+        assert!(
+            calls(function, RuntimeFn::HandlerEnter).is_empty(),
+            "匹配ambient只保存token，不能提前结束异常传播"
+        );
+        assert_eq!(handled.len(), 2, "只在两个真正匹配分支结束传播");
+    } else {
+        assert!(handled.is_empty(), "adapter沿用原独立传播协议");
+    }
     let leaves = calls(function, RuntimeFn::HandlerLeave);
     let matches = calls(function, RuntimeFn::ExceptionMatch);
     let reads = calls(function, RuntimeFn::DynGetAttr);
@@ -168,6 +186,23 @@ fn check_dynamic(function: &Function) {
         Terminator::Branch { then_, else_, .. } => (then_, else_),
         _ => panic!("matcher须branch"),
     };
+    if native_traceback {
+        let second_yes = match function.body.blocks[second.0].terminator {
+            Terminator::Branch { then_, .. } => then_,
+            _ => panic!("第二matcher须branch"),
+        };
+        for (notify, matched) in [(handled[0], first_yes), (handled[1], second_yes)] {
+            assert_eq!(notify.0, matched, "传播终结须在真实matched入口");
+            assert!(notify.2.is_none(), "冷通知不能产生另一个context token");
+            assert_eq!(notify.3.len(), 1);
+            assert_eq!(local(&notify.3[0]), original);
+            assert!(inside(guard, notify.0));
+        }
+        assert!(
+            !reachable(function, first_no, None).contains(&handled[0].0),
+            "未命中首handler不得执行它的传播终结通知"
+        );
+    }
     assert!(reachable(function, first_no, None).contains(&second.0));
     assert!(
         !reachable(function, first_yes, None).contains(&second.0),

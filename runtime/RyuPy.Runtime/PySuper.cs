@@ -45,8 +45,9 @@ public sealed class PySuper
         bool external = Self is PyInstance { Class.HasForeignHierarchy: true }
             or PyClass { HasForeignHierarchy: true } || owner.ForeignClass is not null;
         if (!external) return null;
-        PySuper actual = PyForeignClassBridge.Require().CreateSuper(owner, Self);
-        var exported = (ForeignTarget)actual.target;
+        PySuper actual = PyForeignClassBridge.CanonicalSuper(owner, Self);
+        if (actual.target is not ForeignTarget exported)
+            throw new PyRuntimeError("foreign class bridge returned a super without an external receiver");
         target = new ForeignTarget(owner, exported.Proxy, exported.Read);
         return exported.Proxy;
     }

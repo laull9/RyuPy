@@ -210,6 +210,7 @@ static PyMethodDef bridge_methods[] = {
     {"_rp_package", bridge_package, METH_O, NULL}, {NULL, NULL, 0, NULL}
 };
 static PyType_Spec managed_spec = {"ryupy.ManagedObject", sizeof(Managed), 0, Py_TPFLAGS_DEFAULT, managed_slots};
+#include "managed_descriptor.h"
 
 static int fail_status(PyStatus status) {
     if (!PyStatus_Exception(status)) return 0;
@@ -281,7 +282,7 @@ API void rp_gil_release(int state) { PyGILState_Release((PyGILState_STATE)state)
 API int rp_stop(void) {
     PyEval_RestoreThread(initial_thread); initial_thread = NULL;
     rp_execution_audit_phase(2);
-    Py_CLEAR(native_method_type);
+    Py_CLEAR(native_method_type); Py_CLEAR(native_static_method_type); Py_CLEAR(managed_descriptor_type);
     int result = Py_FinalizeEx();
     audit_finalized = audit_enabled;
     managed_type = NULL;
@@ -295,7 +296,7 @@ API PyObject *rp_managed(intptr_t identity) {
     self->identity = identity; return (PyObject *)self;
 }
 API intptr_t rp_identity(PyObject *value) {
-    return Py_IS_TYPE(value, managed_type) ? ((Managed *)value)->identity : 0;
+    return Py_IS_TYPE(value, managed_type) || is_managed_descriptor(value) ? ((Managed *)value)->identity : 0;
 }
 API PyObject *rp_none(void) { return Py_NewRef(Py_None); }
 API int rp_is_none(PyObject *value) { return Py_IsNone(value); }

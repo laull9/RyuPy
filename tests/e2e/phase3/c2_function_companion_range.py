@@ -1,4 +1,3 @@
-# ryupy: pending
 # 伴生range在实参后构造一次；原typed完整实参、可变缺省身份、步长与控制流均受保护。
 import c2_function_companion_range_helper as helper
 

@@ -164,7 +164,29 @@ pub(super) fn check(root: &Path) {
     assert!(outer.source_handler_chain.is_none());
     assert_eq!(outer.try_start, resume.body.entry);
     assert!(!inside(outer, outer.handler));
-    let enters = calls(resume, RuntimeFn::HandlerEnter);
+    let native_traceback = !cfg!(feature = "trace-adapter-test");
+    let enters = calls(
+        resume,
+        if native_traceback {
+            RuntimeFn::HandlerEnterGuard
+        } else {
+            RuntimeFn::HandlerEnter
+        },
+    );
+    let handled = calls(resume, RuntimeFn::TracebackHandled);
+    if native_traceback {
+        assert!(calls(resume, RuntimeFn::HandlerEnter).is_empty());
+        assert_eq!(handled.len(), 1, "动态匹配前的guard不能终结传播");
+        assert!(handled[0].2.is_none(), "冷通知不增加context token");
+        assert_eq!(handled[0].3.len(), 1);
+        assert_eq!(local(&handled[0].3[0]), local(&enters[0].3[0]));
+        assert_ne!(
+            handled[0].0, enters[0].0,
+            "ambient与实际matched分属不同入口"
+        );
+    } else {
+        assert!(handled.is_empty());
+    }
     let leaves = calls(resume, RuntimeFn::HandlerLeave);
     let matches = calls(resume, RuntimeFn::ExceptionMatch);
     assert_eq!(enters.len(), 1);
