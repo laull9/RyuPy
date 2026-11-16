@@ -1,0 +1,28 @@
+// 原生协程 ABI：区分 async 工厂发布与 await 的类型级协议查找，拒绝解释执行回落。
+namespace RyuPy.Runtime;
+
+public static partial class PyOps
+{
+    /// <summary>将已编译的显式状态机发布为 Python 原生协程。</summary>
+    public static object CoroutineCreate(object generator) => generator is PyGenerator state
+        ? new PyCoroutine(state) : throw new PyRuntimeError("invalid coroutine state machine");
+
+    /// <summary>取得一次 await 迭代器；不再次调用 __iter__，也不将普通 iterable 当 awaitable。</summary>
+    public static object CoroutineAwaitStart(object? source)
+    {
+        if (source is PyCoroutine coroutine)
+        {
+            var wrapper = coroutine.AwaitIterator(true);
+            return new PyGeneratorDelegation(wrapper, wrapper);
+        }
+        if (!PyObject.TryMethod(source, "__await__", [], out object? iterator))
+            throw new PyTypeError($"object {PyRepr.TypeName(source)} can't be used in 'await' expression");
+        if (iterator is PyCoroutine)
+            throw new PyTypeError("__await__() returned a coroutine");
+        if (iterator is PyInstance instance && instance.Class.TryLookup("__next__", out _, out _))
+            return new PyGeneratorDelegation(new PyInstanceIterator(instance), instance);
+        if (iterator is IPyIterator ready)
+            return new PyGeneratorDelegation(ready, iterator);
+        throw new PyTypeError($"__await__() returned non-iterator of type '{PyRepr.TypeName(iterator)}'");
+    }
+}

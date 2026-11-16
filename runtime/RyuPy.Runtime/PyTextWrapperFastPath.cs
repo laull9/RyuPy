@@ -44,8 +44,10 @@ internal static partial class PyTextWrapper
             {
                 if (!root.Attributes.TryGetValue(snapshot.Name, out object? current)
                     || !ReferenceEquals(current, snapshot.Function) || !ReferenceEquals(snapshot.Function.Body, snapshot.Body)
-                    || !ReferenceEquals(snapshot.Function.Defaults, snapshot.Defaults)) return false;
-                // 真实数组内容可变，不能拿Python普通metadata里同名假属性代替它。
+                    || !ReferenceEquals(snapshot.Function.Defaults, snapshot.Defaults)
+                    || PyFunctionDefaults.TryGet(snapshot.Function.Defaults, out _)) return false;
+                // 冷反射状态的真实tuple/dict独立于此数组；即使重建快路也须回到实时binder。
+                // 未反射数组的内容仍可由CLR宿主改写，因此继续逐元素检查。
                 for (int index = 0; index < snapshot.Values.Length; index++)
                     if (!ReferenceEquals(snapshot.Defaults[index], snapshot.Values[index])) return false;
             }

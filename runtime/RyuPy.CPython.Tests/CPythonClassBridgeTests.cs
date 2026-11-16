@@ -33,6 +33,7 @@ public sealed class CPythonBridgeFixture : IDisposable
         string shimPath = Path.Combine(_tempDir, $"{shimPrefix}ryupy_cpython.{shimExt}");
         string buildScript = Path.Combine(repoRoot, "runtime", "RyuPy.CPython", "native", "build.sh");
         string prebuiltShim = Path.Combine(repoRoot, "runtime", "RyuPy.CPython", "bin", "Release", "net10.0", $"{shimPrefix}ryupy_cpython.{shimExt}");
+        prebuiltShim = Environment.GetEnvironmentVariable("RYUPY_CPYTHON_TEST_SHIM") ?? prebuiltShim;
 
         if (File.Exists(prebuiltShim))
         {
@@ -61,6 +62,7 @@ public sealed class CPythonBridgeFixture : IDisposable
         var searchPaths = new List<string> { libDir };
         string dynLoad = Path.Combine(libDir, "lib-dynload");
         if (Directory.Exists(dynLoad)) searchPaths.Add(dynLoad);
+        searchPaths.Add(Path.Combine(repoRoot, "tests", "cpython", "fixtures"));
 
         string configPath = Path.Combine(_tempDir, "ryupy-cpython.json");
         var config = new
@@ -72,7 +74,7 @@ public sealed class CPythonBridgeFixture : IDisposable
             library = pyLib,
             shim = shimPath,
             search_paths = searchPaths,
-            modules = new[] { "collections", "builtins", "tkinter", "tkinter.ttk" },
+            modules = new[] { "collections", "builtins", "tkinter", "tkinter.ttk", "bridge_fixture" },
             container_transfer = "proxy",
         };
         File.WriteAllText(configPath, JsonSerializer.Serialize(config));
@@ -138,9 +140,34 @@ public sealed class CPythonBridgeFixture : IDisposable
 }
 
 /// <summary>CPython 跨域继承真实集成测试套件。</summary>
-public class CPythonClassBridgeTests(CPythonBridgeFixture fixture) : IClassFixture<CPythonBridgeFixture>
+public partial class CPythonClassBridgeTests(CPythonBridgeFixture fixture) : IClassFixture<CPythonBridgeFixture>
 {
     private void RequireHost() => Assert.True(fixture.Available, "未找到 CPython 3.12.13 分发环境");
+
+    [Fact]
+    public void BaseObjectDescriptors_PreserveAllocationIdentityAttributesAndErrors()
+    {
+        RequireHost();
+        object? userDict = PyModules.Import("collections").GetAttr("UserDict");
+        var cls = (PyClass)PyOps.PrepareRuntimeDerivedClass("BaseSlotsDict", [userDict]);
+        PyOps.FinalizeOrdinaryClass(cls);
+        IPyForeignClassBridge bridge = PyForeignClassBridge.Current!;
+        IPyForeignObject foreignClass = PyForeignClassBridge.GetForeignClass(cls)!;
+
+        // 显式基础槽不能调用 UserDict.__init__；调用后仍由同一外部实例承接属性。
+        var instance = Assert.IsType<PyInstance>(bridge.AllocateFromBaseObject(foreignClass, [], [], []));
+        IPyForeignObject foreign = PyForeignClassBridge.GetForeignInstance(instance)!;
+        bridge.InitializeFromBaseObject(foreign, [], [], []);
+        bridge.SetAttrFromBaseObject(foreign, "payload", instance);
+        Assert.Same(instance, PyObject.GetAttr(instance, "payload"));
+        bridge.DelAttrFromBaseObject(foreign, "payload");
+        Assert.Throws<PyAttributeError>(() => PyObject.GetAttr(instance, "payload"));
+        Assert.Throws<PyAttributeError>(() => bridge.DelAttrFromBaseObject(foreign, "payload"));
+
+        // list/deque 等扩展布局仍须经过自己的分配器，object 槽应保留原生拒绝。
+        var deque = Assert.IsAssignableFrom<IPyForeignObject>(PyModules.Import("collections").GetAttr("deque"));
+        Assert.Throws<PyTypeError>(() => bridge.AllocateFromBaseObject(deque, [], [], []));
+    }
 
     [Fact]
     public void UserDictSubclass_SupportsSuperInitMethodsAttributesAndOperators()

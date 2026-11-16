@@ -15,7 +15,6 @@ public sealed partial class CPythonHost
     private nint _objectInitFn;
     private nint _objectSetAttrFn;
     private nint _objectDelAttrFn;
-    private nint _superGetAttrFn;
     private nint _superCreateFn;
     private readonly Dictionary<PyClass, PythonObject> _mixinMirrors = new();
 
@@ -40,27 +39,6 @@ public sealed partial class CPythonHost
         }
         return false;
     }
-
-    /// <inheritdoc />
-    public bool IsSubclass(object? child, object? parent) => PythonCall(() =>
-    {
-        nint childPtr = TryResolveTypePointer(child);
-        if (childPtr == 0) return false;
-        nint parentPtr = 0;
-        try
-        {
-            parentPtr = TryResolveTypePointer(parent);
-            if (parentPtr == 0) return false;
-            int result = Native.rp_is_subclass(childPtr, parentPtr);
-            if (result < 0) ThrowError();
-            return result != 0;
-        }
-        finally
-        {
-            Native.rp_decref(childPtr);
-            if (parentPtr != 0) Native.rp_decref(parentPtr);
-        }
-    });
 
     /// <inheritdoc />
     public IPyForeignObject CreateDerivedClass(
@@ -174,45 +152,6 @@ public sealed partial class CPythonHost
     });
 
     /// <inheritdoc />
-    public object? GetSuperAttribute(object start, object? receiver, string name) => PythonCall(() =>
-    {
-        EnsureClassBridgeHelpers();
-        nint startPtr = ResolveBasePointer(start);
-        nint receiverPtr = 0;
-        nint namePtr = 0;
-        try
-        {
-            receiverPtr = receiver is null ? Native.rp_none() : ToPython(receiver);
-            namePtr = ToPython(name);
-            return FromOwned(CallRawArgs(_superGetAttrFn, startPtr, receiverPtr, namePtr));
-        }
-        finally
-        {
-            Native.rp_decref(startPtr);
-            if (receiverPtr != 0) Native.rp_decref(receiverPtr);
-            if (namePtr != 0) Native.rp_decref(namePtr);
-        }
-    });
-
-    /// <inheritdoc />
-    public object? CreateSuper(object start, object? receiver) => PythonCall(() =>
-    {
-        EnsureClassBridgeHelpers();
-        nint startPtr = ResolveBasePointer(start);
-        nint receiverPtr = 0;
-        try
-        {
-            receiverPtr = receiver is null ? Native.rp_none() : ToPython(receiver);
-            return FromOwned(CallRawArgs(_superCreateFn, startPtr, receiverPtr));
-        }
-        finally
-        {
-            Native.rp_decref(startPtr);
-            if (receiverPtr != 0) Native.rp_decref(receiverPtr);
-        }
-    });
-
-    /// <inheritdoc />
     public bool Contains(IPyForeignObject foreignInstance, object? value) => PythonCall(() =>
     {
         PythonObject container = RequireForeignObject(foreignInstance);
@@ -271,14 +210,6 @@ public sealed partial class CPythonHost
         return foreign;
     }
 
-    private nint TryResolveTypePointer(object? value) => value switch
-    {
-        PyClass cls => ResolveForeignTypePointer(cls),
-        PythonObject foreign when ReferenceEquals(foreign.Host, this) => Native.rp_incref(foreign.Pointer),
-        PyType builtin => Check(Native.rp_builtin(builtin.Name)),
-        _ => 0,
-    };
-
     private nint ResolveBasePointer(object? value) => value switch
     {
         PyClass cls => ResolveForeignTypePointer(cls),
@@ -325,6 +256,7 @@ public sealed partial class CPythonHost
             nint mirrorPtr = CallRawArgs(_makeClassFn, namePtr, basesTuple, nsDict);
             var mirror = new PythonObject(this, mirrorPtr);
             _mixinMirrors[cls] = mirror;
+            objects[mirrorPtr] = new WeakReference<object>(cls);
             return Native.rp_incref(mirror.Pointer);
         }
         finally
@@ -412,7 +344,8 @@ public sealed partial class CPythonHost
         {
             string qualname = TryGetQualname(fn, $"{ownerClass.Name}.{fn.Name}");
             var target = new ForeignMethodTarget(ownerClass, fn, bindContext);
-            return CallHelperRaw(_wrapMethodFn, [target, fn.Name, qualname], null, null);
+            return nativeMethodsEnabled ? CreateNativeMethodOwned(target, fn.Name, qualname)
+                : CallHelperRaw(_wrapMethodFn, [target, fn.Name, qualname], null, null);
         }
         return ToPython(value);
     }
@@ -512,16 +445,22 @@ public sealed partial class CPythonHost
         try
         {
             _makeClassFn = Check(Native.rp_op(2, module, s: "_rp_make_class"));
-            _wrapMethodFn = Check(Native.rp_op(2, module, s: "_rp_wrap_method"));
+            _wrapMethodFn = nativeMethodsEnabled ? 0 : Check(Native.rp_op(2, module, s: "_rp_wrap_method"));
             _staticMethodFn = Check(Native.rp_op(2, module, s: "_rp_staticmethod"));
             _classMethodFn = Check(Native.rp_op(2, module, s: "_rp_classmethod"));
             _propertyFn = Check(Native.rp_op(2, module, s: "_rp_property"));
-            _objectNewFn = Check(Native.rp_op(2, module, s: "_rp_object_new"));
-            _objectInitFn = Check(Native.rp_op(2, module, s: "_rp_object_init"));
-            _objectSetAttrFn = Check(Native.rp_op(2, module, s: "_rp_object_setattr"));
-            _objectDelAttrFn = Check(Native.rp_op(2, module, s: "_rp_object_delattr"));
-            _superGetAttrFn = Check(Native.rp_op(2, module, s: "_rp_super_getattr"));
-            _superCreateFn = Check(Native.rp_op(2, module, s: "_rp_super_create"));
+            // 缓存真实 object 原生描述符；参数绑定和错误仍由 CPython 槽位处理，
+            // 四条基础操作不再建立转发用 Python 函数帧。
+            nint objectType = Check(Native.rp_builtin("object"));
+            try
+            {
+                _objectNewFn = Check(Native.rp_op(2, objectType, s: "__new__"));
+                _objectInitFn = Check(Native.rp_op(2, objectType, s: "__init__"));
+                _objectSetAttrFn = Check(Native.rp_op(2, objectType, s: "__setattr__"));
+                _objectDelAttrFn = Check(Native.rp_op(2, objectType, s: "__delattr__"));
+            }
+            finally { Native.rp_decref(objectType); }
+            _superCreateFn = Check(Native.rp_super_type());
         }
         finally
         {
@@ -548,7 +487,6 @@ public sealed partial class CPythonHost
         ReleaseRef(ref _objectInitFn);
         ReleaseRef(ref _objectSetAttrFn);
         ReleaseRef(ref _objectDelAttrFn);
-        ReleaseRef(ref _superGetAttrFn);
         ReleaseRef(ref _superCreateFn);
         foreach (PythonObject mirror in _mixinMirrors.Values)
         {

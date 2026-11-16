@@ -20,7 +20,9 @@ pub(super) fn fixed_abi(callee: RuntimeFn) -> bool {
     }
     matches!(
         callee,
-        RuntimeFn::MakeComprehensionList
+        RuntimeFn::CoroutineCreate
+            | RuntimeFn::CoroutineAwaitStart
+            | RuntimeFn::MakeComprehensionList
             | RuntimeFn::IsEnumerateIterator
             | RuntimeFn::EnumerateCurrentIndex
             | RuntimeFn::EnumerateCurrentValue
@@ -56,6 +58,7 @@ pub(super) fn fixed_abi(callee: RuntimeFn) -> bool {
             | RuntimeFn::FinalizeOrdinaryClass
             | RuntimeFn::FunctionModule
             | RuntimeFn::FunctionDefaults
+            | RuntimeFn::FunctionDefaultsUnobserved
             | RuntimeFn::TracePushWithOrigin
             | RuntimeFn::ModuleExecutionSource
             | RuntimeFn::ModuleExecutionSourceWithCode
@@ -151,6 +154,7 @@ pub(super) fn validate_call(
             RuntimeFn::UnpackEx => Some(&[MirType::Dynamic, MirType::I64, MirType::I64]),
             RuntimeFn::FinalizeOrdinaryClass => Some(&[MirType::Dynamic]),
             RuntimeFn::FunctionModule => Some(&[MirType::Dynamic, MirType::Dynamic]),
+            RuntimeFn::FunctionDefaultsUnobserved => Some(&[MirType::Dynamic, MirType::Dynamic]),
             RuntimeFn::ModuleExecutionSourceWithCode => Some(&[MirType::Dynamic, MirType::Dynamic]),
             RuntimeFn::FunctionDefaults | RuntimeFn::ModuleExecutionSource => {
                 Some(&[MirType::Dynamic])
@@ -168,7 +172,9 @@ pub(super) fn validate_call(
                 MirType::Dynamic,
                 MirType::Dynamic,
             ]),
-            RuntimeFn::MakeComprehensionList
+            RuntimeFn::CoroutineCreate
+            | RuntimeFn::CoroutineAwaitStart
+            | RuntimeFn::MakeComprehensionList
             | RuntimeFn::IsEnumerateIterator
             | RuntimeFn::EnumerateCurrentIndex
             | RuntimeFn::EnumerateCurrentValue
@@ -370,7 +376,9 @@ pub(super) fn validate_destination(
             RuntimeFn::IsEnumerateIterator
             | RuntimeFn::GeneratorSumTryConsume
             | RuntimeFn::GeneratorSumRangeGuard => Some(MirType::Bool),
-            RuntimeFn::MakeComprehensionList
+            RuntimeFn::CoroutineCreate
+            | RuntimeFn::CoroutineAwaitStart
+            | RuntimeFn::MakeComprehensionList
             | RuntimeFn::EnumerateCurrentIndex
             | RuntimeFn::EnumerateCurrentValue => Some(MirType::Dynamic),
             RuntimeFn::GeneratorStateGetPC => Some(MirType::I64),
@@ -400,6 +408,7 @@ pub(super) fn validate_destination(
             | RuntimeFn::NumericListAppendF64
             | RuntimeFn::NumericListPeekList => Some(MirType::Dynamic),
             RuntimeFn::RecordsTryIncrementMaterialized
+            | RuntimeFn::FunctionDefaultsUnobserved
             | RuntimeFn::IsModule
             | RuntimeFn::NumericListCanReadF64
             | RuntimeFn::ExceptionMatch => Some(MirType::Bool),
@@ -497,6 +506,7 @@ pub(super) fn validate_eval(func: &Function, value: &Rvalue, errors: &mut Vec<St
                     | RuntimeFn::ModuleMetadata
                     | RuntimeFn::TracePushWithOrigin
                     | RuntimeFn::FunctionDefaults
+                    | RuntimeFn::FunctionDefaultsUnobserved
                     | RuntimeFn::ModuleExecutionSource
                     | RuntimeFn::ModuleExecutionSourceWithCode
                     | RuntimeFn::CaptureModuleTarget

@@ -134,19 +134,21 @@ public static class PyBinder
         object?[] defaults
     )
     {
+        PyFunctionDefaults.TryGet(defaults, out PyFunctionDefaults? state);
         // 常见路径：只有普通位置参数、没有关键字实参。此时不需要 filled / 位置槽列表，
         // 参数按顺序一一对应；实参正好占满时直接复用调用方数组（只读）。
         if (signature.SimplePositional && kwNames.Length == 0)
         {
             int total = signature.Names.Length;
+            int required = state?.RequiredPositionalCount ?? signature.RequiredCount;
             if (args.Length > total)
             {
                 throw TooManyPositionals(signature, total, args.Length);
             }
-            if (args.Length < signature.RequiredCount)
+            if (args.Length < required)
             {
                 var missing = new List<string>();
-                for (int i = args.Length; i < signature.RequiredCount; i++)
+                for (int i = args.Length; i < required; i++)
                 {
                     missing.Add(signature.Names[i]);
                 }
@@ -160,7 +162,8 @@ public static class PyBinder
             Array.Copy(args, fastBound, args.Length);
             for (int i = args.Length; i < total; i++)
             {
-                fastBound[i] = defaults[i];
+                if (state is null) fastBound[i] = defaults[i];
+                else state.TryDefault(i, out fastBound[i]);
             }
             return fastBound;
         }
@@ -276,9 +279,10 @@ public static class PyBinder
             {
                 continue;
             }
-            if (i < defaults.Length && signature.HasDefault[i])
+            if (state is not null ? state.TryDefault(i, out bound[i])
+                : i < defaults.Length && signature.HasDefault[i])
             {
-                bound[i] = defaults[i];
+                if (state is null) bound[i] = defaults[i];
                 continue;
             }
             if (signature.Kinds[i] == PyParamKind.KeywordOnly)
@@ -344,8 +348,16 @@ public static class PyBinder
     ) =>
         new(
             $"{signature.Name}() missing {names.Count} required {kind} argument"
-                + $"{(names.Count == 1 ? "" : "s")}: '{string.Join("', '", names)}'"
+                + $"{(names.Count == 1 ? "" : "s")}: {FormatMissingNames(names)}"
         );
+
+    // 两个名字使用and，三个及以上保留Oxford逗号，与CPython的参数缺失报告一致。
+    private static string FormatMissingNames(List<string> names) => names.Count switch
+    {
+        1 => $"'{names[0]}'",
+        2 => $"'{names[0]}' and '{names[1]}'",
+        _ => "'" + string.Join("', '", names.GetRange(0, names.Count - 1)) + $"', and '{names[^1]}'",
+    };
 }
 
 /// <summary>
@@ -364,7 +376,7 @@ public sealed partial class PyFunction
     /// <summary>调用入口（生成代码里的 thunk）。</summary>
     public PyCall Body { get; }
     /// <summary>默认值数组，与参数下标对齐。</summary>
-    public object?[] Defaults { get; }
+    public object?[] Defaults { get; private set; }
 
     /// <summary>函数体是否调用过 `super()`；只有这类函数需要维护方法上下文。</summary>
     public bool UsesSuper { get; }

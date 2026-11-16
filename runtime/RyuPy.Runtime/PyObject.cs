@@ -377,7 +377,7 @@ public static partial class PyObject
     {
         PyNamedTupleInstance instance => instance.Class.IsSubclassOf(cls),
         PyInstance instance => instance.Class.IsSubclassOf(cls),
-        IPyForeignObject foreign when cls.ForeignClass is { } fc => fc.Accepts(foreign),
+        IPyForeignObject foreign => PyForeignClassBridge.IsInstance(foreign, cls),
         PyBaseException exception => exception.PythonClass is not null
             ? exception.PythonClass.IsSubclassOf(cls)
             : string.Equals(exception.PyTypeName, cls.Name, StringComparison.Ordinal),

@@ -150,17 +150,22 @@ public static partial class PyOps
         (PyNativeType derived, PyClass protocol) when derived.IsIdentitySubclassOf(protocol) => true,
         (PyNativeType derived, PyNativeType baseType) => derived.IsSubclassOf(baseType),
         (PyNativeType derived, PyType builtin) => derived.IsSubclassOfBuiltin(builtin.Name),
+        // 只为 canonical super 开放真实外部子类关系，不扩展其他 NativeType 的归属合同。
+        (PyClass derived, PyNativeType native) when ReferenceEquals(native, PyLexicalSuper.Type) =>
+            derived.ForeignClass is not null && PyForeignClassBridge.IsSubclass(derived, native),
+        (IPyForeignObject foreignChild, PyNativeType native) when ReferenceEquals(native, PyLexicalSuper.Type) =>
+            PyForeignClassBridge.IsSubclass(foreignChild, native),
         // 普通真实类不能继承有独立native载体的类型；无关系不是非法class参数。
         (PyClass, PyNativeType) => false,
         (PyClass derived, PyClass baseClass) => derived.IsSubclassOf(baseClass),
-        (PyClass { ForeignClass: { } derivedForeign }, IPyForeignObject foreignParent) =>
-            PyForeignClassBridge.IsSubclass(derivedForeign, foreignParent),
+        (PyClass derived, IPyForeignObject foreignParent) =>
+            PyForeignClassBridge.IsSubclass(derived, foreignParent),
         (PyClass { ForeignClass: { } derivedForeign }, PyType builtinParent) =>
             PyForeignClassBridge.IsSubclass(derivedForeign, builtinParent),
         (IPyForeignObject foreignChild, IPyForeignObject foreignParent) =>
             PyForeignClassBridge.IsSubclass(foreignChild, foreignParent),
-        (IPyForeignObject foreignChild, PyClass { ForeignClass: { } baseForeign }) =>
-            PyForeignClassBridge.IsSubclass(foreignChild, baseForeign),
+        (IPyForeignObject foreignChild, PyClass baseClass) when !baseClass.IsTypingIoFamily =>
+            PyForeignClassBridge.IsSubclass(foreignChild, baseClass),
         (IPyForeignObject foreignChild, PyType builtinParent) =>
             PyForeignClassBridge.IsSubclass(foreignChild, builtinParent),
         (PyType or PyNativeType or PyTypedDictType, PyClass target) when target.IsTypingIoFamily => false,

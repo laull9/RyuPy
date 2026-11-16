@@ -5,6 +5,14 @@ namespace RyuPy.CPython;
 
 internal static unsafe class Native
 {
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_super_kind(nint value);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_super_type();
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_native_method(nint target, nint name, nint qualname);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_execution_audit_start();
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern void rp_execution_audit_phase(int phase);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern long rp_execution_audit_count(int phase);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_execution_audit_status(int field);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_execution_audit_row(int index, out int phase, out nint file, out nint function, out long calls);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_container_kind(nint value);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_list_item(nint value, long index);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_dict_next(nint value, ref long position, out nint key, out nint item);

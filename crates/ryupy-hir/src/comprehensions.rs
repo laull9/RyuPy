@@ -81,6 +81,7 @@ impl crate::expr::ExprLowerCtx<'_> {
             self.diagnostics.push(
                 Diagnostic::error(Span::new(self.file, comp.range), "暂不支持异步推导式")
                     .with_code("E0100")
+                    .with_deferred_failure(ryupy_base::diagnostic::DeferredFailure::SupportBoundary)
                     .with_primary_label("不能把 async for 静默降级为同步迭代"),
             );
             return ExprKind::Missing;

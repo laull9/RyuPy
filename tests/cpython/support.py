@@ -7,10 +7,39 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from typing import NamedTuple
 
 ROOT = Path(__file__).resolve().parents[2]
 VERSION = '3.12.13'
 NUMPY_VERSION = '2.3.5'
+
+
+class StandaloneLayout(NamedTuple):
+    """现代 CLI 公开的原生入口，以及本次构建和目录发布根。"""
+    native: Path
+    build: Path
+    dist: Path
+
+
+def standalone_layout(stderr, output, stem, target_rid):
+    """只接受本次发布的唯一入口；托管中间产物属于构建细节。"""
+    aot_tools = str(ROOT / 'tests/aot')
+    if aot_tools not in sys.path:
+        sys.path.insert(0, aot_tools)
+    from manifest_files import plain_stat
+    from manifest_verify import image_header
+    output = Path(output).resolve()
+    build, dist = output / (stem + '.build'), output / (stem + '.dist')
+    for directory in (output, build, dist):
+        plain_stat(directory, directory=True)
+    name = stem + ('.exe' if target_rid.startswith('win-') else '')
+    expected = dist / name
+    generated = [Path(line[len('已生成 '):]) for line in stderr.decode('utf-8').splitlines()
+                 if line.startswith('已生成 ')]
+    assert generated == [expected], ('原生入口报告与本次目录发布不一致', generated, expected)
+    plain_stat(expected)
+    image_header(expected, target_rid)
+    return StandaloneLayout(expected, build, dist)
 
 
 def execute(command, *, cwd, env, timeout=240):

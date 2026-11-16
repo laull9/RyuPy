@@ -33,14 +33,19 @@ internal sealed class PyTextDedentCompile
     {
         // 源码成功导入不应反向收窄旧API；此分支不读取源码compile或私有后端。
         if (!re.IsNativeRegistration) return false;
+        object?[] currentDefaults = function.Defaults;
+        bool reflected = PyFunctionDefaults.TryGet(currentDefaults, out _);
         if (!ReferenceEquals(re.GetAttr("compile"), function)
             || re.GetAttr("MULTILINE") is not long flags || flags != 8L
             || !ReferenceEquals(function.Body, body) || !ReferenceEquals(function.Signature, signature)
             || !ReferenceEquals(signature.Names, names) || !ReferenceEquals(signature.Kinds, kinds)
-            || !ReferenceEquals(signature.HasDefault, hasDefault) || !ReferenceEquals(function.Defaults, defaults))
+            || !ReferenceEquals(signature.HasDefault, hasDefault)
+            || !reflected && !ReferenceEquals(currentDefaults, defaults))
             return false;
+        // 本消费者固定传pattern和flags=8两个实参，Python默认值不会参与绑定；
+        // 冷状态的专属数组替换可保留资格，仍核对宿主可写数组的原始内容。
         if (names.Length != originalNames.Length || kinds.Length != originalKinds.Length
-            || hasDefault.Length != originalHasDefault.Length || defaults.Length != originalDefaults.Length)
+            || hasDefault.Length != originalHasDefault.Length || currentDefaults.Length != originalDefaults.Length)
             return false;
         for (int index = 0; index < names.Length; index++)
             if (!string.Equals(names[index], originalNames[index], StringComparison.Ordinal)) return false;
@@ -48,8 +53,8 @@ internal sealed class PyTextDedentCompile
             if (kinds[index] != originalKinds[index]) return false;
         for (int index = 0; index < hasDefault.Length; index++)
             if (hasDefault[index] != originalHasDefault[index]) return false;
-        for (int index = 0; index < defaults.Length; index++)
-            if (!ReferenceEquals(defaults[index], originalDefaults[index])) return false;
+        for (int index = 0; index < currentDefaults.Length; index++)
+            if (!ReferenceEquals(currentDefaults[index], originalDefaults[index])) return false;
         foreach (string name in PrivateBackends)
         {
             // native re原来没有这些键；挂载任何值均是新API的明确负门，不调用该值。

@@ -309,6 +309,10 @@ pub enum RuntimeFn {
     /// 内部异常分派完成，要求运行时重新进入resume而非暴露yield。
     GeneratorRetry,
     GeneratorDelegateStart,
+    /// 将编译器生成的独立状态机包装为不可普通迭代的协程。
+    CoroutineCreate,
+    /// 通过类型级 __await__ 建立委托，不进行解释执行。
+    CoroutineAwaitStart,
     GeneratorDelegateStep,
     GeneratorDelegateCurrent,
     GeneratorDelegateResult,
@@ -333,6 +337,8 @@ pub enum RuntimeFn {
     FunctionModule,
     /// 读取真实函数实例的Defaults；只在成功的静态def发布处更新直调默认值槽。
     FunctionDefaults,
+    /// 比较真实callee和已验证私有def锚点，并拒绝已观察/改写的默认值状态。
+    FunctionDefaultsUnobserved,
     FunctionMetadata,
     /// 新词法类事务的固定ABI；Prepare只建namespace，Finish才得到类。
     LexicalClassPrepare,

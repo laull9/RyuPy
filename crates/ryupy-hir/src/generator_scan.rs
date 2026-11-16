@@ -9,7 +9,9 @@ use ryupy_syntax::ast::visitor::{Visitor, walk_expr, walk_stmt};
 
 #[derive(Default)]
 struct Scan {
+    // yield 决定函数的生成器身份；await 只影响当前执行片段的暂停准备。
     has_yield: bool,
+    has_await: bool,
     // 局部注解不执行，但其中直接yield仍参与CPython的生成器符号判定。
     ignored_annotation: bool,
     unsupported: Vec<(ryupy_base::TextRange, &'static str)>,
@@ -52,6 +54,7 @@ impl<'a> Visitor<'a> for Scan {
                 return;
             }
             ast::Expr::Yield(_) | ast::Expr::YieldFrom(_) => self.has_yield = true,
+            ast::Expr::Await(_) => self.has_await = true,
             ast::Expr::Call(call)
                 if matches!(call.func.as_ref(), ast::Expr::Name(name) if name.id.as_str() == "super")
                     && call.arguments.args.is_empty()
@@ -69,12 +72,17 @@ impl<'a> Visitor<'a> for Scan {
     }
 }
 
-pub(crate) fn analyze(file: FileId, body: &[ast::Stmt], diagnostics: &mut Vec<Diagnostic>) -> bool {
+pub(crate) fn analyze(
+    file: FileId,
+    body: &[ast::Stmt],
+    diagnostics: &mut Vec<Diagnostic>,
+    coroutine: bool,
+) -> bool {
     let mut scan = Scan::default();
     for stmt in body {
         scan.visit_stmt(stmt);
     }
-    finish(scan, file, diagnostics)
+    finish(scan, file, diagnostics, coroutine)
 }
 
 pub(crate) fn analyze_lambda(
@@ -84,11 +92,11 @@ pub(crate) fn analyze_lambda(
 ) -> bool {
     let mut scan = Scan::default();
     scan.visit_expr(body);
-    finish(scan, file, diagnostics)
+    finish(scan, file, diagnostics, false)
 }
 
-fn finish(scan: Scan, file: FileId, diagnostics: &mut Vec<Diagnostic>) -> bool {
-    if scan.has_yield {
+fn finish(scan: Scan, file: FileId, diagnostics: &mut Vec<Diagnostic>, coroutine: bool) -> bool {
+    if scan.has_yield || coroutine {
         for (range, message) in scan.unsupported {
             diagnostics.push(
                 Diagnostic::error(Span::new(file, range), message)
@@ -175,7 +183,7 @@ fn visit_defaults<'a>(visitor: &mut impl Visitor<'a>, parameters: &'a ast::Param
     }
 }
 
-/// 当前调用的实参准备尚不能跨暂停，避免把方法绑定 / 星号展开延迟到恢复后。
+/// 检查当前调用的实参是否暂停，以便先绑定方法并快照混合位置组的星号展开。
 /// lambda 本体不在此处执行，但其默认值和生成器表达式最左 iterable 会执行。
 pub(crate) fn call_suspends(call: &ast::ExprCall) -> bool {
     let mut scan = Scan::default();
@@ -185,7 +193,8 @@ pub(crate) fn call_suspends(call: &ast::ExprCall) -> bool {
     for keyword in &call.arguments.keywords {
         scan.visit_expr(&keyword.value);
     }
-    scan.has_yield
+    // 关闭协程候选时沿用原 yield/yield-from 准入；await 的语法支持另由 HIR 诊断。
+    scan.has_yield || (cfg!(feature = "native-coroutines") && scan.has_await)
 }
 
 /// 当前内建构造 ABI 的能力门禁应在 HIR 诊断，不让 MIR 混用 E01xx。

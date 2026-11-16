@@ -26,22 +26,36 @@ public sealed partial class CPythonHost
             bool truth = Native.rp_truth(pointer) != 0; Native.rp_decref(pointer); return truth ? PyOps.TrueObject : PyOps.FalseObject;
         }
         if (Native.rp_small_integer(pointer, out long small) != 0) { Native.rp_decref(pointer); return PyOps.BoxInt(small); }
+        int superKind = Native.rp_super_kind(pointer);
+        if (superKind == 2) { Native.rp_decref(pointer); return PyLexicalSuper.Type; }
         nint id = Native.rp_identity(pointer);
         if (id != 0 && Roots.TryGetValue(id, out object? original)) { Native.rp_decref(pointer); return original; }
         if (objects.TryGetValue(pointer, out WeakReference<object>? weak) && weak.TryGetTarget(out object? existing)
             && existing is not PythonObject { IsDisposed: true }
             && existing is not PyBaseException { ForeignObject: PythonObject { IsDisposed: true } }
             && !(existing is PyInstance staleInstance && PyForeignClassBridge.GetForeignInstance(staleInstance) is PythonObject { IsDisposed: true })
+            && !(existing is PySuper { ForeignObject: PythonObject { IsDisposed: true } })
             && !(existing is PyClass staleClass && PyForeignClassBridge.GetForeignClass(staleClass) is PythonObject { IsDisposed: true }))
         { Native.rp_decref(pointer); return existing; }
         if (Native.rp_exception_instance(pointer) != 0) return ExceptionFromOwned(pointer);
         if (Native.rp_is_module(pointer) != 0) return ModuleFromOwned(pointer);
         if (TryResolveForeignDerivedInstance(pointer, out PyInstance? derived)) return derived;
-        var result = new PythonObject(this, pointer); objects[pointer] = new(result); return result;
+        var result = new PythonObject(this, pointer);
+        object converted = superKind == 1 ? PySuper.FromForeign(result, result.GetAttr) : result;
+        objects[pointer] = new(converted); return converted;
     }
     internal unsafe nint ToPython(object? value)
     {
         if (value is null or PyNone) return Native.rp_none();
+        if (value is PyNativeType superType && ReferenceEquals(superType, PyLexicalSuper.Type)) return Native.rp_super_type();
+        if (value is PySuper super)
+        {
+            if (PyForeignClassBridge.GetForeignSuper(super) is not PythonObject actual || !ReferenceEquals(actual.Host, this))
+                throw new PyNotImplementedError("exporting super requires a matching foreign class layout");
+            // 本地词法代理首次导出后，往返仍返回原中性对象，而非第二个 CLR super 身份。
+            objects[actual.Pointer] = new(super);
+            return Native.rp_incref(actual.Pointer);
+        }
         if (value is PythonObject foreign)
         {
             if (!ReferenceEquals(foreign.Host, this)) throw new PyTypeError("objects belong to different interpreters");
@@ -57,6 +71,8 @@ public sealed partial class CPythonHost
             if (!ReferenceEquals(foreignClass.Host, this)) throw new PyTypeError("objects belong to different interpreters");
             return Native.rp_incref(foreignClass.Pointer);
         }
+        if (value is PyClass mixin && _mixinMirrors.TryGetValue(mixin, out PythonObject? mirror) && !mirror.IsDisposed)
+            return Native.rp_incref(mirror.Pointer);
         if (value is PyBaseException { ForeignObject: PythonObject origin }) return Native.rp_incref(origin.Pointer);
         if (value is PyBaseException error) return Native.rp_incref(ExportException(error));
         if (value is PyClass { IsException: true } exceptionClass) return ExceptionClass(exceptionClass);

@@ -180,16 +180,18 @@ internal static class PyRegexScanner
         object?[] values, object?[] defaults)
     {
         int maximum = signature.Names.Length;
+        bool reflected = PyFunctionDefaults.TryGet(defaults, out PyFunctionDefaults? state);
+        int required = reflected ? state!.RequiredPositionalCount : signature.RequiredCount;
         if (args.Length > maximum)
         {
             var allowed = new object?[maximum]; Array.Copy(args, allowed, maximum);
             _ = PyBinder.Bind(signature, allowed, names, values, defaults);
-            string range = signature.RequiredCount == maximum ? maximum.ToString()
-                : $"from {signature.RequiredCount} to {maximum}";
+            string range = required == maximum ? maximum.ToString()
+                : $"from {required} to {maximum}";
             throw new PyTypeError($"{signature.Name}() takes {range} positional arguments but {args.Length} were given");
         }
         // 两方法最多两个必填参数；全缺时共享binder目前没有末项and。
-        if (args.Length == 0 && signature.RequiredCount == 2)
+        if (!reflected && args.Length == 0 && signature.RequiredCount == 2)
         {
             bool first = Array.IndexOf(names, signature.Names[0]) >= 0;
             bool second = Array.IndexOf(names, signature.Names[1]) >= 0;

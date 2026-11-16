@@ -18,7 +18,7 @@ internal static class PyExplicitSuper
             if (!PyForeignClassBridge.IsType(foreignStart))
                 throw new PyTypeError($"super() argument 1 must be a type, not {PyRepr.TypeName(args[0])}");
             if (args.Length == 1 || args[1] is PyNone)
-                throw Unsupported("unbound receivers");
+                return PyForeignClassBridge.Require().CreateSuper(foreignStart, null)!;
             return PyForeignClassBridge.Require().CreateSuper(foreignStart, args[1])!;
         }
         if (args[0] is not PyClass start)
@@ -30,13 +30,18 @@ internal static class PyExplicitSuper
         bool dictReceiver = args.Length == 2 && args[1] is (PyInstance { Class.HasDictC3Layout: true } or PyClass { HasDictC3Layout: true });
         ValidateChain(start, null, dictReceiver);
         if (args.Length == 1 || args[1] is PyNone)
+        {
+            // 跨域类已有真实 PyTypeObject，未绑定代理由原生 super 保持类型身份。
+            if (start.ForeignClass is not null)
+                return PyForeignClassBridge.Require().CreateSuper(start, null)!;
             throw Unsupported("unbound receivers");
+        }
         object? receiver = args[1];
         if (receiver is PyClass receiverClass && (receiverClass.HasMultipleInheritance || receiverClass.HasForeignHierarchy))
         {
             receiverClass.RequireLexicalFactoryReady();
             bool ok = ValidateChain(receiverClass, start, dictReceiver)
-                || (receiverClass.ForeignMiBases is not null && receiverClass.IsSubclassOf(start));
+                || (receiverClass.HasForeignHierarchy && receiverClass.IsSubclassOf(start));
             if (!ok) throw Unrelated();
             return new PySuper(start, receiverClass);
         }
@@ -46,7 +51,7 @@ internal static class PyExplicitSuper
         instance.Class.RequireLexicalFactoryReady();
         // 检查完整链，不能找到start就跳过后面的特殊布局；不调用用户hash/eq/getter。
         bool instanceOk = ValidateChain(instance.Class, start, dictReceiver)
-            || (instance.Class.ForeignMiBases is not null && instance.Class.IsSubclassOf(start));
+            || (instance.Class.HasForeignHierarchy && instance.Class.IsSubclassOf(start));
         if (!instanceOk)
         {
             if (instance.Class.TryLookup("__class__", out _, out _)

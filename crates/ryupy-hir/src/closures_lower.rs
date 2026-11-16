@@ -34,10 +34,11 @@ impl crate::lower::StmtLowerCtx<'_> {
     /// 绑定目标通常是外层函数的局部变量（被捕获时是 cell）；模块顶层的
     /// `if` / `for` 里的 def 绑定到模块变量。
     pub(crate) fn lower_nested_def(&mut self, fn_def: &ast::StmtFunctionDef) -> Option<StmtId> {
-        if fn_def.is_async {
+        if fn_def.is_async && !cfg!(feature = "native-coroutines") {
             self.diagnostics.push(
                 Diagnostic::error(Span::new(self.file, fn_def.range), "嵌套函数暂不支持 async")
                     .with_code("E0100")
+                    .with_deferred_failure(ryupy_base::diagnostic::DeferredFailure::SupportBoundary)
                     .with_primary_label("异步按后续里程碑接入"),
             );
             return None;

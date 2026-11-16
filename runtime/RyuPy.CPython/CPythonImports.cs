@@ -95,29 +95,10 @@ def _rp_make_class(name, bases, ns):
     for k, v in ns.items():
         namespace[k] = v
     return meta(name, resolved_bases, namespace)
-def _rp_wrap_method(fn, name, qualname):
-    def _rp_method(*args, **kwargs):
-        return fn(*args, **kwargs)
-    _rp_method.__name__ = name
-    _rp_method.__qualname__ = qualname
-    return _rp_method
-def _rp_object_new(cls, *args, **kwargs):
-    return object.__new__(cls, *args, **kwargs)
-def _rp_object_init(self, *args, **kwargs):
-    return object.__init__(self, *args, **kwargs)
-def _rp_object_setattr(self, name, value):
-    return object.__setattr__(self, name, value)
-def _rp_object_delattr(self, name):
-    return object.__delattr__(self, name)
-def _rp_super_getattr(start, receiver, name):
-    proxy = super(start) if receiver is None else super(start, receiver)
-    return getattr(proxy, name)
-def _rp_super_create(start, receiver):
-    return super(start) if receiver is None else super(start, receiver)
 _rp_staticmethod = staticmethod
 _rp_classmethod = classmethod
 _rp_property = property
-""")));
+""" + (nativeMethodsEnabled ? "" : LegacyMethodWrapper))));
     }
 
 }

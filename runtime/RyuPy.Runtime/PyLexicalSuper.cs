@@ -7,8 +7,12 @@ namespace RyuPy.Runtime;
 public static class PyLexicalSuper
 {
     /// <summary>所有模块共享的真实内建super类型。</summary>
-    public static PyNativeType Type { get; } = new("super", "builtins", ConstructWithoutFrame,
-        static value => value is PySuper);
+    public static PyNativeType Type { get; } = new("super", "builtins", ConstructWithoutFrame, AcceptsInstance);
+
+    // 精确 super 使用中性代理；真正的外部子类保留自身类型，只委托祖先关系判断。
+    private static bool AcceptsInstance(object? value) => value is PySuper
+        || value is IPyForeignObject foreign && foreign.IsInstanceOf(Type)
+        || value is PyInstance { ForeignInstance: { } instance } && instance.IsInstanceOf(Type);
 
     private static object? ConstructWithoutFrame(object?[] args, string[] names, object?[] values)
     {
@@ -63,7 +67,7 @@ public static class PyLexicalSuper
                 GuardOrdinaryClass(current, dictReceiver);
                 classRelated |= ReferenceEquals(current, start);
             }
-            if (!classRelated && receiverClass.ForeignMiBases is not null)
+            if (!classRelated && receiverClass.HasForeignHierarchy)
             {
                 classRelated = receiverClass.IsSubclassOf(start);
             }
@@ -81,7 +85,7 @@ public static class PyLexicalSuper
             GuardOrdinaryClass(current, dictReceiver);
             related |= ReferenceEquals(current, start);
         }
-        if (!related && instance.Class.ForeignMiBases is not null)
+        if (!related && instance.Class.HasForeignHierarchy)
         {
             related = instance.Class.IsSubclassOf(start);
         }

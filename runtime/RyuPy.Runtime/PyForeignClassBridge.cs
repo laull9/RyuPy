@@ -18,6 +18,10 @@ public interface IPyForeignClassBridge
     /// <summary>在外部执行域按真实 MRO 检查 <c>issubclass(child, parent)</c>。</summary>
     bool IsSubclass(object? child, object? parent);
 
+    /// <summary>外部实例匹配真实编译类或已有 Mixin 镜像；未知本地类不导出新类型。</summary>
+    bool IsInstance(IPyForeignObject value, PyClass target) =>
+        PyForeignClassBridge.GetForeignClass(target)?.Accepts(value) ?? false;
+
     /// <summary>在外部执行域创建真实的派生类型对象；失败时抛 Python 语义异常。</summary>
     IPyForeignObject CreateDerivedClass(
         PyClass compiledClass,
@@ -31,6 +35,9 @@ public interface IPyForeignClassBridge
 
     /// <summary>同步删除已导出外部类的单个属性。</summary>
     void DeleteClassAttribute(IPyForeignObject foreignClass, string name);
+
+    /// <summary>同步已经导出的普通 Mixin 镜像；没有镜像的类保持本地归属。</summary>
+    void SynchronizeMirrorAttribute(PyClass ownerClass, string name, object? value, bool deleting) { }
 
     /// <summary>等价于 <c>object.__new__(cls, *args, **kwargs)</c>。</summary>
     object? AllocateFromBaseObject(IPyForeignObject foreignClass, object?[] extraArgs, string[] kwNames, object?[] kwValues);
@@ -47,8 +54,8 @@ public interface IPyForeignClassBridge
     /// <summary>使用外部真实 <c>super(start, receiver)</c> 读取属性或绑定方法。</summary>
     object? GetSuperAttribute(object start, object? receiver, string name);
 
-    /// <summary>当显式 <c>super(type, obj)</c> 起点为外部类型时构造外部 <c>super</c> 代理。</summary>
-    object? CreateSuper(object start, object? receiver);
+    /// <summary>构造真实外部 super，并返回具有统一内建类型身份的中性代理。</summary>
+    PySuper CreateSuper(object start, object? receiver);
 
     /// <summary>查询成员资格（<c>value in foreignInstance</c>）。</summary>
     bool Contains(IPyForeignObject foreignInstance, object? value);
@@ -95,6 +102,9 @@ public static class PyForeignClassBridge
     /// <summary>读取跨域派生类对应的外部真实类型对象；普通原生类返回 <c>null</c>。</summary>
     public static IPyForeignObject? GetForeignClass(PyClass cls) => cls.ForeignClass;
 
+    /// <summary>读取或首次建立 super 的真实外部代理；普通本地布局返回 null。</summary>
+    public static IPyForeignObject? GetForeignSuper(PySuper value) => value.ExportForeign();
+
     /// <summary>读取类声明时的直接基类序列，供桥接构造混合多继承镜像。</summary>
     public static object?[] GetDirectBases(PyClass cls) => cls.DirectBasesTuple().Items;
 
@@ -120,6 +130,9 @@ public static class PyForeignClassBridge
 
     internal static bool IsSubclass(object? child, object? parent) =>
         Require().IsSubclass(child, parent);
+
+    internal static bool IsInstance(IPyForeignObject value, PyClass target) =>
+        _current is { } bridge ? bridge.IsInstance(value, target) : target.ForeignClass?.Accepts(value) ?? false;
 
     internal static bool Contains(IPyForeignObject foreignInstance, object? value) =>
         Require().Contains(foreignInstance, value);

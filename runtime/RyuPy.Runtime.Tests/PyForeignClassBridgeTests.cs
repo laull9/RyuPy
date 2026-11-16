@@ -83,9 +83,12 @@ public class PyForeignClassBridgeTests
         public bool IsPlainType(object? typeObject) => ReferenceEquals(typeObject, PyType.Get("type"));
         public bool IsSubclass(object? child, object? parent)
         {
-            if (child is PyClass c && parent is MockForeignObject fb)
+            if (child is PyClass c)
             {
-                return ReferenceEquals(c.ForeignBase, fb) || Array.Exists(c.ForeignMiBases ?? [], b => ReferenceEquals(b, fb));
+                if (ReferenceEquals(c, parent)) return true;
+                foreach (object? item in PyForeignClassBridge.GetDirectBases(c))
+                    if (ReferenceEquals(item, parent) || item is PyClass && IsSubclass(item, parent)) return true;
+                return false;
             }
             if (child is MockForeignObject fc)
             {
@@ -167,7 +170,11 @@ public class PyForeignClassBridgeTests
             return new MockForeignObject("method") { OnInvoke = (_, _, _) => $"super:{name}" };
         }
 
-        public object? CreateSuper(object start, object? receiver) => new MockForeignObject("super");
+        public PySuper CreateSuper(object start, object? receiver)
+        {
+            var proxy = new MockForeignObject("super");
+            return PySuper.FromForeign(proxy, proxy.GetAttr);
+        }
         public bool Contains(IPyForeignObject foreignInstance, object? value) => ((MockForeignObject)foreignInstance).Dict.ContainsKey($"[{value}]");
         public object? Dir(IPyForeignObject foreignObject) => new PyList(["title", "withdraw"]);
     }
@@ -200,7 +207,7 @@ public class PyForeignClassBridgeTests
             bridge.DelAttrFromBaseObject(foreignInstance, name);
         public object? GetSuperAttribute(object start, object? receiver, string name) =>
             bridge.GetSuperAttribute(start, receiver, name);
-        public object? CreateSuper(object start, object? receiver) =>
+        public PySuper CreateSuper(object start, object? receiver) =>
             bridge.CreateSuper(start, receiver);
         public bool Contains(IPyForeignObject foreignInstance, object? value) =>
             bridge.Contains(foreignInstance, value);

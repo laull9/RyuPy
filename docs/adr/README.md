@@ -115,3 +115,5 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 - [0198：生成器只读形参挂起写回消除](0198-generator-readonly-param-spills.md)（已接受，有限默认，完整AOT与门禁通过，收益及负结果分列）
 
 - [0199：sum精确整数原生累计](0199-sum-native-integer-accumulator.md)（已接受，真实AOT/混合域搬迁及完整门禁通过，性能负结果保留）
+
+- [0210：原生协程显式状态机首切](0210-native-coroutine-state-machine.md)（显式 Cargo 候选，macOS JIT/AOT 搬迁已验，完整 C3 调度待办）

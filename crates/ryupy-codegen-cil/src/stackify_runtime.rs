@@ -87,6 +87,12 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         RuntimeFn::AbsF64 => ins.push(Instruction::call(ctx.runtime_refs.abs_f64)),
         RuntimeFn::ShlI64 => ins.push(Instruction::call(ctx.runtime_refs.shl_i64)),
         RuntimeFn::ShrI64 => ins.push(Instruction::call(ctx.runtime_refs.shr_i64)),
+        RuntimeFn::CoroutineCreate => ins.push(Instruction::call(
+            ctx.runtime_refs.generators.coroutine_create,
+        )),
+        RuntimeFn::CoroutineAwaitStart => ins.push(Instruction::call(
+            ctx.runtime_refs.generators.coroutine_await_start,
+        )),
         RuntimeFn::GeneratorDelegateStart => {
             ins.push(Instruction::call(ctx.runtime_refs.delegation.start))
         }
@@ -196,6 +202,9 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
             });
             ins.push(Instruction::call(ctx.runtime_refs.py_function_get_defaults));
         }
+        RuntimeFn::FunctionDefaultsUnobserved => ins.push(Instruction::call(
+            ctx.runtime_refs.function_objects.defaults_unobserved,
+        )),
         RuntimeFn::TypeObject => ins.push(Instruction::call(ctx.runtime_refs.type_object)),
         RuntimeFn::LoadDefaultBuiltin => {
             ins.push(Instruction::call(ctx.runtime_refs.load_default_builtin))

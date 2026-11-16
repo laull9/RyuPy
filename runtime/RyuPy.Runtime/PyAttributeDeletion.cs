@@ -31,7 +31,7 @@ internal static class PyAttributeDeletion
         if (value is PyType type)
             throw Error(new PyTypeError($"cannot set '{name}' attribute of immutable type '{type.Name}'"));
         // __qualname__交给真实函数元数据处理TypeError；typing.IO仍由自身修改守卫拒绝。
-        if (value is PyFunction function && name is "__class__" or "__defaults__" or "__kwdefaults__"
+        if (value is PyFunction function && name is "__class__"
             or "__code__" or "__closure__" or "__type_params__")
         {
             // 仅B2实例函数的closure删除进入readonly元数据拒绝；其它删除不加名称比较。

@@ -74,6 +74,8 @@ internal static partial class PyTextWrapper
     private static object?[] Bind(PySignature signature, object?[] args, string[] keywords,
         object?[] values, object?[] defaults, int minimum, int maximum)
     {
+        if (PyFunctionDefaults.TryGet(defaults, out PyFunctionDefaults? state))
+            minimum = state!.RequiredPositionalCount;
         if (minimum < maximum && args.Length > maximum)
         {
             var allowed = new object?[maximum]; Array.Copy(args, allowed, maximum);

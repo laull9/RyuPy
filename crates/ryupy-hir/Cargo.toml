@@ -6,6 +6,10 @@ edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
+[features]
+# 编译期显式准入，HIR 不读取进程环境。
+native-coroutines = []
+
 [dependencies]
 ryupy-base.workspace = true
 ryupy-syntax.workspace = true

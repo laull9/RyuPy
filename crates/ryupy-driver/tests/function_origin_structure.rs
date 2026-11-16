@@ -4,6 +4,7 @@
 mod support;
 use ryupy_mir::{
     Callee, Constant, MirType, ModuleExport, Operand, Program, RuntimeFn, Rvalue, Statement,
+    Terminator,
 };
 use support::*;
 
@@ -200,70 +201,107 @@ fn assert_direct_origin(program: &Program) {
     let (argument_id, _) = function(program, "argument");
     let body = function(program, "direct_with_argument").1;
     let source = target.dynamic_origin.unwrap().source_global.unwrap();
-    // 这个直线源码的callee、参数、defaults与call必须在同一块，精确核相对顺序而非全局文本顺序。
-    let block = unique(
-        body.body
-            .blocks
-            .iter()
-            .map(|(_, block)| block)
-            .filter(|block| {
-                assigned_calls(&block.stmts, Callee::Fn(target_id))
-                    .next()
-                    .is_some()
-            }),
-        "direct调用所在块",
+    let published = target.function_global.unwrap();
+    // callee先冻结，所有实参完成后守卫；两臂共用原对象与实参，失败不重放副作用。
+    let (guard_block, guard_args) = unique(
+        body.body.blocks.iter().filter_map(|(_, block)| {
+            let calls: Vec<_> = assigned_calls(
+                &block.stmts,
+                Callee::Runtime(RuntimeFn::FunctionDefaultsUnobserved),
+            )
+            .collect();
+            (!calls.is_empty()).then(|| (block, unique(calls.into_iter(), "唯一默认值守卫")))
+        }),
+        "guard所在块",
     );
+    let (guard_at, condition, checked) = guard_args;
     let (freeze_at, frozen, _) = unique(
-        assigned_calls(&block.stmts, Callee::Runtime(RuntimeFn::LoadName)).filter(
-            |(_, _, args)| matches!(args.first(), Some(Operand::Global(id)) if *id == source),
+        assigned_calls(&guard_block.stmts, Callee::Runtime(RuntimeFn::LoadName)).filter(
+            |(_, _, args)| matches!(args.first(), Some(Operand::Global(id)) if *id == published),
         ),
-        "实参前实际实例",
+        "实参前公开实例",
     );
     let (argument_at, argument_result, _) = unique(
-        assigned_calls(&block.stmts, Callee::Fn(argument_id)),
+        assigned_calls(&guard_block.stmts, Callee::Fn(argument_id)),
         "参数回调",
     );
-    let (defaults_at, defaults, defaults_args) = unique(
-        assigned_calls(&block.stmts, Callee::Runtime(RuntimeFn::FunctionDefaults)),
-        "同实例defaults",
+    assert!(freeze_at < argument_at && argument_at < guard_at);
+    assert_eq!(
+        checked,
+        &vec![Operand::Local(frozen), Operand::Global(source)]
     );
-    assert_eq!(defaults_args.len(), 1);
-    assert_eq!(local(&defaults_args[0]), frozen);
-    let (get_at, extra, get_args) = unique(
-        assigned_calls(&block.stmts, Callee::Runtime(RuntimeFn::ArrayGet)),
-        "缺省extra",
+    let Terminator::Branch { cond, then_, else_ } = &guard_block.terminator else {
+        panic!("默认值守卫必须控制快慢两臂");
+    };
+    assert_eq!(local(cond), condition);
+    let fast = &body.body.blocks[*then_];
+    let fallback = &body.body.blocks[*else_];
+    let (_, defaults, default_args) = unique(
+        assigned_calls(&fast.stmts, Callee::Runtime(RuntimeFn::FunctionDefaults)),
+        "只在成功臂读取默认值",
     );
-    assert_eq!(get_args.len(), 2);
-    assert_eq!(local(&get_args[0]), defaults);
-    assert!(matches!(get_args[1], Operand::Const(Constant::I64(1))));
-    let (call_at, _, args) = unique(
-        assigned_calls(&block.stmts, Callee::Fn(target_id)),
-        "普通direct尾owner",
+    assert_eq!(default_args, &vec![Operand::Local(frozen)]);
+    let (_, default_value, reads) = unique(
+        assigned_calls(&fast.stmts, Callee::Runtime(RuntimeFn::ArrayGet)),
+        "成功臂读取缺省槽",
     );
-    assert!(
-        freeze_at < argument_at
-            && argument_at < defaults_at
-            && defaults_at < get_at
-            && get_at < call_at
+    assert_eq!(
+        reads,
+        &vec![Operand::Local(defaults), Operand::Const(Constant::I64(1))]
     );
-    assert_eq!(args.len(), target.params.len());
-    assert_eq!(local(&args[0]), argument_result);
-    assert_eq!(local(&args[1]), extra);
-    assert_eq!(local(args.last().unwrap()), frozen);
+    let (_, result, direct_args) = unique(
+        assigned_calls(&fast.stmts, Callee::Fn(target_id)),
+        "守卫直调",
+    );
+    assert_eq!(direct_args.len(), 3);
+    assert_eq!(local(&direct_args[1]), default_value);
+    assert_eq!(local(&direct_args[2]), frozen, "原实际owner必须保留");
+    let (fallback_result, fallback_callee, fallback_args) = unique(
+        fallback.stmts.iter().filter_map(|stmt| match stmt {
+            Statement::Assign {
+                dest,
+                value: Rvalue::DynCallValue { callee, args },
+            } => Some((*dest, callee, args)),
+            _ => None,
+        }),
+        "失败臂复用已冻结值",
+    );
+    assert_eq!(fallback_result, result);
+    assert_eq!(local(fallback_callee), frozen);
+    assert_eq!(fallback_args.len(), 1);
+    assert_eq!(direct_args[0], fallback_args[0]);
+    // DeadValues可消去保存值的纯Use；保留时必须是回调结果的唯一复制。
+    let saved_argument = local(&fallback_args[0]);
+    if saved_argument != argument_result {
+        assert!(
+            guard_block.stmts[argument_at + 1..guard_at]
+                .iter()
+                .any(|stmt| matches!(stmt,
+            Statement::Assign { dest, value: Rvalue::Use(Operand::Local(value)) }
+            if *dest == saved_argument && *value == argument_result))
+        );
+    }
+    assert_eq!(fast.terminator, fallback.terminator, "两臂汇入同一结果后继");
+    assert!(matches!(fast.terminator, Terminator::Goto(_)));
+    assert_eq!(trace_calls(body, RuntimeFn::FunctionDefaults).len(), 1);
+    assert_eq!(trace_calls(body, RuntimeFn::ArrayGet).len(), 1);
+    assert_eq!(
+        assigned_calls(&fallback.stmts, Callee::Fn(argument_id)).count(),
+        0
+    );
     assert_eq!(
         body.body
             .blocks
             .iter()
-            .flat_map(|(_, block)| &block.stmts)
-            .filter(|stmt| matches!(stmt, Statement::Assign { dest, .. } if *dest == frozen))
+            .flat_map(|(_, b)| &b.stmts)
+            .filter(|s| matches!(s, Statement::Assign {dest, ..} if *dest == frozen))
             .count(),
-        1,
-        "冻结local不能被重选"
+        1
     );
     assert_eq!(
         trace_calls(body, RuntimeFn::LoadName)
             .iter()
-            .filter(|args| matches!(args.first(), Some(Operand::Global(id)) if *id == source))
+            .filter(|args| matches!(args.first(), Some(Operand::Global(id)) if *id == published))
             .count(),
         1
     );

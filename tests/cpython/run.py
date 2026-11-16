@@ -12,10 +12,7 @@ sys.dont_write_bytecode = True
 
 from support import (ROOT, audit_native_paths, checked, declaration, environment, execute,
                      external_workspace, inspect_host_report, private_distribution,
-                     require_python, rid, write_json)
-
-sys.path.insert(0, str(ROOT / 'tests/aot'))
-from aot_layout import reported_aot
+                     require_python, rid, standalone_layout, write_json)
 
 MODULES = ['sys', 'base64', 'json', 'sqlite3', 'zlib', 'collections',
            'contextlib', 'bridge_fixture', 'atexit', 'numpy', 'urllib', 'io']
@@ -149,6 +146,7 @@ def main():
     parser.add_argument('--keep', action='store_true', help='失败调试时显式保留仓库外临时目录')
     parser.add_argument('--mode', choices=['baseline', 'jit', 'aot', 'all'], default='baseline')
     parser.add_argument('--case', action='append', help='稳定用例名，不含.py；默认发现全部')
+    parser.add_argument('--native-methods', action='store_true', help='显式验证原生方法描述符候选')
     args = parser.parse_args()
     fixture = Path(__file__).resolve().parent
     cases = sorted((fixture / 'cases').glob('*.py'))
@@ -163,6 +161,8 @@ def main():
             assert args.ryupy.is_relative_to(args.product_root.resolve()), '冻结模式必须实际使用私有根内CLI'
     root = external_workspace('ryupy-cpython-', args.out)
     env = environment(args.product_root)
+    if args.native_methods:
+        env['RYUPY_CPYTHON_NATIVE_METHODS'] = '1'
     records = []
     failures = []
 
@@ -219,7 +219,7 @@ def main():
                 if args.mode in ('aot', 'all'):
                     publish = root / (case.stem + '-publish')
                     build = run(case.stem + '-aot-build', common + ['--aot', '-o', publish])
-                    layout = reported_aot(build.stderr, publish, 'app', rid())
+                    layout = standalone_layout(build.stderr, publish, 'app', rid())
                     native_cwd = root / (case.stem + '-native-cwd')
                     native_cwd.mkdir()
                     native_env = dict(env, RYUPY_CPYTHON_REPORT=str(native_cwd / 'host.json'))
@@ -234,6 +234,8 @@ def main():
                     empty = root / (case.stem + '-empty-cwd')
                     empty.mkdir()
                     clean = environment()
+                    if args.native_methods:
+                        clean['RYUPY_CPYTHON_NATIVE_METHODS'] = '1'
                     clean['PATH'] = str(empty)
                     # 显式污染探测隔离配置是否忽略外部Python配置。
                     clean['PYTHONHOME'] = clean['PYTHONPATH'] = str(empty / '不存在')

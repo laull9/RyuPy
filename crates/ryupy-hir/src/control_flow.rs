@@ -59,6 +59,17 @@ impl StmtLowerCtx<'_> {
     /// 3. 迭代对象必须是 `range(...)` 调用，参数数量在 1 到 3 之间；
     /// 4. 循环体在 `loop_depth + 1` 上下文中降级，以支持内部 `break` / `continue` 校验。
     pub(crate) fn lower_for(&mut self, for_stmt: &ast::StmtFor) -> Option<StmtKind> {
+        if for_stmt.is_async {
+            self.diagnostics.push(
+                Diagnostic::error(
+                    Span::new(self.file, for_stmt.range),
+                    "async for 尚未接入原生协程状态机",
+                )
+                .with_code("E0100")
+                .with_deferred_failure(ryupy_base::diagnostic::DeferredFailure::SupportBoundary),
+            );
+            return None;
+        }
         // `else` 不属于循环体：`break` 在其中非法，因此按当前 loop_depth 降级
         let orelse = self.lower_suite(&for_stmt.orelse);
         // 循环目标：单个名字直接使用；`a, b` / `a, *rest` 这样的序列目标
