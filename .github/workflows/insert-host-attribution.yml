@@ -1,0 +1,109 @@
+# 全部为独立host归因；不验收产品AOT、不改dev。
+name: Insert host attribution only
+on:
+  push:
+    branches: [ci/insert-host-attribution-20261116]
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      MSBUILDDISABLENODEREUSE: '1'
+      DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+      UseSharedCompilation: 'false'
+      DOTNET_TieredCompilation: '1'
+      DOTNET_TieredPGO: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 固定独立SDK目录
+        run: echo "DOTNET_INSTALL_DIR=$RUNNER_TEMP/insert-host-dotnet" >> "$GITHUB_ENV"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - name: 记录host与精确源码
+        run: |
+          set -euo pipefail
+          export EVIDENCE="$RUNNER_TEMP/insert-host-evidence"
+          mkdir -p "$EVIDENCE"
+          echo "EVIDENCE=$EVIDENCE" >> "$GITHUB_ENV"
+          test "$(readlink -f "$(command -v dotnet)")" = "$DOTNET_INSTALL_DIR/dotnet"
+          dotnet --info > "$EVIDENCE/dotnet.txt"
+          dotnet --version | tee "$EVIDENCE/sdk.txt"
+          test "$(dotnet --version)" = 10.0.403
+          for key in DOTNET_ROOT DOTNET_ROOT_X64; do echo "$key=$DOTNET_INSTALL_DIR" >> "$GITHUB_ENV"; done
+          echo "DOTNET_MULTILEVEL_LOOKUP=0" >> "$GITHUB_ENV"
+          git rev-parse HEAD HEAD^{tree} > "$EVIDENCE/diagnostic-source.txt"
+          cp tests/perf/insert-host-attribution/InsertHostDiagnosis.cs "$EVIDENCE/InsertHostDiagnosis.cs"
+          sha256sum "$EVIDENCE/InsertHostDiagnosis.cs" > "$EVIDENCE/test-source.sha256"
+          uname -a > "$EVIDENCE/uname.txt"
+          lscpu > "$EVIDENCE/cpu.txt"
+      - name: 四轮AB BA BA AB独立构建及进程
+        run: |
+          set -euo pipefail
+          rounds=(AB BA BA AB)
+          for round in 0 1 2 3; do
+            order="${rounds[$round]}"
+            for ((slot=0; slot<2; slot++)); do
+              arm="${order:$slot:1}"
+              if [[ "$arm" == A ]]; then
+                sha=86c8b97bfa4dd576d861c4b6122c91ac80125217
+              else
+                sha=d9a30620ef3729d806c462c907d2cc93c3018dc4
+              fi
+              work="$RUNNER_TEMP/insert-host-$round-$arm"
+              out="$EVIDENCE/$round-$arm"
+              mkdir -p "$out"
+              git worktree add --detach "$work" "$sha"
+              test "$(git -C "$work" rev-parse HEAD)" = "$sha"
+              git -C "$work" rev-parse HEAD HEAD^{tree} > "$out/product-source.txt"
+              cp "$EVIDENCE/InsertHostDiagnosis.cs" "$work/runtime/RyuPy.Runtime.Tests/InsertHostDiagnosis.cs"
+              cmp "$EVIDENCE/InsertHostDiagnosis.cs" "$work/runtime/RyuPy.Runtime.Tests/InsertHostDiagnosis.cs"
+              git -C "$work" diff --exit-code
+              git -C "$work" status --porcelain > "$out/injection-status.txt"
+              test "$(cat "$out/injection-status.txt")" = '?? runtime/RyuPy.Runtime.Tests/InsertHostDiagnosis.cs'
+              (cd "$work"; dotnet build runtime/RyuPy.Runtime.Tests -c Release) 2>&1 | tee "$out/build.log"
+              find "$work/runtime" -path '*/bin/Release/*' \( -name RyuPy.Runtime.dll -o -name RyuPy.Runtime.Tests.dll \) -print0 | sort -z | xargs -0 sha256sum > "$out/built-dll.sha256"
+              test -s "$out/built-dll.sha256"
+              printf '%s\n' "$order slot=$slot" > "$out/position.txt"
+              (cd "$work"; INSERT_HOST_OUTPUT="$out/host" INSERT_HOST_ROUND="$round" INSERT_HOST_ARM="$arm" \
+                dotnet test runtime/RyuPy.Runtime.Tests -c Release --no-build --filter FullyQualifiedName~InsertHostDiagnosis \
+                --logger 'trx;LogFileName=host.trx' --results-directory "$out") 2>&1 | tee "$out/test.log"
+              git -C "$work" diff --exit-code
+            done
+          done
+      - name: 核八进程真实TRX和全部原始样本
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, xml.etree.ElementTree as E
+          root = pathlib.Path(os.environ['EVIDENCE'])
+          total = 0
+          for r in range(4):
+              for arm in 'AB':
+                  stage = root / f'{r}-{arm}'
+                  results = E.parse(stage / 'host.trx').getroot().findall('.//{http://microsoft.com/schemas/VisualStudio/TeamTest/2010}UnitTestResult')
+                  assert len(results) == 1 and results[0].get('outcome') == 'Passed'
+                  assert (stage / 'host/COMPLETE').is_file()
+                  d = json.loads((stage / 'host/samples.json').read_text())
+                  assert d['arm'] == arm and d['round'] == r
+                  assert d['pairSize'] == 16 and d['doubleSize'] == 8
+                  rows = d['rows']; assert len(rows) == 240
+                  keys = {(x['Size'], x['Operation'], x['Mode'], x['Sample']) for x in rows}
+                  expected = {(n, op, mode, sample) for n in (512,5000,50000) for op in ('once','many') for mode in ('py-fresh','py-materialized','raw-double','raw-pair16') for sample in range(-3,7)}
+                  assert keys == expected
+                  assert sum(not x['Warmup'] for x in rows) == 168
+                  assert all(x['Warmup'] == (x['Sample'] < 0) and x['Ticks'] >= 0 and x['Allocated'] >= 0 for x in rows)
+                  total += 168
+          assert total == 1344
+          (root / 'COMPLETE').write_text('1344 measured + 576 warmup rows; host attribution only\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: insert-host-${{ github.sha }}
+          path: ${{ runner.temp }}/insert-host-evidence
+          if-no-files-found: error
+          retention-days: 14
