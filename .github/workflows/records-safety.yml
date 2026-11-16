@@ -1,0 +1,200 @@
+name: Records full checks and safety gates
+on:
+  push:
+    branches: [ci/records-safety-20261116]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+      MSBUILDDISABLENODEREUSE: '1'
+      DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+      UseSharedCompilation: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 独立SDK安装目录
+        run: echo "DOTNET_INSTALL_DIR=$RUNNER_TEMP/records-dotnet" >> "$GITHUB_ENV"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - uses: actions/setup-python@v5
+        id: python
+        with:
+          python-version: '3.12.13'
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
+        with:
+          toolchain: '1.99.1'
+          components: rustfmt, clippy
+      - name: 固定实际host与SDK
+        env:
+          FIXED_PYTHON: ${{ steps.python.outputs.python-path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir "$RUNNER_TEMP/records-safety"
+          echo "EVIDENCE=$RUNNER_TEMP/records-safety" >> "$GITHUB_ENV"
+          dotnet --info > "$RUNNER_TEMP/records-safety/dotnet.txt"
+          dotnet --version | tee "$RUNNER_TEMP/records-safety/sdk.txt"
+          readlink -f "$(command -v dotnet)" | tee "$RUNNER_TEMP/records-safety/host-path.txt"
+          test "$(readlink -f "$(command -v dotnet)")" = "$DOTNET_INSTALL_DIR/dotnet"
+          test "$(dotnet --version)" = 10.0.403
+          for key in DOTNET DOTNET_HOST_PATH; do echo "$key=$DOTNET_INSTALL_DIR/dotnet" >> "$GITHUB_ENV"; done
+          for key in DOTNET_ROOT DOTNET_ROOT_X64; do echo "$key=$DOTNET_INSTALL_DIR" >> "$GITHUB_ENV"; done
+          echo "DOTNET_MULTILEVEL_LOOKUP=0" >> "$GITHUB_ENV"
+          echo "PYTHON=$FIXED_PYTHON" >> "$GITHUB_ENV"
+          echo "RYUPY_FOREACH_PYTHON=$FIXED_PYTHON" >> "$GITHUB_ENV"
+          "$FIXED_PYTHON" -c 'import sys; assert sys.version_info[:3] == (3,12,13); print(sys.version)' > "$RUNNER_TEMP/records-safety/python.txt"
+      - name: 默认与feature完整check，均保留真实日志与TRX
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y clang zlib1g-dev patchelf binutils
+          failed=0
+          for arm in default feature; do
+            work="$RUNNER_TEMP/check-$arm"
+            target="$RUNNER_TEMP/check-target-$arm"
+            git worktree add --detach "$work" 5d36db1e952f1db07aee6563d7a800cc1df94548
+            features=""; if [[ "$arm" == feature ]]; then features=records-increment-experiment; fi
+            mkdir "$EVIDENCE/check-$arm"
+            git -C "$work" rev-parse HEAD HEAD^{tree} > "$EVIDENCE/check-$arm/source.txt"
+            set +e
+            (cd "$work"; CARGO_TARGET_DIR="$target" make check CARGO_FEATURES="$features" DOTNET_TEST_ARGS="--logger trx --results-directory $EVIDENCE/check-$arm") > "$EVIDENCE/check-$arm/full.log" 2>&1
+            result=$?
+            set -e
+            echo "$result" > "$EVIDENCE/check-$arm/exit.txt"
+            if [[ "$result" != 0 ]]; then failed=1; fi
+            git -C "$work" diff --exit-code
+            rm -rf -- "$target"
+          done
+          test "$failed" = 0
+      - name: 构建默认和实验CLI先检查原程序准入
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y clang zlib1g-dev patchelf binutils
+          for arm in default feature; do
+            work="$RUNNER_TEMP/admission-$arm"
+            git worktree add --detach "$work" 5d36db1e952f1db07aee6563d7a800cc1df94548
+            features=""
+            if [[ "$arm" == feature ]]; then features=records-increment-experiment; fi
+            (cd "$work"; CARGO_TARGET_DIR="$RUNNER_TEMP/target-$arm" make build CARGO_FEATURES="$features" RELEASE_DIR="$RUNNER_TEMP/cli-$arm") > "$EVIDENCE/build-$arm.log" 2>&1
+            git -C "$work" diff --exit-code
+            sha256sum "$RUNNER_TEMP/cli-$arm/ryupy" > "$EVIDENCE/cli-$arm.sha256"
+          done
+          "$PYTHON" tests/perf/records-safety/gate.py --default "$RUNNER_TEMP/cli-default/ryupy" --feature "$RUNNER_TEMP/cli-feature/ryupy" --product "$RUNNER_TEMP/admission-default" --out "$EVIDENCE/gate"
+          admitted=$("$PYTHON" -c 'import json,os; print(str(json.load(open(os.environ["EVIDENCE"]+"/gate/gate.json"))["admitted"]).lower())')
+          echo "admitted=$admitted" >> "$GITHUB_OUTPUT"
+      - name: 仅命中后运行独立诊断与真实源码语义
+        if: steps.gate.outputs.admitted == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/admission-diagnostic"
+          git worktree add --detach "$work" 5d36db1e952f1db07aee6563d7a800cc1df94548
+          (cd "$work"; CARGO_TARGET_DIR="$RUNNER_TEMP/target-diagnostic" make build CARGO_FEATURES=records-increment-diagnostics RELEASE_DIR="$RUNNER_TEMP/cli-diagnostic") > "$EVIDENCE/build-diagnostic.log" 2>&1
+          dotnet build tests/perf/records_runtime_audit/Audit.csproj -c Release -o "$RUNNER_TEMP/audit" > "$EVIDENCE/audit-build.log" 2>&1
+          "$PYTHON" tests/perf/records-safety/semantics.py --cli "$RUNNER_TEMP/cli-feature/ryupy" --diagnostic-cli "$RUNNER_TEMP/cli-diagnostic/ryupy" --baseline-cli "$RUNNER_TEMP/cli-default/ryupy" --baseline-repo "$RUNNER_TEMP/admission-default" --audit "$RUNNER_TEMP/audit/Audit.dll" --output "$EVIDENCE/semantics" --expected-sha "$GITHUB_SHA"
+          "$PYTHON" tests/perf/records-safety/original_trace.py "$RUNNER_TEMP/cli-diagnostic/ryupy" "$RUNNER_TEMP/admission-default" "$EVIDENCE/original-trace"
+      - name: 产品PSS与Runtime实际活堆分层门
+        if: steps.gate.outputs.admitted == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          host="$RUNNER_TEMP/records-memory-host"
+          mkdir "$host"
+          cp tests/perf/records-safety/Memory.cs tests/perf/records-safety/Memory.csproj "$host/"
+          dotnet publish "$host/Memory.csproj" -c Release -r linux-x64 -o "$host/published" -p:RuntimeProject="$RUNNER_TEMP/admission-feature/runtime/RyuPy.Runtime/RyuPy.Runtime.csproj" > "$EVIDENCE/memory-build.log" 2>&1
+          file "$host/published/Memory" > "$EVIDENCE/memory-file.txt"
+          test ! -e "$host/published/Memory.dll"
+          sha256sum "$host/published/Memory" > "$EVIDENCE/memory.sha256"
+          "$PYTHON" tests/perf/records-safety/memory_gate.py --cli "$RUNNER_TEMP/cli-feature/ryupy" --product "$RUNNER_TEMP/admission-default" --host "$host/published/Memory" --out "$EVIDENCE/memory"
+      - name: 打包原始证据分片
+        if: always()
+        run: python3 tests/perf/package_records_evidence.py "$EVIDENCE" "$RUNNER_TEMP/records-parts"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: records-safety-summary-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/summary
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: records-safety-part-01-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-01.bin
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: records-safety-part-02-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-02.bin
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: records-safety-part-03-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-03.bin
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: records-safety-part-04-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-04.bin
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: records-safety-part-05-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-05.bin
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: records-safety-part-06-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-06.bin
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: records-safety-part-07-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-07.bin
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: records-safety-part-08-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-08.bin
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: records-safety-part-09-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-09.bin
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: records-safety-part-10-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-10.bin
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: records-safety-part-11-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-11.bin
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: records-safety-part-12-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-12.bin
+          retention-days: 14
