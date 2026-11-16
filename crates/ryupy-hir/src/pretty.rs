@@ -394,6 +394,9 @@ pub(crate) fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String
             dump_expr(module, body, *fallback)
         ),
         ExprKind::ClassLocal(name) => format!("class_namespace.{name}"),
+        ExprKind::AsyncIteration { value, op } => {
+            format!("async_iter_{op:?}({})", dump_expr(module, body, *value))
+        }
         ExprKind::ExceptionTraceback(value) => {
             format!("traceback({})", dump_expr(module, body, *value))
         }

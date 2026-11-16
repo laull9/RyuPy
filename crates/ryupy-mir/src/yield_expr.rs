@@ -46,6 +46,7 @@ impl ExprBuilder<'_> {
             ryupy_hir::AwaitContext::Expression => RuntimeFn::CoroutineAwaitStart,
             ryupy_hir::AwaitContext::AsyncEnter => RuntimeFn::CoroutineEnterAwaitStart,
             ryupy_hir::AwaitContext::AsyncExit => RuntimeFn::CoroutineExitAwaitStart,
+            ryupy_hir::AwaitContext::AsyncNext => RuntimeFn::CoroutineNextAwaitStart,
         };
         self.build_delegation(expression, start)
     }

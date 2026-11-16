@@ -248,6 +248,7 @@ rp_load_cil_entry(PyThreadState *tstate, RpKernelImportState *state,
     ((RpModuleSpecObject *)spec)->initializing = 1;
     if (_PyImport_SetModule(abs_name, mod) < 0) {
         ((RpModuleSpecObject *)spec)->initializing = 0;
+        remove_module(tstate, abs_name);
         Py_DECREF(mod);
         Py_DECREF(spec);
         return NULL;

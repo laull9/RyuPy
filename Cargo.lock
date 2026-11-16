@@ -1065,6 +1065,7 @@ name = "ryupy-e2e"
 version = "0.0.1"
 dependencies = [
  "libtest-mimic",
+ "ryupy-base",
  "ryupy-driver",
 ]
 

@@ -69,7 +69,9 @@ pub(crate) fn collect(statements: &[ast::Stmt]) -> FxHashSet<Name> {
 /// 选择已有真实builtin对象的冷回退：删除名字，以及可能由兼容分支遮蔽的map。
 /// 保留旧函数名以兼容调用方；map不伪造may_delete，类型与MIR共同消费同一选择。
 pub fn uses_deleted_builtin_fallback(var: &ModuleVar) -> bool {
-    (var.may_delete && supported_builtin(var.name.as_str())) || var.name.as_str() == "map"
+    (var.may_delete && supported_builtin(var.name.as_str()))
+        || var.name.as_str() == "map"
+        || (cfg!(feature = "native-coroutines") && var.name.as_str() == "StopAsyncIteration")
 }
 
 fn supported_builtin(name: &str) -> bool {

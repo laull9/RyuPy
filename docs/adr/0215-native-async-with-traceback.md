@@ -66,8 +66,21 @@ foreign 异常优先走原 provider 协议。cause/context 的其它既有写入
 generator-owner 表在第一次真实生成器激活时才分配，普通产品不分配或写清该表。
 SetLine 保持原热实现；f_lineno 在冷读取/弹栈时同步。
 
-Push/Pop 的空缓存条件检查仍有成本。冷热路径、普通 calls/recursive 与完整固定性能集
-由主集成阶段配对测量，本切不发布性能收益或默认晋升结论。
+第二轮性能核查后，正常 Push 不再重复清除已由 Pop/Reset 清过的 native 槽；
+平行表容量只在原帧表扩容分支维护，单槽 Pop 直接清引用。生成器仍在真实 Push 之后
+登记 owner，首异常接收、跨恢复 frame 身份和 TraceV1 的直接 Push 证据保持原合同。
+
+每异常的传播去重改为内联两个激活，深链才分配扩展表；该表独立于可写 tb_next。
+公开 traceback/frame 仍在真实 raise/catch 时物化，不能从 legacy Frames 延迟重建。
+只有 f_code 读取才解析受信来源和创建 code 视图；弱键缓存命中不分配工厂闭包，
+frame 保留 signature 身份，避免因延迟 code 解析额外保活函数闭包。
+定向分配门以同样真实 throw/catch 和 legacy Frames 为基线，1000 次两帧浅传播的
+新增成本实测为每异常 192B（门限 224B），并保留普通 Push/Line/Pop 零分配原断言。
+进一步压缩未观察传播记录留待真实产品配对结果决定，避免引入等量中间对象。
+
+Push/Pop 的冷缓存条件检查仍有成本。冷热路径、普通 calls/recursive 与完整固定性能集
+已由主集成配对测量。最终 26 项墙钟整体 -0.03%，generators +3.27%、exceptions +3.08%，
+实测残余成本与修复前结果见[第二轮验收](../cil-execution-second-slices-validation.md)；候选仍默认关闭。
 
 ## 验证
 
@@ -82,6 +95,8 @@ Push/Pop 的空缓存条件检查仍有成本。冷热路径、普通 calls/recu
   未启动 gen/coro 的 def 首行、同深度新调用与同一生成器恢复的 frame 身份。
 - tb_next 类型与循环拒绝、未知 code 来源、只读头及字典覆写边界。
 - TraceV1 七个 PE 反伪造门；正常帧观察后重复 Push/Line/Pop 的零分配断言。
+- 未观察浅 catch 的增量分配、不同激活读取同 code 的零查询分配、截链后的显式/bare
+  重抛、深层接收去重与帧表扩容后同槽新激活身份。
 
 本机 CPython 3.9.25、3.12.13、3.13.3 的六组新源码输出一致。
 macOS arm64 NativeAOT 门保留删除输入和整个构建目录后的中文空格搬迁。

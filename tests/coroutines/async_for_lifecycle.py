@@ -1,4 +1,3 @@
-# ryupy: pending
 # async-for 生命周期合同：委托 send/throw/close、取消展开和跨暂停上下文清理。
 events = []
 

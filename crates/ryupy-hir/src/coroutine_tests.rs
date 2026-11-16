@@ -30,7 +30,7 @@ fn coroutine_identity_is_feature_gated_and_never_a_synchronous_function() {
 
 #[cfg(feature = "native-coroutines")]
 #[test]
-fn await_is_an_explicit_hir_node_and_async_generator_and_for_are_rejected() {
+fn await_is_an_explicit_hir_node_and_unsupported_async_domains_are_rejected() {
     let (module, errors) = lower("async def operation(value):\n    return await value\n");
     assert!(errors.is_empty(), "{errors:?}");
     assert!(module.functions.iter().any(|(_, function)| {
@@ -42,7 +42,6 @@ fn await_is_an_explicit_hir_node_and_async_generator_and_for_are_rejected() {
     }));
     for source in [
         "async def f():\n    yield 1\n",
-        "async def f():\n    async for value in []:\n        pass\n",
         "def f(value):\n    return await value\n",
         "class C:\n    async def f(self):\n        return super()\n",
     ] {

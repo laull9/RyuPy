@@ -12,6 +12,8 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
+#if defined(ROLE_SLOW) || defined(ROLE_COORD_A) || defined(ROLE_COORD_B) || \
+    defined(ROLE_SP_DL_A) || defined(ROLE_SP_DL_B) || defined(ROLE_MP_DL_A) || defined(ROLE_MP_DL_B)
 typedef void (*rp_probe_sync_fn)(int event_id, void *ctx);
 
 static int
@@ -39,6 +41,7 @@ call_probe_sync(int event_id)
     Py_END_ALLOW_THREADS
     return 0;
 }
+#endif
 
 #if defined(ROLE_CYCLE_A)
 
@@ -86,12 +89,7 @@ static PyModuleDef_Slot cycle_a_slots[] = {
 };
 
 static struct PyModuleDef cycle_a_def = {
-    PyModuleDef_HEAD_INIT,
-    "mp_cycle_a",
-    NULL,
-    0,
-    cycle_a_methods,
-    cycle_a_slots,
+    PyModuleDef_HEAD_INIT, "mp_cycle_a", NULL, 0, cycle_a_methods, cycle_a_slots, NULL, NULL, NULL,
 };
 
 PyMODINIT_FUNC
@@ -165,12 +163,7 @@ static PyModuleDef_Slot cycle_b_slots[] = {
 };
 
 static struct PyModuleDef cycle_b_def = {
-    PyModuleDef_HEAD_INIT,
-    "mp_cycle_b",
-    NULL,
-    0,
-    cycle_b_methods,
-    cycle_b_slots,
+    PyModuleDef_HEAD_INIT, "mp_cycle_b", NULL, 0, cycle_b_methods, cycle_b_slots, NULL, NULL, NULL,
 };
 
 PyMODINIT_FUNC
@@ -210,12 +203,7 @@ static PyModuleDef_Slot slow_slots[] = {
 };
 
 static struct PyModuleDef slow_def = {
-    PyModuleDef_HEAD_INIT,
-    "mp_slow",
-    NULL,
-    0,
-    slow_methods,
-    slow_slots,
+    PyModuleDef_HEAD_INIT, "mp_slow", NULL, 0, slow_methods, slow_slots, NULL, NULL, NULL,
 };
 
 PyMODINIT_FUNC
@@ -241,12 +229,7 @@ static PyModuleDef_Slot coord_a_slots[] = {
 };
 
 static struct PyModuleDef coord_a_def = {
-    PyModuleDef_HEAD_INIT,
-    "mp_coord_a",
-    NULL,
-    0,
-    NULL,
-    coord_a_slots,
+    PyModuleDef_HEAD_INIT, "mp_coord_a", NULL, 0, NULL, coord_a_slots, NULL, NULL, NULL,
 };
 
 PyMODINIT_FUNC
@@ -272,12 +255,7 @@ static PyModuleDef_Slot coord_b_slots[] = {
 };
 
 static struct PyModuleDef coord_b_def = {
-    PyModuleDef_HEAD_INIT,
-    "mp_coord_b",
-    NULL,
-    0,
-    NULL,
-    coord_b_slots,
+    PyModuleDef_HEAD_INIT, "mp_coord_b", NULL, 0, NULL, coord_b_slots, NULL, NULL, NULL,
 };
 
 PyMODINIT_FUNC
@@ -291,11 +269,7 @@ PyInit_mp_coord_b(void)
 static int sp_dl_a_entered = 0;
 
 static struct PyModuleDef sp_dl_a_def = {
-    PyModuleDef_HEAD_INIT,
-    "sp_dl_a",
-    NULL,
-    -1,
-    NULL,
+    PyModuleDef_HEAD_INIT, "sp_dl_a", NULL, -1, NULL, NULL, NULL, NULL, NULL,
 };
 
 PyMODINIT_FUNC
@@ -320,11 +294,7 @@ PyInit_sp_dl_a(void)
 static int sp_dl_b_entered = 0;
 
 static struct PyModuleDef sp_dl_b_def = {
-    PyModuleDef_HEAD_INIT,
-    "sp_dl_b",
-    NULL,
-    -1,
-    NULL,
+    PyModuleDef_HEAD_INIT, "sp_dl_b", NULL, -1, NULL, NULL, NULL, NULL, NULL,
 };
 
 PyMODINIT_FUNC
@@ -369,12 +339,7 @@ static PyModuleDef_Slot mp_dl_a_slots[] = {
 };
 
 static struct PyModuleDef mp_dl_a_def = {
-    PyModuleDef_HEAD_INIT,
-    "mp_dl_a",
-    NULL,
-    0,
-    NULL,
-    mp_dl_a_slots,
+    PyModuleDef_HEAD_INIT, "mp_dl_a", NULL, 0, NULL, mp_dl_a_slots, NULL, NULL, NULL,
 };
 
 PyMODINIT_FUNC
@@ -408,12 +373,7 @@ static PyModuleDef_Slot mp_dl_b_slots[] = {
 };
 
 static struct PyModuleDef mp_dl_b_def = {
-    PyModuleDef_HEAD_INIT,
-    "mp_dl_b",
-    NULL,
-    0,
-    NULL,
-    mp_dl_b_slots,
+    PyModuleDef_HEAD_INIT, "mp_dl_b", NULL, 0, NULL, mp_dl_b_slots, NULL, NULL, NULL,
 };
 
 PyMODINIT_FUNC
@@ -467,12 +427,7 @@ static PyModuleDef_Slot calls_cil_slots[] = {
 };
 
 static struct PyModuleDef calls_cil_def = {
-    PyModuleDef_HEAD_INIT,
-    "ext_calls_cil",
-    NULL,
-    0,
-    calls_cil_methods,
-    calls_cil_slots,
+    PyModuleDef_HEAD_INIT, "ext_calls_cil", NULL, 0, calls_cil_methods, calls_cil_slots, NULL, NULL, NULL,
 };
 
 PyMODINIT_FUNC

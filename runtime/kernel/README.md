@@ -78,23 +78,23 @@ python3 -B runtime/kernel/build_kernel.py --source-tarball /外部路径/Python-
 
 ## 已运行的验证
 
-2026-11-16 macOS arm64 完整源码构建与十五个独立探针模式通过：
+2026-11-16 macOS arm64 官方 CPython 3.12.13 完整源码构建、`test_transform.py`（7 项）与全部 22 项严格内核 C 探针（含 30 个测试 `.so`）以及 10 项未修改 CPython 3.12.13 `--with-stock-diff` 对照测试通过：
 
 | 探针 | 覆盖 |
 | --- | --- |
 | kernel_probe 四模式 | 零帧启动/内建 math/关闭；EvalCode 拒绝；诊断阶段计数 (1,2,1)；importlib 初始化拒绝 |
-| import_guard_probe 六模式 | GetMagicNumber、ExecCode 两入口、模块 repr、自定义 evaluator、生成器 throw 上下文 |
+| import_guard_probe 六模式 | GetMagicNumber、ExecCode 两入口、转正后的模块 repr、自定义 evaluator、生成器 throw 上下文 |
 | stdio_codecs_probe 两模式 | UTF-8/增量/错误处理/状态；标准流、输入输出、缓冲与 finalize |
 | stdio_edge_probe 三模式 | closefd、坏 fd、无缓冲与错误初始化 |
+| ext_import_probe 五模式 | 单/多阶段 `.so`、ModuleSpec/BuiltinImporter/Loader/`repr`、包与 `fromlist`/相对导入、循环/并发/死锁检测、坏 ABI/NUL 拒绝、`atexit` 导入 |
+| cil_import_probe 两模式 | 注册表/回调/preinit/cleanup 重入与异常保持负例、CIL 回调单一事务与 `.so` 混排/`atexit` 清理 |
 
-五个 stdio/codecs 模式在同次未修改 CPython 3.12.13 上编译运行同一 C 输入并通过。
-标准流和 codec 成功路径的严格内核 startup/runtime/shutdown entries/executed/rejected
-均为零；拒绝探针按预期记录入口和拒绝，执行数为零。
+五个 stdio/codecs 模式与五个 `ext_import_probe` 模式均在同次构建的未修改 CPython 3.12.13 上编译运行同一 C 输入并通过。
+标准流、codec 及 C4-1 全部成功导入路径的严格内核 startup/runtime/shutdown entries/executed/rejected 均为零；拒绝探针按预期记录入口和拒绝，执行数为零。
 
-原公开 importlib API 的三个空指针崩溃已实测复现并修复；内部 loader 三个非导出入口
-完成精确源码守卫，尚待后续真实消费者验证。所有未测平台继续列为待验。
+原公开 importlib API 的三个空指针崩溃已实测复现并修复；内部 loader 三个非导出入口完成精确源码守卫，尚待后续真实消费者验证。Windows 与 Linux 平台继续列为待验，尚未接入 RyuPy.CPython/CLI 产品。
 
-## 纯 C 导入、冻结扩展与静态 CIL 回调（C4-1，待构建窗验收）
+## 纯 C 导入、冻结扩展与静态 CIL 回调（C4-1，已过 macOS 源码与差分门禁）
 
 - 注册与冻结 ABI（`Include/ryupy_import_abi.h`，由 `ryupy_kernel.h` 自动包含）仅支持已初始化的
   `PyInterpreterState *` 与所属 GIL 线程；`Py_InitializeFromConfig` 前调用纯 C 返回 `-1`。
@@ -103,10 +103,10 @@ python3 -B runtime/kernel/build_kernel.py --source-tarball /外部路径/Python-
 - 磁盘 `.so` 扩展复用上游 `import_find_extension`、`_PyImport_LoadDynamicModuleWithSpec`
   与 `exec_builtin_or_dynamic`，不手写 `dlopen` 绕过缓存；`origin` 与包资源目录 `package_dir` 分离。
 - 纯 C `ModuleSpec`、`BuiltinImporter`（类对象）、`ExtensionFileLoader`、`CilModuleLoader` 与
-  `module_repr` 替换原 `repr` 拒绝契约；CIL 回调采用 `create_module` + `exec_module` 单一事务。
+  `module_repr` 替换原 `repr` 拒绝契约；CIL 回调采用 `create_module` + `exec_module` 单一事务，
+  并在 `rp_kernel_import_set_cil_callbacks` 旧 `cleanup` 期间以 `cil_cleanup_in_progress` 拒绝重入与保持异常/所有权。
 
 ## 后续
 
-本切覆盖 C4-1 内核源码与 C 探针（含未修改 CPython 3.12.13 `--with-stock-diff` 差分）；
-实际源码构建与全探针运行等待独占构建窗口后执行。host/C# 接入（C4-2）、完整 Python 依赖闭包、
+本切已完成 C4-1 内核源码、30 个测试 `.so` 与全 22+10 差分验证；host/C# 接入（C4-2）、完整 Python 依赖闭包、
 全部受支持 ABI、Windows/Linux 构建及三平台验收仍由后续切片推进。

@@ -327,6 +327,11 @@ pub enum RuntimeFn {
     CoroutineAwaitStart,
     CoroutineEnterAwaitStart,
     CoroutineExitAwaitStart,
+    /// 异步迭代的同步入口、每轮槽调用、受信耗尽匹配与专用await获取。
+    AsyncIterStart,
+    AsyncIterNext,
+    AsyncIterIsStop,
+    CoroutineNextAwaitStart,
     GeneratorDelegateStep,
     GeneratorDelegateCurrent,
     GeneratorDelegateResult,

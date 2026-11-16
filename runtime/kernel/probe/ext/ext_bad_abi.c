@@ -35,6 +35,10 @@ static struct PyModuleDef bad_unreported_def = {
     NULL,
     -1,
     NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
 };
 
 PyMODINIT_FUNC
@@ -60,6 +64,10 @@ static struct PyModuleDef bad_uninit_def = {
     "bad_uninit_def",
     NULL,
     0,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
     NULL,
 };
 
@@ -90,6 +98,9 @@ static struct PyModuleDef bad_neg_def = {
     -1,
     NULL,
     bad_neg_slots,
+    NULL,
+    NULL,
+    NULL,
 };
 
 PyMODINIT_FUNC

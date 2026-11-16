@@ -1,4 +1,3 @@
-# ryupy: pending
 # async-for 控制流合同：真实取值、目标副作用、嵌套、闭包与清理后的跳转。
 events = []
 

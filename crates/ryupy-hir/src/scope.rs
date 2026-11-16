@@ -285,6 +285,9 @@ pub(crate) fn collect_function_bindings(stmts: &[ast::Stmt]) -> Vec<(Name, TextR
 }
 
 pub fn resolve_builtin(name: &str) -> Option<Builtin> {
+    if cfg!(feature = "native-coroutines") && name == "StopAsyncIteration" {
+        return Some(Builtin::Exception("StopAsyncIteration"));
+    }
     // Python 3 的历史名称是 OSError 同一对象；统一规范名让构造、catch 和基类共用身份。
     if matches!(name, "IOError" | "EnvironmentError") {
         return Some(Builtin::Exception("OSError"));

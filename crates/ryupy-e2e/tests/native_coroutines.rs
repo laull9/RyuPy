@@ -141,6 +141,9 @@ fn coroutine_aot_relocation_matches_cpython() {
         "call_preparation.py",
         "async_with_cleanup.py",
         "async_with_traceback_protocol.py",
+        "async_for_control.py",
+        "async_for_exceptions.py",
+        "async_for_lifecycle.py",
     ] {
         differential_mode(&format!("tests/coroutines/{source}"), true);
     }
@@ -228,4 +231,121 @@ fn async_with_protocol_matches_cpython() {
 #[test]
 fn async_with_cleanup_matches_cpython() {
     differential("async_with_cleanup.py");
+}
+
+#[test]
+fn async_for_protocol_matches_cpython() {
+    differential("async_for_protocol.py");
+}
+#[test]
+fn async_for_control_matches_cpython() {
+    differential("async_for_control.py");
+}
+#[test]
+fn async_for_exceptions_match_cpython() {
+    differential("async_for_exceptions.py");
+}
+#[test]
+fn async_for_lifecycle_matches_cpython() {
+    differential("async_for_lifecycle.py");
+}
+#[test]
+fn async_for_global_shadow_matches_cpython() {
+    differential("async_for_global_shadow.py");
+}
+#[test]
+fn async_for_shared_awaitable_matches_cpython() {
+    differential("async_for_shared_awaitable.py");
+}
+
+// 这些输入在CPython成功，但跨越本切明确边界；保留源码行为和准确拒绝，不能混入成功计数。
+fn async_for_boundary_source(name: &str) -> PathBuf {
+    let source = workspace_root().join(format!("tests/e2e/phase3/{name}"));
+    let python = std::env::var("PYTHON").expect("边界门也必须显式指定固定CPython");
+    let oracle = Command::new(python).args(["-B", "-c",
+        "import runpy,sys; assert sys.version_info[:3] == (3,12,13); runpy.run_path(sys.argv[1], run_name='__main__')"])
+        .arg(&source).output().unwrap();
+    assert!(
+        oracle.status.success(),
+        "{}",
+        String::from_utf8_lossy(&oracle.stderr)
+    );
+    assert!(oracle.stderr.is_empty());
+    source
+}
+
+#[test]
+fn async_for_keeps_async_generator_and_getattribute_support_boundaries() {
+    for (name, expected) in [
+        (
+            "c3_async_for_async_generator_boundary_pending.py",
+            "异步生成器尚未接入原生协程候选",
+        ),
+        (
+            "c3_async_for_getattribute_boundary_pending.py",
+            "暂不支持自定义 __getattribute__",
+        ),
+    ] {
+        let source = async_for_boundary_source(name);
+        let output = OutputRoot::create();
+        let mut session = Session::default();
+        let result = ryupy_driver::build(
+            &mut session,
+            &BuildOptions {
+                input: source,
+                out_dir: output.0.join("product"),
+                aot: false,
+                search_paths: vec![],
+            },
+        );
+        assert!(result.is_err());
+        assert!(
+            session
+                .diagnostics
+                .iter()
+                .any(|e| e.code == Some("E0100") && e.message == expected),
+            "{}",
+            session.render_diagnostics(false)
+        );
+        if name.contains("async_generator") {
+            assert!(
+                session
+                    .diagnostics
+                    .iter()
+                    .filter(|e| e.message == expected)
+                    .all(|e| e.deferred_failure
+                        == Some(ryupy_base::diagnostic::DeferredFailure::SupportBoundary))
+            );
+        }
+    }
+}
+
+#[test]
+fn async_for_dynamic_exception_base_alias_keeps_explicit_runtime_boundary() {
+    let source = async_for_boundary_source("c3_async_for_exception_alias_boundary_pending.py");
+    let output = OutputRoot::create();
+    let mut session = Session::default();
+    let artifact = ryupy_driver::build(
+        &mut session,
+        &BuildOptions {
+            input: source,
+            out_dir: output.0.join("product"),
+            aot: false,
+            search_paths: vec![],
+        },
+    )
+    .unwrap_or_else(|e| panic!("{e:#}\n{}", session.render_diagnostics(false)));
+    assert!(session.cpython_provider.is_none());
+    let actual = dotnet::run_dll_with(
+        &artifact.dll,
+        &dotnet::RunOptions {
+            cwd: Some(output.0.clone()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert!(!actual.status.success());
+    assert!(actual.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&actual.stderr).contains(
+        "NotImplementedError: runtime bases currently require an ordinary user class; special classes and metaclass protocols are not supported"));
 }

@@ -60,6 +60,9 @@ impl StmtLowerCtx<'_> {
     /// 4. 循环体在 `loop_depth + 1` 上下文中降级，以支持内部 `break` / `continue` 校验。
     pub(crate) fn lower_for(&mut self, for_stmt: &ast::StmtFor) -> Option<StmtKind> {
         if for_stmt.is_async {
+            if cfg!(feature = "native-coroutines") {
+                return self.lower_async_for(for_stmt);
+            }
             self.diagnostics.push(
                 Diagnostic::error(
                     Span::new(self.file, for_stmt.range),

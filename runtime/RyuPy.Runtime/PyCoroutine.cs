@@ -57,9 +57,10 @@ public sealed class PyCoroutine : PyNativeObject
         finally { _running = false; }
     }
 
-    internal PyCoroutineIterator AwaitIterator(bool acquire)
+    internal PyCoroutineIterator AwaitIterator(bool acquire, bool asyncNext = false)
     {
-        if (acquire && _awaiting && !_generator.IsClosed)
+        // GET_ANEXT没有GET_AWAITABLE的占用拒绝；仍登记占用以保护随后普通await的检查。
+        if (acquire && !asyncNext && _awaiting && !_generator.IsClosed)
             throw new PyRuntimeError("coroutine is being awaited already");
         if (acquire) _awaiting = true;
         return new PyCoroutineIterator(this, acquire);

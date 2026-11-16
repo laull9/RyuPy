@@ -5,6 +5,7 @@ pub enum HandlerSemantics {
     SourceDynamic,
     InstanceNameDynamic,
     SynthesizedWith,
+    SynthesizedAsyncFor,
 }
 impl HandlerSemantics {
     pub fn is_dynamic(self) -> bool {

@@ -6,11 +6,11 @@
 对象 ABI 与原生扩展能力；移除内部 Python 胶水及最终产品的 Python 执行载荷。
 方向见 [ADR-0208](docs/adr/0208-cil-execution-libpython-kernel.md)，
 任务、边界与准入见[全 CIL 路线](docs/cil-execution-roadmap.md)。
-实施分支为 `feat/adr0208-cil-execution`；主代理协调 Hydrogen、Flash 与三名 GPT-6.1 Sol。
+实施分支为 `feat/adr0208-cil-execution`；主代理协调 Hydrogen、Flash 与 GPT-6.1 Sol 子代理。
 完成门按阶段独立验收，C0 已完成，首轮 `cbb92535` 的完整检查与性能记录保留原提交口径。
 本轮 C1 类构造、C2 通用伴生核心、C3 async with/traceback 已有定向证据；C1–C5 整阶段继续待办。
 CreateSuper 历史 Object 返回公共 ABI 已恢复，真实 `5d36db1e` 的 1843 项公共签名全部保留；
-本轮完整检查、六版本产品与三形态执行审计已通过；性能配对采集中。
+本轮完整检查、六版本产品、三形态执行审计和 26 项性能复验已通过，详见第二轮验收。
 
 - [x] 写入目标、分层、C0–C5 顺序、防回退与旧路径退出规则；同步主文档。
 - [x] **C0 首切：执行归属/启动链盘点与基线冻结**。登记源码/字节码入口、Python helper、
@@ -52,11 +52,15 @@ CreateSuper 历史 Object 返回公共 ABI 已恢复，真实 `5d36db1e` 的 184
   ThreadState/GIL、重入、contextvars、线程亲和性及真实 SQLAlchemy 生命周期。
 - [x] **C4 内核前置十五探针（ADR-0216）**：主代理已在 macOS arm64 从真实 3.12.13 源码构建，严格拒绝、纯 C
   UTF-8/stdio 与关闭十五独立模式通过；这是独立内核前置子合同。
-- [ ] **C4 路由与产品接入**：扩展/router 当前仅独立文件，未接线、未 build、未运行；动态扩展、
-  包/CIL 反向导入、全 Python 闭包与三阶段产品零执行仍待办。C5 默认切换/退出门继续开放。
-- [ ] **本轮最终集成**：CreateSuper 历史 ABI、完整 make check、冻结 Release 的六版本产品与
-  三形态执行审计已通过；26 项性能采集中，完成后记录[第二轮验收](docs/cil-execution-second-slices-validation.md)，
-  保留历史不利与失败样本。
+- [x] **C4-1 冻结导入内核（ADR-0217）**：显式扩展注册表、每模块锁、纯 C Spec/Loader、
+  包/循环/重试/关闭及静态 CIL create/exec 单事务；macOS arm64 官方 3.12.13 源码构建，
+  22 项内核探针、30 个测试扩展、10 项 stock 对照全部通过，原结构 ABI 保留。
+- [ ] **C4-2 host 与产品接入**：把静态 CIL 回调与内核发行接入真实 C# host/CLI，
+  全 Python 闭包编译和三阶段产品零执行继续待办。C5 默认切换/退出门继续开放。
+- [x] **本轮最终集成**：CreateSuper 历史 ABI、完整 make check（3384 C# / 495 e2e）、
+  冻结 Release 的六版本产品与三形态执行审计、26 项性能全部通过。墙钟整体 -0.03%，
+  generators/exception/sieve 等单项成本见[第二轮验收](docs/cil-execution-second-slices-validation.md)，
+  历史不利与修复前失败样本保留。
 
 构建期按依赖生成 CIL 为默认方向；任意运行期新代码的 JIT 能力独立规划。
 现有兼容模式维持回归，候选域缺口明确诊断。完全移除 libpython 与底层化分开登记。

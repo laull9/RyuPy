@@ -30,6 +30,13 @@ print(list(inspect.signature(instance.method).parameters))
 print(list(inspect.signature(Example.static).parameters))
 print(list(inspect.signature(Example.class_method).parameters))
 print(inspect.signature(instance).parameters["value"].default)
+custom = inspect.Signature([
+    inspect.Parameter("receiver", inspect.Parameter.POSITIONAL_ONLY),
+    inspect.Parameter("chosen", inspect.Parameter.KEYWORD_ONLY),
+])
+Example.method.__signature__ = custom
+print(inspect.signature(Example.method) is custom)
+print(list(inspect.signature(instance.method).parameters))
 
 
 def target(a, b, c=3):
@@ -43,6 +50,11 @@ first = inspect.signature(keywords)
 print([(p.name, p.kind.name) for p in first.parameters.values()])
 keywords.keywords["b"] = 8
 print(first.parameters["b"].default, inspect.signature(keywords).parameters["b"].default)
+invalid = partial(target, unknown=1)
+try:
+    inspect.signature(invalid)
+except ValueError:
+    print("invalid-partial")
 print(str(inspect.signature(len)))
 print(inspect.signature(float).parameters["x"].kind is inspect.Parameter.POSITIONAL_ONLY)
 try:

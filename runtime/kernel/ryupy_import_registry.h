@@ -184,7 +184,14 @@ rp_import_get_state(PyInterpreterState *interp, int create)
         PyErr_NoMemory();
         return NULL;
     }
-    if (PyMUTEX_INIT(&new_state->table_mutex) != 0 || PyCOND_INIT(&new_state->drain_cond) != 0) {
+    if (PyMUTEX_INIT(&new_state->table_mutex) != 0) {
+        PyMem_RawFree(new_state);
+        PyMem_RawFree(new_slot);
+        PyErr_SetString(PyExc_RuntimeError, "failed to initialize RyuPy module lock primitives");
+        return NULL;
+    }
+    if (PyCOND_INIT(&new_state->drain_cond) != 0) {
+        PyMUTEX_FINI(&new_state->table_mutex);
         PyMem_RawFree(new_state);
         PyMem_RawFree(new_slot);
         PyErr_SetString(PyExc_RuntimeError, "failed to initialize RyuPy module lock primitives");

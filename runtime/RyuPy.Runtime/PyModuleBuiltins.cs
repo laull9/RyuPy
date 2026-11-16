@@ -81,6 +81,7 @@ internal static class PyModuleBuiltins
         values.Set("IsADirectoryError", PyOps.TypeObject("IsADirectoryError"));
         values.Set("NotADirectoryError", PyOps.TypeObject("NotADirectoryError"));
         values.Set("StopIteration", PyOps.TypeObject("StopIteration"));
+        values.Set("StopAsyncIteration", PyOps.TypeObject("StopAsyncIteration"));
         values.Set("EOFError", PyOps.TypeObject("EOFError"));
         values.Set("print", PyOps.BuiltinFunction("print"));
         values.Set("open", PyOps.BuiltinFunction("open"));

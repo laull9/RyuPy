@@ -49,6 +49,8 @@ internal static unsafe class Native
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_exception_suppress(nint value);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern void rp_exception_set_chain(nint value, nint cause, nint context, int suppress);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_traceback_frame(nint error, int index, out nint file, out nint function, out int line);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_install_native_imports();
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_descriptor_type(int kind);
     internal const string Library = "ryupy_cpython";
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_set_env([MarshalAs(UnmanagedType.LPUTF8Str)] string name, [MarshalAs(UnmanagedType.LPUTF8Str)] string? value);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_start([MarshalAs(UnmanagedType.LPUTF8Str)] string home, nint* paths, int pathCount, nint* argv, int argc, delegate* unmanaged[Cdecl]<nint, int, nint, nint, nint, long, nint, nint> callback);

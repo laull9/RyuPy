@@ -291,6 +291,10 @@ mode_registry_negative(const char *ext_dir, CleanupTxCtx *tx_ctx)
                 "CIL callback without exec_module must fail");
     PyErr_Clear();
 
+    if (verify_cil_callback_cleanup_reentrancy(interp, tx_ctx) != 0) {
+        return 1;
+    }
+
     /* 2. 正常注册后检测重复注册与未冻结前拒绝导入 */
     RpKernelImportEntry good = {
         RYUPY_IMPORT_ABI_VERSION, (uint32_t)sizeof(RpKernelImportEntry),
@@ -539,11 +543,13 @@ main(int argc, char **argv)
     if (probe_enter_runtime() != 0) return 1;
 
     CilMockState cil_state;
+    CleanupTxCtx tx_ctx;
     memset(&cil_state, 0, sizeof(cil_state));
+    memset(&tx_ctx, 0, sizeof(tx_ctx));
 
     int rc = 2;
     if (strcmp(mode, "registry-negative") == 0) {
-        rc = mode_registry_negative(ext_dir);
+        rc = mode_registry_negative(ext_dir, &tx_ctx);
     }
     else if (strcmp(mode, "cil-mixed-callbacks") == 0) {
         rc = mode_cil_mixed_callbacks(ext_dir, &cil_state);
@@ -552,7 +558,11 @@ main(int argc, char **argv)
 
     if (probe_enter_shutdown() != 0) return 1;
     PROBE_CHECK(Py_FinalizeEx() == 0, "Py_FinalizeEx failed");
-    if (strcmp(mode, "cil-mixed-callbacks") == 0) {
+    if (strcmp(mode, "registry-negative") == 0) {
+        PROBE_CHECK(tx_ctx.d_cleanups == 0 && tx_ctx.e_cleanups == 1,
+                    "aborted cb_d must never be cleaned; final cb_e cleans once");
+    }
+    else if (strcmp(mode, "cil-mixed-callbacks") == 0) {
         PROBE_CHECK(cil_state.atexit_execs == 1, "atexit CIL import did not run");
         PROBE_CHECK(cil_state.cleanup_calls == 1, "CIL cleanup must run once in _PyImport_FiniCore");
     }

@@ -1,10 +1,9 @@
-# ryupy: pending
 # async-for 异常区域合同：只截断下一项的真实耗尽，目标、正文及 else 错误原样传播。
 events = []
 BuiltinStop = StopAsyncIteration
 
 
-class End(BuiltinStop):
+class End(StopAsyncIteration):
     pass
 
 
@@ -28,6 +27,8 @@ class AwaitEnd(SyncEnd):
 
 
 async def exhaustion(source):
+    StopAsyncIteration = ValueError
+    events.append(("local-shadow", StopAsyncIteration is ValueError))
     async for value in source:
         raise AssertionError("exhausted body")
     else:
@@ -44,14 +45,12 @@ def finish(coro):
 
 
 sentinel = End("sentinel")
-# 改写全局同名变量不得改变内部耗尽匹配身份。
-StopAsyncIteration = ValueError
+# 局部同名变量不得改变内部耗尽匹配身份；全局遮蔽另用独立成功输入保护。
 finish(exhaustion(SyncEnd()))
 coro = exhaustion(AwaitEnd())
 print(coro.send(None))
 finish(coro)
 print(events)
-StopAsyncIteration = BuiltinStop
 
 
 class AiterError(SyncEnd):
@@ -135,7 +134,7 @@ for operation in [target_error, unpack_error, body_error, body_finally_error, el
 print("boundaries", events)
 
 
-# 描述符在每轮调用区域绑定，其直接耗尽与 anext 同步抛出相同。
+# CPython的async槽把描述符绑定失败改为AttributeError，不能误当作方法调用耗尽。
 class EndingSlot:
     def __get__(self, instance, owner):
         events.append("ending-bind")

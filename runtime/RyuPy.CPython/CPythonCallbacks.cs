@@ -33,7 +33,8 @@ public sealed partial class CPythonHost
                 {
                     20 => host.compiled.Contains(moduleName),
                     21 => PyModules.Import(moduleName),
-                    22 => host.compiled.Any(n => n.StartsWith(moduleName + ".", StringComparison.Ordinal)),
+                    22 => PyModules.TryGetRegisteredPackage(moduleName, out bool package) ? package
+                        : host.compiled.Any(n => n.StartsWith(moduleName + ".", StringComparison.Ordinal)),
                     _ => throw new PyRuntimeError("invalid import hook operation")
                 };
                 return host.ToPython(importResult);
@@ -51,8 +52,8 @@ public sealed partial class CPythonHost
                     object?[] args = host.ReadTuple(a);
                     (string[] names, object?[] values) = host.ReadKeywords(b);
                     result = PyOps.CallValue(target, args, names, values); break;
-                case 2: result = PyObject.GetAttr(target, name); break;
-                case 3: PyObject.SetAttr(target, name, host.FromBorrowed(a)); result = PyNone.Instance; break;
+                case 2: result = host.InspectAttribute(target, name); break;
+                case 3: host.SetInspectAttribute(target, name, a); result = PyNone.Instance; break;
                 case 4: PyObject.DelAttr(target, name); result = PyNone.Instance; break;
                 case 5: result = PyOps.GetItem(target, host.ProtocolValue(a)); break;
                 case 6: PyOps.SetItem(target, host.ProtocolValue(a), host.FromBorrowed(b)); result = PyNone.Instance; break;

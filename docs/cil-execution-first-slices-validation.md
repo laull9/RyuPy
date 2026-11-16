@@ -68,3 +68,5 @@ C1 继续类构造/元类、finder/loader 及原生方法默认晋升；C2 继�
 | strings | 78.406 | 78.517 | +0.14% |
 
 追加测量未复现这些单项的持续回退。两轮样本并列记录；本轮未据此扩展性能承诺或切换任何显式候选默认值。
+
+后续类构造、通用核心、async with/traceback 与第二轮性能收口见[第二轮集成验收](cil-execution-second-slices-validation.md)。

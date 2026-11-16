@@ -4,4 +4,5 @@ pub enum AwaitContext {
     Expression,
     AsyncEnter,
     AsyncExit,
+    AsyncNext,
 }

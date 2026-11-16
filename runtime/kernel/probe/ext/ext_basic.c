@@ -44,6 +44,7 @@ static struct PyModuleDef sp_basic_def = {
     "single-phase basic extension",
     -1,
     sp_basic_methods,
+    NULL, NULL, NULL, NULL,
 };
 
 PyMODINIT_FUNC
@@ -77,11 +78,7 @@ static PyMethodDef sp_reinit_methods[] = {
 };
 
 static struct PyModuleDef sp_reinit_def = {
-    PyModuleDef_HEAD_INIT,
-    "ext_sp_reinit",
-    NULL,
-    0,
-    sp_reinit_methods,
+    PyModuleDef_HEAD_INIT, "ext_sp_reinit", NULL, 0, sp_reinit_methods, NULL, NULL, NULL, NULL,
 };
 
 PyMODINIT_FUNC
@@ -123,11 +120,7 @@ static PyMethodDef sp_state_methods[] = {
 };
 
 static struct PyModuleDef sp_state_def = {
-    PyModuleDef_HEAD_INIT,
-    "ext_sp_state",
-    NULL,
-    sizeof(SpState),
-    sp_state_methods,
+    PyModuleDef_HEAD_INIT, "ext_sp_state", NULL, sizeof(SpState), sp_state_methods, NULL, NULL, NULL, NULL,
 };
 
 PyMODINIT_FUNC
@@ -221,12 +214,7 @@ static PyModuleDef_Slot mp_slots[] = {
 };
 
 static struct PyModuleDef mp_def = {
-    PyModuleDef_HEAD_INIT,
-    "ext_mp",
-    "multi-phase extension",
-    sizeof(MpState),
-    mp_methods,
-    mp_slots,
+    PyModuleDef_HEAD_INIT, "ext_mp", "multi-phase extension", sizeof(MpState), mp_methods, mp_slots, NULL, NULL, NULL,
 };
 
 PyMODINIT_FUNC
@@ -260,12 +248,7 @@ static PyModuleDef_Slot mp_custom_slots[] = {
 };
 
 static struct PyModuleDef mp_custom_def = {
-    PyModuleDef_HEAD_INIT,
-    "ext_mp_custom",
-    NULL,
-    0,
-    NULL,
-    mp_custom_slots,
+    PyModuleDef_HEAD_INIT, "ext_mp_custom", NULL, 0, NULL, mp_custom_slots, NULL, NULL, NULL,
 };
 
 PyMODINIT_FUNC
@@ -309,12 +292,7 @@ static PyModuleDef_Slot mp_retry_slots[] = {
 };
 
 static struct PyModuleDef mp_retry_def = {
-    PyModuleDef_HEAD_INIT,
-    "ext_mp_retry",
-    NULL,
-    0,
-    mp_retry_methods,
-    mp_retry_slots,
+    PyModuleDef_HEAD_INIT, "ext_mp_retry", NULL, 0, mp_retry_methods, mp_retry_slots, NULL, NULL, NULL,
 };
 
 PyMODINIT_FUNC
@@ -337,12 +315,7 @@ static PyModuleDef_Slot atexit_slots[] = {
 };
 
 static struct PyModuleDef atexit_def = {
-    PyModuleDef_HEAD_INIT,
-    "ext_atexit",
-    NULL,
-    0,
-    NULL,
-    atexit_slots,
+    PyModuleDef_HEAD_INIT, "ext_atexit", NULL, 0, NULL, atexit_slots, NULL, NULL, NULL,
 };
 
 PyMODINIT_FUNC

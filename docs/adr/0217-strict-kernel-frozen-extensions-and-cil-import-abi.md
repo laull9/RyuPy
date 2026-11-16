@@ -1,7 +1,7 @@
 # ADR-0217：严格内核显式冻结扩展注册表、纯 C ModuleSpec 与 CIL 导入事务 ABI
 
 - 日期：2026-11-16
-- 状态：C4-1 源码与探针准备就绪（待构建窗口实测）；多版本仍限定 CPython 3.12.13，Windows/Linux 待验
+- 状态：C4-1 已通过官方 CPython 3.12.13 外部源码构建与 `--with-stock-diff` 全探针验收（macOS arm64）；多版本仍限定 CPython 3.12.13，Windows/Linux 待验
 - 接续：[ADR-0208](0208-cil-execution-libpython-kernel.md)、[ADR-0216](0216-strict-kernel-native-stdio.md)
 
 ## 背景
@@ -19,13 +19,13 @@ ADR-0216 在 `_install_importlib=0` 严格内核上补齐了纯 C UTF-8 codec �
    - 磁盘 `.so` 扩展复用上游 `import_find_extension`、`_PyImport_LoadDynamicModuleWithSpec`（含内部 `_PyImport_SwapPackageContext`）、`PyModule_FromDefAndSpec` 与 `exec_builtin_or_dynamic`，不手写 `dlopen` 绕过缓存。
 3. **纯 C `ModuleSpec`、Loader 与模块 `repr`**：
    - 实现纯 C `RpModuleSpec`（含 `cached` / `__cached__` 与比较完整支持）、`BuiltinImporter` 类对象、`ExtensionFileLoader` 与 `CilModuleLoader`（未承诺的 `get_data` / `get_resource_reader` 显式抛 `NotImplementedError`）。
-   - `Objects/moduleobject.c` 的 `module_repr` 在 `IMPORTLIB(interp) == NULL` 时直连纯 C `_PyImport_RyuPyModuleRepr`，原 `import_guard_probe` 的 `repr` 负例契约随真实支持转正。
+   - `Objects/moduleobject.c` 的 `module_repr` 在 `interp->imports.importlib == NULL` 时直连纯 C `_PyImport_RyuPyModuleRepr`，原 `import_guard_probe` 的 `repr` 负例契约随真实支持转正。
 4. **每模块细粒度可重入锁、等待图死锁检测与异常/NUL 防护**：
    - 使用按模块名划分的 `RpModuleLockNode`（`has_owner` 显式标记，内嵌 NUL 字节拒绝，`blocked` 空槽及时释放），先放 `table_mutex` 再放 GIL 休眠；等待图 DFS 检测跨线程环路即刻抛 `RuntimeError`（`ensure_initialized` 按 `_lock_unlock_module` 语义接受部分初始化模块）。
-5. **CIL 单一事务与 `fromlist`/相对导入**：
-   - CIL 回调采用 `create_module` + `exec_module` 单一事务，由内核唯一写入 `sys.modules`、推动 `exec_module` 一次并统一回滚；子模块完成后按 `parent_name` 重取 `sys.modules` 当前父模块再挂载属性；`fromlist` 与相对导入完全对齐 CPython 3.12.13。
+5. **CIL 单一事务、回调变更重入保护与 `fromlist`/相对导入**：
+   - CIL 回调采用 `create_module` + `exec_module` 单一事务，由内核唯一写入 `sys.modules`、推动 `exec_module` 一次并统一回滚；`rp_kernel_import_set_cil_callbacks` 替换旧回调前先设 `cil_cleanup_in_progress` 事务保护阻断 cleanup 内重入 `register`/`set_cil_callbacks`/`freeze`，若旧 `cleanup` 留下活跃 Python 异常则中止提交并返回 `-1`（保持异常且不接管新 callbacks 所有权）；子模块完成后按 `parent_name` 重取 `sys.modules` 当前父模块再挂载属性；`fromlist` 与相对导入按本切固定 CPython 3.12.13 差分门验收。
 
 ## 边界与后果
 
-- 本切仅完成内核源码与探针准备，实际 `configure/make` 构建与 `--with-stock-diff` 差分验证待主代理通知构建窗口开放后执行。
+- C4-1 已在官方 CPython 3.12.13 外部源码构建上通过 `test_transform.py`（7 项）、`--transform-only`、符号核验、原 15 项基础探针、7 项新增扩展/CIL/并发/重入负例/`atexit` 探针，以及同一源码包构建的未修改 CPython 3.12.13 10 项 `--with-stock-diff` 对照测试（macOS 实测），临时构建目录已自动清理。
 - C4-2（host/C# 接入）为独立后续任务；多版本边界仍为 CPython 3.12.13，Windows 与 Linux 平台验证待办。

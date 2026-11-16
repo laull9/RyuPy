@@ -12,6 +12,7 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
+#if defined(ROLE_CPKG) || defined(ROLE_CPKG_CSUB) || defined(ROLE_CPKG_LEAF) || defined(ROLE_CIL_CSUB)
 static PyObject *
 common_rel_import(PyObject *self, PyObject *args)
 {
@@ -27,6 +28,7 @@ common_rel_import(PyObject *self, PyObject *args)
     }
     return PyImport_ImportModuleLevelObject(name, globals, NULL, fromlist, level);
 }
+#endif
 
 #if defined(ROLE_CPKG)
 
@@ -56,12 +58,7 @@ static PyModuleDef_Slot cpkg_slots[] = {
 };
 
 static struct PyModuleDef cpkg_def = {
-    PyModuleDef_HEAD_INIT,
-    "cpkg",
-    NULL,
-    0,
-    cpkg_methods,
-    cpkg_slots,
+    PyModuleDef_HEAD_INIT, "cpkg", NULL, 0, cpkg_methods, cpkg_slots, NULL, NULL, NULL,
 };
 
 PyMODINIT_FUNC
@@ -89,12 +86,7 @@ static PyModuleDef_Slot csub_slots[] = {
 };
 
 static struct PyModuleDef csub_def = {
-    PyModuleDef_HEAD_INIT,
-    "csub",
-    NULL,
-    0,
-    csub_methods,
-    csub_slots,
+    PyModuleDef_HEAD_INIT, "csub", NULL, 0, csub_methods, csub_slots, NULL, NULL, NULL,
 };
 
 PyMODINIT_FUNC
@@ -117,12 +109,7 @@ static PyModuleDef_Slot subpkg_slots[] = {
 };
 
 static struct PyModuleDef subpkg_def = {
-    PyModuleDef_HEAD_INIT,
-    "subpkg",
-    NULL,
-    0,
-    NULL,
-    subpkg_slots,
+    PyModuleDef_HEAD_INIT, "subpkg", NULL, 0, NULL, subpkg_slots, NULL, NULL, NULL,
 };
 
 PyMODINIT_FUNC
@@ -150,12 +137,7 @@ static PyModuleDef_Slot leaf_slots[] = {
 };
 
 static struct PyModuleDef leaf_def = {
-    PyModuleDef_HEAD_INIT,
-    "leaf",
-    NULL,
-    0,
-    leaf_methods,
-    leaf_slots,
+    PyModuleDef_HEAD_INIT, "leaf", NULL, 0, leaf_methods, leaf_slots, NULL, NULL, NULL,
 };
 
 PyMODINIT_FUNC
@@ -178,12 +160,7 @@ static PyModuleDef_Slot sibling_slots[] = {
 };
 
 static struct PyModuleDef sibling_def = {
-    PyModuleDef_HEAD_INIT,
-    "sibling",
-    NULL,
-    0,
-    NULL,
-    sibling_slots,
+    PyModuleDef_HEAD_INIT, "sibling", NULL, 0, NULL, sibling_slots, NULL, NULL, NULL,
 };
 
 PyMODINIT_FUNC
@@ -214,12 +191,7 @@ static PyModuleDef_Slot broken_slots[] = {
 };
 
 static struct PyModuleDef broken_def = {
-    PyModuleDef_HEAD_INIT,
-    "broken_dep",
-    NULL,
-    0,
-    NULL,
-    broken_slots,
+    PyModuleDef_HEAD_INIT, "broken_dep", NULL, 0, NULL, broken_slots, NULL, NULL, NULL,
 };
 
 PyMODINIT_FUNC
@@ -257,12 +229,7 @@ static PyModuleDef_Slot cil_csub_slots[] = {
 };
 
 static struct PyModuleDef cil_csub_def = {
-    PyModuleDef_HEAD_INIT,
-    "c_sub",
-    NULL,
-    0,
-    cil_csub_methods,
-    cil_csub_slots,
+    PyModuleDef_HEAD_INIT, "c_sub", NULL, 0, cil_csub_methods, cil_csub_slots, NULL, NULL, NULL,
 };
 
 PyMODINIT_FUNC

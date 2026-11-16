@@ -1,6 +1,5 @@
-# ryupy: pending
 # async-for 协议合同：惰性、类型槽绑定、暂停期间重绑与各类入口错误。
-# 预期由实施后的固定 CPython 同次生成；此文件不包含循环的替代实现。
+# 预期由固定 CPython 同次生成；此文件不包含循环的替代实现。
 events = []
 call_error = TypeError("next-body-type-error")
 
@@ -8,6 +7,15 @@ call_error = TypeError("next-body-type-error")
 class Pause:
     def __await__(self):
         return (yield "next-wait")
+
+
+def trace_functions(error):
+    result = []
+    tb = error.__traceback__
+    while tb is not None:
+        result.append(tb.tb_frame.f_code.co_name)
+        tb = tb.tb_next
+    return result
 
 
 def finish(coro):
@@ -20,6 +28,8 @@ def finish(coro):
         cause = error.__cause__
         print("cause", type(cause).__name__ if cause else None,
               str(cause) if cause else None)
+        if cause is not None:
+            print("cause-frames", trace_functions(cause))
 
 
 async def consume(source):
@@ -52,10 +62,8 @@ class Described:
         events.append("aiter")
         return self
 
-    def __getattribute__(self, name):
-        if name == "__aiter__" or name == "__anext__":
-            raise AssertionError("special lookup used instance attributes")
-        return object.__getattribute__(self, name)
+    def __getattr__(self, name):
+        raise AssertionError("special lookup used instance fallback")
 
 
 def source():

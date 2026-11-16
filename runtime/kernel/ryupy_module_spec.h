@@ -413,16 +413,22 @@ rp_set_attr_ignore_attrerror(PyObject *obj, PyObject *attr, PyObject *value)
 }
 
 static int
+rp_lookup_attr_str(PyObject *obj, const char *name, PyObject **out)
+{
+    PyObject *key = PyUnicode_FromString(name);
+    if (key == NULL) return -1;
+    int rc = _PyObject_LookupAttr(obj, key, out);
+    Py_DECREF(key);
+    return rc;
+}
+
+static int
 rp_should_fill_attr(PyObject *obj, PyObject *attr)
 {
     PyObject *cur = NULL;
     int rc = _PyObject_LookupAttr(obj, attr, &cur);
-    if (rc < 0) {
-        return -1;
-    }
-    if (cur == NULL) {
-        return 1;
-    }
+    if (rc < 0) return -1;
+    if (cur == NULL) return 1;
     int is_none = (cur == Py_None);
     Py_DECREF(cur);
     return is_none ? 1 : 0;
@@ -481,12 +487,12 @@ rp_kernel_init_module_attrs(PyObject *spec_obj, PyObject *module)
         PyObject *cached_val = rp_spec_get_cached(spec, NULL);
         if (cached_val == NULL) return -1;
         if (cached_val != Py_None) {
-            r = rp_should_fill_attr(module, &_Py_ID(__cached__));
-            if (r < 0) {
-                Py_DECREF(cached_val);
-                return -1;
-            }
-            if (r > 0 && rp_set_attr_ignore_attrerror(module, &_Py_ID(__cached__), cached_val) < 0) {
+            PyObject *cached_key = PyUnicode_FromString("__cached__");
+            int set_rc = 0;
+            r = cached_key ? rp_should_fill_attr(module, cached_key) : -1;
+            if (r > 0) set_rc = rp_set_attr_ignore_attrerror(module, cached_key, cached_val);
+            Py_XDECREF(cached_key);
+            if (r < 0 || set_rc < 0) {
                 Py_DECREF(cached_val);
                 return -1;
             }
@@ -508,7 +514,7 @@ rp_module_repr_from_spec(PyObject *spec)
     }
     if (_PyObject_LookupAttr(spec, &_Py_ID(origin), &origin) < 0) goto error;
     if (origin == NULL || origin == Py_None) {
-        if (_PyObject_LookupAttr(spec, &_Py_ID(loader), &loader) < 0) goto error;
+        if (rp_lookup_attr_str(spec, "loader", &loader) < 0) goto error;
         PyObject *res = (loader == NULL || loader == Py_None)
             ? PyUnicode_FromFormat("<module %R>", name)
             : PyUnicode_FromFormat("<module %R (%R)>", name, loader);
@@ -517,7 +523,7 @@ rp_module_repr_from_spec(PyObject *spec)
         Py_XDECREF(loader);
         return res;
     }
-    if (_PyObject_LookupAttr(spec, &_Py_ID(has_location), &has_loc_obj) < 0) goto error;
+    if (rp_lookup_attr_str(spec, "has_location", &has_loc_obj) < 0) goto error;
     int has_loc = 0;
     if (has_loc_obj != NULL) {
         has_loc = PyObject_IsTrue(has_loc_obj);

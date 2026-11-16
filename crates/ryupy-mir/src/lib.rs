@@ -85,6 +85,10 @@ pub(crate) mod generator_readonly_params;
 mod generator_readonly_params_tests;
 mod generators;
 
+mod async_iteration;
+mod async_iteration_abi;
+#[cfg(all(test, feature = "native-coroutines"))]
+mod async_iteration_tests;
 pub mod link;
 mod link_placeholders;
 mod mir;

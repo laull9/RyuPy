@@ -15,6 +15,7 @@ native-coroutines = ["ryupy-driver/native-coroutines"]
 ryupy-driver.workspace = true
 
 [dev-dependencies]
+ryupy-base.workspace = true
 libtest-mimic.workspace = true
 
 [[test]]

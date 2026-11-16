@@ -114,6 +114,7 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
             }
             finally { foreach (nint item in paths) Marshal.FreeCoTaskMem(item); foreach (nint item in args) Marshal.FreeCoTaskMem(item); }
             host.state = 1;
+            host.InstallInspectBridge();
             host.InstallImports();
             if (host.executionAuditEnabled) { using Lease lease = host.Enter(); Native.rp_execution_audit_phase(1); }
             return host;
@@ -217,6 +218,7 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
         finally
         {
             // Finalize期间的C代理析构/atexit仍可访问Roots；完成后才清除托管根并恢复进程Tcl/Tk环境。
+            RemoveInspectBridge();
             Roots.Clear(); imported.Clear(); objects.Clear(); transfers.Clear(); transferIndex.Clear(); lock (gate) { state = 3; handles.Clear(); } Instance = null;
             tclTkEnvironment?.TryRestore();
         }

@@ -12,8 +12,12 @@
 mod annotation_format;
 mod annotation_stmts;
 mod assign_target;
+mod async_for;
+#[cfg(test)]
+mod async_for_tests;
 mod aug_assign;
 mod await_context;
+mod expr_types;
 pub use await_context::AwaitContext;
 mod chain_assign;
 pub mod class;

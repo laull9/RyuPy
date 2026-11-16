@@ -1,6 +1,7 @@
 // 原生traceback的真实catch边界、激活身份、可写尾链和正常帧路径零分配保护。
 using RyuPy.Runtime;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace RyuPy.Runtime.Tests;
 
@@ -8,7 +9,9 @@ namespace RyuPy.Runtime.Tests;
 public sealed class PyNativeTracebackTests : IDisposable
 {
     private readonly object? previous = PyErrors.EnterHandler(null);
-    public PyNativeTracebackTests() => PyTraceback.Reset();
+    private readonly ITestOutputHelper output;
+    public PyNativeTracebackTests(ITestOutputHelper output)
+    { this.output = output; PyTraceback.Reset(); }
     public void Dispose() { PyTraceback.Reset(); PyErrors.LeaveHandler(previous); }
 
     private static PyNativeTraceback Trace(PyBaseException error) =>
@@ -167,6 +170,8 @@ public sealed class PyNativeTracebackTests : IDisposable
         CatchCost([new PyValueError("warm")], receiver, true);
         long baseline = CatchCost(ordinary, receiver, false);
         long actual = CatchCost(native, receiver, true);
+        output.WriteLine("1000次真实浅catch：legacy={0}B，native={1}B，新增={2}B/异常",
+            baseline, actual, (actual - baseline) / count);
         Assert.InRange(actual - baseline, 1L, count * 224L);
         var trace = Trace(native[^1]);
         Assert.Equal(11L, PyObject.GetAttr(trace, "tb_lineno"));

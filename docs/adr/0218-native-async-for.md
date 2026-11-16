@@ -1,7 +1,7 @@
 # ADR-0218：原生 async for 的有限完整竖切
 
 - 日期：2026-11-16
-- 状态：计划；仅登记手写 pending 输入，尚未实现或执行验证
+- 状态：显式原生协程候选；三版本oracle、JIT与macOS arm64 NativeAOT搬迁通过
 - 接续：[ADR-0210](0210-native-coroutine-state-machine.md)、
   [ADR-0215](0215-native-async-with-traceback.md)
 
@@ -12,8 +12,10 @@ async for 复用 await 显式状态机、源码循环控制和真实异常传播
 关闭特性保留现有 E0100 与 SupportBoundary 延期分类。此切不晋升默认模式，
 不引入 CPython 解释执行、事件循环、Task 调度器、异步生成器或异步推导式。
 
-本文件冻结待实现合同。配套输入位于 `tests/e2e/phase3/c3_async_for_*_pending.py`，
-保留 `# ryupy: pending`；不得依据本 ADR 声称这些用例已经通过。
+手写成功输入从pending转入 `tests/coroutines/async_for_*.py`，由同一个
+feature专用集成门发现。异步生成器、自定义 `__getattribute__`、变量别名动态继承
+内建异常仍保留为 `tests/e2e/phase3/c3_async_for_*_boundary_pending.py` 的独立负例；
+该动态异常基类需要C1后续支持，不能因消费它的代码包含async-for而悄悄放行。
 
 ## 类型槽、求值和暂停
 
@@ -42,10 +44,19 @@ CPython 3.12.13 的类型槽和错误包装依据为
 ```
 
 T 使用 Python 可观察类型名。`__aiter__`、`__anext__` 的调用异常直接传播，
-保留对象身份。获取 await 迭代器失败时使用最后一类 TypeError 包装，并保留原 cause；
+保留对象身份。描述符绑定失败与调用失败分开：CPython的 `slot_am_aiter/anext/await`
+将失败查找覆盖为 `AttributeError: object T does not have METHOD method`；此处不得
+把描述符抛出的 StopAsyncIteration 当作自然耗尽，类型名按对应槽的50字符上限处理。
+获取 await 迭代器失败时使用最后一类 TypeError 包装，并保留原 cause；
 这也覆盖用户 `__await__` 在取得迭代器前直接抛错和返回非法迭代器。
 已经取得合法迭代器后，其执行异常按正常 await 路径传播。
 不得用统一 catch 把用户方法内所有 TypeError 改写为协议错误。
+获取失败的cause只接收已经真实展开的callee帧；尚未接收原错误的调用者不能加入cause链。
+包装TypeError自身随后沿调用者的真实catch传播，legacy Frames文本快照保持原合同。
+
+GET_ANEXT对原生coroutine不执行普通GET_AWAITABLE的“已经被await”检查；
+同时仍保留随后普通await的占用拒绝。共享anext返回对象按真实coroutine状态恢复，
+其它awaiter在它已完成后继续恢复仍得到复用错误；不得为async-for额外加一层普通await检查。
 
 ## 耗尽和清理边界
 
@@ -88,15 +99,17 @@ close 注入 GeneratorExit，清理仍产出时保留现有“忽略 GeneratorEx
 源码结构门需证明 catch 的真实覆盖范围、每轮重查和直接状态机恢复；不得只断言指令数，
 也不得构造与实现分支逐项同形的测试替代真实 Python 行为。
 
-## Pending 输入和验收
+## 手写输入和验收
 
 | 输入 | 高价值合同 |
 | --- | --- |
-| `c3_async_for_protocol_pending.py` | 惰性、源单次求值、描述符次数、实例遮蔽、暂停时重绑、删除槽及错误包装 |
-| `c3_async_for_control_pending.py` | 假值、continue/break/else/return、嵌套、闭包和有副作用目标 |
-| `c3_async_for_exceptions_pending.py` | 调用/await 耗尽、子类与同名遮蔽、aiter/目标/正文/else 异常不吞 |
-| `c3_async_for_lifecycle_pending.py` | 真 send/throw/close、取消、委托恢复、外层 async with、暂停清理及无隐式 aclose |
-| `c3_async_for_async_generator_boundary_pending.py` | CPython 成功、当前候选明确拒绝异步生成器；独立负例 |
+| `async_for_protocol.py` | 惰性、源单次求值、描述符次数、实例遮蔽、暂停时重绑、删除槽、错误包装与cause真实帧 |
+| `async_for_control.py` | 假值、continue/break/else/return、嵌套、跨暂停闭包和有副作用目标 |
+| `async_for_exceptions.py` | 调用/await 耗尽、子类与局部遮蔽、aiter/目标/正文/else 异常不吞、绑定失败 |
+| `async_for_lifecycle.py` | 真 send/throw/close、取消、委托恢复、外层 async with、暂停清理及无隐式 aclose |
+| `async_for_global_shadow.py` | 全局同名变量不替换内建耗尽身份 |
+| `async_for_shared_awaitable.py` | GET_ANEXT与普通await的共享coroutine占用差异及完成后复用错误 |
+| 三个独立 `*_boundary_pending.py` | CPython成功；异步生成器/getattribute编译诊断、动态别名异常基类运行期NI |
 
 实施后，在同一进程测试轮显式指定 CPython 3.12.13，先生成预期，再构建无 CPython provider
 的候选 JIT 并比较退出状态、完整 stdout 和 stderr。手写成功输入还分别使用本机
@@ -113,3 +126,10 @@ close 注入 GeneratorExit，清理仍产出时保留现有“忽略 GeneratorEx
 回归保留现有六组 generator、yield-from、协程全部 JIT/AOT、async with/traceback、
 默认 HIR 支持边界、MIR EH 与 TraceV1 反伪造门，以及普通调用和 generator 定向性能保护。
 只有这些门在实施授权后真实通过，才移除相应 pending 标记并登记实际兼容范围。
+
+本机本轮实际通过：六组成功源码在3.9.25/3.12.13/3.13.3输出一致，stderr为空；
+固定3.12.13同次候选门21项通过，包含原13项和六组新成功输入、两个独立边界门。
+AOT搬迁共七组，新增control/exceptions/lifecycle三组均执行删除输入、删除整个构建目录
+及中文空格路径搬迁后的真实原生产品。Runtime相关109项通过，含五个协议宿主用例、
+真实traceback身份/分配保护和七个PE门；MIR固定ABI实参篡改负例通过。
+公开asyncgen、调度器、跨线程异步IO、其它平台与onefile仍按后续竖切分别验收。

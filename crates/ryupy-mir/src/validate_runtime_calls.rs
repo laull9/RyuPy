@@ -6,6 +6,7 @@ use crate::validate::operand_type;
 pub(super) fn fixed_abi(callee: RuntimeFn) -> bool {
     if crate::trace_product_abi::signature(callee).is_some()
         || crate::lexical_class_abi::signature(callee).is_some()
+        || crate::async_iteration_abi::signature(callee).is_some()
     {
         return true;
     }
@@ -86,6 +87,7 @@ pub(super) fn validate_call(
     if let Callee::Runtime(runtime) = callee {
         if let Some((expected, _)) = crate::trace_product_abi::signature(*runtime)
             .or_else(|| crate::lexical_class_abi::signature(*runtime))
+            .or_else(|| crate::async_iteration_abi::signature(*runtime))
         {
             if (*runtime == RuntimeFn::LexicalClassPrepare
                 && !matches!(args.get(3), Some(Operand::Array(_))))
@@ -376,6 +378,7 @@ pub(super) fn validate_destination(
     {
         if let Some((_, expected)) = crate::trace_product_abi::signature(*runtime)
             .or_else(|| crate::lexical_class_abi::signature(*runtime))
+            .or_else(|| crate::async_iteration_abi::signature(*runtime))
         {
             if expected == MirType::Unit
                 || crate::validate::local_decl(&func.body.locals, dest)

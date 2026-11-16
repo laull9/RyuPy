@@ -13,14 +13,22 @@ public static partial class PyOps
     public static object CoroutineEnterAwaitStart(object? source) => AwaitStart(source, "__aenter__");
     /// <summary>异步exit与普通await共享委托，但保留上下文协议诊断。</summary>
     public static object CoroutineExitAwaitStart(object? source) => AwaitStart(source, "__aexit__");
-    private static object AwaitStart(object? source, string? context)
+    private static object AwaitStart(object? source, string? context, bool asyncNext = false)
     {
         if (source is PyCoroutine coroutine)
         {
-            var wrapper = coroutine.AwaitIterator(true);
+            var wrapper = coroutine.AwaitIterator(true, asyncNext);
             return new PyGeneratorDelegation(wrapper, wrapper);
         }
-        if (!PyObject.TryMethod(source, "__await__", [], out object? iterator))
+        object? iterator;
+        bool found;
+        if (asyncNext && AsyncClass(source) is not null)
+        {
+            found = TryAsyncMethod(source, "__await__", out object? method);
+            iterator = found ? CallValue(method, [], [], []) : null;
+        }
+        else found = PyObject.TryMethod(source, "__await__", [], out iterator);
+        if (!found)
             throw new PyTypeError(context is null
                 ? $"object {PyRepr.TypeName(source)} can't be used in 'await' expression"
                 : $"'async with' received an object from {context} that does not implement __await__: {PyRepr.TypeName(source)}");

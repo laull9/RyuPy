@@ -55,26 +55,26 @@ check_repr_equals(PyObject *obj, const char *expected)
 static int
 mode_ext_basic_spec(const char *ext_dir)
 {
-    /* 1. 内建 math 的 ModuleSpec 与 repr */
-    PyObject *math_mod = PyImport_ImportModule("math");
-    PROBE_CHECK(math_mod != NULL, "import math");
-    PyObject *math_spec = PyObject_GetAttrString(math_mod, "__spec__");
-    PROBE_CHECK(math_spec != NULL && math_spec != Py_None, "math.__spec__");
-    if (check_str_attr(math_spec, "name", "math")) return 1;
-    if (check_str_attr(math_spec, "origin", "built-in")) return 1;
-    if (check_str_attr(math_spec, "parent", "")) return 1;
-    if (check_bool_attr(math_spec, "has_location", 0)) return 1;
-    if (check_bool_attr(math_spec, "_initializing", 0)) return 1;
-    if (check_repr_equals(math_mod, "<module 'math' (built-in)>")) return 1;
-    PyObject *math_loader = PyObject_GetAttrString(math_spec, "loader");
-    PROBE_CHECK(math_loader != NULL && PyType_Check(math_loader),
+    /* 1. 内建 itertools 的 ModuleSpec 与 repr（stock 3.12 与严格内核同为 PyImport_Inittab 内建） */
+    PyObject *builtin_mod = PyImport_ImportModule("itertools");
+    PROBE_CHECK(builtin_mod != NULL, "import itertools");
+    PyObject *builtin_spec = PyObject_GetAttrString(builtin_mod, "__spec__");
+    PROBE_CHECK(builtin_spec != NULL && builtin_spec != Py_None, "itertools.__spec__");
+    if (check_str_attr(builtin_spec, "name", "itertools")) return 1;
+    if (check_str_attr(builtin_spec, "origin", "built-in")) return 1;
+    if (check_str_attr(builtin_spec, "parent", "")) return 1;
+    if (check_bool_attr(builtin_spec, "has_location", 0)) return 1;
+    if (check_bool_attr(builtin_spec, "_initializing", 0)) return 1;
+    if (check_repr_equals(builtin_mod, "<module 'itertools' (built-in)>")) return 1;
+    PyObject *builtin_loader = PyObject_GetAttrString(builtin_spec, "loader");
+    PROBE_CHECK(builtin_loader != NULL && PyType_Check(builtin_loader),
                 "BuiltinImporter __loader__ must be a type/class object");
-    PyObject *math_is_pkg = PyObject_CallMethod(math_loader, "is_package", "s", "math");
-    PROBE_CHECK(math_is_pkg == Py_False, "BuiltinImporter.is_package('math') != False");
-    Py_XDECREF(math_is_pkg);
-    Py_DECREF(math_loader);
-    Py_DECREF(math_spec);
-    Py_DECREF(math_mod);
+    PyObject *builtin_is_pkg = PyObject_CallMethod(builtin_loader, "is_package", "s", "itertools");
+    PROBE_CHECK(builtin_is_pkg == Py_False, "BuiltinImporter.is_package('itertools') != False");
+    Py_XDECREF(builtin_is_pkg);
+    Py_DECREF(builtin_loader);
+    Py_DECREF(builtin_spec);
+    Py_DECREF(builtin_mod);
 
     /* 2. 无 spec 普通模块 repr 契约 */
     PyObject *plain = PyImport_AddModule("plain_repr");
@@ -130,9 +130,9 @@ mode_ext_basic_spec(const char *ext_dir)
     PyErr_Clear();
     PROBE_CHECK(PyDict_GetItemString(modules, "ext_sp_basic") == Py_None, "None entry preserved");
 
-    PROBE_CHECK(PyDict_SetItemString(modules, "math", Py_None) == 0, "block math");
-    PROBE_CHECK(PyImport_ImportModule("math") == NULL && PyErr_ExceptionMatches(PyExc_ModuleNotFoundError),
-                "None in sys.modules must block builtin math too");
+    PROBE_CHECK(PyDict_SetItemString(modules, "itertools", Py_None) == 0, "block itertools");
+    PROBE_CHECK(PyImport_ImportModule("itertools") == NULL && PyErr_ExceptionMatches(PyExc_ModuleNotFoundError),
+                "None in sys.modules must block builtin itertools too");
     PyErr_Clear();
 
     /* 4. 单阶段 m_size=0 与 m_size>0 */

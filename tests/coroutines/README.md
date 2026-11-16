@@ -20,7 +20,7 @@ PYTHON=/绝对路径/CPython3.12.13/bin/python3.12 \
 call_preparation.py 验证方法绑定和混合位置组的星号实参在 await 前固定；
 唯一星号源后仅有关键字时，展开保留到关键字 await 恢复后，并核对源表达式、变异和迭代的副作用顺序。
 reject_await_kwargs.py 验证位置/关键字参数中包含 await 的双星号调用明确拒绝。
-候选只提供原生协程和 await 协议；事件循环、IO、取消和异步上下文管理进入后续竖切。
+候选的await/上下文/迭代协议逐切验收；事件循环、异步IO与调度器取消API留待后续竖切。
 
 
 ADR-0215 继续使用同一个 feature 门，新增 async_with_lifecycle/exceptions/protocol/
@@ -29,3 +29,12 @@ cleanup/traceback/traceback_protocol 六组手写输入。它们覆盖真实挂�
 AOT 门还搬迁 async_with_cleanup.py 与 async_with_traceback_protocol.py。
 原生 traceback 头只读，tb_next 可写并拒绝循环；frame/code 字段范围见
 [ADR-0215](../../docs/adr/0215-native-async-with-traceback.md)。
+
+ADR-0218新增async_for_protocol/control/exceptions/lifecycle/global_shadow/shared_awaitable
+六组手写输入，均以同次固定3.12.13生成预期；本机3.9.25、3.13.3的输出也一致。
+它们固定类型槽单次/逐轮查找、描述符失败文案、GET_ANEXT共享协程合同、窄耗尽区域、
+跨暂停控制流、闭包与throw/close清理。AOT门新增control/exceptions/lifecycle，
+同样真实删除input与整个build目录，再从中文空格搬迁目录运行。
+普通类的自定义__getattribute__、动态别名内建异常基类和异步生成器分别保留独立pending
+与拒绝门；受信宿主另测特殊槽绕过实例hook，不能借此放开普通类的深属性协议。
+范围见[ADR-0218](../../docs/adr/0218-native-async-for.md)。

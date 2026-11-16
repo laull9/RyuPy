@@ -285,7 +285,7 @@ def build_and_verify(args: argparse.Namespace) -> None:
 
         if args.with_stock_diff:
             run_stock_cpython_diff(
-                cc, workdir, src_parent, tarball, ext_dir, logs_dir, env, jobs
+                cc, workdir, tarball, ext_dir, logs_dir, env, jobs
             )
 
         print(f"[kernel] 全部构建、符号核验与 22 项 C 探针通过（前缀：{prefix_dir}）")
@@ -393,7 +393,7 @@ def run_c4_import_probes(
 
 
 def run_stock_cpython_diff(
-    cc: str, workdir: Path, src_parent: Path, tarball: Path,
+    cc: str, workdir: Path, tarball: Path,
     ext_dir: Path, logs_dir: Path, env: dict[str, str], jobs: str
 ) -> None:
     """使用同一官方源码包构建未修改 CPython 3.12.13，并运行同一套 stdio/C 扩展差分探针。"""
@@ -404,6 +404,11 @@ def run_stock_cpython_diff(
     stock_prefix = stock_root / "prefix"
     stock_src_parent.mkdir(parents=True, exist_ok=True)
     stock_build.mkdir(parents=True, exist_ok=True)
+    (stock_build / "Modules").mkdir(parents=True, exist_ok=True)
+    # 对照探针不依赖 OpenSSL，禁用 _ssl/_hashlib 避免宿主 OpenSSL 4 头文件破坏 3.12 stock 编译。
+    (stock_build / "Modules" / "Setup.local").write_text(
+        "*disabled*\n_ssl _hashlib\n", encoding="utf-8"
+    )
     run_logged(["tar", "-xf", str(tarball), "-C", str(stock_src_parent)],
                cwd=stock_root, env=env, log_file=logs_dir / "stock_extract.log", step="解压未修改对照源码")
     run_logged([str(stock_src / "configure"), f"--prefix={stock_prefix}", "--enable-shared",

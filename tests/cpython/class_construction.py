@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""C1 三版本真实类桥：同次 oracle、选中 shim、30项类协议与候选/默认两条方法路径。"""
+"""C1 三版本真实类桥与导入合同：同次 oracle、选中 shim、候选/默认方法路径。"""
 import argparse
 from pathlib import Path
 import shutil
@@ -8,7 +8,7 @@ import sys
 sys.dont_write_bytecode = True
 from support import ROOT, checked, environment, execute, external_workspace
 
-CASES = ('native_class_construction', 'native_class_construction_failure', 'native_class_metadata', 'native_class_prepare_metadata', 'native_class_construction_reentry')
+CASES = ('native_class_construction', 'native_class_construction_failure', 'native_class_metadata', 'native_class_prepare_metadata', 'native_class_construction_reentry', 'native_import_hooks')
 
 
 def main():

@@ -99,6 +99,18 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         RuntimeFn::CoroutineExitAwaitStart => ins.push(Instruction::call(
             ctx.runtime_refs.generators.coroutine_exit_await_start,
         )),
+        RuntimeFn::CoroutineNextAwaitStart => ins.push(Instruction::call(
+            ctx.runtime_refs.generators.coroutine_next_await_start,
+        )),
+        RuntimeFn::AsyncIterStart => ins.push(Instruction::call(
+            ctx.runtime_refs.generators.async_iter_start,
+        )),
+        RuntimeFn::AsyncIterNext => ins.push(Instruction::call(
+            ctx.runtime_refs.generators.async_iter_next,
+        )),
+        RuntimeFn::AsyncIterIsStop => ins.push(Instruction::call(
+            ctx.runtime_refs.generators.async_iter_is_stop,
+        )),
         RuntimeFn::HandlerEnterGuard => ins.push(Instruction::call(
             ctx.runtime_refs.native_traceback.enter_guard,
         )),
