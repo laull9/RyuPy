@@ -2,7 +2,7 @@
 name: Ordinary instance capture isolated validation
 on:
   push:
-    branches: [fix/instance-capture-20261116]
+    branches: [fix/captured-bound-prepared-20261116]
   workflow_dispatch:
 permissions:
   contents: read
