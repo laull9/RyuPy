@@ -84,7 +84,7 @@ jobs:
         run: |
           set -euo pipefail
           RYUPY_PIC=0 dotnet test runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj \
-            --filter "FullyQualifiedName~PyCapturedMethodPlanTests|FullyQualifiedName~PyCaptureLayoutMutationAuditTests" \
+            --filter "FullyQualifiedName~PyCapturedMethodPlanTests|FullyQualifiedName~PyCaptureLayoutMutationAuditTests|FullyQualifiedName~PyCaptureLayoutShadowTests" \
             --logger trx --results-directory "$EVIDENCE/plan-pic0" \
             > "$EVIDENCE/plan-pic0.log" 2>&1
       - name: Runtime 计划原型分解与受限优化性能分配
