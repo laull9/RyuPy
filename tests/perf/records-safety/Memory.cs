@@ -8,8 +8,8 @@ internal static class Program
     static void Increment(PyDict d, PyTuple key)
     {
         if (Enabled && PyRecordsIncrement.TryMaterialized(d, key)) return;
-        object? old = PyOps.CallMethod(d, "get", [key, PyInt.Box(0L)], [], []);
-        object value = PyOps.Binary(PyOps.Add, old!, PyInt.Box(1L));
+        object? old = PyOps.CallMethod(d, "get", [key, PyOps.BoxInt(0L)], [], []);
+        object value = PyOps.Binary(PyOps.Add, old!, PyOps.BoxInt(1L));
         PyOps.SetItem(d, key, value);
     }
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -20,7 +20,7 @@ internal static class Program
         {
             var d = new PyDict(); var first = new PyTuple(["ann", "buy"]);
             Increment(d, first); Increment(d, new PyTuple(["ann", "buy"]));
-            if (!ReferenceEquals(d.Keys.Single(), first) || !ReferenceEquals(d.Get(first), PyInt.Box(2L))) throw new Exception("identity");
+            if (!ReferenceEquals(d.Keys.Single(), first) || !ReferenceEquals(d.Get(first), PyOps.BoxInt(2L))) throw new Exception("identity");
             roots.Add(d);
         }
         return roots;

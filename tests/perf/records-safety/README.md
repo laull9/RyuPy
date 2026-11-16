@@ -32,3 +32,15 @@ Runtime released同样先构建第5组owner，再由NoInlining工厂仅返回弱
 这是定位后单列既有差异，不是修复或扩大兼容性声明。其余六场景的合同保持不变。
 内存门此前被跳过；后续只有真实完成后才能报告 PSS 和 Runtime 活堆，无阈值绿灯
 仍不代表没有内存退化，必须独立比较各尺寸/阶段的四轮数据。
+
+
+## 43822657192 内存宿主编译失败
+
+默认/feature 完整检查及七个源码场景的限定对照已执行成功；capture 仍明确为
+CP 不等价，原 records 的独立 JIT/AOT 诊断各记录 240000 fast、0 fallback。
+随后独立 NativeAOT 内存宿主因三处引用内部 PyInt.Box 而在编译期 CS0122 失败，
+产品 PSS 与 Runtime 活堆的 48 行测量均未执行，不能称内存验收通过。
+
+后续仅把测试宿主的三处调用改用已存在的公开 PyOps.BoxInt(long)；该接口直接
+转调同一个 PyInt.Box，保留缓存身份，不新增 friend access、不改变 Runtime/ABI。
+原失败与证据保留，重跑仍需完成全部阶段并人工比较两层内存数据。
