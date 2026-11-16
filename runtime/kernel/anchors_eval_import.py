@@ -308,8 +308,10 @@ def build_eval_import_anchors() -> list[AnchorEdit]:
                 "        atomic_fetch_add_explicit(&rp_kernel_eval_rejected[rp_phase], 1, memory_order_relaxed);\n"
                 "        tstate->c_recursion_remaining--;\n"
                 "        tstate->py_recursion_remaining--;\n"
+                "        PyObject *rp_prior_error = _PyErr_GetRaisedException(tstate);\n"
                 "        _PyErr_SetString(tstate, PyExc_RuntimeError,\n"
                 '                         "CPython default bytecode evaluator is disabled in strict RyuPy kernel mode");\n'
+                "        _PyErr_ChainExceptions1(rp_prior_error);\n"
                 "        goto exit_unwind;\n"
                 "    }\n"
                 '    if (_Py_EnterRecursiveCallTstate(tstate, "")) {\n'

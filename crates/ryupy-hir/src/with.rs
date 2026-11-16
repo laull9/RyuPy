@@ -50,7 +50,7 @@ impl StmtLowerCtx<'_> {
     /// `with` 会展开成多条语句 + 一个 `try`，而 [`Self::lower_stmt`] 的约定是返回
     /// 单条语句，因此用 `if True:` 把多条语句串在一起；条件恒真，MIR 会直接走 then 分支。
     pub(crate) fn lower_with(&mut self, with_stmt: &ast::StmtWith) -> Option<StmtId> {
-        if with_stmt.is_async {
+        if with_stmt.is_async && !cfg!(feature = "native-coroutines") {
             self.diagnostics.push(
                 Diagnostic::error(
                     Span::new(self.file, with_stmt.range),
@@ -65,7 +65,7 @@ impl StmtLowerCtx<'_> {
         }
 
         let body = self.lower_suite(&with_stmt.body);
-        let expanded = self.lower_with_items(&with_stmt.items, body);
+        let expanded = self.lower_with_items(&with_stmt.items, body, with_stmt.is_async);
         let cond = self.alloc_with_expr(ExprKind::Literal(Literal::Bool(true)), with_stmt.range);
         Some(self.body.stmts.alloc(Stmt {
             kind: StmtKind::If {
@@ -79,7 +79,7 @@ impl StmtLowerCtx<'_> {
     }
 
     /// 递归展开多个上下文项：第一个包住其余项，形成「先进入、后退出」的嵌套。
-    fn lower_with_items(&mut self, items: &[ast::WithItem], body: Vec<StmtId>) -> Vec<StmtId> {
+    fn lower_with_items(&mut self, items: &[ast::WithItem], body: Vec<StmtId>, is_async: bool) -> Vec<StmtId> {
         let Some(first) = items.first() else {
             return body;
         };
@@ -97,7 +97,7 @@ impl StmtLowerCtx<'_> {
         let enter_attr = self.alloc_with_expr(
             ExprKind::ContextMethod {
                 base: mgr_for_enter,
-                name: Name::from("__enter__"),
+                name: Name::from(if is_async { "__aenter__" } else { "__enter__" }),
             },
             range,
         );
@@ -107,7 +107,7 @@ impl StmtLowerCtx<'_> {
         let exit_attr = self.alloc_with_expr(
             ExprKind::ContextMethod {
                 base: mgr_for_exit,
-                name: Name::from("__exit__"),
+                name: Name::from(if is_async { "__aexit__" } else { "__exit__" }),
             },
             range,
         );
@@ -121,12 +121,8 @@ impl StmtLowerCtx<'_> {
             },
             range,
         );
+        let enter_call = self.with_await(enter_call, is_async, crate::AwaitContext::AsyncEnter, range);
         out.push(self.push_assign_local(value, enter_call, range));
-
-        // 2) `as x`：目标在进入成功后绑定。模块顶层的 x 是模块变量，函数内是局部变量。
-        if let Some(target) = &first.optional_vars {
-            self.lower_with_target(target, value, &mut out, range);
-        }
 
         // 3) `handled` 标记：区分「异常路径已经调用过 __exit__」与「正常退出」。
         let handled = self.alloc_with_temp("handled", range);
@@ -134,7 +130,12 @@ impl StmtLowerCtx<'_> {
         out.push(self.push_assign_local(handled, false_expr, range));
 
         // 4) 对应 body：剩余上下文项嵌套在 try 体里。
-        let inner = self.lower_with_items(&items[1..], body);
+        // 进入成功后，as 赋值也属于受保护体；失败必须调用已经绑定的 exit。
+        let mut inner = Vec::new();
+        if let Some(target) = &first.optional_vars {
+            self.lower_with_target(target, value, &mut inner, range);
+        }
+        inner.extend(self.lower_with_items(&items[1..], body, is_async));
 
         // 5) 异常分支：handled = True；if not exit(type(exc), exc, None): raise
         let exc = self.alloc_with_temp("exc", range);
@@ -144,7 +145,8 @@ impl StmtLowerCtx<'_> {
 
         let exc_type = self.call_builtin_type(exc, range);
         let exc_value = self.local_expr(exc, range);
-        let none_arg = self.none_expr(range);
+        let exc_for_tb = self.local_expr(exc, range);
+        let none_arg = self.alloc_with_expr(ExprKind::ExceptionTraceback(exc_for_tb), range);
         let exit_for_handler = self.local_expr(exit, range);
         let exit_call = self.alloc_with_expr(
             ExprKind::Call {
@@ -157,6 +159,7 @@ impl StmtLowerCtx<'_> {
             },
             range,
         );
+        let exit_call = self.with_await(exit_call, is_async, crate::AwaitContext::AsyncExit, range);
         let not_exit = self.alloc_with_expr(
             ExprKind::Unary {
                 op: UnaryOp::Not,
@@ -194,7 +197,7 @@ impl StmtLowerCtx<'_> {
         });
 
         // 6) finally：没有走过异常分支时调用 exit(None, None, None)。
-        let finalbody = vec![self.build_with_normal_exit(handled, exit, range)];
+        let finalbody = vec![self.build_with_normal_exit(handled, exit, range, is_async)];
 
         let try_stmt = self.body.stmts.alloc(Stmt {
             kind: StmtKind::Try {
@@ -216,6 +219,7 @@ impl StmtLowerCtx<'_> {
         handled: LocalId,
         exit: LocalId,
         range: ryupy_base::TextRange,
+        is_async: bool,
     ) -> StmtId {
         let handled_value = self.local_expr(handled, range);
         let not_handled = self.alloc_with_expr(
@@ -240,6 +244,7 @@ impl StmtLowerCtx<'_> {
             },
             range,
         );
+        let exit_call = self.with_await(exit_call, is_async, crate::AwaitContext::AsyncExit, range);
         let call_stmt = self.body.stmts.alloc(Stmt {
             kind: StmtKind::Expr(exit_call),
             range,
@@ -254,6 +259,13 @@ impl StmtLowerCtx<'_> {
             range,
             line: self.line_of(range.start().to_usize()),
         })
+    }
+
+    /// 同步清理保持普通调用；异步 enter/exit 保留专用 await 错误上下文。
+    fn with_await(&mut self, value: crate::hir::ExprId, is_async: bool,
+        context: crate::AwaitContext, range: ryupy_base::TextRange) -> crate::hir::ExprId {
+        if is_async { self.alloc_with_expr(ExprKind::Await { value, context }, range) }
+        else { value }
     }
 
     /// 把 `as` 目标绑定到 `__enter__` 的返回值。
@@ -314,6 +326,18 @@ impl StmtLowerCtx<'_> {
                         list.range,
                     ));
                 }
+            }
+            ast::Expr::Attribute(attribute) => {
+                let target = AssignTarget::Attribute { base: self.lower_expr(&attribute.value),
+                    name: Name::from(attribute.attr.as_str()) };
+                let value = self.local_expr(value, range);
+                out.push(self.push_assign_target(target, value, range));
+            }
+            ast::Expr::Subscript(subscript) => {
+                let target = AssignTarget::Subscript { base: self.lower_expr(&subscript.value),
+                    index: self.lower_subscript_index(&subscript.slice) };
+                let value = self.local_expr(value, range);
+                out.push(self.push_assign_target(target, value, range));
             }
             other => {
                 self.diagnostics.push(

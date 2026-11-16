@@ -71,12 +71,14 @@ impl FunctionBuilder<'_> {
                 },
             });
         }
+        self.receive_native_traceback(original);
         self.emit_frame_restore();
         let ambient = self.alloc_temp(MirType::Dynamic);
         self.push_stmt(Statement::Assign {
             dest: ambient,
             value: Rvalue::Call {
-                callee: Callee::Runtime(RuntimeFn::HandlerEnter),
+                callee: Callee::Runtime(if self.trace_product || cfg!(feature = "trace-adapter-test")
+                    { RuntimeFn::HandlerEnter } else { RuntimeFn::HandlerEnterGuard }),
                 args: vec![Operand::Local(original)],
             },
         });
@@ -143,6 +145,12 @@ impl FunctionBuilder<'_> {
                 None
             };
             self.emit_product_consume(park, RuntimeFn::TraceV1Match);
+            if !self.trace_product && !cfg!(feature = "trace-adapter-test") {
+                self.push_stmt(Statement::Eval(Rvalue::Call {
+                    callee: Callee::Runtime(RuntimeFn::TracebackHandled),
+                    args: vec![Operand::Local(original)],
+                }));
+            }
             if let Some(binding) = binding {
                 self.store_binding(binding, Operand::Local(original), &MirType::Dynamic);
                 // 若绑定本身失败，不清一个尚未成功绑定的名称。
@@ -202,6 +210,7 @@ impl FunctionBuilder<'_> {
                 },
             });
         }
+        self.receive_native_traceback(escaped);
         self.emit_frame_restore();
         self.set_flow(FLOW_EXCEPTION);
         self.regions.push(Region {

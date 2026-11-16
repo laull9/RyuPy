@@ -1,7 +1,7 @@
 # ADR-0209：基础 object 槽直接调用原生描述符
 
 - 日期：2026-11-16
-- 状态：定向类桥及 macOS arm64 JIT/NativeAOT 搬迁通过，集成完整回归待验
+- 状态：定向类桥、macOS arm64 JIT/NativeAOT 搬迁及完整 make check 通过
 - 接续：[ADR-0208](0208-cil-execution-libpython-kernel.md) 的 C1 首切
 
 ## 问题
@@ -31,6 +31,6 @@
 同次差分、JIT、NativeAOT，以及删除私有输入和构建目录后的中文空格路径搬迁。
 完整 `foreign_class_inheritance` 的 JIT 已通过，普通多重继承仍被既有 AOT 门拒绝。
 
-本切片移除四个 Python 转发函数。导入 finder/loader、类构建、方法 wrapper 与 super
-辅助函数仍在 C1 后续范围内；初始化 frozen 链与第三方 Python 执行继续由 C0/C4 处理。
+本切片移除四个 Python 转发函数。super 两个 helper 已由真实原生 super 接管；导入 finder/loader、类构建与默认方法 wrapper
+仍在 C1 后续范围内；初始化 frozen 链与第三方 Python 执行继续由 C0/C4 处理。
 执行审计需实际观察这些路径，严格产品准入同时检查生命周期覆盖和帧计数。

@@ -187,6 +187,12 @@ impl Plan {
             ],
             Terminator::Goto(dispatch),
         );
+        if !product {
+            body.blocks[handler].stmts.insert(1, Statement::Eval(Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::GeneratorTracebackReceive),
+                args: vec![Operand::Local(frame), Operand::Local(caught)],
+            }));
+        }
         body.regions.push(Region {
             source_handler_chain: None,
             kind: RegionKind::CatchAll,

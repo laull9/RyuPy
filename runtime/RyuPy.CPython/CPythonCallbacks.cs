@@ -45,6 +45,7 @@ public sealed partial class CPythonHost
             switch (op)
             {
                 case 1:
+                    host.PrepareConstructionCallback(target, a);
                     object?[] args = host.ReadTuple(a);
                     (string[] names, object?[] values) = host.ReadKeywords(b);
                     result = PyOps.CallValue(target, args, names, values); break;

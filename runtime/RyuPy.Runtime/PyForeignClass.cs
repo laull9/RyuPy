@@ -50,7 +50,7 @@ public sealed partial class PyClass
             EnsureSupportedSlot(ownInit, "__init__");
         }
 
-        object?[] bases = ResolveForeignCreationBases();
+        object?[] bases = ForeignCreationBases();
         var namespaceAttributes = new Dictionary<string, object?>(Attributes, StringComparer.Ordinal);
         if (ownNew is PyFunction newFunction)
         {
@@ -77,7 +77,7 @@ public sealed partial class PyClass
         Touch();
     }
 
-    private object?[] ResolveForeignCreationBases()
+    internal object?[] ForeignCreationBases()
     {
         if (ForeignMiBases is { } miBases)
         {

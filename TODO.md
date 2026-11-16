@@ -7,7 +7,8 @@
 方向见 [ADR-0208](docs/adr/0208-cil-execution-libpython-kernel.md)，
 任务、边界与准入见[全 CIL 路线](docs/cil-execution-roadmap.md)。
 实施分支为 `feat/adr0208-cil-execution`；主代理协调 Hydrogen、Flash 与三名 GPT-6.1 Sol。
-完成门按阶段独立验收，当前 C0 盘点、C1 基础槽候选及 C2/C3 首切并行开发。
+完成门按阶段独立验收，C0 已完成，C1 基础槽/super、C2 实时默认值及 C3 coroutine/await 首切已通过完整检查；
+完整阶段仍按下列剩余合同推进。
 
 - [x] 写入目标、分层、C0–C5 顺序、防回退与旧路径退出规则；同步主文档。
 - [x] **C0 首切：执行归属/启动链盘点与基线冻结**。登记源码/字节码入口、Python helper、

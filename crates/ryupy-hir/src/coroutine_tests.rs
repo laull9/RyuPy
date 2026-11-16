@@ -38,13 +38,12 @@ fn await_is_an_explicit_hir_node_and_async_generator_and_for_are_rejected() {
             .body
             .exprs
             .iter()
-            .any(|(_, expression)| matches!(expression.kind, ExprKind::Await(_)))
+            .any(|(_, expression)| matches!(expression.kind, ExprKind::Await { .. }))
     }));
     for source in [
         "async def f():\n    yield 1\n",
         "async def f():\n    async for value in []:\n        pass\n",
         "def f(value):\n    return await value\n",
-        "async def f(value):\n    async with value:\n        pass\n",
         "class C:\n    async def f(self):\n        return super()\n",
     ] {
         assert!(!lower(source).1.is_empty(), "{source}");

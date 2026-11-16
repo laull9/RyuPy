@@ -41,6 +41,7 @@ fn validate_stage(
     crate::validate_identities::validate(program, &mut errors);
     crate::function_definition::validate(program, &mut errors);
     crate::validate_dynamic_origin::validate(program, &mut errors);
+    crate::validate_generic_cores::validate(&program.functions, &program.globals, &mut errors);
     crate::validate_vectors::validate(program, &mut errors);
     crate::validate_module_pairs::validate(program, &mut errors);
     crate::validate_list_reads::validate(program, &mut errors);

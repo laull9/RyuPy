@@ -6,7 +6,7 @@ namespace RyuPy.CPython;
 
 public sealed partial class CPythonHost
 {
-    private nint _makeClassFn;
+    private bool classBridgeHelpersReady;
     private nint _wrapMethodFn;
     private nint _staticMethodFn;
     private nint _classMethodFn;
@@ -48,38 +48,7 @@ public sealed partial class CPythonHost
         IReadOnlyDictionary<string, object?> attributes
     ) => PythonCall(() =>
     {
-        EnsureClassBridgeHelpers();
-        nint namePtr = ToPython(name);
-        nint basesTuple = Check(Native.rp_op(14, n: bases.Length));
-        nint nsDict = 0;
-        try
-        {
-            for (int i = 0; i < bases.Length; i++)
-            {
-                nint basePtr = ResolveBasePointer(bases[i]);
-                try
-                {
-                    Native.rp_decref(Check(Native.rp_op(15, basesTuple, basePtr, n: i)));
-                }
-                finally
-                {
-                    Native.rp_decref(basePtr);
-                }
-            }
-            nsDict = Check(Native.rp_op(16));
-            PopulateClassDict(compiledClass, nsDict, attributes);
-            nint createdPtr = CallRawArgs(_makeClassFn, namePtr, basesTuple, nsDict);
-            var created = new PythonObject(this, createdPtr);
-            // 注册真实 PyTypeObject* 到编译类 PyClass 的映射，使实例化回流返回统一 PyInstance。
-            objects[createdPtr] = new WeakReference<object>(compiledClass);
-            return (IPyForeignObject)created;
-        }
-        finally
-        {
-            Native.rp_decref(namePtr);
-            Native.rp_decref(basesTuple);
-            if (nsDict != 0) Native.rp_decref(nsDict);
-        }
+        return FinishDerivedClass(compiledClass, bases, attributes);
     });
 
     /// <inheritdoc />
@@ -233,38 +202,9 @@ public sealed partial class CPythonHost
 
         // 纯 RyuPy 基类作为外部派生类的 MI mixin 时，为其在 CPython 生成真实镜像类型参与 MRO。
         EnsureClassBridgeHelpers();
-        object?[] rawBases = PyForeignClassBridge.GetDirectBases(cls);
-        nint namePtr = ToPython(cls.Name);
-        nint basesTuple = Check(Native.rp_op(14, n: rawBases.Length));
-        nint nsDict = 0;
-        try
-        {
-            for (int i = 0; i < rawBases.Length; i++)
-            {
-                nint basePtr = ResolveBasePointer(rawBases[i]);
-                try
-                {
-                    Native.rp_decref(Check(Native.rp_op(15, basesTuple, basePtr, n: i)));
-                }
-                finally
-                {
-                    Native.rp_decref(basePtr);
-                }
-            }
-            nsDict = Check(Native.rp_op(16));
-            PopulateClassDict(cls, nsDict, PyForeignClassBridge.GetClassAttributes(cls));
-            nint mirrorPtr = CallRawArgs(_makeClassFn, namePtr, basesTuple, nsDict);
-            var mirror = new PythonObject(this, mirrorPtr);
-            _mixinMirrors[cls] = mirror;
-            objects[mirrorPtr] = new WeakReference<object>(cls);
-            return Native.rp_incref(mirror.Pointer);
-        }
-        finally
-        {
-            Native.rp_decref(namePtr);
-            Native.rp_decref(basesTuple);
-            if (nsDict != 0) Native.rp_decref(nsDict);
-        }
+        var mirror = (PythonObject)FinishDerivedClass(cls, PyForeignClassBridge.GetDirectBases(cls), PyForeignClassBridge.GetClassAttributes(cls));
+        _mixinMirrors[cls] = mirror;
+        return Native.rp_incref(mirror.Pointer);
     }
 
     private void PopulateClassDict(PyClass ownerClass, nint nsDict, IReadOnlyDictionary<string, object?> attributes)
@@ -440,11 +380,10 @@ public sealed partial class CPythonHost
 
     private void EnsureClassBridgeHelpers()
     {
-        if (_makeClassFn != 0) return;
+        if (classBridgeHelpersReady) return;
         nint module = Check(Native.rp_op(1, s: "_ryupy_imports"));
         try
         {
-            _makeClassFn = Check(Native.rp_op(2, module, s: "_rp_make_class"));
             _wrapMethodFn = nativeMethodsEnabled ? 0 : Check(Native.rp_op(2, module, s: "_rp_wrap_method"));
             _staticMethodFn = Check(Native.rp_op(2, module, s: "_rp_staticmethod"));
             _classMethodFn = Check(Native.rp_op(2, module, s: "_rp_classmethod"));
@@ -461,6 +400,7 @@ public sealed partial class CPythonHost
             }
             finally { Native.rp_decref(objectType); }
             _superCreateFn = Check(Native.rp_super_type());
+            classBridgeHelpersReady = true;
         }
         finally
         {
@@ -478,7 +418,7 @@ public sealed partial class CPythonHost
                 ptr = 0;
             }
         }
-        ReleaseRef(ref _makeClassFn);
+        foreach (ClassDefinition definition in classDefinitions.Values.ToArray()) definition.Dispose();
         ReleaseRef(ref _wrapMethodFn);
         ReleaseRef(ref _staticMethodFn);
         ReleaseRef(ref _classMethodFn);
@@ -507,6 +447,8 @@ public sealed partial class CPythonHost
     /// <summary>在 CPython 侧触发 RyuPy 方法体时恢复 <see cref="PyMethodContext"/> 以支持零参 <c>super()</c>。</summary>
     private sealed class ForeignMethodTarget(PyClass owner, PyFunction function, bool bindContext) : IPyNativeCallable
     {
+        internal PyClass Owner => owner;
+        internal PyFunction Function => function;
         public object? Invoke(object?[] args, string[] names, object?[] values)
         {
             if (bindContext && args.Length > 0)

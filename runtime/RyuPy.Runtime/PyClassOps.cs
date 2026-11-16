@@ -19,6 +19,7 @@ public static partial class PyOps
         var cls = new PyClass(name);
         cls.PrepareMultipleBases(bases);
         PyClassNamespaceMetadata.Capture(cls);
+        PyForeignClassConstruction.Begin(cls);
         return cls;
     }
 
@@ -121,6 +122,7 @@ public static partial class PyOps
         if (cls.IsSubclassOfBuiltin("BaseException") && cls.ExceptionFactory is null)
             throw new PyTypeError("dynamic exception inheritance requires a compiled exception factory");
         if (captureAmbientMetadata) PyClassNamespaceMetadata.Capture(cls);
+        PyForeignClassConstruction.Begin(cls);
         return cls;
     }
 

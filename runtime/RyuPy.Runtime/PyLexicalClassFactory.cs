@@ -8,16 +8,35 @@ namespace RyuPy.Runtime;
 /// <summary>静态编译的词法类体使用的冷事务入口；成功终结后由编译代码填cell并发布。</summary>
 public static class PyLexicalClassFactory
 {
-    private sealed class Frame(string name, PyClass? parent, object? module, string qualname, object?[]? bases = null, IPyForeignObject? foreignBase = null)
+    private class Frame(string name, PyClass? parent, object? module, string qualname, object?[]? bases = null, IPyForeignObject? foreignBase = null, Dictionary<string, object?>? prepared = null)
     {
         internal readonly string Name = name;
         internal readonly PyClass? Parent = parent;
         internal readonly object?[]? Bases = bases;
         internal readonly IPyForeignObject? ForeignBase = foreignBase;
-        internal readonly Dictionary<string, object?> Namespace = new(StringComparer.Ordinal)
+        internal readonly Dictionary<string, object?> Namespace = prepared ?? new(StringComparer.Ordinal)
         { ["__module__"] = module ?? PyNone.Instance, ["__qualname__"] = qualname };
         // 0正文、1终结中、2完成、3失败；所有失败frame都不能重试成另一个类。
         internal byte Phase;
+    }
+
+    private sealed class ForeignFrame(string name, PyClass owner) : Frame(name, null, null, name, prepared: owner.Attributes)
+    {
+        internal readonly PyClass Owner = owner;
+    }
+
+    private static Frame CreateFrame(string name, PyClass? parent, object? module, string qualname, object?[]? bases = null, IPyForeignObject? foreignBase = null)
+    {
+        bool foreign = foreignBase is not null || parent?.HasForeignHierarchy == true
+            || bases is not null && Array.Exists(bases, static value => value is IPyForeignObject || value is PyClass { HasForeignHierarchy: true });
+        if (!foreign) return new Frame(name, parent, module, qualname, bases, foreignBase);
+        var owner = new PyClass(name) { BaseClass = parent, ForeignBase = foreignBase };
+        if (bases is not null) owner.PrepareMultipleBases(bases);
+        owner.Attributes["__module__"] = module ?? PyNone.Instance;
+        owner.Attributes["__qualname__"] = qualname;
+        var result = new ForeignFrame(name, owner);
+        PyForeignClassConstruction.Begin(owner);
+        return result;
     }
 
     /// <summary>验证真实base能力并冻结引用；此时只创建namespace，不创建或发布类。</summary>
@@ -50,12 +69,12 @@ public static class PyLexicalClassFactory
                     else if (dict) PyClass.ValidateDictC3Base(value);
                     else if (!ReferenceEquals(value, PyBaseObject.Type))
                         ValidateAncestors(value as PyClass ?? throw Unsupported("non-ordinary base"));
-                return new Frame(name, null, module, qualname, (object?[])bases.Clone());
+                return CreateFrame(name, null, module, qualname, (object?[])bases.Clone());
             }
             if (bases.Length == 1 && bases[0] is IPyForeignObject foreignBase)
             {
                 if (!PyForeignClassBridge.IsType(foreignBase)) throw Unsupported("non-ordinary base or metaclass protocol");
-                return new Frame(name, null, module, qualname, foreignBase: foreignBase);
+                return CreateFrame(name, null, module, qualname, foreignBase: foreignBase);
             }
             PyClass? parent = null;
             if (bases.Length == 1 && !ReferenceEquals(bases[0], PyBaseObject.Type))
@@ -64,21 +83,43 @@ public static class PyLexicalClassFactory
                 if (parent.HasMultipleInheritance) throw Unsupported("MI at lexical definition positions");
                 ValidateAncestors(parent);
             }
-            return new Frame(name, parent, module, qualname);
+            return CreateFrame(name, parent, module, qualname);
         }
         catch (PyBaseException error) { throw (PyBaseException)PyErrors.PrepareRaise(error); }
     }
 
     /// <summary>只判断本次定义的原始namespace，None仍是真实绑定。</summary>
-    public static bool NamespaceContains(object frame, string name) => Open(frame).Namespace.ContainsKey(name);
+    public static bool NamespaceContains(object frame, string name)
+    {
+        Frame current = Open(frame);
+        return current is ForeignFrame foreign && PyForeignClassConstruction.TryGet(foreign.Owner, out IPyForeignClassDefinition definition)
+            ? definition.Contains(name) : current.Namespace.ContainsKey(name);
+    }
 
     /// <summary>读取原始namespace，不走继承或描述符；缺名由编译代码选择回退或报错。</summary>
-    public static object? NamespaceGet(object frame, string name) =>
-        Open(frame).Namespace.TryGetValue(name, out object? value) ? value
-        : throw (PyBaseException)PyErrors.PrepareRaise(new PyNameError($"name '{name}' is not defined"));
+    public static object? NamespaceGet(object frame, string name)
+    {
+        Frame current = Open(frame);
+        if (current is ForeignFrame foreign && PyForeignClassConstruction.TryGet(foreign.Owner, out IPyForeignClassDefinition definition)) return definition.Get(name);
+        return current.Namespace.TryGetValue(name, out object? value) ? value
+            : throw (PyBaseException)PyErrors.PrepareRaise(new PyNameError($"name '{name}' is not defined"));
+    }
 
     /// <summary>正文写入只记录值，hook和descriptor能力在Finish统一检查。</summary>
-    public static void NamespaceSet(object frame, string name, object? value) => Open(frame).Namespace[name] = value;
+    public static void NamespaceSet(object frame, string name, object? value)
+    {
+        Frame current = Open(frame);
+        if (current is ForeignFrame foreign) foreign.Owner.SetAttr(name, value);
+        else current.Namespace[name] = value;
+    }
+
+    /// <summary>透明类体清理；失败 frame 不可重试，普通已完成类不改变状态。</summary>
+    public static void Abort(object frame)
+    {
+        if (frame is ForeignFrame foreign) { foreign.Phase = 3; PyForeignClassConstruction.Abort(foreign.Owner); }
+        else if (frame is Frame ordinary) ordinary.Phase = 3;
+        else if (frame is PyClass owner) PyForeignClassConstruction.Abort(owner);
+    }
 
     /// <summary>正文成功之后重查完整父链和最终namespace，然后创建真实普通类。</summary>
     public static object Finish(object frame)
@@ -88,7 +129,13 @@ public static class PyLexicalClassFactory
         try
         {
             PyClass result;
-            if (current.Bases is { } bases)
+            if (current is ForeignFrame foreign)
+            {
+                ValidateNamespace(current.Namespace);
+                result = foreign.Owner;
+                result.FinalizeOrdinaryConstruction();
+            }
+            else if (current.Bases is { } bases)
             {
                 result = (PyClass)PyOps.PrepareOrdinaryMiClass(current.Name, bases);
                 foreach (var pair in current.Namespace) result.Attributes[pair.Key] = pair.Value;
@@ -115,7 +162,7 @@ public static class PyLexicalClassFactory
         }
         catch (PyBaseException error)
         {
-            current.Phase = 3;
+            Abort(current);
             throw (PyBaseException)PyErrors.PrepareRaise(error);
         }
     }

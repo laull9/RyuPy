@@ -206,6 +206,7 @@ public static partial class PyOps
     public static object? ClassNamespaceGet(object cls, string name)
     {
         if (cls is not PyClass target) throw new PyTypeError("class namespace target must be a class");
+        if (PyForeignClassConstruction.TryGet(target, out IPyForeignClassDefinition definition)) return definition.Get(name);
         return target.Attributes.TryGetValue(name, out object? value) ? value
             : throw new PyNameError($"name '{name}' is not defined");
     }

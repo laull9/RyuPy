@@ -37,6 +37,7 @@ fn sample() -> (Function, LocalId, BlockId) {
         terminator: Terminator::Unreachable,
     });
     let mut f = Function {
+        core: Default::default(),
         is_comprehension: false,
         module_state: None,
         instance_capabilities: Default::default(),

@@ -134,6 +134,7 @@ static PyThreadState *initial_thread;
 static char init_error[4096];
 #include "execution_audit.h"
 #include "method_descriptor.h"
+#include "class_construction.h"
 
 /* 回调失败必须已设置Python异常，绝不能让托管异常穿过C栈。 */
 static PyObject *forward(Managed *self, int op, PyObject *a, PyObject *b, PyObject *c, int64_t n, const char *s) {

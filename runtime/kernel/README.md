@@ -87,3 +87,24 @@ python3 -B runtime/kernel/build_kernel.py --keep
 
 首轮实编发现并修复空 deepfreeze stub 缺少上游 `_Py_next_func_version` 状态，
 以及 C ModuleSpec 属性字典构造的格式串错误；修订后的完整源码重建与探针均已重跑。
+
+## 5. 无 importlib 拒绝边界与自定义求值器保护
+
+2026-11-16 通过直接链接原型的 C 探针复现：原版 `PyImport_GetMagicNumber`、
+`PyImport_ExecCodeModuleWithPathnames`、`PyImport_ExecCodeModuleObject` 在无 importlib 时
+会崩溃；新增 `anchors_guards.py` 在公开及内部消费者入口返回明确的
+`NotImplementedError`，且代码模块执行接口在发布 `sys.modules` 前拒绝。模块 repr
+同样返回明确能力错误，后续完整原生模块元数据切片再扩展。
+
+严格模式在 `_PyEval_EvalFrame` 分派优先进入默认拒绝门，即使已安装 PEP 523 自定义
+求值器也不能绕过。生成器 throw 进入拒绝门时，原注入异常保留为 RuntimeError 的
+`__context__`。未开启严格模式时保留原求值器分派。
+
+`probe/import_guard_probe.c` 六个独立进程验证公开导入负例、模块 repr、自定义求值器
+不被调用、真实生成器 throw 上下文与关闭阶段零入口；原四项探针继续通过。
+完整源码重建后的十项探针已在 macOS arm64 通过。内部 loader 三个非导出入口完成
+精确源码守卫，尚未单独通过真实原生消费者运行。Linux/Windows 本切仍待验。
+
+严格开关在嵌入宿主开始求值前设置；诊断关闭模式的计数是默认求值器入口次数，
+CPython 的内联子帧不会逐帧重入该入口。阶段切换和计数清零须在无活动求值的边界
+执行，不能用清零来替代完整生命周期覆盖。

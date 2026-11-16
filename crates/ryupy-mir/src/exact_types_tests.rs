@@ -50,6 +50,7 @@ pub(super) fn sample() -> (Program, [BlockId; 3], [LocalId; 3]) {
     };
     let mut functions = Arena::default();
     let func = functions.alloc(Function {
+        core: Default::default(),
         is_comprehension: false,
         module_state: None,
         instance_capabilities: Default::default(),

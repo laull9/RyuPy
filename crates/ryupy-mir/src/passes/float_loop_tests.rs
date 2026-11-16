@@ -75,6 +75,7 @@ pub(super) fn sample() -> (Function, [BlockId; 5], [LocalId; 6]) {
     blocks[exit].terminator = Terminator::Return(Some(Operand::Local(total)));
     (
         Function {
+            core: Default::default(),
             is_comprehension: false,
             module_state: None,
             instance_capabilities: Default::default(),

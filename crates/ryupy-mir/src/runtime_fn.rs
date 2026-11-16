@@ -169,6 +169,8 @@ pub enum RuntimeFn {
     CastToStr,
     /// `PyErrors.EnterHandler(object) -> object`：进入 except 体，返回上一层当前异常。
     HandlerEnter,
+    /// 内部finally/匹配ambient保持真实传播，不建立新的异常接收边界。
+    HandlerEnterGuard,
     /// `PyErrors.LeaveHandler(object)`：离开 except 体，恢复上一层当前异常。
     HandlerLeave,
     /// `PyErrors.MatchDynamicException(object, object) -> bool`：真实动态except目标校验与匹配。
@@ -177,6 +179,16 @@ pub enum RuntimeFn {
     Reraise,
     /// `PyErrors.PrepareRaise(object) -> object`：抛前准备（挂上下文 + 记栈帧）。
     RaisePrepare,
+    /// 源码显式raise开启新传播；真实接收与bare raise保持独立。
+    RaisePrepareExplicit,
+    /// 真实catch在弹帧前接收，深度是本激活的1基槽。
+    TracebackReceive,
+    /// 生成器物理catch按独立存储载体定位同一逻辑激活。
+    GeneratorTracebackReceive,
+    /// 合成上下文退出读取真实链头，跳过公开同名属性。
+    TracebackOf,
+    /// 动态except匹配后结束本次传播，不改变异常上下文token。
+    TracebackHandled,
     /// 产品 V1 的源/动态分派/接收 ABI；整产物准入之前不得发射。
     TraceV1Explicit,
     TraceV1Park,
@@ -313,11 +325,15 @@ pub enum RuntimeFn {
     CoroutineCreate,
     /// 通过类型级 __await__ 建立委托，不进行解释执行。
     CoroutineAwaitStart,
+    CoroutineEnterAwaitStart,
+    CoroutineExitAwaitStart,
     GeneratorDelegateStep,
     GeneratorDelegateCurrent,
     GeneratorDelegateResult,
     /// `PyOps.CallValue(object, object[], object[], object[]) -> object`：调用一等函数对象。
     CallValue,
+    /// 通用伴生体显式冷调用；真实函数弱键分派，不改普通CallValue热路。
+    CallValueGeneric,
     // ── 闭包 cell（M3.0）──
     /// `PyOps.CellNew() -> object`：创建 `object[1]`，槽位放「未赋值」哨兵。
     CellNew,
@@ -343,6 +359,8 @@ pub enum RuntimeFn {
     /// 新词法类事务的固定ABI；Prepare只建namespace，Finish才得到类。
     LexicalClassPrepare,
     LexicalClassFinish,
+    /// 类体或终结失败后清理外部构造事务；固定(object)->void，幂等且保留原异常。
+    ClassDefinitionAbort,
     LexicalNamespaceContains,
     LexicalNamespaceGet,
     LexicalNamespaceSet,

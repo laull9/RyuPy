@@ -81,6 +81,38 @@ class TransformTests(unittest.TestCase):
             with self.assertRaises(AnchorTransformError):
                 apply_anchors(root, anchors=[version_anchor], headers=[])
 
+    def test_custom_eval_guard_preserves_atomic_precheck(self):
+        # 此门必须覆盖 eval_frame 已安装后的分派；删掉目标条件应在任何落盘前失败。
+        from anchors_guards import build_guard_anchors
+        edit = next(item for item in build_guard_anchors() if item.name == "guard_custom_eval")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / edit.rel_path
+            target.parent.mkdir(parents=True)
+            target.write_text(edit.old, encoding="utf-8")
+            apply_anchors(root, anchors=[edit], headers=[])
+            self.assertIn("rp_kernel_get_strict_reject() ||", target.read_text())
+            with self.assertRaises(AnchorTransformError):
+                apply_anchors(root, anchors=[edit], headers=[])
+            self.assertEqual(target.read_text(), edit.new)
+
+    def test_stdio_codecs_anchors_and_header_present(self):
+        from anchors_stdio_codecs import (
+            RYUPY_UTF8_CODEC_HEADER,
+            RYUPY_UTF8_INCREMENTAL_HEADER,
+            build_stdio_codecs_anchors,
+        )
+        from transform import default_headers
+
+        anchors = build_anchors()
+        stdio_names = {a.name for a in build_stdio_codecs_anchors()}
+        self.assertTrue(stdio_names.issubset({a.name for a in anchors}))
+        header_paths = {h.rel_path for h in default_headers()}
+        self.assertIn("Python/ryupy_utf8_codec.h", header_paths)
+        self.assertIn("Python/ryupy_utf8_incremental.h", header_paths)
+        self.assertIn("rp_kernel_register_utf8_codec", RYUPY_UTF8_CODEC_HEADER.content)
+        self.assertIn("RpUtf8IncDecoder", RYUPY_UTF8_INCREMENTAL_HEADER.content)
+
     def test_ensure_outside_repo_rejects_repo_paths(self):
         with self.assertRaises(KernelBuildError):
             ensure_outside_repo(KERNEL_DIR)

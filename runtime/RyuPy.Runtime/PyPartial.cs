@@ -52,7 +52,10 @@ public sealed class PyPartial : PyNativeObject, IPyNativeCallable
         _attributes.Delete(name);
     }
     /// <inheritdoc/>
-    public object? Invoke(object?[] args, string[] names, object?[] values)
+    public object? Invoke(object?[] args, string[] names, object?[] values) => InvokeCore(args, names, values, false);
+    /// <summary>伴生体调用保留通用值域；仅显式冷分派使用。</summary>
+    internal object? InvokeGeneric(object?[] args, string[] names, object?[] values) => InvokeCore(args, names, values, true);
+    private object? InvokeCore(object?[] args, string[] names, object?[] values, bool generic)
     {
         var combined = new object?[_args.Length + args.Length];
         Array.Copy(_args.Items, combined, _args.Length); Array.Copy(args, 0, combined, _args.Length, args.Length);
@@ -64,6 +67,8 @@ public sealed class PyPartial : PyNativeObject, IPyNativeCallable
             if (key is not string text) throw new PyTypeError("keywords must be strings");
             mergedNames.Add(text); mergedValues.Add(value);
         }
-        return PyOps.CallValue(_function, combined, mergedNames.ToArray(), mergedValues.ToArray());
+        return generic
+            ? PyOps.InvokeGenericFunction(_function, combined, mergedNames.ToArray(), mergedValues.ToArray())
+            : PyOps.CallValue(_function, combined, mergedNames.ToArray(), mergedValues.ToArray());
     }
 }

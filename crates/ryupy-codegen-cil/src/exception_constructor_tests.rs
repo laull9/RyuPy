@@ -13,6 +13,7 @@ fn serialized_warning_constructor_defers_message_policy_to_runtime() {
     });
     let mut functions = Arena::default();
     let init = functions.alloc(Function {
+        core: Default::default(),
         is_comprehension: false,
         name: "__main__".into(),
         codegen_name: "__main__".into(),

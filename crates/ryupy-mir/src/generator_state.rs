@@ -195,6 +195,7 @@ pub(crate) fn lower(program: &mut Program, id: FnId) -> bool {
     let parameters = f.params.clone();
     let origin = f.dynamic_origin.map(|o| Operand::Local(o.owner));
     let resume_function = Function {
+        core: Default::default(),
         is_comprehension: false,
         module_state: None,
         module_state_source: None,
@@ -305,9 +306,21 @@ pub(crate) fn build_program(
     Vec<crate::ModuleExport>,
     Vec<ryupy_base::Diagnostic>,
 ) {
+    build_program_with_generic(hir, types, false)
+}
+
+pub(crate) fn build_program_with_generic(
+    hir: &ryupy_hir::Module,
+    types: &ryupy_ty::ModuleTypes,
+    generic: bool,
+) -> (
+    Program,
+    Vec<crate::ModuleExport>,
+    Vec<ryupy_base::Diagnostic>,
+) {
     let mut deferred = crate::generator_product::DeferredGenerators::default();
     let (mut program, exports, diagnostics) =
-        crate::build::build_program_mode(hir, types, None, Some(&mut deferred), false);
+        crate::build::build_program_cores(hir, types, None, Some(&mut deferred), false, generic);
     #[cfg(feature = "generator-sum-experiment")]
     let prepared = crate::generator_sum_emit::prepare(&program, &deferred);
     let fallback: Vec<_> = deferred

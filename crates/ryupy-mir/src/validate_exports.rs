@@ -4,6 +4,7 @@ use crate::{ExportGuard, LinkedProgram, MirType};
 /// 验证导出槽与绑定守卫。错误由 driver 在阶段边界报告，不留给后端索引 panic。
 pub fn validate_linked_exports(program: &LinkedProgram) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
+    crate::validate_generic_cores::validate(&program.functions, &program.globals, &mut errors);
     crate::source_provenance::validate_linked(program, &mut errors);
     crate::source_handler_contract::validate_functions(&program.functions, &mut errors);
     crate::direct_globals_contract::validate_functions(&program.functions, &mut errors);

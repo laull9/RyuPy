@@ -12,6 +12,7 @@ fn sample_function() -> Function {
         terminator: Terminator::Return(None),
     });
     Function {
+        core: Default::default(),
         is_comprehension: false,
         module_state: None,
         instance_capabilities: Default::default(),

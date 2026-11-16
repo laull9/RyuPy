@@ -380,7 +380,11 @@ fn build_resolution_core(
         let method_idx = res.push_method(
             module_class,
             Method::new(
-                Accessibility::Public,
+                if matches!(func.core, ryupy_mir::FunctionCore::GenericCompanion { .. }) {
+                    Accessibility::Private
+                } else {
+                    Accessibility::Public
+                },
                 sig,
                 Cow::Owned(func.codegen_name.clone()),
                 None,
@@ -404,24 +408,14 @@ fn build_resolution_core(
     // 每个用户函数生成统一签名的 thunk，供 PyFunction 的委托调用。
     // 顶层函数与嵌套函数（M3.0）都有签名槽位；模块初始化函数跳过
     //（它们由导入机制通过委托调用）。
-    let mut thunks: FxHashMap<FnId, MethodIndex> = FxHashMap::default();
-    let mut thunk_index = 0usize;
-    for (fn_id, func) in program.functions.iter() {
-        if func.signature_global.is_none() {
-            continue;
-        }
-        let thunk = crate::callables::emit_thunk(
-            &mut res,
-            module_class,
-            func,
-            fn_indices[&fn_id],
-            &runtime_refs,
-            &class_types,
-            thunk_index,
-        );
-        thunks.insert(fn_id, thunk);
-        thunk_index += 1;
-    }
+    let thunks = crate::generic_callables::emit_all_thunks(
+        &mut res,
+        module_class,
+        program,
+        &fn_indices,
+        &runtime_refs,
+        &class_types,
+    );
 
     // 先定义访问器，再冷建source，最后关联signature；这些步骤不执行getter或模块正文。
     let accessors = crate::modules::emit_module_accessors(

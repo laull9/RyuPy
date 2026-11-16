@@ -73,7 +73,7 @@ public static partial class PyObject
             "__cause__" => (object?)exception.Cause ?? PyNone.Instance,
             "__context__" => (object?)exception.Context ?? PyNone.Instance,
             "__class__" => (object?)exception.PythonClass ?? PyType.Get(exception.PyTypeName),
-            "__traceback__" => PyNone.Instance,
+            "__traceback__" => PyErrors.ExceptionTraceback(exception),
             _ when exception is PySyntaxError syntax => syntax.Field(name),
             _ when exception is PyGetoptError getopt => getopt.Field(name),
             _ when exception is PyOptParseError error => error.Field(name),

@@ -28,6 +28,7 @@ fn sample(steps: usize) -> (Function, LocalId) {
         terminator: Terminator::Unreachable,
     });
     let mut f = Function {
+        core: Default::default(),
         is_comprehension: false,
         module_state: None,
         instance_capabilities: Default::default(),

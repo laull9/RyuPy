@@ -135,7 +135,8 @@ pub(super) fn evaluate(
                 }
                 Values::single(Value::None, &mut engine.budget)?
             }
-            RuntimeFn::RaisePrepare => {
+            RuntimeFn::GeneratorTracebackReceive => Values::single(Value::None, &mut engine.budget)?,
+            RuntimeFn::RaisePrepare | RuntimeFn::RaisePrepareExplicit => {
                 let mut result = Vec::new();
                 if let Some(values) = values.first() {
                     for value in values {

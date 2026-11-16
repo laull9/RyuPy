@@ -30,6 +30,9 @@ public interface IPyForeignClassBridge
         IReadOnlyDictionary<string, object?> attributes
     );
 
+    /// <summary>类体前选择元类并建立外部命名空间；旧 provider 可保留原终结合同。</summary>
+    IPyForeignClassDefinition? PrepareDerivedClass(PyClass owner, object?[] bases) => null;
+
     /// <summary>同步写入或替换已导出外部类的单个属性。</summary>
     void SetClassAttribute(IPyForeignObject foreignClass, PyClass ownerClass, string name, object? value);
 
@@ -101,6 +104,12 @@ public static class PyForeignClassBridge
 
     /// <summary>读取跨域派生类对应的外部真实类型对象；普通原生类返回 <c>null</c>。</summary>
     public static IPyForeignObject? GetForeignClass(PyClass cls) => cls.ForeignClass;
+
+    /// <summary>构造回调的临时类型身份；外部 owner 只在成功终结后正式发布。</summary>
+    public static void SetConstructingClass(PyClass owner, IPyForeignObject? value) => owner.ForeignClass = value;
+
+    /// <summary>provider 完成或撤回构造时撤销 Runtime 的冷事务登记。</summary>
+    public static void ForgetClassDefinition(PyClass owner) => PyForeignClassConstruction.Forget(owner);
 
     /// <summary>读取或首次建立 super 的真实外部代理；普通本地布局返回 null。</summary>
     public static IPyForeignObject? GetForeignSuper(PySuper value) => value.ExportForeign();

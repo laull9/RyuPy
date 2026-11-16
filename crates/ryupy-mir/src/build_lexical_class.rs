@@ -103,6 +103,7 @@ impl FunctionBuilder<'_> {
         });
         let original = self.alloc_temp(MirType::Dynamic);
         let cell = self.begin_class_cell(id, original);
+        let cleanup = self.hir.info.foreign_class_construction.then(|| self.begin_class_cleanup());
         if let Some(cell) = cell {
             self.lexical_cell_stack.push((id, Operand::Local(cell)));
         }
@@ -154,5 +155,6 @@ impl FunctionBuilder<'_> {
             plan.published_class = *published;
         }
         self.publish_lexical_class(target, value, namespace, cell);
+        if let Some(cleanup) = cleanup { self.end_class_cleanup(cleanup, Operand::Local(namespace)); }
     }
 }

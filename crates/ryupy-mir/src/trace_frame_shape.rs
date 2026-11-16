@@ -183,10 +183,19 @@ pub(super) fn check(
                 }
                 obligations += 1;
             } else if args.iter().any(|arg| contains(arg, frame)) {
-                if !matches!(value, Rvalue::Call {
+                let input = matches!(value, Rvalue::Call {
                     callee: Callee::Runtime(RuntimeFn::GeneratorInput), args
-                } if args.len() == 1 && matches!(args[0], Operand::Local(id) if id == frame))
-                {
+                } if args.len() == 1 && matches!(args[0], Operand::Local(id) if id == frame));
+                // 冷traceback接收不保留/不写frame；只认真实catch紧邻读取的同一异常。
+                let receive = matches!(value, Rvalue::Call {
+                    callee: Callee::Runtime(RuntimeFn::GeneratorTracebackReceive), args
+                } if position == 1 && args.len() == 2
+                    && matches!(args[0], Operand::Local(id) if id == frame)
+                    && matches!((&block.stmts[0], &args[1]),
+                        (Statement::Assign { dest, value: Rvalue::CatchException }, Operand::Local(error))
+                            if dest == error)
+                    && body.regions.iter().any(|region| region.handler == block_id));
+                if !input && !receive {
                     return Err("frame 逃逸、别名或未登记 helper".into());
                 }
                 obligations += 1;

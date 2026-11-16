@@ -14,7 +14,7 @@ namespace RyuPy.Runtime;
 /// <see cref="Exception.Message"/> 只放 Python 消息本身，不拼类型前缀——
 /// <c>TypeError: message</c> 的渲染属于 traceback 的职责。
 /// </remarks>
-public class PyBaseException : Exception
+public partial class PyBaseException : Exception
 {
     // 只有 V1 成功源操作绑定；构造异常本身不建立传播，也不授 NativeFresh 权限。
     internal TraceProductBinding? TraceProductBinding;

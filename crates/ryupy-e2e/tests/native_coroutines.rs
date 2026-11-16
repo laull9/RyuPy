@@ -197,3 +197,15 @@ fn coroutine_await_kwargs_is_explicitly_rejected() {
         2
     );
 }
+
+#[test]
+fn async_with_lifecycle_matches_cpython() { differential("async_with_lifecycle.py"); }
+#[test]
+fn async_with_exceptions_match_cpython() { differential("async_with_exceptions.py"); }
+#[test]
+fn async_with_traceback_matches_cpython() { differential("async_with_traceback.py"); }
+
+#[test]
+fn async_with_traceback_protocol_matches_cpython() { differential("async_with_traceback_protocol.py"); }
+#[test]
+fn async_with_protocol_matches_cpython() { differential("async_with_protocol.py"); }

@@ -103,6 +103,7 @@ public static partial class PyTraceback
         AdapterPush(_depth);
 #endif
         ProductPush(_depth);
+        NativePush(_depth);
         _functions[_depth] = function;
         _files[_depth] = file;
         _lines[_depth] = 0;
@@ -140,6 +141,7 @@ public static partial class PyTraceback
         if (_depth > 0 && _lines[_depth - 1] != line)
         {
             _lines[_depth - 1] = line;
+            NativeLine(_depth - 1, line);
         }
     }
 
@@ -152,6 +154,7 @@ public static partial class PyTraceback
 #if TRACE_ADAPTER_TEST
             Array.Clear(_adapterActivations, (int)depth - 1, _depth - (int)depth + 1);
 #endif
+            NativePop((int)depth - 1, _depth - (int)depth + 1);
             Array.Clear(_origins, (int)depth - 1, _depth - (int)depth + 1);
             _depth = (int)depth - 1;
         }
@@ -361,6 +364,7 @@ public static partial class PyTraceback
 #if TRACE_ADAPTER_TEST
         Array.Clear(_adapterActivations, 0, _depth);
 #endif
+        NativePop(0, _depth);
         Array.Clear(_origins, 0, _depth);
         _depth = 0;
     }

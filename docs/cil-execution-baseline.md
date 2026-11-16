@@ -4,7 +4,7 @@
 - 日期：2026-11-16
 - 决策基准：[ADR-0208](adr/0208-cil-execution-libpython-kernel.md)
 - 执行路线：[全 CIL 执行与 libpython 底层化实施路线](cil-execution-roadmap.md)
-- 状态：**C0 兼容/性能/NativeAOT 回归合同基线已冻结；后续 C1–C5 实施全部待办**
+- 状态：**C0 兼容/性能/NativeAOT 回归合同基线已冻结；C1–C3 首轮切片已实施，完整阶段门继续待办**
 - 规范说明：本文档记录当前冻结基准、现有驱动入口与历史已验收证据。严格区分「当前实测探测」与「历史已验收结论」，不将历史记录冒充当前实测。
 
 ---
@@ -125,7 +125,7 @@
 ### 4.2 通用真实项目（两套典型应用，2026-11-16 记录）
 - **驱动位置**：[tests/general_projects/run.py](../tests/general_projects/run.py)、[tests/general_projects/oracle.py](../tests/general_projects/oracle.py)
 - **项目 A：FastAPI 异步 RESTful 服务 (`python-samples-fastapi-restful`)**：
-  - 运行依赖：CPython 3.13.3，固定依赖见 [tests/general_projects/requirements.txt](../tests/general_projects/requirements.txt)（包含 FastAPI 0.115.6、SQLAlchemy 2.0.36、aiosqlite 0.20.0、aiocache 0.12.3、greenlet 3.5.6 等）。
+  - 运行依赖：CPython 3.13.3，固定依赖见 [tests/general_projects/requirements.txt](../tests/general_projects/requirements.txt)（包含 FastAPI 0.158.1、SQLAlchemy 2.0.52、aiosqlite 0.22.1、aiocache 0.12.3、greenlet 3.5.6 等）。
   - 当前交付形式：显式入口委派 `--cpython-entry`，本地模块委派 `--cpython-module databases --cpython-module routes` 等，动态依赖声明 `--cpython-dynamic-module aiosqlite --cpython-dynamic-module httpx --cpython-dynamic-module greenlet`。
   - 验收范围：ASGI TestClient 请求、OpenAPI、Pydantic 校验、Depends 注入、异步上下文、SQLite CRUD、缓存。
   - 历史状态：macOS arm64 下 JIT、standalone NativeAOT、onefile NativeAOT 搬迁执行记录通过。
@@ -162,8 +162,8 @@
     - [ADR-0203 / aot-comprehension-region-optimization](aot-comprehension-region-optimization.md)（Commit `5b4eb87c`：推导式标量区、enumerate 解包与预留容量，comprehensions 单项耗时由 96.89ms 降至 71.26ms，减少 26.46%）；
     - 列表容器优化系列提交：`2128d6bc`（尾部浮点插入保留背板）、`86c8b97b`（单索引删除保留紧凑背板）、`3f8edd8c`（数值 pop 仅物化被移除槽）。
 - **当前 Commit `5d36db1e` 性能边界确认**：
-  - **当前提交尚未重新执行同提交全量 26 项 NativeAOT 测量**；
-  - 现有分散记录仅反映各切片局部的微基准演化，当前整体基线性能状态定为**待测（Pending同提交复测）**；
+  - 已从 `5d36db1e` 经 `git archive` 提取源码、独立构建冻结 CLI，并完成全量 26 项 NativeAOT 测量；
+  - 原始提交基线与首轮候选 26/26 功能核验均通过；首轮 calls 的 Binder 成本和 attrs 的 super 分配回退已触发修复，最新候选的 26 项六次平衡配对已完成，墙钟几何平均 +0.55%，全部单项与剩余性能核查见[首轮集成验收](cil-execution-first-slices-validation.md)；
   - 后续阶段若需衡量全 CIL 改造带来的性能损耗或收益，必须在清洁独占环境重新运行全量 26 项基准作为对齐输入，保留所有不利样本。
 
 ---
@@ -180,7 +180,7 @@
 
 ### 5.2 主代理当前测试状态说明
 - 主代理在通用项目验收中记录了当时完整 `make check` 通过（3349 项 C# 测试通过、3 项既有跳过；编译 e2e 482 项通过、291 项 ignored；cases-selftest 769 项通过）。
-- 当前工作树存在并行的开发改动（包括类桥与执行审计接口调整等未提交修改）；**最终集成完成后重新全量运行 `make check` 验收**。
+- 本轮冻结源码的最终 `make check` 已再次通过：3368 项 C# 测试通过、3 项既有跳过；487 项编译 e2e 通过、292 项既有 ignored；fmt、clippy、Python 合同、C# 与 Rust 测试通过。后续切片独立重跑。
 
 ---
 

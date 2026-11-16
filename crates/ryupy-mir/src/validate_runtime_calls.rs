@@ -20,7 +20,16 @@ pub(super) fn fixed_abi(callee: RuntimeFn) -> bool {
     }
     matches!(
         callee,
-        RuntimeFn::CoroutineCreate
+        RuntimeFn::CallValueGeneric
+            | RuntimeFn::RaisePrepareExplicit
+            | RuntimeFn::TracebackReceive
+            | RuntimeFn::GeneratorTracebackReceive
+            | RuntimeFn::HandlerEnterGuard
+            | RuntimeFn::TracebackHandled
+            | RuntimeFn::TracebackOf
+            | RuntimeFn::CoroutineEnterAwaitStart
+            | RuntimeFn::CoroutineExitAwaitStart
+            | RuntimeFn::CoroutineCreate
             | RuntimeFn::CoroutineAwaitStart
             | RuntimeFn::MakeComprehensionList
             | RuntimeFn::IsEnumerateIterator
@@ -108,6 +117,7 @@ pub(super) fn validate_call(
             ));
         }
         let expected: Option<&[MirType]> = match runtime {
+            RuntimeFn::CallValueGeneric => Some(&[MirType::Dynamic, MirType::Dynamic, MirType::Dynamic, MirType::Dynamic]),
             #[cfg(feature = "trace-adapter-test")]
             RuntimeFn::TraceAdapterExplicit => Some(&[MirType::Dynamic]),
             #[cfg(feature = "trace-adapter-test")]
@@ -172,7 +182,15 @@ pub(super) fn validate_call(
                 MirType::Dynamic,
                 MirType::Dynamic,
             ]),
-            RuntimeFn::CoroutineCreate
+            RuntimeFn::TracebackReceive => Some(&[MirType::Dynamic, MirType::I64]),
+            RuntimeFn::GeneratorTracebackReceive => Some(&[MirType::Dynamic, MirType::Dynamic]),
+            RuntimeFn::HandlerEnterGuard
+            | RuntimeFn::TracebackHandled
+            | RuntimeFn::RaisePrepareExplicit
+            | RuntimeFn::TracebackOf
+            | RuntimeFn::CoroutineEnterAwaitStart
+            | RuntimeFn::CoroutineExitAwaitStart
+            | RuntimeFn::CoroutineCreate
             | RuntimeFn::CoroutineAwaitStart
             | RuntimeFn::MakeComprehensionList
             | RuntimeFn::IsEnumerateIterator
@@ -370,13 +388,22 @@ pub(super) fn validate_destination(
                 func.name
             ));
         }
+        if matches!(runtime, RuntimeFn::TracebackReceive | RuntimeFn::GeneratorTracebackReceive | RuntimeFn::TracebackHandled) {
+            errors.push(format!("函数 `{}` 的traceback接收ABI返回void", func.name));
+            return;
+        }
         let expected = match runtime {
             #[cfg(feature = "trace-adapter-test")]
             RuntimeFn::TraceAdapterExplicit => Some(MirType::Dynamic),
             RuntimeFn::IsEnumerateIterator
             | RuntimeFn::GeneratorSumTryConsume
             | RuntimeFn::GeneratorSumRangeGuard => Some(MirType::Bool),
-            RuntimeFn::CoroutineCreate
+            RuntimeFn::CallValueGeneric
+            | RuntimeFn::RaisePrepareExplicit
+            | RuntimeFn::TracebackOf
+            | RuntimeFn::CoroutineEnterAwaitStart
+            | RuntimeFn::CoroutineExitAwaitStart
+            | RuntimeFn::CoroutineCreate
             | RuntimeFn::CoroutineAwaitStart
             | RuntimeFn::MakeComprehensionList
             | RuntimeFn::EnumerateCurrentIndex

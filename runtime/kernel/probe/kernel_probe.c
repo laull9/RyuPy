@@ -2,7 +2,8 @@
  *
  * 验证目标：
  * 1. strict-clean：_install_importlib=0 + strict_reject=1 下启动、导入与运算真实内建 math、
- *    显式拒绝未支持消费者（非内建模块、冻结模块、相对导入、reload、缺失 sys.stdout）并关闭，
+ *    验证默认纯 C 标准流 print 零字节码工作，显式拒绝未支持消费者（非内建模块、冻结模块、
+ *    相对导入、reload、删除 sys.stdout 后的 print）并关闭，
  *    全三阶段（startup/runtime/shutdown）默认求值器入口/执行/拒绝计数均为 0。
  * 2. strict-reject：开启 strict_reject=1 后尝试调用 PyEval_EvalCode 必须被硬拒绝并抛出
  *    RuntimeError，对应阶段 entry=1, rejected=1, executed=0。
@@ -230,12 +231,26 @@ run_strict_clean(const char *home)
           "reload must fail with NotImplementedError");
     PyErr_Clear();
 
+    /* 新合同：_install_importlib=0 已接入 _io + 纯 C UTF-8 标准流，builtins.print 可零字节码工作；
+     * 仅当显式删除 sys.stdout 时才应抛出 RuntimeError("lost sys.stdout")。 */
     PyObject *builtins_mod = PyImport_ImportModule("builtins");
     CHECK(builtins_mod != NULL, "builtins import failed");
-    PyObject *bad_print = PyObject_CallMethod(builtins_mod, "print", "s", "should-reject-no-stdout");
+    PyObject *ok_print = PyObject_CallMethod(builtins_mod, "print", "s", "ryupy-kernel-stdout-ok");
+    CHECK(ok_print == Py_None, "print with C stdio must succeed and return None");
+    Py_DECREF(ok_print);
+
+    PyObject *sys_mod = PyImport_ImportModule("sys");
+    CHECK(sys_mod != NULL, "sys import failed");
+    PyObject *saved_stdout = PyObject_GetAttrString(sys_mod, "stdout");
+    CHECK(saved_stdout != NULL && saved_stdout != Py_None, "sys.stdout must be initialized");
+    CHECK(PyObject_DelAttrString(sys_mod, "stdout") == 0, "del sys.stdout failed");
+    PyObject *bad_print = PyObject_CallMethod(builtins_mod, "print", "s", "should-reject-lost-stdout");
     CHECK(bad_print == NULL && PyErr_ExceptionMatches(PyExc_RuntimeError),
-          "print without sys.stdout must fail with RuntimeError");
+          "print after deleting sys.stdout must fail with RuntimeError");
     PyErr_Clear();
+    CHECK(PyObject_SetAttrString(sys_mod, "stdout", saved_stdout) == 0, "restore sys.stdout failed");
+    Py_DECREF(saved_stdout);
+    Py_DECREF(sys_mod);
     Py_DECREF(builtins_mod);
 
     Py_DECREF(math_lvl);

@@ -58,7 +58,12 @@ public static partial class PyErrors
     /// <summary>进入 except 体；内部传 None 时只取得 finally 清理所需的上下文快照。</summary>
     /// <param name="exception">捕获到的异常；null 或 PyNone 表示只读取 token，不修改状态。</param>
     /// <returns>进入之前的异常上下文 token，退出时传回 <see cref="LeaveHandler"/>。</returns>
-    public static object? EnterHandler(object? exception)
+    public static object? EnterHandler(object? exception) => EnterHandlerCore(exception, true);
+
+    /// <summary>内部finally/匹配ambient保存相同异常token，但保留正在传播的traceback。</summary>
+    public static object? EnterHandlerGuard(object? exception) => EnterHandlerCore(exception, false);
+
+    private static object? EnterHandlerCore(object? exception, bool matched)
     {
         if (exception is null or PyNone) return _current;
         if (exception is not PyBaseException caught)
@@ -66,6 +71,7 @@ public static partial class PyErrors
             throw new PyTypeError("exceptions must derive from BaseException");
         }
         PyExceptionContext? previous = _current;
+        if (matched) caught.NativeTraceback?.EnterHandler();
         _current = new PyExceptionContext(caught, previous);
         return previous;
     }
@@ -75,8 +81,12 @@ public static partial class PyErrors
     public static void LeaveHandler(object? previous) => _current = previous as PyExceptionContext;
 
     /// <summary>裸 <c>raise</c>：重抛当前异常；没有则抛 <c>RuntimeError</c>。</summary>
-    public static object Reraise() =>
-        Current ?? throw new PyRuntimeError("No active exception to reraise");
+    public static object Reraise()
+    {
+        var error = Current ?? throw new PyRuntimeError("No active exception to reraise");
+        error.NativeTraceback?.Reraise();
+        return error;
+    }
 
     /// <summary>
     /// 抛出前的准备：记录 traceback 栈帧、挂上隐式上下文，返回同一个异常对象。

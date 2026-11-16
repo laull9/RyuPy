@@ -150,6 +150,7 @@ pub(super) fn compile_linked_traced(
                 &plan,
                 trace,
                 trace_request,
+                sources.len() > 1,
             )?)
         } else {
             let compile = |sess: &mut Session| {
@@ -160,6 +161,7 @@ pub(super) fn compile_linked_traced(
                     &plan,
                     trace,
                     trace_request,
+                    sources.len() > 1,
                 )
             };
             if automatic && selected.contains(&index) {

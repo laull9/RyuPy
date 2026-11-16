@@ -10,6 +10,7 @@ fn program(statement: Statement) -> Program {
     });
     let mut functions = Arena::default();
     let entry = functions.alloc(Function {
+        core: Default::default(),
         is_comprehension: false,
         module_state: None,
         instance_capabilities: Default::default(),

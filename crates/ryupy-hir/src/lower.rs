@@ -479,7 +479,7 @@ pub fn lower_module_with_native_exceptions(
     for (_, function) in module.functions.iter() {
         if !function.is_coroutine {
             for (_, expression) in function.body.exprs.iter() {
-                if matches!(expression.kind, crate::ExprKind::Await(_)) {
+                if matches!(expression.kind, crate::ExprKind::Await { .. }) {
                     diagnostics.push(
                         Diagnostic::error(
                             Span::new(parsed.file, expression.range),

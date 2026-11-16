@@ -46,7 +46,7 @@ impl<'a> ExprLowerCtx<'a> {
         let range = expr.range();
         let kind = match expr {
             ast::Expr::Await(value) if cfg!(feature = "native-coroutines") => {
-                ExprKind::Await(self.lower_expr(&value.value))
+                ExprKind::Await { value: self.lower_expr(&value.value), context: crate::AwaitContext::Expression }
             }
             ast::Expr::Yield(value) => {
                 if self.allow_yield {

@@ -16,6 +16,8 @@ mod assembly_refs;
 #[cfg(test)]
 mod assembly_refs_tests;
 mod callables;
+mod generic_callables;
+mod make_function;
 mod emission_report;
 mod entry;
 pub use emission_report::{
@@ -242,3 +244,5 @@ mod generator_state_emit;
 
 #[cfg(test)]
 mod records_guard_tests;
+
+mod native_traceback_refs;

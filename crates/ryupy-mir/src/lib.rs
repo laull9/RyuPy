@@ -12,7 +12,13 @@ pub mod build;
 mod build_assign;
 mod build_class;
 mod build_context;
+mod core_types;
+mod validate_generic_cores;
+mod generic_cores;
+#[cfg(test)]
+mod generic_core_tests;
 mod class_cells;
+mod class_cleanup;
 pub use class_cells::{ClassCellCapture, ClassCellDefinition, ClassCellEnvSource};
 mod lexical_super;
 #[cfg(test)]
@@ -86,6 +92,7 @@ mod module_location;
 pub mod native_abi;
 mod operations;
 mod trace_product_abi;
+mod traceback_protocol;
 mod validate_lexical_super;
 mod validate_regions;
 pub use module_execution::{

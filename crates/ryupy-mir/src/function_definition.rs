@@ -17,7 +17,9 @@ pub(crate) fn validate(program: &crate::Program, errors: &mut Vec<String>) {
             errors.push(format!("函数 `{}` 的定义签名被重复使用", function.name));
         }
         if let Some(definition) = &function.definition {
-            if function.signature_global.is_none() {
+            if function.signature_global.is_none()
+                && !matches!(function.core, crate::FunctionCore::GenericCompanion { .. })
+            {
                 errors.push(format!("函数 `{}` 的定义来源缺少共享签名", function.name));
             }
             if definition.firstlineno == 0 {

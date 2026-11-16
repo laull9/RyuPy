@@ -13,6 +13,8 @@ mod annotation_format;
 mod annotation_stmts;
 mod assign_target;
 mod aug_assign;
+mod await_context;
+pub use await_context::AwaitContext;
 mod chain_assign;
 pub mod class;
 mod class_bases;

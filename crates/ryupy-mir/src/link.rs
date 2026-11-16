@@ -83,6 +83,7 @@ pub(crate) fn link_with_origins(
         let mut fn_map: FxHashMap<FnId, FnId> = FxHashMap::default();
         for (old, func) in program.functions.iter() {
             let new_id = functions.alloc(Function {
+                core: Default::default(),
                 is_comprehension: func.is_comprehension,
                 module_state: func.module_state,
                 instance_capabilities: func.instance_capabilities,
@@ -174,6 +175,19 @@ pub(crate) fn link_with_origins(
         // 3. 函数体：改写操作数、调用目标与类型。
         for (old, func) in program.functions.iter() {
             let new_id = fn_map[&old];
+            functions[new_id].core = match func.core {
+                crate::FunctionCore::Ordinary => crate::FunctionCore::Ordinary,
+                crate::FunctionCore::TypedWithGeneric { generic } => {
+                    crate::FunctionCore::TypedWithGeneric {
+                        generic: fn_map[&generic],
+                    }
+                }
+                crate::FunctionCore::GenericCompanion { canonical } => {
+                    crate::FunctionCore::GenericCompanion {
+                        canonical: fn_map[&canonical],
+                    }
+                }
+            };
             let mut locals: Arena<LocalDecl> = Arena::default();
             for (_, decl) in func.body.locals.iter() {
                 locals.alloc(LocalDecl {

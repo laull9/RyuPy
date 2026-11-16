@@ -196,13 +196,14 @@ impl FunctionBuilder<'_> {
             #[cfg(feature = "trace-adapter-test")]
             self.emit_adapter_receive(guard_exc.expect("已检查"), true);
             self.emit_product_receive(guard_exc.expect("已检查"), true);
+            self.receive_native_traceback(guard_exc.expect("已检查"));
             self.emit_frame_restore();
             // 登记当前异常：`finally` 里再抛出的异常要把这条挂成 __context__
             let prev_current = saved_context.expect("finally上下文已保存");
             self.push_stmt(Statement::Assign {
                 dest: prev_current,
                 value: Rvalue::Call {
-                    callee: Callee::Runtime(RuntimeFn::HandlerEnter),
+                    callee: Callee::Runtime(if self.trace_product || cfg!(feature = "trace-adapter-test") { RuntimeFn::HandlerEnter } else { RuntimeFn::HandlerEnterGuard }),
                     args: vec![Operand::Local(guard_exc.expect("已检查"))],
                 },
             });
@@ -377,6 +378,7 @@ impl FunctionBuilder<'_> {
             #[cfg(feature = "trace-adapter-test")]
             self.emit_adapter_receive(exc, false);
             self.emit_product_receive(exc, false);
+            self.receive_native_traceback(exc);
             self.emit_frame_restore();
 
             // 1) 登记当前异常（裸 raise 与 __context__ 依赖它）

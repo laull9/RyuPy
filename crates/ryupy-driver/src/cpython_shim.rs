@@ -49,6 +49,10 @@ pub(super) fn build(
                 include_str!("../../../runtime/RyuPy.CPython/native/method_descriptor.h"),
             ),
             (
+                "class_construction.h",
+                include_str!("../../../runtime/RyuPy.CPython/native/class_construction.h"),
+            ),
+            (
                 "build.sh",
                 include_str!("../../../runtime/RyuPy.CPython/native/build.sh"),
             ),

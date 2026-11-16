@@ -2,12 +2,12 @@
 
 - 日期：2026-11-16
 - 决策：[ADR-0208](adr/0208-cil-execution-libpython-kernel.md)
-- 状态：C0 盘点与动态审计、C1 胶水替换、C2 默认值反射及 C3 协程首切实施中；阶段完成门待验
+- 状态：C0 完成；C1 胶水替换、C2 默认值反射及 C3 协程首切已验，后续阶段合同实施中
 - 本次授权：在独立分支完整开发，主代理协调 Hydrogen、Flash 与三名 GPT-6.1 Sol，按独立竖切集成
 
 实施证据：[执行链与内核选型](cil-execution-inventory.md)、
 [项目与性能回归合同](cil-execution-baseline.md)、
-[严格生命周期门](../tests/cil_execution/README.md)。
+[严格生命周期门](../tests/cil_execution/README.md)、[首轮集成验收](cil-execution-first-slices-validation.md)。
 当前帧审计显式候选仅支持固定 3.12.13 私有 ABI，默认兼容产品继续维持 CPython 3.9–3.15；
 严格内核原型与审计工具的版本范围分别登记，不能改变产品最低版本或替代已有多版本验收。
 

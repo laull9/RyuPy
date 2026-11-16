@@ -8,6 +8,8 @@ pub(crate) struct FunctionRefs {
     pub definition_with_source: MethodRefIndex,
     pub module: MethodRefIndex,
     pub defaults_unobserved: MethodRefIndex,
+    pub generic_register: MethodRefIndex,
+    pub generic_call: MethodRefIndex,
     pub class_namespace_get: MethodRefIndex,
     pub declare_dataclass: MethodRefIndex,
     pub finalize_ordinary_class: MethodRefIndex,
@@ -17,7 +19,11 @@ impl FunctionRefs {
     pub(crate) fn build(res: &mut Resolution<'static>, runtime: AssemblyRefIndex) -> Self {
         let ops = res.push_type_reference(type_ref! { RyuPy.Runtime.PyOps in #runtime });
         let ops: MethodType = BaseType::class(ops).into();
+        let call_ref = res.push_type_reference(type_ref! { RyuPy.Runtime.PyCall in #runtime });
+        let call: MethodType = BaseType::class(call_ref).into();
         Self {
+            generic_register: res.push_method_reference(method_ref! { static void @ops::RegisterGenericFunction(object, @call) }),
+            generic_call: res.push_method_reference(method_ref! { static object @ops::CallValueGeneric(object, object[], object[], object[]) }),
             finalize_ordinary_class: res.push_method_reference(method_ref! { static void @ops::FinalizeOrdinaryClass(object) }),
             class_namespace_get: res.push_method_reference(method_ref! { static object @ops::ClassNamespaceGet(object, string) }),
             declare_dataclass: res.push_method_reference(method_ref! { static void @ops::DeclareDataclass(object, object[], bool) }),

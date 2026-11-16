@@ -229,14 +229,14 @@
 1. **已落地工作树候选（[ADR-0209](adr/0209-base-object-native-descriptors.md) — `object` 四项基础槽）**：
    - **改动**：从 [CPythonImports.cs](../runtime/RyuPy.CPython/CPythonImports.cs) 移除 `_rp_object_new`、`_rp_object_init`、`_rp_object_setattr`、`_rp_object_delattr`；在 [CPythonClassBridge.cs](../runtime/RyuPy.CPython/CPythonClassBridge.cs#L519-L529) 直接获取 `object` 原生描述符并缓存。
    - **实测证据 `[动态证据]`**：主代理验证 4 个转发函数帧计数为 **0**，[BaseObjectDescriptors_PreserveAllocationIdentityAttributesAndErrors](../runtime/RyuPy.CPython.Tests/CPythonClassBridgeTests.cs#L146-L168) 定向通过。
-   - **尚未闭环**：集成 `make check` 已通过；固定 CPython 同次差分与单继承 JIT/NativeAOT 删除输入搬迁已通过。
+   - **验收**：集成 `make check` 已通过；固定 CPython 同次差分与单继承 JIT/NativeAOT 删除输入搬迁已通过。
 
 2. **C1-S1：super helper 已移除**
    - 缓存真实 `super` builtin，复用现有静态调用及属性 C API，未新增构造用原生 ABI。
    - Runtime 以中性 `PySuper` 统一本地/跨域、未绑定及外部反向返回对象的身份。
    - 真实外部 C3 承担 Mixin 顺序、属性遮蔽和晚改同步，普通 MI AOT 保护门保留。
    - 单继承 `native_super` 已过 CPython/JIT/NativeAOT/删除输入搬迁；`native_super_mro`
-     仅按 JIT 专项验证。默认及原生方法候选的真实 C# 类桥各 10 项通过。
+     仅按 JIT 专项验证。默认及原生方法候选的真实 C# 类桥各 14 项通过。
 
 3. **C1-S2：静态方法描述符候选**
    - `RYUPY_CPYTHON_NATIVE_METHODS=1` 用 `PyType_Spec` 描述符替换 `_rp_wrap_method`。
@@ -253,11 +253,13 @@
 
 ### 10.1 C0 收口记录
 
-- 完整 `make check` 已通过：3365 项 C#、486 项编译 e2e；固定二十项目为
+- 完整 `make check` 已通过：3368 项 C#、487 项编译 e2e；固定二十项目为
   13 native / 6 unsupported / 1 failed，既有 11 项保护全部保留。
 - 比较基准 `5d36db1e` 经 `git archive` 提取到仓库外并独立构建冻结 CLI，26 项
   NativeAOT、同次固定 CPython 与全部样本已采集。首轮候选也完成 26 项，发现
-  缺省调用新增 Binder 成本，正在 C2 切片恢复守卫快路，记录于 ADR-0212。
+  缺省调用新增 Binder 成本；C2 已增加守卫快路，普通 super 已恢复两引用布局，
+  最新候选的完整六次平衡配对已完成，26 项功能/搬迁通过；完整结果和未决单项见
+  [首轮集成验收](cil-execution-first-slices-validation.md)，记录于 ADR-0212 / ADR-0211。
 - FastAPI 的真实 CPython 3.13.3 wheel 静态 ABI 扫描已补齐，见 §7；两个真实项目
   的 JIT/standalone/onefile 删除输入搬迁在本轮候选通过，SanBudget 保留原业务 CIL 路径。
 - `runtime/kernel` 已按 §8 路线源码重建并通过四项探针；现成 provider 的帧审计继续

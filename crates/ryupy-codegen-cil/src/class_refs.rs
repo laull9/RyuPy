@@ -5,6 +5,7 @@ pub(crate) struct ClassRefs {
     pub prepare_runtime_derived: MethodRefIndex,
     pub lexical_prepare: MethodRefIndex,
     pub lexical_finish: MethodRefIndex,
+    pub definition_abort: MethodRefIndex,
     pub lexical_contains: MethodRefIndex,
     pub lexical_get: MethodRefIndex,
     pub lexical_set: MethodRefIndex,
@@ -32,6 +33,8 @@ impl ClassRefs {
             ),
             lexical_finish: res
                 .push_method_reference(method_ref! { static object @factory::Finish(object) }),
+            definition_abort: res
+                .push_method_reference(method_ref! { static void @factory::Abort(object) }),
             lexical_contains: res.push_method_reference(
                 method_ref! { static bool @factory::NamespaceContains(object, string) },
             ),
