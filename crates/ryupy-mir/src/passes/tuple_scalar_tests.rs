@@ -54,6 +54,7 @@ fn sample(index: i64) -> (Function, [LocalId; 6]) {
     });
     (
         Function {
+            core: Default::default(),
             is_comprehension: false,
             module_state: None,
             instance_capabilities: Default::default(),

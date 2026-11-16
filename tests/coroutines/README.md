@@ -21,3 +21,11 @@ call_preparation.py 验证方法绑定和混合位置组的星号实参在 await
 唯一星号源后仅有关键字时，展开保留到关键字 await 恢复后，并核对源表达式、变异和迭代的副作用顺序。
 reject_await_kwargs.py 验证位置/关键字参数中包含 await 的双星号调用明确拒绝。
 候选只提供原生协程和 await 协议；事件循环、IO、取消和异步上下文管理进入后续竖切。
+
+
+ADR-0215 继续使用同一个 feature 门，新增 async_with_lifecycle/exceptions/protocol/
+cleanup/traceback/traceback_protocol 六组手写输入。它们覆盖真实挂起、清理抑制、
+目标绑定失败、取消注入及真实 traceback 身份；三版本 oracle 输出一致。
+AOT 门还搬迁 async_with_cleanup.py 与 async_with_traceback_protocol.py。
+原生 traceback 头只读，tb_next 可写并拒绝循环；frame/code 字段范围见
+[ADR-0215](../../docs/adr/0215-native-async-with-traceback.md)。

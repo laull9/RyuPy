@@ -19,6 +19,7 @@ pub(super) fn local(locals: &mut Arena<LocalDecl>, ty: MirType) -> LocalId {
 
 pub(super) fn function(name: &str, body: Body, params: Vec<LocalId>, ret: MirType) -> Function {
     Function {
+        core: Default::default(),
         is_comprehension: false,
         name: name.into(),
         codegen_name: name.into(),

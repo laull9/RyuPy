@@ -23,6 +23,8 @@ public sealed partial class PyGenerator : IPyIterator
     // 保存真实源函数，不快照module值；结束时清除，暂停时仍需保留身份。
     private object? _origin;
     private object? _current;
+    internal PyNativeFrame? NativeFrame;
+    internal bool OwnsStorage(object frame) => ReferenceEquals(frame, (object?)_state ?? _frame);
     private bool _running;
     private bool _started;
     // 协程包装仅改变自身 PEP 479 的语言名称，子委托错误保持原来源。
@@ -86,6 +88,20 @@ public sealed partial class PyGenerator : IPyIterator
         {
             depth = _origin is null ? PyTraceback.PushFrame(_source, _name)
                 : PyTraceback.PushFrameWithOrigin(_source, _name, _origin);
+            PyTraceback.BindGeneratorFrame(depth, this);
+            if (!_started && injected is not null)
+            {
+                try
+                {
+                    long line = _origin switch {
+                        PyFunction function => function.DefinitionFirstLine,
+                        PySignature signature => PyFunctionDefinition.GetFirstLine(signature),
+                        _ => 0,
+                    };
+                    if (line > 0 && line <= int.MaxValue) PyTraceback.SetLine((int)line);
+                }
+                catch (PyNotImplementedError) { /* 未登记的宿主来源不猜测Python定义行。 */ }
+            }
             if (PyTraceProduct.Enabled) PyTraceProduct.EnterGenerator(depth);
             object frame = (object?)_state ?? _frame!;
             if (ReadState(frame) == -1) { Finish(); return false; }
@@ -132,11 +148,13 @@ public sealed partial class PyGenerator : IPyIterator
             var error = new PyRuntimeError(IsCoroutine ? "coroutine raised StopIteration" : "generator raised StopIteration").WithCause(stop);
             error.Context = stop;
             PyTraceback.Attach(error);
+            if (depth != 0 && !PyTraceProduct.Enabled) PyTraceback.ReceiveException(error, depth);
             Finish();
             throw error;
         }
         catch (PyBaseException error)
         {
+            if (depth != 0 && !PyTraceProduct.Enabled) PyTraceback.ReceiveException(error, depth);
             // 未进入逻辑handler的运行时错误也要保留当下上下文，之后才恢复caller。
             if (PyTraceProduct.Enabled)
             {
@@ -188,6 +206,7 @@ public sealed partial class PyGenerator : IPyIterator
     {
         if (_running) throw new PyValueError("generator already executing");
         PyBaseException error = NormalizeThrown(exception);
+        error.NativeTraceback?.Restart();
         if (_frame is null && _state is null) throw PyErrors.Prepare(error);
         if (MoveNextCore(PyNone.Instance, out object? value, error)) return Current();
         throw new PyStopIteration(value);
@@ -282,6 +301,7 @@ public sealed partial class PyGenerator : IPyIterator
         _resume = null;
         _resumeSum = null;
         _origin = null;
+        NativeFrame = null;
         _current = null;
         _context = _contextRoot;
     }

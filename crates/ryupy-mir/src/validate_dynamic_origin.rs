@@ -40,7 +40,8 @@ pub(crate) fn validate(program: &Program, errors: &mut Vec<String>) {
                     + usize::from(function.env.is_some())
                     + usize::from(function.module_state.is_some())
                     + 1
-            || function.signature_global.is_none()
+            || (function.signature_global.is_none()
+                && !matches!(function.core, FunctionCore::GenericCompanion { .. }))
         {
             errors.push(format!(
                 "函数 `{}` 的Dynamic owner必须是Python参数/env之后的独立Dynamic尾参数",

@@ -4,7 +4,7 @@
 旧文档的生成 golden、快照和原始结果保留约定由此替换。
 
 最新长期方向：[ADR-0208：全 CIL 执行与 libpython 底层化](0208-cil-execution-libpython-kernel.md)
-（方向已接受，C0–C5 实施与验收待启动）；详细执行顺序见[实施路线](../cil-execution-roadmap.md)。
+（C0 已完成，C1–C4 分切实施与验收中）；详细执行顺序见[实施路线](../cil-execution-roadmap.md)。
 
 每篇 ADR 记录一个**有取舍的决定**：当时的背景、考虑过的方案、最终选择及其代价。
 ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把旧的状态改为「已被 ADR-XXXX 取代」。
@@ -67,8 +67,12 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 
 | ADR | 主题 | 状态 |
 | --- | --- | --- |
-| [0208](0208-cil-execution-libpython-kernel.md) | 全 CIL 执行、移除 Python 胶水与 libpython 底层化 | 方向已接受，C0–C5 实施待启动 |
+| [0208](0208-cil-execution-libpython-kernel.md) | 全 CIL 执行、移除 Python 胶水与 libpython 底层化 | C0 已完成，C1–C4 分切实施中 |
 | [0181](0181-cpython-provider-first.md) | 随包 CPython provider、通用对象桥与实测热点优化 | 既有宿主/分发资产保留；长期执行归属由 0208 接续 |
+| [0213](0213-native-two-phase-class-construction.md) | 两阶段原生外部类构造 | 三版本类桥与macOS产品通过，集成待验 |
+| [0214](0214-generic-default-function-companions.md) | typed 函数缺省实参的通用伴生核心 | 定向语义/产品通过，集成待验 |
+| [0215](0215-native-async-with-traceback.md) | 原生async with与真实traceback冷视图 | 显式协程候选、清理回归及第二轮完整检查通过 |
+| [0216](0216-strict-kernel-native-stdio.md) | 严格内核原生 _io 与 UTF-8 codec | macOS arm64 原型与十五模式探针通过 |
 
 ## 模板
 

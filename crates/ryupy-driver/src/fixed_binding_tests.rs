@@ -55,6 +55,7 @@ fn declare(program: &mut ryupy_mir::LinkedProgram, name: &str) -> FixedI32Bindin
         terminator: Terminator::Return(None),
     });
     let initializer = program.functions.alloc(Function {
+        core: Default::default(),
         is_comprehension: false,
         module_state: None,
         instance_capabilities: Default::default(),

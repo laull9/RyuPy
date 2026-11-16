@@ -5,9 +5,17 @@ namespace RyuPy.CPython;
 
 internal static unsafe class Native
 {
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_class_prepare(nint name, nint bases);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_class_lookup(nint session, [MarshalAs(UnmanagedType.LPUTF8Str)] string name, out nint value);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_class_set(nint session, [MarshalAs(UnmanagedType.LPUTF8Str)] string name, nint value);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_class_delete(nint session, [MarshalAs(UnmanagedType.LPUTF8Str)] string name);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_class_finish(nint session);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_class_receiver(nint session, nint receiver, [MarshalAs(UnmanagedType.LPUTF8Str)] string name, nint expected, nint declaring, int kind);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_callable_reference(nint callable);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_super_kind(nint value);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_super_type();
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_native_method(nint target, nint name, nint qualname);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_native_static_method(nint target, nint name, nint qualname);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_execution_audit_start();
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern void rp_execution_audit_phase(int phase);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern long rp_execution_audit_count(int phase);
@@ -52,6 +60,8 @@ internal static unsafe class Native
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern void rp_decref(nint value);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_incref(nint value);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_managed(nint identity);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_managed_descriptor(nint identity);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_is_managed_descriptor(nint value);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_identity(nint value);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_none();
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_is_none(nint value);

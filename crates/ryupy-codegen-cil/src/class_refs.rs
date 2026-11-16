@@ -3,8 +3,10 @@ use dotnetdll::prelude::*;
 pub(crate) struct ClassRefs {
     pub prepare_ordinary_mi: MethodRefIndex,
     pub prepare_runtime_derived: MethodRefIndex,
+    pub foreign_prepare: MethodRefIndex,
     pub lexical_prepare: MethodRefIndex,
     pub lexical_finish: MethodRefIndex,
+    pub definition_abort: MethodRefIndex,
     pub lexical_contains: MethodRefIndex,
     pub lexical_get: MethodRefIndex,
     pub lexical_set: MethodRefIndex,
@@ -27,11 +29,16 @@ impl ClassRefs {
             prepare_runtime_derived: res.push_method_reference(
                 method_ref! { static object @ops::PrepareRuntimeDerivedClass(string, object[]) },
             ),
+            foreign_prepare: res.push_method_reference(
+                method_ref! { static object @factory::Begin(string, string, object[]) },
+            ),
             lexical_prepare: res.push_method_reference(
                 method_ref! { static object @factory::Prepare(string, string, object, object[]) },
             ),
             lexical_finish: res
                 .push_method_reference(method_ref! { static object @factory::Finish(object) }),
+            definition_abort: res
+                .push_method_reference(method_ref! { static void @factory::Abort(object) }),
             lexical_contains: res.push_method_reference(
                 method_ref! { static bool @factory::NamespaceContains(object, string) },
             ),

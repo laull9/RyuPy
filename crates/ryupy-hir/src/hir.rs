@@ -38,6 +38,8 @@ impl std::fmt::Display for Name {
 /// 模块的身份信息，全部由 driver 提供（HIR 不读文件）。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ModuleInfo {
+    /// driver 冻结的外部类构造能力；只有该域需要类体失败时的原生命名空间清理。
+    pub foreign_class_construction: bool,
     /// 模块真实名字绑定到每个模块对象独立的运行时命名空间。
     pub instance_globals: bool,
     pub instance_capabilities: ryupy_base::InstanceCapabilities,
@@ -261,7 +263,12 @@ pub enum ExprKind {
     Yield(Option<ExprId>),
     YieldFrom(ExprId),
     /// await 明确保留，不能按普通调用或 yield-from 源码语义处理。
-    Await(ExprId),
+    Await {
+        value: ExprId,
+        context: crate::AwaitContext,
+    },
+    /// 合成上下文退出参数读取真实异常传播链，跳过用户属性覆盖。
+    ExceptionTraceback(ExprId),
     /// 错误恢复占位：对应的错误已经报过，下游静默跳过。
     Missing,
     /// 降级期临时名称，模块完成前必须统一登记并替换为 ModuleVar。

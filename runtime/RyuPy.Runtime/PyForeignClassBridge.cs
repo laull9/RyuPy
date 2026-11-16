@@ -30,6 +30,9 @@ public interface IPyForeignClassBridge
         IReadOnlyDictionary<string, object?> attributes
     );
 
+    /// <summary>类体前选择元类并建立外部命名空间；旧 provider 可保留原终结合同。</summary>
+    IPyForeignClassDefinition? PrepareDerivedClass(PyClass owner, object?[] bases) => null;
+
     /// <summary>同步写入或替换已导出外部类的单个属性。</summary>
     void SetClassAttribute(IPyForeignObject foreignClass, PyClass ownerClass, string name, object? value);
 
@@ -55,7 +58,7 @@ public interface IPyForeignClassBridge
     object? GetSuperAttribute(object start, object? receiver, string name);
 
     /// <summary>构造真实外部 super，并返回具有统一内建类型身份的中性代理。</summary>
-    PySuper CreateSuper(object start, object? receiver);
+    object? CreateSuper(object start, object? receiver);
 
     /// <summary>查询成员资格（<c>value in foreignInstance</c>）。</summary>
     bool Contains(IPyForeignObject foreignInstance, object? value);
@@ -102,6 +105,12 @@ public static class PyForeignClassBridge
     /// <summary>读取跨域派生类对应的外部真实类型对象；普通原生类返回 <c>null</c>。</summary>
     public static IPyForeignObject? GetForeignClass(PyClass cls) => cls.ForeignClass;
 
+    /// <summary>构造回调的临时类型身份；外部 owner 只在成功终结后正式发布。</summary>
+    public static void SetConstructingClass(PyClass owner, IPyForeignObject? value) => owner.ForeignClass = value;
+
+    /// <summary>provider 完成或撤回构造时撤销 Runtime 的冷事务登记。</summary>
+    public static void ForgetClassDefinition(PyClass owner) => PyForeignClassConstruction.Forget(owner);
+
     /// <summary>读取或首次建立 super 的真实外部代理；普通本地布局返回 null。</summary>
     public static IPyForeignObject? GetForeignSuper(PySuper value) => value.ExportForeign();
 
@@ -116,6 +125,14 @@ public static class PyForeignClassBridge
 
     internal static void TryRemove(IPyForeignClassBridge bridge) =>
         Interlocked.CompareExchange(ref _current, null, bridge);
+
+    // 保留历史object返回ABI；在Runtime冷边界把旧provider返回值规范为同一个super类型。
+    internal static PySuper CanonicalSuper(object start, object? receiver) => Require().CreateSuper(start, receiver) switch
+    {
+        PySuper value => value,
+        IPyForeignObject foreign => PySuper.FromForeign(foreign, name => PyObject.GetAttr(foreign, name)),
+        _ => throw new PyRuntimeError("foreign class bridge did not return a super proxy"),
+    };
 
     internal static IPyForeignClassBridge Require() =>
         _current ?? throw (PyBaseException)PyErrors.PrepareRaise(

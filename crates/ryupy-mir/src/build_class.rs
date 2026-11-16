@@ -169,6 +169,11 @@ impl FunctionBuilder<'_> {
         }
         let class_object = Operand::Local(dest);
         let class_cell = self.begin_class_cell(cls_id, dest);
+        let cleanup = (self.hir.info.foreign_class_construction
+            && !is_exception
+            && enum_members.is_none()
+            && !matches!(base, Some(ClassBase::TypedDict { .. })))
+        .then(|| self.begin_class_cleanup());
         if let Some(cell) = class_cell {
             self.lexical_cell_stack.push((cls_id, Operand::Local(cell)));
         }
@@ -293,6 +298,9 @@ impl FunctionBuilder<'_> {
                 value,
                 &MirType::Dynamic,
             );
+        }
+        if let Some(cleanup) = cleanup {
+            self.end_class_cleanup(cleanup, Operand::Local(dest));
         }
     }
 

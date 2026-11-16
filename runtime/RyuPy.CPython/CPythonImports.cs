@@ -61,7 +61,6 @@ public sealed partial class CPythonHost
         Native.rp_decref(Check(Native.rp_install_imports("""
 import sys as _rp_sys
 import importlib.util as _rp_util
-import types as _rp_types
 class _RyuPyLoader:
     def create_module(self, spec):
         return _rp_load(spec.name)
@@ -72,29 +71,6 @@ class _RyuPyFinder:
         if _rp_has(fullname):
             return _rp_util.spec_from_loader(fullname, _RyuPyLoader(), is_package=_rp_package(fullname))
 _rp_sys.meta_path.insert(0, _RyuPyFinder())
-def _rp_calculate_meta(meta, bases):
-    winner = meta
-    for base in bases:
-        base_meta = type(base)
-        if issubclass(winner, base_meta):
-            continue
-        if issubclass(base_meta, winner):
-            winner = base_meta
-            continue
-        raise TypeError("metaclass conflict: the metaclass of a derived class must be a (non-strict) subclass of the metaclasses of all its bases")
-    return winner
-def _rp_make_class(name, bases, ns):
-    resolved_bases = _rp_types.resolve_bases(bases)
-    meta = type
-    if "__metaclass__" in ns:
-        meta = ns.pop("__metaclass__")
-    if isinstance(meta, type):
-        meta = _rp_calculate_meta(meta, resolved_bases)
-    prepare = getattr(meta, "__prepare__", None)
-    namespace = prepare(name, resolved_bases) if prepare is not None else {}
-    for k, v in ns.items():
-        namespace[k] = v
-    return meta(name, resolved_bases, namespace)
 _rp_staticmethod = staticmethod
 _rp_classmethod = classmethod
 _rp_property = property

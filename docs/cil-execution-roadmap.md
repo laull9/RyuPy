@@ -2,12 +2,12 @@
 
 - 日期：2026-11-16
 - 决策：[ADR-0208](adr/0208-cil-execution-libpython-kernel.md)
-- 状态：C0 完成；C1 胶水替换、C2 默认值反射及 C3 协程首切已验，后续阶段合同实施中
-- 本次授权：在独立分支完整开发，主代理协调 Hydrogen、Flash 与三名 GPT-6.1 Sol，按独立竖切集成
+- 状态：C0 完成；C1–C3 已有定向验证子合同，C1–C5 整阶段完成门继续待办；本轮完整检查、六版本产品与性能复验通过
+- 本次授权：在独立分支完整开发，主代理协调 Hydrogen、Flash 与 GPT-6.1 Sol 子代理，按独立竖切集成
 
 实施证据：[执行链与内核选型](cil-execution-inventory.md)、
 [项目与性能回归合同](cil-execution-baseline.md)、
-[严格生命周期门](../tests/cil_execution/README.md)、[首轮集成验收](cil-execution-first-slices-validation.md)。
+[严格生命周期门](../tests/cil_execution/README.md)、[首轮集成验收](cil-execution-first-slices-validation.md)、[第二轮集成验收](cil-execution-second-slices-validation.md)。
 当前帧审计显式候选仅支持固定 3.12.13 私有 ABI，默认兼容产品继续维持 CPython 3.9–3.15；
 严格内核原型与审计工具的版本范围分别登记，不能改变产品最低版本或替代已有多版本验收。
 
@@ -59,6 +59,20 @@ Python 动态类与函数优先表示为运行时对象和元数据，操作由�
 
 ## 3. 阶段顺序与完成门
 
+2026-11-16 子合同进度与整阶段状态分列如下。首轮提交及性能结果仍保留原提交口径；
+本轮 CreateSuper 公共 Object 返回 ABI 已恢复，`5d36db1e` 的 1843 项公共签名全部保留；
+本轮最终检查为 3384 C# / 495 e2e，六版本产品与三形态审计通过；
+26 项配对墙钟整体 -0.03%，单项残余成本见第二轮验收。
+
+| 阶段 | 已验证子合同 | 当前整阶段状态 |
+| --- | --- | --- |
+| C0 | 执行入口、ABI 消费者、启动/关闭链、严格内核选型与基线冻结 | 完成 |
+| C1 | object/super helper 移除；原生方法显式候选；两阶段类构造、prepared mapping、重入身份与失败清理 | 进行中；Python finder/loader、默认 wrapper、三个别名及 `rp_install_imports` 仍保留 |
+| C2 | 实时默认值；冻结多模块图的通用 CIL 伴生核心及传递调用 | 进行中；完整框架反射、动态对象与源码/资源根分离继续待办 |
+| C3 | 默认关闭的 coroutine/await、async with 与有限真实 traceback 视图 | 进行中；完整调度、IO、async for/异步生成器及跨域 awaitable 继续待办 |
+| C4 | macOS arm64 独立 3.12.13 严格内核/UTF-8/stdio 共十五探针真源码运行通过 | 阶段待办；扩展/router 在独立 WIP 中继续验证，产品接入未完成 |
+| C5 | 保留现有兼容默认与候选隔离 | 待办；默认晋升与旧执行路径退出分别验收 |
+
 ### C0：执行归属、启动链与回归基线盘点
 
 - 登记所有源码/字节码执行入口、嵌入 Python 字符串、导入钩子和反向回调。
@@ -80,6 +94,16 @@ Python 动态类与函数优先表示为运行时对象和元数据，操作由�
 - 处理 C 扩展对精确函数类型、CodeType、栈帧和内部布局的检查；按真实消费者验收，
   需要的 ABI 适配单独实现，能力缺口返回明确诊断。
 
+已验子合同：[ADR-0209](adr/0209-base-object-native-descriptors.md)、
+[ADR-0211](adr/0211-native-method-descriptor-candidate.md)、
+[ADR-0213](adr/0213-native-two-phase-class-construction.md)。当前默认内部源码仍有 1 个顶层 helper、
+1 个转发闭包及 finder/loader 的 3 个成员方法，共 5 个 def、2 个 class、3 个别名；
+原生方法候选保留 3 个成员 def、2 个 class、3 个别名。类构造定向门为三版本各两模式
+30 项真实类桥、五个输入的 JIT/AOT 删除输入搬迁，重入输入含默认/候选两模式。
+自动 set_name 使用精确专用代理，已有 opaque 身份与迟增能力严格拒绝；普通 MI AOT 保护门保留。
+下一切静态 finder/loader 需明确初始化时序、包/循环导入/失败重试/sys.modules 身份与关闭；
+方法候选的精确 FunctionType/code/frame 缺口仍阻断默认晋升。
+
 完成门：内部导入、类构建和回调链无 Python 胶水执行；现有跨域继承、重入、异常、
 模块身份、关闭测试和原 SanBudget 编译路径通过。外部纯 Python 库此阶段仍可留在旧兼容域。
 
@@ -95,6 +119,13 @@ Python 动态类与函数优先表示为运行时对象和元数据，操作由�
 - `inspect.getsource` 原文查询在默认无源码产品中给出明确异常；外置调试源码可选，
   不以生成近似源码冒充原文。依赖原文或运行期生成代码的框架按实际用途另切适配。
 
+已验子合同：[ADR-0212](adr/0212-live-function-defaults.md) 保留真实默认对象与定义身份，
+[ADR-0214](adr/0214-generic-default-function-companions.md) 在冻结的多模块图中对准入 typed 定义
+建立通用伴生体；Binder 成功并补齐缺省参数时调用，canonical、签名/defaults 与 def 求值仍唯一。
+传递/递归调用、dataclass 普通构造和 range 通用降级已有三版本 oracle、JIT/AOT 搬迁及 CIL/PE
+定向证据。完整供参的任意对象 typed 调用、单模块未知扩展入口、typed 特化恢复与完整 inspect
+消费者继续另切，代码体积、冷登记成本和本轮最终性能待主代理冻结后复验。
+
 完成门：反射/对象协议同次 CPython 差分、FastAPI 依赖注入和 Pydantic 模型场景通过；
 JIT 与 NativeAOT 元数据完整，已有普通类和 typed 快路维持语义及性能保护。
 
@@ -106,6 +137,18 @@ JIT 与 NativeAOT 元数据完整，已有普通类和 typed 快路维持语义�
   等待能力，Python 可观察的调度、contextvars、取消与任务身份由 Runtime 维护。
 - 逐切验证重入、跨暂停异常、嵌套 finally、超时取消、异步生成器关闭及事务/连接释放。
   GUI 主线程、事件循环线程亲和性与原生扩展 GIL 重入一并纳入协议测试。
+
+已验子合同：[ADR-0210](adr/0210-native-coroutine-state-machine.md)、
+[ADR-0215](adr/0215-native-async-with-traceback.md) 继续使用默认关闭的 `native-coroutines`。
+async with 覆盖真实挂起、清理、取消注入与抑制；traceback 支持只读头、tb_frame/tb_lineno/tb_next，
+frame 限 f_code/f_lineno，code 限 co_name/co_filename。六组新源码三版本 oracle 一致，
+JIT、两份 AOT 删除输入搬迁及 TraceV1 七项 PE 保护已有定向证据；完整 frame/code、
+跨暂停 super、跨域 awaitable、事件循环和真实服务生命周期继续待办。
+
+**greenlet 阻断**：原生同步换栈跨越 CLR/PInvoke 活动托管帧不满足 GC 栈扫描与异常展开合同，
+当前不能直接准入。后续须独立 resumable-sync ADR，把所需同步 Python 调用链降为显式可恢复的
+CIL continuation/驻留状态，再验证 ThreadState/GIL、contextvars、重入、线程亲和性及真实
+SQLAlchemy 事务/取消/关闭。符号扫描与现有 async 状态机证据各自登记，该桥仍未实现。
 
 完成门：CPython 协议差分、真实 HTTP 请求/并发/取消与数据库清理、JIT/NativeAOT
 和搬迁通过。现有 TestClient CRUD 继续保留，新增真实服务生命周期验证。
@@ -120,6 +163,12 @@ JIT 与 NativeAOT 元数据完整，已有普通类和 typed 快路维持语义�
 - 拦截或拒绝原生扩展内部的动态 Python 求值与未登记导入，防止重新引入解释执行。
 - 依据 C0 的方案收齐 libpython 启动/关闭链，移除最终产品中的 frozen Python 执行。
 - 依赖采集继续保留 metadata、包数据、许可证、证书及平台原生加载闭包，逐项评估裁剪。
+
+内核前置子合同见 [ADR-0216](adr/0216-strict-kernel-native-stdio.md) 与
+[kernel README](../runtime/kernel/README.md)：主代理已在 macOS arm64 真实源码重建 3.12.13，十五独立模式
+覆盖严格拒绝、UTF-8、标准流与关闭；五个 stdio/codecs 模式还与同次未改 CPython 对照。
+扩展/router 目前仅独立候选文件，尚未接入 transform、未构建、未运行；动态扩展、包与 CIL
+反向导入、产品接入及其它版本/平台均留在 C4，当前兼容 provider 的审计仍不完整。
 
 完成门：原版本/原入口的固定二十项目及两真实应用逐项记录 CIL 覆盖；已通过项目
 保持原行为。严格候选产品启动/运行/关闭全部无 CPython 字节码执行，原生扩展仍真实可用。
@@ -162,11 +211,13 @@ NativeAOT 对构建期无法确定的新代码给出诊断，禁止回落 CPytho
 已通过项目出现新增失败、身份/异常/资源清理错误时，停止对应切片晋升，修复或撤回该切片。
 收益不足或存在性能回退时保留显式候选状态，按证据决定后续优化或 ADR 取舍。
 
-## 6. 首个实施切片
+## 6. 当前实施位置
 
-首个实施门为 C0：建立执行入口与 libpython 启动链清单，冻结同一提交的兼容/性能基线，
-给出 C1 的首个最小胶水替换方案。盘点阶段不删除现有源码、发行组件或默认兼容路径。
-当前完成清单与待验范围以 [TODO](../TODO.md) 和各切片 ADR 为准，收益由真实项目逐项发布。
+C0 盘点与基线冻结已完成。C1–C3 按上述有限子合同继续竖切；C4 独立严格内核前置探针与
+未接线扩展路由分别记录，C5 保留候选、默认晋升及删除旧路径的独立准入。
+当前 helper/ABI 实数与逐项证据见 [inventory](cil-execution-inventory.md)，任务见 [TODO](../TODO.md)。
+首轮完整门与性能属于已提交历史记录；本轮最终公共 ABI、全门、Release 和性能尚待主代理验证，
+已有不利样本与阶段剩余项继续保留。
 
 ## 依据
 

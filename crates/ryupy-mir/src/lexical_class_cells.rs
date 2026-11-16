@@ -98,7 +98,7 @@ pub(crate) fn valid_source(function: &Function, cell: &ClassCellDefinition) -> b
     let original = crate::validate_class_cells::assignments(function, cell.original_class);
     let created = crate::validate_class_cells::assignments(function, cell.cell);
     let prepared = matches!((prepares.as_slice(), created.as_slice()),
-        ([((block, index), Rvalue::Call { callee: Callee::Runtime(RuntimeFn::LexicalClassPrepare), .. })],
+        ([((block, index), Rvalue::Call { callee: Callee::Runtime(RuntimeFn::LexicalClassPrepare | RuntimeFn::ForeignClassPrepare), .. })],
          [((cell_block, cell_index), _)]) if block == cell_block && index + 1 == *cell_index);
     let finished = matches!(original.as_slice(),
         [((block, index), Rvalue::Call { callee: Callee::Runtime(RuntimeFn::LexicalClassFinish), args })]

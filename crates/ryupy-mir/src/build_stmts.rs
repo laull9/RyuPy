@@ -397,7 +397,7 @@ impl FunctionBuilder<'_> {
                         let boxed = self.expr_builder().coerce(raw, &ty, &MirType::Dynamic);
                         let dest = self.alloc_temp(MirType::Dynamic);
                         #[cfg(not(feature = "trace-adapter-test"))]
-                        let prepare = RuntimeFn::RaisePrepare;
+                        let prepare = RuntimeFn::RaisePrepareExplicit;
                         #[cfg(feature = "trace-adapter-test")]
                         let prepare = RuntimeFn::TraceAdapterExplicit;
                         let prepare = if self.trace_product {

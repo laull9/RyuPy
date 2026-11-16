@@ -52,6 +52,7 @@ fn serialize_clauses(count: usize) -> Vec<u8> {
     }
     let mut functions = Arena::default();
     let init = functions.alloc(Function {
+        core: Default::default(),
         is_comprehension: false,
         name: "__main__".into(),
         codegen_name: "eh_capacity".into(),

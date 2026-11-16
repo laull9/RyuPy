@@ -220,8 +220,8 @@ pub fn dump(program: &LinkedProgram, opts: &EmitOptions) -> Result<String, Codeg
             .collect::<Vec<_>>()
             .join(", ");
         out.push_str(&format!(
-            "    .method public static {ret_str} {}({params_str}) cil managed\n    {{\n",
-            method.name
+            "    .method {} static {ret_str} {}({params_str}) cil managed\n    {{\n",
+            method.accessibility, method.name
         ));
 
         if method.name == "Main" {

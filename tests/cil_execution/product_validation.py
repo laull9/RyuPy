@@ -13,8 +13,8 @@
    - 宿主状态关闭（state=closed）、零丢帧（dropped_frames=0）、零覆盖失败（coverage_failures=0）；
    - startup / runtime / shutdown 三阶段均存在真实 Python 帧，且明细聚合与阶段计数一致；
    - shutdown 阶段包含真实 atexit 回调执行；
-   - 确认 C1 候选已移除的四个 helper（_rp_object_new, _rp_object_init, _rp_object_setattr, _rp_object_delattr）帧数为 0；
-   - 确认保留的活跃 helper（_rp_make_class, _rp_wrap_method 等）帧数非零，证明 PEP 523 钩子真实有效；
+   - 确认 C1 已移除的 object/super/类构造 helper（_rp_object_new, _rp_object_init, _rp_object_setattr, _rp_object_delattr）帧数为 0；
+   - 确认保留的活跃 helper（_rp_wrap_method）帧数非零，证明 PEP 523 钩子真实有效；
    - 严格门（check_audit.py）对当前 complete=false / startup_complete=false 明确预期拒绝；
 8. 验证结束后仓库外临时目录自动彻底清理（不做 hash，不留脏文件）。
 """
@@ -63,8 +63,12 @@ REMOVED_HELPERS = (
     "_rp_object_init",
     "_rp_object_setattr",
     "_rp_object_delattr",
+    "_rp_super_create",
+    "_rp_super_getattr",
+    "_rp_make_class",
+    "_rp_calculate_meta",
 )
-ACTIVE_HELPERS = ("_rp_make_class", "_rp_wrap_method", "_rp_calculate_meta")
+ACTIVE_HELPERS = ("_rp_wrap_method",)
 COMMON_MODULES = [
     "sys", "base64", "json", "sqlite3", "zlib", "collections",
     "contextlib", "atexit", "numpy", "urllib", "io", "logging",
@@ -165,7 +169,7 @@ def verify_audit_report(report_path: Path, expected_stdout: bytes, actual_stdout
     shutdown_funcs = [row.get("function") for row in frames if row.get("phase") == "shutdown"]
     assert len(shutdown_funcs) > 0, "shutdown 阶段缺少执行帧明细"
 
-    # 6. 四个已移除 helper 帧计数必须为 0
+    # 6. 八个已移除 helper 帧计数必须为 0
     for helper in REMOVED_HELPERS:
         helper_calls = sum(row["calls"] for row in frames if row.get("function") == helper)
         assert helper_calls == 0, (

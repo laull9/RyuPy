@@ -124,6 +124,7 @@ fn statement_yield_discards_input_via_local_not_cil_stack() {
     };
     let mut functions = Arena::default();
     let id = functions.alloc(Function {
+        core: Default::default(),
         is_comprehension: false,
         module_state: None,
         instance_capabilities: Default::default(),
@@ -214,6 +215,7 @@ fn delegated_resume_preserves_input_for_delegate_step() {
     };
     let mut functions = Arena::default();
     let id = functions.alloc(Function {
+        core: Default::default(),
         is_comprehension: false,
         module_state: None,
         instance_capabilities: Default::default(),

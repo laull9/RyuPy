@@ -11,13 +11,14 @@ public sealed partial class CPythonHost
         _ => throw new InvalidDataException("RYUPY_CPYTHON_NATIVE_METHODS只接受0或1"),
     };
 
-    private nint CreateNativeMethodOwned(object target, string name, string qualname)
+    private nint CreateNativeMethodOwned(object target, string name, string qualname, bool staticBinding = false)
     {
         nint targetPtr = ToPython(target), namePtr = 0, qualnamePtr = 0;
         try
         {
             namePtr = ToPython(name); qualnamePtr = ToPython(qualname);
-            return Check(Native.rp_native_method(targetPtr, namePtr, qualnamePtr));
+            return Check(staticBinding ? Native.rp_native_static_method(targetPtr, namePtr, qualnamePtr)
+                : Native.rp_native_method(targetPtr, namePtr, qualnamePtr));
         }
         finally
         {

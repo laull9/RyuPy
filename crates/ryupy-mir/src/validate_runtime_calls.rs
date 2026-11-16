@@ -20,7 +20,16 @@ pub(super) fn fixed_abi(callee: RuntimeFn) -> bool {
     }
     matches!(
         callee,
-        RuntimeFn::CoroutineCreate
+        RuntimeFn::CallValueGeneric
+            | RuntimeFn::RaisePrepareExplicit
+            | RuntimeFn::TracebackReceive
+            | RuntimeFn::GeneratorTracebackReceive
+            | RuntimeFn::HandlerEnterGuard
+            | RuntimeFn::TracebackHandled
+            | RuntimeFn::TracebackOf
+            | RuntimeFn::CoroutineEnterAwaitStart
+            | RuntimeFn::CoroutineExitAwaitStart
+            | RuntimeFn::CoroutineCreate
             | RuntimeFn::CoroutineAwaitStart
             | RuntimeFn::MakeComprehensionList
             | RuntimeFn::IsEnumerateIterator
@@ -80,6 +89,8 @@ pub(super) fn validate_call(
         {
             if (*runtime == RuntimeFn::LexicalClassPrepare
                 && !matches!(args.get(3), Some(Operand::Array(_))))
+                || (*runtime == RuntimeFn::ForeignClassPrepare
+                    && !matches!(args.get(2), Some(Operand::Array(_))))
                 || args.len() != expected.len()
                 || args
                     .iter()
@@ -87,8 +98,8 @@ pub(super) fn validate_call(
                     .any(|(arg, ty)| operand_type(program, func, arg).as_ref() != Some(ty))
             {
                 errors.push(format!(
-                    "函数 `{}` 的固定运行时 ABI 实参类型/数量错误",
-                    func.name
+                    "函数 `{}` 的固定运行时 ABI {:?} 实参类型/数量错误",
+                    func.name, runtime
                 ));
             }
             return;
@@ -108,6 +119,12 @@ pub(super) fn validate_call(
             ));
         }
         let expected: Option<&[MirType]> = match runtime {
+            RuntimeFn::CallValueGeneric => Some(&[
+                MirType::Dynamic,
+                MirType::Dynamic,
+                MirType::Dynamic,
+                MirType::Dynamic,
+            ]),
             #[cfg(feature = "trace-adapter-test")]
             RuntimeFn::TraceAdapterExplicit => Some(&[MirType::Dynamic]),
             #[cfg(feature = "trace-adapter-test")]
@@ -172,7 +189,15 @@ pub(super) fn validate_call(
                 MirType::Dynamic,
                 MirType::Dynamic,
             ]),
-            RuntimeFn::CoroutineCreate
+            RuntimeFn::TracebackReceive => Some(&[MirType::Dynamic, MirType::I64]),
+            RuntimeFn::GeneratorTracebackReceive => Some(&[MirType::Dynamic, MirType::Dynamic]),
+            RuntimeFn::HandlerEnterGuard
+            | RuntimeFn::TracebackHandled
+            | RuntimeFn::RaisePrepareExplicit
+            | RuntimeFn::TracebackOf
+            | RuntimeFn::CoroutineEnterAwaitStart
+            | RuntimeFn::CoroutineExitAwaitStart
+            | RuntimeFn::CoroutineCreate
             | RuntimeFn::CoroutineAwaitStart
             | RuntimeFn::MakeComprehensionList
             | RuntimeFn::IsEnumerateIterator
@@ -370,13 +395,28 @@ pub(super) fn validate_destination(
                 func.name
             ));
         }
+        if matches!(
+            runtime,
+            RuntimeFn::TracebackReceive
+                | RuntimeFn::GeneratorTracebackReceive
+                | RuntimeFn::TracebackHandled
+        ) {
+            errors.push(format!("函数 `{}` 的traceback接收ABI返回void", func.name));
+            return;
+        }
         let expected = match runtime {
             #[cfg(feature = "trace-adapter-test")]
             RuntimeFn::TraceAdapterExplicit => Some(MirType::Dynamic),
             RuntimeFn::IsEnumerateIterator
             | RuntimeFn::GeneratorSumTryConsume
             | RuntimeFn::GeneratorSumRangeGuard => Some(MirType::Bool),
-            RuntimeFn::CoroutineCreate
+            RuntimeFn::CallValueGeneric
+            | RuntimeFn::HandlerEnterGuard
+            | RuntimeFn::RaisePrepareExplicit
+            | RuntimeFn::TracebackOf
+            | RuntimeFn::CoroutineEnterAwaitStart
+            | RuntimeFn::CoroutineExitAwaitStart
+            | RuntimeFn::CoroutineCreate
             | RuntimeFn::CoroutineAwaitStart
             | RuntimeFn::MakeComprehensionList
             | RuntimeFn::EnumerateCurrentIndex
@@ -490,6 +530,7 @@ pub(super) fn validate_eval(func: &Function, value: &Rvalue, errors: &mut Vec<St
         Rvalue::Call {
             callee: Callee::Runtime(
                 RuntimeFn::LexicalClassPrepare
+                    | RuntimeFn::ForeignClassPrepare
                     | RuntimeFn::LexicalClassFinish
                     | RuntimeFn::LexicalNamespaceContains
                     | RuntimeFn::LexicalNamespaceGet

@@ -136,7 +136,12 @@ fn differential(name: &str) {
 #[test]
 #[ignore = "显式 NativeAOT 搬迁门，需要本机 AOT 工具链"]
 fn coroutine_aot_relocation_matches_cpython() {
-    for source in ["cleanup.py", "call_preparation.py"] {
+    for source in [
+        "cleanup.py",
+        "call_preparation.py",
+        "async_with_cleanup.py",
+        "async_with_traceback_protocol.py",
+    ] {
         differential_mode(&format!("tests/coroutines/{source}"), true);
     }
 }
@@ -196,4 +201,31 @@ fn coroutine_await_kwargs_is_explicitly_rejected() {
             .count(),
         2
     );
+}
+
+#[test]
+fn async_with_lifecycle_matches_cpython() {
+    differential("async_with_lifecycle.py");
+}
+#[test]
+fn async_with_exceptions_match_cpython() {
+    differential("async_with_exceptions.py");
+}
+#[test]
+fn async_with_traceback_matches_cpython() {
+    differential("async_with_traceback.py");
+}
+
+#[test]
+fn async_with_traceback_protocol_matches_cpython() {
+    differential("async_with_traceback_protocol.py");
+}
+#[test]
+fn async_with_protocol_matches_cpython() {
+    differential("async_with_protocol.py");
+}
+
+#[test]
+fn async_with_cleanup_matches_cpython() {
+    differential("async_with_cleanup.py");
 }

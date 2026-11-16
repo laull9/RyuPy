@@ -24,8 +24,10 @@ public static partial class PyOps
         if (receiver is PyBaseException { PythonClass: not null } error
             && error.PythonClass.TryLookup(name, out PyClass errorOwner, out object? errorRaw))
             return BindContext(errorRaw, errorOwner, error, name);
-        string suffix = name == "__exit__" ? " (missed __exit__ method)" : "";
-        throw new PyTypeError($"'{PyRepr.TypeName(receiver)}' object does not support the context manager protocol{suffix}");
+        bool asynchronous = name is "__aenter__" or "__aexit__";
+        string suffix = name is "__exit__" or "__aexit__" ? $" (missed {name} method)" : "";
+        string protocol = asynchronous ? "asynchronous context manager" : "context manager";
+        throw new PyTypeError($"'{PyRepr.TypeName(receiver)}' object does not support the {protocol} protocol{suffix}");
     }
 
     // property的getter也属于类型描述符绑定，必须在进入之前求值，且只执行一次。

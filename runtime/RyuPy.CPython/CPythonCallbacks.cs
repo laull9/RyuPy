@@ -40,6 +40,9 @@ public sealed partial class CPythonHost
             }
             if (!host.Roots.TryGetValue(identity, out object? target)) throw new PyRuntimeError("managed proxy has been unregistered");
             string name = text == 0 ? "" : Marshal.PtrToStringUTF8(text)!;
+            // 在容器同步或实参转换产生 opaque 视图之前，先用 frozen 原生成员核实构造接收者。
+            if (op == 1) host.PrepareConstructionCallback(target, a);
+            else if (op == 24 && HasSetName(target)) host.AssociateConstructionReceiver(new SetNameTarget(target), a);
             host.PullContainers();
             object? result;
             switch (op)
@@ -64,6 +67,7 @@ public sealed partial class CPythonHost
                     if (!iterator.MoveNext()) { Native.rp_error_text("StopIteration", ""); return 0; }
                     result = iterator.Current(); break;
                 case 14: result = PyHash.Of(target); break;
+                case 24: result = host.InvokeDescriptorSetName(target, a, b); break;
                 case 15:
                     int comparison = number switch { 0 => PyOps.Lt, 1 => PyOps.Le, 2 => PyOps.Eq, 3 => PyOps.Ne, 4 => PyOps.Gt, 5 => PyOps.Ge, _ => throw new PyRuntimeError("unknown comparison") };
                     object? compared = host.FromBorrowed(a);

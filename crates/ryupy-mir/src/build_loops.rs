@@ -3,7 +3,7 @@
 //! 单独成文件的原因：计数循环的构建代码量最大（正负步长、动态边界拆箱、
 //! 常量步长的正负比较方向），放在 `build.rs` 里会让主构建流程难以阅读。
 //!
-//! 两条路径：
+//! 数值计数循环保留两条路径；通用伴生体另走build_generic_range的值迭代协议：
 //! - 静态函数：`range` 的三个操作数是 i64，循环变量也是 i64，直接用 CIL 比较指令；
 //! - 动态函数：边界先拆箱成 i64（`PyCast`），循环变量在每轮开头装箱写进用户变量，
 //!   这样既保留计数循环的快路径，又让循环体里的 `i` 是动态值。
@@ -34,6 +34,17 @@ impl FunctionBuilder<'_> {
         let source = self
             .expr_builder()
             .coerce(iter_op, &iter_ty, &MirType::Dynamic);
+        self.build_for_each_value(var, source, body, orelse);
+    }
+
+    /// 已求值的可迭代对象共用同一循环CFG；通用range也通过此处，不重放边界表达式。
+    pub(crate) fn build_for_each_value(
+        &mut self,
+        var: Binding,
+        source: Operand,
+        body: &[StmtId],
+        orelse: &[StmtId],
+    ) {
         let iterator = self.alloc_temp(MirType::Dynamic);
         self.push_stmt(Statement::Assign {
             dest: iterator,
@@ -294,6 +305,10 @@ impl FunctionBuilder<'_> {
         body: &[StmtId],
         orelse: &[StmtId],
     ) {
+        if self.types.generic.is_some() {
+            self.build_for_range_generic(var, start, stop, step, body, orelse);
+            return;
+        }
         if self.types.is_dynamic(self.current_hir_fn) {
             self.build_for_range_dynamic(var, start, stop, step, body, orelse);
             return;

@@ -98,6 +98,7 @@ public static partial class PyTraceback
             Array.Resize(ref _files, _depth * 2);
             Array.Resize(ref _lines, _depth * 2);
             Array.Resize(ref _origins, _depth * 2);
+            NativeGrow(_functions.Length);
         }
 #if TRACE_ADAPTER_TEST
         AdapterPush(_depth);
@@ -152,6 +153,8 @@ public static partial class PyTraceback
 #if TRACE_ADAPTER_TEST
             Array.Clear(_adapterActivations, (int)depth - 1, _depth - (int)depth + 1);
 #endif
+            if (_nativeGenerators is not null || _nativeFrames is not null)
+                NativePop((int)depth - 1, _depth - (int)depth + 1);
             Array.Clear(_origins, (int)depth - 1, _depth - (int)depth + 1);
             _depth = (int)depth - 1;
         }
@@ -361,6 +364,7 @@ public static partial class PyTraceback
 #if TRACE_ADAPTER_TEST
         Array.Clear(_adapterActivations, 0, _depth);
 #endif
+        NativePop(0, _depth);
         Array.Clear(_origins, 0, _depth);
         _depth = 0;
     }

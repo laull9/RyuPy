@@ -7,7 +7,7 @@
 
 use ryupy_hir::{Binding, ExprId};
 
-use crate::build::{FunctionBuilder, ty_to_mir};
+use crate::build::FunctionBuilder;
 use crate::mir::{
     BinOp, BlockId, Callee, Constant, LocalDecl, LocalId as MirLocalId, MirType, Operand,
     RuntimeFn, Rvalue, Statement, Terminator,
@@ -191,7 +191,7 @@ impl FunctionBuilder<'_> {
 
     /// `return`：写返回值到统一槽位，再走 finally 或直接去尾块。
     pub(crate) fn build_return(&mut self, value: Option<ExprId>) {
-        let ret_ty = ty_to_mir(&self.types.sigs[self.current_hir_fn].ret);
+        let ret_ty = self.ret_ty.clone();
         let retval = self.retval_local();
         if let Some(dest) = retval {
             let value = match value {

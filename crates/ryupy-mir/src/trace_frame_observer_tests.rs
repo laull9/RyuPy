@@ -78,7 +78,8 @@ fn actual_inspection_is_unchanged_when_observation_stops() {
         .expect("观察已配置");
     assert_eq!(observed, baseline);
     assert!(!complete.states.is_empty());
-    assert_eq!(complete.attempted, 7004);
+    // 指令扩展改变实际步数；观察次数必须与同次无observer的完整序列逐项对应。
+    assert_eq!(complete.attempted, baseline.2.len());
     assert!(complete.bytes <= DYNAMIC_LIMIT);
     // 零限额触发记录失败但检查器继续；原Result和全部已有诊断必须一致。
     ACTIVE.with(|active| *active.borrow_mut() = Some(Observation::new(0)));

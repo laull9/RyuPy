@@ -13,6 +13,7 @@ fn empty_function(name: &str) -> Function {
         terminator: Terminator::Return(None),
     });
     Function {
+        core: Default::default(),
         is_comprehension: false,
         name: name.into(),
         codegen_name: name.into(),

@@ -172,6 +172,7 @@ fn copy_resume(source: &Function) -> Function {
     }
     body.entry = source.body.entry;
     Function {
+        core: Default::default(),
         is_comprehension: false,
         module_state: None,
         module_state_source: None,

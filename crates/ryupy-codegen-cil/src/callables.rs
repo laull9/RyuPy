@@ -76,11 +76,12 @@ pub(crate) fn emit_thunk(
     res: &mut Resolution<'static>,
     module_class: TypeIndex,
     func: &Function,
-    static_method: MethodIndex,
+    core_methods: (MethodIndex, Option<MethodIndex>),
     refs: &RuntimeRefs,
     class_types: &ClassTypeMap,
     index: usize,
 ) -> MethodIndex {
+    let (static_method, generic_method) = core_methods;
     let owned = func.module_state_source == Some(ryupy_mir::InstanceStateSource::FunctionParameter);
     let offset = u16::from(owned);
     let object_type = refs.object_type.clone();
@@ -176,6 +177,10 @@ pub(crate) fn emit_thunk(
         Instruction::call(refs.bind_args),
         Instruction::StoreLocal(0),
     ]);
+
+    if let Some(generic) = generic_method {
+        crate::generic_callables::emit_missing_dispatch(&mut ins, generic, total, offset, refs);
+    }
 
     for (index, param) in py_params.iter().enumerate() {
         ins.push(Instruction::LoadLocal(0));

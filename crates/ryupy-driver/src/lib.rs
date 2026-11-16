@@ -124,8 +124,10 @@ fn compile_module(
     plan: &module_environments::ModuleEnvironmentPlan,
     trace: &stage_trace::StageTrace,
     trace_request: trace_product::Request,
+    generic_defaults: bool,
 ) -> Result<CompiledModule> {
     let info = ryupy_hir::ModuleInfo {
+        foreign_class_construction: sess.cpython_provider.is_some(),
         instance_globals: plan.instance_globals(),
         instance_capabilities: plan.capabilities,
         name: module.name.clone(),
@@ -158,7 +160,11 @@ fn compile_module(
         return Ok(compiled);
     }
     trace.mark("begin", "mir-build", &module.name);
-    let (mut mir, exports, diags) = ryupy_mir::build_program(&hir, &types);
+    let (mut mir, exports, diags) = if generic_defaults {
+        ryupy_mir::build::build_program_with_generic(&hir, &types)
+    } else {
+        ryupy_mir::build_program(&hir, &types)
+    };
     sess.diagnostics.extend(diags);
     stop_if_errors(sess)?;
     trace.mark("end", "mir-build", &module.name);

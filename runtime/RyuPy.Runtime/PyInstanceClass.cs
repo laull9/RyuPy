@@ -37,8 +37,21 @@ public static partial class PyModuleInstances
         if (bases.Length == 1) ValidateOrdinaryBase(bases[0]);
         var cls = (PyClass)PyOps.MakeClassCore(name, bases, null, captureAmbientMetadata: false);
         // 类体的LOAD_NAME与函数__module__捕获不同：缺global可回退本class frame的builtins。
-        cls.Attributes["__module__"] = LoadName(context, "__name__") ?? PyNone.Instance;
-        cls.Attributes["__qualname__"] = name;
+        try
+        {
+            if (PyForeignClassConstruction.TryGet(cls, out IPyForeignClassDefinition definition))
+            {
+                object? module = definition.Contains("__name__") ? definition.Get("__name__") : LoadName(context, "__name__");
+                cls.SetAttr("__module__", module ?? PyNone.Instance);
+                cls.SetAttr("__qualname__", name);
+            }
+            else
+            {
+                cls.Attributes["__module__"] = LoadName(context, "__name__") ?? PyNone.Instance;
+                cls.Attributes["__qualname__"] = name;
+            }
+        }
+        catch { PyForeignClassConstruction.Abort(cls); throw; }
         return cls;
     }
 

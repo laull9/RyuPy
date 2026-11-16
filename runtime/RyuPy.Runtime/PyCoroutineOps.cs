@@ -8,7 +8,12 @@ public static partial class PyOps
         ? new PyCoroutine(state) : throw new PyRuntimeError("invalid coroutine state machine");
 
     /// <summary>取得一次 await 迭代器；不再次调用 __iter__，也不将普通 iterable 当 awaitable。</summary>
-    public static object CoroutineAwaitStart(object? source)
+    public static object CoroutineAwaitStart(object? source) => AwaitStart(source, null);
+    /// <summary>异步enter只对缺失awaitable槽使用专用错误，用户协议异常原样传播。</summary>
+    public static object CoroutineEnterAwaitStart(object? source) => AwaitStart(source, "__aenter__");
+    /// <summary>异步exit与普通await共享委托，但保留上下文协议诊断。</summary>
+    public static object CoroutineExitAwaitStart(object? source) => AwaitStart(source, "__aexit__");
+    private static object AwaitStart(object? source, string? context)
     {
         if (source is PyCoroutine coroutine)
         {
@@ -16,7 +21,9 @@ public static partial class PyOps
             return new PyGeneratorDelegation(wrapper, wrapper);
         }
         if (!PyObject.TryMethod(source, "__await__", [], out object? iterator))
-            throw new PyTypeError($"object {PyRepr.TypeName(source)} can't be used in 'await' expression");
+            throw new PyTypeError(context is null
+                ? $"object {PyRepr.TypeName(source)} can't be used in 'await' expression"
+                : $"'async with' received an object from {context} that does not implement __await__: {PyRepr.TypeName(source)}");
         if (iterator is PyCoroutine)
             throw new PyTypeError("__await__() returned a coroutine");
         if (iterator is PyInstance instance && instance.Class.TryLookup("__next__", out _, out _))

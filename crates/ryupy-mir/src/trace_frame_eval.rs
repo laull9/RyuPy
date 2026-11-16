@@ -14,7 +14,10 @@ pub(super) fn may_throw(value: &Rvalue) -> bool {
             | Rvalue::CatchException
             | Rvalue::Call {
                 callee: Callee::Runtime(
-                    RuntimeFn::ArrayGet | RuntimeFn::ArraySet | RuntimeFn::GeneratorRetry
+                    RuntimeFn::ArrayGet
+                        | RuntimeFn::ArraySet
+                        | RuntimeFn::GeneratorRetry
+                        | RuntimeFn::GeneratorTracebackReceive
                 ),
                 ..
             }
@@ -99,7 +102,8 @@ pub(super) fn evaluate(
                 }
                 Value::None
             }
-            RuntimeFn::RaisePrepare
+            RuntimeFn::GeneratorTracebackReceive => Value::None,
+            RuntimeFn::RaisePrepare | RuntimeFn::RaisePrepareExplicit
                 if matches!(
                     values.first(),
                     Some(Value::Exception | Value::StoredException)

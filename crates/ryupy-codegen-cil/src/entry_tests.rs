@@ -12,6 +12,7 @@ fn empty_program() -> LinkedProgram {
     });
     let mut functions = Arena::default();
     let init = functions.alloc(Function {
+        core: Default::default(),
         is_comprehension: false,
         name: "__main__".into(),
         codegen_name: "__main__".into(),

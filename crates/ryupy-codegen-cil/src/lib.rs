@@ -18,6 +18,8 @@ mod assembly_refs_tests;
 mod callables;
 mod emission_report;
 mod entry;
+mod generic_callables;
+mod make_function;
 pub use emission_report::{
     DelegateReference, EmissionArtifact, EmissionReport, FunctionEmission, MethodDescriptor,
     ModuleEmission,
@@ -242,3 +244,5 @@ mod generator_state_emit;
 
 #[cfg(test)]
 mod records_guard_tests;
+
+mod native_traceback_refs;

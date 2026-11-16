@@ -9,7 +9,7 @@ typedef struct {
     PyObject *annotations, *defaults, *kwdefaults, *dictionary;
     PyObject *weakrefs;
 } NativeMethod;
-static PyTypeObject *native_method_type;
+static PyTypeObject *native_method_type, *native_static_method_type;
 
 static int native_method_traverse(NativeMethod *self, visitproc visit, void *arg) {
     Py_VISIT(Py_TYPE(self));
@@ -45,6 +45,12 @@ static PyObject *native_method_get(PyObject *self, PyObject *instance, PyObject 
     (void)owner;
     if (!instance || Py_IsNone(instance)) return Py_NewRef(self);
     return PyMethod_New(self, instance);
+}
+
+/* 隐式 __new__ 按导出位置选择静态绑定类型；后续改 __name__ 不会改变绑定行为。
+ * 与普通方法复用同一对象布局，不为所有方法实例增加标志字段。 */
+static PyObject *native_static_method_get(PyObject *self, PyObject *instance, PyObject *owner) {
+    (void)instance; (void)owner; return Py_NewRef(self);
 }
 
 /* 名字与限定名保留真实可写字段；已建立的 PyMethod 在后续读取时看见当前值。 */
@@ -120,22 +126,37 @@ static PyType_Spec native_method_spec = {
 };
 
 /* 三个输入均借用，返回新引用；类型缓存只在持 GIL 区域创建并在 Finalize 前释放。 */
-API PyObject *rp_native_method(PyObject *target, PyObject *name, PyObject *qualname) {
+static PyObject *native_method_create(PyObject *target, PyObject *name, PyObject *qualname, int static_binding) {
     if (!PyCallable_Check(target) || !PyUnicode_Check(name) || !PyUnicode_Check(qualname)) {
         PyErr_SetString(PyExc_TypeError, "native method requires callable target and string names"); return NULL;
     }
-    if (!native_method_type) {
-        native_method_type = (PyTypeObject *)PyType_FromSpec(&native_method_spec);
-        if (!native_method_type) return NULL;
+    PyTypeObject **cache = static_binding ? &native_static_method_type : &native_method_type;
+    if (!*cache) {
+        PyType_Slot slots[sizeof(native_method_slots) / sizeof(native_method_slots[0])];
+        memcpy(slots, native_method_slots, sizeof(slots));
+        for (size_t i = 0; slots[i].slot; i++)
+            if (static_binding && slots[i].slot == Py_tp_descr_get) slots[i].pfunc = native_static_method_get;
+        PyType_Spec spec = native_method_spec;
+        spec.slots = slots;
+        if (static_binding) spec.name = "ryupy.NativeStaticMethod";
+        *cache = (PyTypeObject *)PyType_FromSpec(&spec);
+        if (!*cache) return NULL;
         /* 正式版头文件控制布局，托管端只持 opaque 指针；支持普通属性字典与弱引用。 */
-        native_method_type->tp_dictoffset = offsetof(NativeMethod, dictionary);
-        native_method_type->tp_weaklistoffset = offsetof(NativeMethod, weakrefs);
-        PyType_Modified(native_method_type);
+        (*cache)->tp_dictoffset = offsetof(NativeMethod, dictionary);
+        (*cache)->tp_weaklistoffset = offsetof(NativeMethod, weakrefs);
+        PyType_Modified(*cache);
     }
-    NativeMethod *self = (NativeMethod *)native_method_type->tp_alloc(native_method_type, 0);
+    NativeMethod *self = (NativeMethod *)(*cache)->tp_alloc(*cache, 0);
     if (!self) return NULL;
     self->target = Py_NewRef(target); self->name = Py_NewRef(name); self->qualname = Py_NewRef(qualname);
     self->module = PyUnicode_FromString("_ryupy_imports");
     if (!self->module) { Py_DECREF(self); return NULL; }
     return (PyObject *)self;
+}
+
+API PyObject *rp_native_method(PyObject *target, PyObject *name, PyObject *qualname) {
+    return native_method_create(target, name, qualname, 0);
+}
+API PyObject *rp_native_static_method(PyObject *target, PyObject *name, PyObject *qualname) {
+    return native_method_create(target, name, qualname, 1);
 }

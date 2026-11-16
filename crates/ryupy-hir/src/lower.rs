@@ -69,6 +69,7 @@ pub fn lower_module_with_native_exceptions(
     let mut classes = Arena::default();
     let mut global_scope = GlobalScope {
         instance_globals: info.instance_globals,
+        foreign_class_construction: info.foreign_class_construction,
         deleted_names: crate::module_deletions::collect(&parsed.module.body),
         postponed_annotations: crate::future_imports::annotations(&parsed.module.body),
         native_exception_modules: native_exceptions
@@ -479,7 +480,7 @@ pub fn lower_module_with_native_exceptions(
     for (_, function) in module.functions.iter() {
         if !function.is_coroutine {
             for (_, expression) in function.body.exprs.iter() {
-                if matches!(expression.kind, crate::ExprKind::Await(_)) {
+                if matches!(expression.kind, crate::ExprKind::Await { .. }) {
                     diagnostics.push(
                         Diagnostic::error(
                             Span::new(parsed.file, expression.range),

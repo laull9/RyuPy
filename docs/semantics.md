@@ -1494,7 +1494,7 @@ move先truth再查当前Count；空目标精确标量及四空builtin走已验�
 默认关闭的编译期feature允许一族普通非包非入口源码模块复用已有真实实例环境。全文通过
 实例预检、无class、至少一个def且全部def无完整静态签名或含变长参数才选择；未选者保旧ABI。
 普通import和同源compiled loader共享唯一dict及定义owner，不增加缓存。该候选不是已发布
-默认，不包括AOT/typed优化/显式super恢复。`function.__defaults__`反射仍是完整保留边界。
+默认，不包括AOT/typed优化/显式super恢复。`function.__defaults__` 的实时反射与绑定已由 [ADR-0212](adr/0212-live-function-defaults.md) 接续。
 具体选择、持久合同及不同门禁见[ADR0134](adr/0134-ordinary-dynamic-module-pilot.md)。
 
 ### 显式普通实例相对from-import候选
@@ -1751,10 +1751,39 @@ __await__，返回对象必须已经是迭代器，保留委托终值、send/thr
 协程自身 PEP 479 与子生成器错误保持各自来源。调用参数里的 await 会触发暂停前
 方法绑定和混合星号实参快照；双星号映射与 await 混合的调用继续明确拒绝。
 
-async for/with、异步生成器/推导式、零参 super 跨暂停上下文继续明确拒绝。
+async with 的后续实现见下节；async for、异步生成器/推导式、零参 super 跨暂停上下文继续明确拒绝。
 当前范围为原生普通动态域，显式 Instance 和 CPython awaitable 跨域协议留待后续；
 事件循环、IO、任务取消、contextvars、协程反射字段及未 await 析构警告尚未接入。
 候选 Runtime 没有 CPython ABI 依赖，既有产品 3.9–3.15 版本范围保持。
 固定 3.12.13 是同次差分配置；本机 3.9.25/3.12.13/3.13.3 三组源码输出一致。
 本切已通过 macOS arm64 JIT 差分与 cleanup 原生 AOT 删除输入/构建目录后的中文空格搬迁。
 其它平台、onefile、性能及 C3 完整调度门另验，候选默认关闭。
+
+
+### 实时函数默认值与跨模块通用核心（ADR-0212 / 0214）
+
+函数默认值为真实可替换/删除 tuple 与 dict，保留容器及元素身份，后续调用按当前状态
+绑定。只读元数据同样进入冷状态；未观察的窄普通函数可在实际函数身份守卫后填默认槽
+并直调，callee 和所有显式实参仅求值一次。共享签名不会传播函数实例的默认值修改。
+
+多源码图中准入的普通 typed 定义拥有一个私有通用 CIL 核心；Python 函数对象、签名、
+来源、默认值与 def 求值均各一份。Binder 成功且补齐缺省参数后进入通用体，体内调用
+按实际函数对象的冷登记继续分派；原完整供参的 typed ABI 与边界保持。
+单源码未知外部反射、闭包/实例/状态机的 typed 特化恢复继续另切，见 ADR-0214。
+
+### 原生 async with 与异常 traceback（ADR-0215）
+
+显式 native-coroutines 候选以真实 await 推进 __aenter__/__aexit__，类型级协议查找
+忽略实例同名覆盖；enter 成功后才进入保护区，as 赋值/解包失败也调用退出方法。
+同步 with 同步修复该清理边界。退出可跨暂停、抑制原异常，或以新异常覆盖；finally
+内部 guard 与源码匹配 except 使用不同传播通知，保留当前异常 token。
+
+本域异常的 __traceback__ 与退出方法第三参读取同一真实链头；普通帧按实际激活区分，
+生成器跨恢复保留同一帧身份。显式 raise 添加传播头，bare raise 保留原指令帧行为，
+未启动生成器/协程 throw 使用真实定义行。公开 tb_next 可写并拒绝循环；异常头的赋值/
+删除目前明确拒绝，用户异常子类不能通过实例字典覆盖真实头。foreign 异常保原协议。
+
+冷视图开放 tb_next/tb_lineno/tb_frame、f_lineno、f_code.co_name/co_filename；未知
+字节码、局部变量、完整 frame/code 字段明确拒绝。未知宿主来源不借共享 signature
+伪造代码身份。普通调用不创建帧对象，TraceV1 与既有异常文本保持独立合同。
+事件循环、IO、真正调度取消和 contextvars 继续属于后续阶段。

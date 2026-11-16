@@ -14,6 +14,8 @@ public sealed class CPythonBridgeFixture : IDisposable
 
     public CPythonBridgeFixture()
     {
+        string version = Environment.GetEnvironmentVariable("RYUPY_CPYTHON_TEST_VERSION") ?? "3.12.13";
+        string series = string.Join('.', version.Split('.').Take(2));
         _tempDir = Path.Combine(Path.GetTempPath(), "ryupy-cpython-bridge-test-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempDir);
 
@@ -22,7 +24,7 @@ public sealed class CPythonBridgeFixture : IDisposable
         {
             return;
         }
-        string? pyLib = FindPythonLibrary(pyHome);
+        string? pyLib = FindPythonLibrary(pyHome, series);
         if (pyLib is null)
         {
             return;
@@ -41,7 +43,7 @@ public sealed class CPythonBridgeFixture : IDisposable
         }
         else if (!OperatingSystem.IsWindows() && File.Exists(buildScript))
         {
-            var psi = new ProcessStartInfo("sh", $"\"{buildScript}\" \"{pyHome}\" \"{_tempDir}\" 3.12")
+            var psi = new ProcessStartInfo("sh", $"\"{buildScript}\" \"{pyHome}\" \"{_tempDir}\" {series}")
             {
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -58,7 +60,7 @@ public sealed class CPythonBridgeFixture : IDisposable
             return;
         }
 
-        string libDir = Path.Combine(pyHome, "lib", "python3.12");
+        string libDir = Path.Combine(pyHome, "lib", "python" + series);
         var searchPaths = new List<string> { libDir };
         string dynLoad = Path.Combine(libDir, "lib-dynload");
         if (Directory.Exists(dynLoad)) searchPaths.Add(dynLoad);
@@ -68,7 +70,7 @@ public sealed class CPythonBridgeFixture : IDisposable
         var config = new
         {
             schema = 1,
-            python_version = "3.12.13",
+            python_version = version,
             development = true,
             home = pyHome,
             library = pyLib,
@@ -102,6 +104,7 @@ public sealed class CPythonBridgeFixture : IDisposable
 
     private static string FindRepoRoot()
     {
+        if (Environment.GetEnvironmentVariable("RYUPY_CPYTHON_TEST_REPOSITORY") is { Length: > 0 } selected) return selected;
         string? current = AppContext.BaseDirectory;
         while (current is not null)
         {
@@ -116,6 +119,7 @@ public sealed class CPythonBridgeFixture : IDisposable
 
     private static string? FindPythonHome()
     {
+        if (Environment.GetEnvironmentVariable("RYUPY_CPYTHON_TEST_HOME") is { Length: > 0 } selected) return selected;
         string homeDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "share", "uv", "python");
         if (Directory.Exists(homeDir))
         {
@@ -127,13 +131,13 @@ public sealed class CPythonBridgeFixture : IDisposable
         return null;
     }
 
-    private static string? FindPythonLibrary(string pyHome)
+    private static string? FindPythonLibrary(string pyHome, string series)
     {
         string[] candidates =
         [
-            Path.Combine(pyHome, "lib", "libpython3.12.dylib"),
-            Path.Combine(pyHome, "lib", "libpython3.12.so.1.0"),
-            Path.Combine(pyHome, "lib", "libpython3.12.so"),
+            Path.Combine(pyHome, "lib", $"libpython{series}.dylib"),
+            Path.Combine(pyHome, "lib", $"libpython{series}.so.1.0"),
+            Path.Combine(pyHome, "lib", $"libpython{series}.so"),
         ];
         return candidates.FirstOrDefault(File.Exists);
     }

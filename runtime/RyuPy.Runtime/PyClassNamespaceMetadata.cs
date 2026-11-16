@@ -14,8 +14,24 @@ internal static class PyClassNamespaceMetadata
 
     internal static void Capture(PyClass cls)
     {
-        if (!TryGetModule(out object? module)) return;
-        cls.Attributes["__module__"] = module ?? PyNone.Instance;
+        if (PyForeignClassConstruction.TryGet(cls, out IPyForeignClassDefinition definition))
+        {
+            // LOAD_NAME 先执行真实 mapping.__getitem__；Contains/Get 共用同一次冻结结果。
+            try
+            {
+                object? module;
+                if (definition.Contains("__name__")) module = definition.Get("__name__");
+                else if (!PyTraceback.TryGetClassDefinitionModule(out module)) return;
+                if (ReferenceEquals(module, PyUnbound.Instance))
+                    module = PyOps.LoadDeletedModuleName(module, "__name__");
+                cls.SetAttr("__module__", module ?? PyNone.Instance);
+                cls.SetAttr("__qualname__", cls.Name);
+            }
+            catch { PyForeignClassConstruction.Abort(cls); throw; }
+            return;
+        }
+        if (!TryGetModule(out object? ordinaryModule)) return;
+        cls.Attributes["__module__"] = ordinaryModule ?? PyNone.Instance;
         cls.Attributes["__qualname__"] = cls.Name;
     }
 

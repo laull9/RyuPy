@@ -49,6 +49,7 @@ fn sample() -> (Function, [LocalId; 4]) {
     });
     (
         Function {
+            core: Default::default(),
             is_comprehension: false,
             module_state: None,
             instance_capabilities: Default::default(),

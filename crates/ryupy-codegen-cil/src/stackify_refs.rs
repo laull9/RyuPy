@@ -29,6 +29,7 @@ pub struct RuntimeRefs {
     pub(crate) function_objects: crate::function_refs::FunctionRefs,
     pub(crate) delegation: crate::generator_refs::DelegateRefs,
     pub(crate) generators: crate::generator_refs::GeneratorRefs,
+    pub(crate) native_traceback: crate::native_traceback_refs::NativeTracebackRefs,
     pub(crate) origins: crate::origin_refs::OriginRefs,
     pub prepare_method: MethodRefIndex,
     pub context_method: MethodRefIndex,

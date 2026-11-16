@@ -12,6 +12,7 @@ fn catches_unreachable_terminator() {
         terminator: Terminator::Unreachable,
     });
     let func = Function {
+        core: Default::default(),
         is_comprehension: false,
         module_state: None,
         instance_capabilities: Default::default(),

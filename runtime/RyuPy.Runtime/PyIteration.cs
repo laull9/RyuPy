@@ -7,8 +7,8 @@ namespace RyuPy.Runtime;
 /// Python <c>range</c> 对象：惰性、可重复迭代。
 /// </summary>
 /// <remarks>
-/// 编译产物里的 <c>for i in range(...)</c> 会被改写成计数循环，不经过这里；
-/// 本类只服务 `range(...)` 作为**值**出现的场合（`list(range(5))`、传给函数、`reversed` 等）。
+/// 普通数值函数的 <c>for i in range(...)</c> 使用计数循环；通用伴生体复用本对象迭代。
+/// 本类也服务 `range(...)` 作为**值**出现的场合（`list(range(5))`、传给函数、`reversed` 等）。
 /// </remarks>
 public sealed class PyRange
 {

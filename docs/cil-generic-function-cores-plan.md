@@ -1,10 +1,10 @@
 # C2 typed 核心与通用核心方案
 
 - 日期：2026-11-16
-- 状态：只读设计，尚未实现；本轮仅新增本文档
+- 状态：原始只读设计；首个实现切片已进入 [ADR-0214](adr/0214-generic-default-function-companions.md)，以下保留完整后续方案。
 - 前置：[实时默认值候选](cil-function-defaults.md)、[ADR-0208](adr/0208-cil-execution-libpython-kernel.md)
 - 目标：跨模块的原无默认值 typed 函数可以新增任意 Python 默认对象，同时保留已证明的 typed 调用
-- 实施时机：当前多版本与完整门集成、提交完成后，另开实现竖切
+- 实施时机：cbb92535 后已开启首切；准入、冷缺省分派及尚未覆盖边界以 ADR-0214 为准。
 
 ## 1. 决定
 

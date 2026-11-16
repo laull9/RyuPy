@@ -19,6 +19,8 @@ pub(crate) fn reject_emitted_aot(
                     // 词法frame沿旧ABI保全部bases；确定多基同样属于新C3域，不能绕过Native保护。
                     Rvalue::Call { callee: Callee::Runtime(RuntimeFn::LexicalClassPrepare), args } =>
                         matches!(args.get(3), Some(ryupy_mir::Operand::Array(bases)) if bases.len() > 1),
+                    Rvalue::Call { callee: Callee::Runtime(RuntimeFn::ForeignClassPrepare), args } =>
+                        matches!(args.get(2), Some(ryupy_mir::Operand::Array(bases)) if bases.len() > 1),
                     _ => false,
                 }
             })

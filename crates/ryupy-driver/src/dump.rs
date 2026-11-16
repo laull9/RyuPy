@@ -34,6 +34,7 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
     trace_product::graph(sess, module.parsed.file, 1, 0, false)?;
     let plan = module_environments::plan(sess, &module, false);
     let info = ryupy_hir::ModuleInfo {
+        foreign_class_construction: sess.cpython_provider.is_some(),
         instance_globals: plan.instance_globals(),
         instance_capabilities: plan.capabilities,
         name: module.name.clone(),

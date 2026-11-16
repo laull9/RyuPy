@@ -6,8 +6,10 @@ pub(crate) fn signature(runtime: RuntimeFn) -> Option<(&'static [MirType], MirTy
         RuntimeFn::PrepareOrdinaryMiClass | RuntimeFn::PrepareRuntimeDerivedClass => {
             (&[Str, Dynamic], Dynamic)
         }
+        RuntimeFn::ForeignClassPrepare => (&[Str, Str, Dynamic], Dynamic),
         RuntimeFn::LexicalClassPrepare => (&[Str, Str, Dynamic, Dynamic], Dynamic),
         RuntimeFn::LexicalClassFinish => (&[Dynamic], Dynamic),
+        RuntimeFn::ClassDefinitionAbort => (&[Dynamic], Unit),
         RuntimeFn::LexicalNamespaceContains => (&[Dynamic, Str], Bool),
         RuntimeFn::LexicalNamespaceGet => (&[Dynamic, Str], Dynamic),
         RuntimeFn::LexicalNamespaceSet => (&[Dynamic, Str, Dynamic], Unit),

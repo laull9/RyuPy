@@ -131,6 +131,11 @@ public sealed partial class PyClass
     /// <summary>写入 / 替换类属性。</summary>
     public void SetAttr(string name, object? value)
     {
+        if (ForeignClass is null && PyForeignClassConstruction.TryGet(this, out IPyForeignClassDefinition definition))
+        {
+            GuardConstructionSet(name, value);
+            definition.Set(name, value); Attributes[name] = value; Touch(); return;
+        }
         if (ForeignClass is not null)
         {
             GuardConstructionSet(name, value);
@@ -161,6 +166,12 @@ public sealed partial class PyClass
     /// <summary>删除类属性；不存在时返回 <c>false</c>。</summary>
     public bool DeleteAttr(string name)
     {
+        if (ForeignClass is null && PyForeignClassConstruction.TryGet(this, out IPyForeignClassDefinition definition))
+        {
+            GuardConstructionDelete(name);
+            if (!definition.Delete(name)) return false;
+            Attributes.Remove(name); Touch(); return true;
+        }
         if (ForeignClass is not null)
         {
             GuardConstructionDelete(name);

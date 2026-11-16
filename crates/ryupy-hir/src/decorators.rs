@@ -218,6 +218,7 @@ pub(crate) fn lower_list(
             }
             // 仅真正的内建名字走既有描述符快路径；同名用户绑定必须正常求值。
             if !globals.instance_globals
+                && !class_names.is_some_and(|scope| scope.prepared_namespace)
                 && !class
                 && let ast::Expr::Name(name) = expression
             {
@@ -261,6 +262,7 @@ mod tests {
         crate::lower_module(
             &parsed,
             &crate::ModuleInfo {
+                foreign_class_construction: false,
                 instance_capabilities: Default::default(),
                 instance_globals: false,
                 resolve_file_at_runtime: false,

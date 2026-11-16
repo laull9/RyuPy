@@ -19,7 +19,8 @@ public static partial class PyModuleInstances
                 PyBaseException exception => exception.PythonClass,
                 _ => null,
             };
-            if (type is not null && type.TryLookup("__set_name__", out _, out _))
+            // 完成的外部真实构造已经消费专用 set_name 槽；纯原生类保留原禁域。
+            if (!cls.HasCompletedForeignAncestor && type is not null && type.TryLookup("__set_name__", out _, out _))
                 throw new PyNotImplementedError("class cell definitions with __set_name__ hooks are not implemented");
         }
         // 只消费实际父链；本类新定义的__init_subclass__属于将来的派生类创建。

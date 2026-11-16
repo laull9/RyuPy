@@ -59,7 +59,11 @@ pub(crate) fn allocate(
             entry: functions[&hir.main],
             functions: definitions
                 .iter()
-                .filter_map(|(id, f)| f.signature_global.map(|_| id))
+                .filter_map(|(id, f)| {
+                    (f.signature_global.is_some()
+                        || matches!(f.core, FunctionCore::GenericCompanion { .. }))
+                    .then_some(id)
+                })
                 .collect(),
             legacy_entry,
         },
@@ -194,7 +198,9 @@ fn validate(functions: &Arena<Function>, globals: &Arena<GlobalDecl>, errors: &m
                 continue;
             };
             if owners.insert(*id, global_id).is_some()
-                || (*id == *entry) != function.signature_global.is_none()
+                || (*id == *entry)
+                    != (function.signature_global.is_none()
+                        && !matches!(function.core, FunctionCore::GenericCompanion { .. }))
             {
                 errors.push("代码来源的入口/signature分区不完整或重复".into());
             }
@@ -215,7 +221,11 @@ fn validate(functions: &Arena<Function>, globals: &Arena<GlobalDecl>, errors: &m
     }
     let has_sources = !owners.is_empty();
     for (id, function) in functions.iter() {
-        if has_sources && function.signature_global.is_some() && !owners.contains_key(&id) {
+        if has_sources
+            && (function.signature_global.is_some()
+                || matches!(function.core, FunctionCore::GenericCompanion { .. }))
+            && !owners.contains_key(&id)
+        {
             errors.push(format!("函数 `{}` 缺少代码来源所属关系", function.name));
         }
         for global in [

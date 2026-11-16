@@ -30,7 +30,6 @@ use crate::build_flow::FinallyCtx;
 use crate::mir::{
     BasicBlock, BlockId, Callee, Constant, FnId, Function, GlobalDecl, LocalDecl,
     LocalId as MirLocalId, MirType, Operand, Program, Region, RuntimeFn, Rvalue, Statement,
-    Terminator,
 };
 
 /// 编译一个模块，返回（模块程序，模块导出表，诊断）。
@@ -41,6 +40,14 @@ pub fn build_program(
     types: &ModuleTypes,
 ) -> (Program, Vec<crate::mir::ModuleExport>, Vec<Diagnostic>) {
     crate::generator_state::build_program(hir, types)
+}
+
+/// 跨模块闭图显式启用缺省参数通用伴生体；普通单模块接口保持原发射。
+pub fn build_program_with_generic(
+    hir: &Module,
+    types: &ModuleTypes,
+) -> (Program, Vec<crate::mir::ModuleExport>, Vec<Diagnostic>) {
+    crate::generator_state::build_program_with_generic(hir, types, true)
 }
 
 pub(crate) fn build_program_with_origins(
@@ -54,9 +61,20 @@ pub(crate) fn build_program_with_origins(
 pub(crate) fn build_program_mode(
     hir: &Module,
     types: &ModuleTypes,
+    origins: Option<&mut crate::trace_lowering::LoweringOrigins>,
+    deferred: Option<&mut crate::generator_product::DeferredGenerators>,
+    trace_product: bool,
+) -> (Program, Vec<crate::mir::ModuleExport>, Vec<Diagnostic>) {
+    build_program_cores(hir, types, origins, deferred, trace_product, false)
+}
+
+pub(crate) fn build_program_cores(
+    hir: &Module,
+    types: &ModuleTypes,
     mut origins: Option<&mut crate::trace_lowering::LoweringOrigins>,
     deferred: Option<&mut crate::generator_product::DeferredGenerators>,
     trace_product: bool,
+    generic: bool,
 ) -> (Program, Vec<crate::mir::ModuleExport>, Vec<Diagnostic>) {
     let mut functions = Arena::default();
     let mut classes = Arena::default();
@@ -204,6 +222,7 @@ pub(crate) fn build_program_mode(
             hir_fn.name.as_str().to_string()
         };
         let mir_fn = Function {
+            core: Default::default(),
             is_comprehension: hir_fn.is_comprehension && !hir_fn.is_generator,
             module_state: None,
             instance_capabilities: Default::default(),
@@ -240,6 +259,7 @@ pub(crate) fn build_program_mode(
         fn_map.insert(hir_fn_id, mir_fn_id);
     }
 
+    let work = crate::generic_cores::allocate(hir, types, &fn_map, &mut functions, generic);
     let source = crate::source_provenance::allocate(
         hir,
         &fn_map,
@@ -260,8 +280,8 @@ pub(crate) fn build_program_mode(
     }
 
     // 2. 逐函数构建函数体
-    for (hir_fn_id, hir_fn) in hir.functions.iter() {
-        let mir_fn_id = fn_map[&hir_fn_id];
+    for (hir_fn_id, mir_fn_id, is_generic) in work {
+        let hir_fn = &hir.functions[hir_fn_id];
         let mut builder = FunctionBuilder::new(
             hir,
             types,
@@ -278,7 +298,11 @@ pub(crate) fn build_program_mode(
             hir_fn_id,
         );
 
-        if origins.is_some() {
+        if is_generic {
+            builder.types.generic = Some(hir_fn_id);
+            builder.ret_ty = MirType::Dynamic;
+        }
+        if origins.is_some() && !is_generic {
             builder.trace_expressions = Some(Vec::new());
         }
         builder.trace_product = trace_product;
@@ -288,7 +312,8 @@ pub(crate) fn build_program_mode(
         let captured: rustc_hash::FxHashSet<&str> =
             hir_fn.closure.cells.iter().map(|n| n.as_str()).collect();
         for (hir_loc_id, hir_loc) in hir_fn.body.locals.iter() {
-            let hir_ty = types
+            let hir_ty = builder
+                .types
                 .body(hir_fn_id)
                 .map(|b| b.local_ty(hir_loc_id))
                 .unwrap_or(Ty::Dynamic);
@@ -421,12 +446,14 @@ pub(crate) fn build_program_mode(
                 .dynamic_owner
                 .map(|owner| crate::mir::DynamicFunctionOrigin {
                     owner,
-                    source_global: fn_sources.get(&hir_fn_id).copied(),
+                    source_global: (!is_generic)
+                        .then(|| fn_sources.get(&hir_fn_id).copied())
+                        .flatten(),
                 });
         for (class, definition) in std::mem::take(&mut builder.class_cells) {
             classes[class].class_cell = Some(definition);
         }
-        if let Some(origins) = origins.as_deref_mut() {
+        if let Some(origins) = origins.as_deref_mut().filter(|_| !is_generic) {
             origins.bodies.insert(
                 hir_fn_id,
                 crate::trace_lowering::FunctionOrigin {
@@ -485,20 +512,7 @@ pub(crate) fn build_program_mode(
 /// `PyOps.ArgError` 的错误种类：未知关键字。
 pub const ARG_ERROR_UNEXPECTED_KEYWORD: i64 = 3;
 
-pub fn ty_to_mir(ty: &Ty) -> MirType {
-    match ty {
-        Ty::Int => MirType::I64,
-        Ty::Float => MirType::F64,
-        Ty::Bool => MirType::Bool,
-        Ty::Str => MirType::Str,
-        Ty::None => MirType::Unit,
-        Ty::Class(id) => MirType::Class(la_arena::Idx::from_raw(id.into_raw())),
-        Ty::Dynamic | Ty::OpaqueStr => MirType::Dynamic,
-        // 函数对象与毒化类型都不该走到 codegen；用 Dynamic 兜底而不是 Unit，
-        // 避免把「有值」错当成 void。
-        Ty::Func(_) | Ty::Error => MirType::Dynamic,
-    }
-}
+pub use crate::generic_cores::ty_to_mir;
 
 /// 单个函数的 MIR 构建器。
 ///
@@ -509,7 +523,7 @@ pub(crate) struct FunctionBuilder<'a> {
     pub(crate) trace_expressions: Option<Vec<crate::trace_lowering::ExpressionOrigin>>,
     pub(crate) module_state: Option<MirLocalId>,
     pub(crate) hir: &'a Module,
-    pub(crate) types: &'a ModuleTypes,
+    pub(crate) types: crate::core_types::CoreTypes<'a>,
     pub(crate) fn_map: &'a FxHashMap<ryupy_hir::FuncId, FnId>,
     /// 每个用户函数的函数对象静态槽位（调用一等函数值 / 运行时绑定用）。
     pub(crate) fn_globals: &'a FxHashMap<ryupy_hir::FuncId, crate::mir::GlobalId>,
@@ -571,30 +585,4 @@ pub(crate) struct FunctionBuilder<'a> {
     pub(crate) class_cell: Option<(ryupy_hir::ClassId, Operand)>,
     pub(crate) lexical_cell_stack: Vec<(ryupy_hir::ClassId, Operand)>,
     pub(crate) class_cells: Vec<(crate::ClassDefId, crate::ClassCellDefinition)>,
-}
-
-impl FunctionBuilder<'_> {
-    pub(crate) fn new_block(&mut self) -> BlockId {
-        self.blocks.alloc(BasicBlock {
-            stmts: Vec::new(),
-            terminator: Terminator::Unreachable,
-        })
-    }
-
-    pub(crate) fn push_stmt(&mut self, stmt: Statement) {
-        self.blocks[self.current_bb].stmts.push(stmt);
-    }
-
-    pub(crate) fn is_current_unterminated(&self) -> bool {
-        matches!(
-            self.blocks[self.current_bb].terminator,
-            Terminator::Unreachable
-        )
-    }
-
-    pub(crate) fn terminate_current(&mut self, term: Terminator) {
-        if self.is_current_unterminated() {
-            self.blocks[self.current_bb].terminator = term;
-        }
-    }
 }

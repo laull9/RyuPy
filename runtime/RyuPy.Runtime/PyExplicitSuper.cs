@@ -18,8 +18,8 @@ internal static class PyExplicitSuper
             if (!PyForeignClassBridge.IsType(foreignStart))
                 throw new PyTypeError($"super() argument 1 must be a type, not {PyRepr.TypeName(args[0])}");
             if (args.Length == 1 || args[1] is PyNone)
-                return PyForeignClassBridge.Require().CreateSuper(foreignStart, null)!;
-            return PyForeignClassBridge.Require().CreateSuper(foreignStart, args[1])!;
+                return PyForeignClassBridge.CanonicalSuper(foreignStart, null)!;
+            return PyForeignClassBridge.CanonicalSuper(foreignStart, args[1])!;
         }
         if (args[0] is not PyClass start)
         {
@@ -33,7 +33,7 @@ internal static class PyExplicitSuper
         {
             // 跨域类已有真实 PyTypeObject，未绑定代理由原生 super 保持类型身份。
             if (start.ForeignClass is not null)
-                return PyForeignClassBridge.Require().CreateSuper(start, null)!;
+                return PyForeignClassBridge.CanonicalSuper(start, null)!;
             throw Unsupported("unbound receivers");
         }
         object? receiver = args[1];

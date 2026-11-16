@@ -76,6 +76,7 @@ public class PyForeignClassBridgeTests
     {
         public string? LastSuperAttrName { get; private set; }
         public bool ShouldFailCreate { get; set; }
+        public bool ReturnRawSuper { get; set; }
         public List<MockForeignObject> CreatedClasses { get; } = [];
         public Dictionary<PyClass, MockForeignObject> Mirrors { get; } = [];
 
@@ -170,9 +171,11 @@ public class PyForeignClassBridgeTests
             return new MockForeignObject("method") { OnInvoke = (_, _, _) => $"super:{name}" };
         }
 
-        public PySuper CreateSuper(object start, object? receiver)
+        public object? CreateSuper(object start, object? receiver)
         {
             var proxy = new MockForeignObject("super");
+            proxy.Dict["legacy_marker"] = 17L;
+            if (ReturnRawSuper) return proxy;
             return PySuper.FromForeign(proxy, proxy.GetAttr);
         }
         public bool Contains(IPyForeignObject foreignInstance, object? value) => ((MockForeignObject)foreignInstance).Dict.ContainsKey($"[{value}]");
@@ -207,12 +210,31 @@ public class PyForeignClassBridgeTests
             bridge.DelAttrFromBaseObject(foreignInstance, name);
         public object? GetSuperAttribute(object start, object? receiver, string name) =>
             bridge.GetSuperAttribute(start, receiver, name);
-        public PySuper CreateSuper(object start, object? receiver) =>
+        public object? CreateSuper(object start, object? receiver) =>
             bridge.CreateSuper(start, receiver);
         public bool Contains(IPyForeignObject foreignInstance, object? value) =>
             bridge.Contains(foreignInstance, value);
         public object? Dir(IPyForeignObject foreignObject) =>
             bridge.Dir(foreignObject);
+    }
+
+    [Fact]
+    public void LegacySuperAbiRetainsObjectReturnAndCanonicalizesForeignProxy()
+    {
+        // 旧provider二进制仍实现object返回签名，Runtime在冷边界统一super身份。
+        Assert.Equal(typeof(object), typeof(IPyForeignClassBridge).GetMethod("CreateSuper")!.ReturnType);
+        var bridge = new MockForeignClassBridge { ReturnRawSuper = true };
+        PyForeignClassBridge.Install(bridge);
+        try
+        {
+            var start = new MockForeignObject("Base", isType: true);
+            object? proxy = PyOps.CallValue(PyLexicalSuper.Type, [start], [], []);
+            Assert.IsType<PySuper>(proxy);
+            Assert.Same(PyLexicalSuper.Type, PyObject.TypeOf(proxy));
+            Assert.Same(PyLexicalSuper.Type, PyObject.GetAttr(proxy, "__class__"));
+            Assert.Equal(17L, PyObject.GetAttr(proxy, "legacy_marker"));
+        }
+        finally { PyForeignClassBridge.Remove(bridge); }
     }
 
     [Fact]

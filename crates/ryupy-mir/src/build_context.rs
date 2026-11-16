@@ -1,6 +1,6 @@
 //! 函数 MIR 构建上下文初始化；保持局部、环境、类定义 cell 的身份分别保存。
 use crate::build::{FunctionBuilder, ty_to_mir};
-use crate::{BasicBlock, FnId, GlobalDecl, Terminator};
+use crate::{BasicBlock, BlockId, FnId, GlobalDecl, Statement, Terminator};
 use la_arena::Arena;
 use rustc_hash::{FxHashMap, FxHashSet};
 use ryupy_hir::{Module, ModuleVarId};
@@ -32,7 +32,7 @@ impl<'a> FunctionBuilder<'a> {
             trace_expressions: None,
             module_state: None,
             hir,
-            types,
+            types: crate::core_types::CoreTypes::ordinary(types),
             fn_map,
             fn_globals,
             fn_defaults,
@@ -73,6 +73,32 @@ impl<'a> FunctionBuilder<'a> {
             class_cell: None,
             lexical_cell_stack: Vec::new(),
             class_cells: Vec::new(),
+        }
+    }
+}
+
+impl FunctionBuilder<'_> {
+    pub(crate) fn new_block(&mut self) -> BlockId {
+        self.blocks.alloc(BasicBlock {
+            stmts: Vec::new(),
+            terminator: Terminator::Unreachable,
+        })
+    }
+
+    pub(crate) fn push_stmt(&mut self, stmt: Statement) {
+        self.blocks[self.current_bb].stmts.push(stmt);
+    }
+
+    pub(crate) fn is_current_unterminated(&self) -> bool {
+        matches!(
+            self.blocks[self.current_bb].terminator,
+            Terminator::Unreachable
+        )
+    }
+
+    pub(crate) fn terminate_current(&mut self, term: Terminator) {
+        if self.is_current_unterminated() {
+            self.blocks[self.current_bb].terminator = term;
         }
     }
 }

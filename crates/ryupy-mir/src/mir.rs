@@ -161,6 +161,8 @@ pub struct DynamicFunctionOrigin {
 
 #[derive(Debug)]
 pub struct Function {
+    /// 编译核心角色；通用伴生体共享canonical的Python身份，不独立发布。
+    pub core: FunctionCore,
     /// 前端显式登记的急切推导式来源；优化不按函数名识别。
     pub is_comprehension: bool,
     /// 实例入口的显式state参数；Python参数元数据不包含此槽。
@@ -198,6 +200,17 @@ pub struct Function {
     pub env: Option<LocalId>,
     /// 已收敛为Dynamic的Python函数才有尾owner；不属于Python参数元数据。
     pub dynamic_origin: Option<DynamicFunctionOrigin>,
+}
+
+/// 同一Python定义的独立CIL核心关系；旧函数和模块入口保持Ordinary。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum FunctionCore {
+    #[default]
+    Ordinary,
+    /// 原typed核心保持ABI，冷缺省入口使用指定的通用体。
+    TypedWithGeneric { generic: FnId },
+    /// 只拥有通用参数/CFG和实际owner，不分配第二份Python元数据。
+    GenericCompanion { canonical: FnId },
 }
 
 #[derive(Debug)]

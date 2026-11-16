@@ -225,7 +225,8 @@ fn snapshot_m2_6_user_errors_cil() {
     let mut sess = Session::default();
     let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
     assert!(cil.contains("PyOps.MakeClass"), "{cil}");
-    assert!(cil.contains("PyErrors.PrepareRaise"), "{cil}");
+    // 源码raise创建新的传播点；异常路由内部的重抛继续使用PrepareRaise。
+    assert!(cil.contains("PyErrors.PrepareExplicitRaise"), "{cil}");
     assert!(cil.contains("PyValueError handler"), "{cil}");
     assert!(cil.contains("PyErrors.EnterHandler"), "{cil}");
 }

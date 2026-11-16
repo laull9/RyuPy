@@ -11,6 +11,8 @@ public static partial class PyObject
         {
             case PyBaseException { ForeignObject: PyNativeObject origin } error:
                 origin.DelAttr(name); error.ForeignObject.SynchronizeException(error, false); return;
+            case PyBaseException when name == "__traceback__":
+                throw new PyNotImplementedError("native exception traceback deletion is not supported");
             case PyModule module:
                 PyModuleInstances.DeleteAttr(module, name);
                 return;

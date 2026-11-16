@@ -134,6 +134,7 @@ static PyThreadState *initial_thread;
 static char init_error[4096];
 #include "execution_audit.h"
 #include "method_descriptor.h"
+#include "class_construction.h"
 
 /* 回调失败必须已设置Python异常，绝不能让托管异常穿过C栈。 */
 static PyObject *forward(Managed *self, int op, PyObject *a, PyObject *b, PyObject *c, int64_t n, const char *s) {
@@ -209,6 +210,7 @@ static PyMethodDef bridge_methods[] = {
     {"_rp_package", bridge_package, METH_O, NULL}, {NULL, NULL, 0, NULL}
 };
 static PyType_Spec managed_spec = {"ryupy.ManagedObject", sizeof(Managed), 0, Py_TPFLAGS_DEFAULT, managed_slots};
+#include "managed_descriptor.h"
 
 static int fail_status(PyStatus status) {
     if (!PyStatus_Exception(status)) return 0;
@@ -280,7 +282,7 @@ API void rp_gil_release(int state) { PyGILState_Release((PyGILState_STATE)state)
 API int rp_stop(void) {
     PyEval_RestoreThread(initial_thread); initial_thread = NULL;
     rp_execution_audit_phase(2);
-    Py_CLEAR(native_method_type);
+    Py_CLEAR(native_method_type); Py_CLEAR(native_static_method_type); Py_CLEAR(managed_descriptor_type);
     int result = Py_FinalizeEx();
     audit_finalized = audit_enabled;
     managed_type = NULL;
@@ -294,7 +296,7 @@ API PyObject *rp_managed(intptr_t identity) {
     self->identity = identity; return (PyObject *)self;
 }
 API intptr_t rp_identity(PyObject *value) {
-    return Py_IS_TYPE(value, managed_type) ? ((Managed *)value)->identity : 0;
+    return Py_IS_TYPE(value, managed_type) || is_managed_descriptor(value) ? ((Managed *)value)->identity : 0;
 }
 API PyObject *rp_none(void) { return Py_NewRef(Py_None); }
 API int rp_is_none(PyObject *value) { return Py_IsNone(value); }

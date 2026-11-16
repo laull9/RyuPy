@@ -19,7 +19,7 @@ use la_arena::Arena;
 use rustc_hash::{FxHashMap, FxHashSet};
 use ryupy_base::{Diagnostic, Span};
 use ryupy_hir::{Builtin, ExprId, ExprKind, LocalId as HirLocalId, Module};
-use ryupy_ty::{ModuleTypes, Ty, TypeckResults, type_ref_to_ty};
+use ryupy_ty::{Ty, TypeckResults, type_ref_to_ty};
 
 use crate::build::ty_to_mir;
 use crate::mir::{
@@ -32,7 +32,7 @@ pub struct ExprBuilder<'a> {
     pub trace_expressions: Option<&'a mut Vec<crate::trace_lowering::ExpressionOrigin>>,
     pub module_state: Option<MirLocalId>,
     pub hir: &'a Module,
-    pub types: &'a ModuleTypes,
+    pub(crate) types: crate::core_types::CoreTypes<'a>,
     pub fn_map: &'a FxHashMap<ryupy_hir::FuncId, FnId>,
     pub fn_globals: &'a FxHashMap<ryupy_hir::FuncId, crate::mir::GlobalId>,
     pub fn_defaults: &'a FxHashMap<ryupy_hir::FuncId, Option<crate::mir::GlobalId>>,
@@ -148,7 +148,8 @@ impl<'a> ExprBuilder<'a> {
             ExprKind::Literal(lit) => self.build_literal(lit),
             ExprKind::Yield(value) => self.build_yield_expr(*value),
             ExprKind::YieldFrom(value) => self.build_yield_from(*value),
-            ExprKind::Await(value) => self.build_await(*value),
+            ExprKind::Await { value, context } => self.build_await(*value, *context),
+            ExprKind::ExceptionTraceback(value) => self.build_exception_traceback(*value),
             ExprKind::ModuleVar(var) => self.build_module_name(*var),
             ExprKind::Local(loc) => {
                 let mir_local = self.local_map[loc];
