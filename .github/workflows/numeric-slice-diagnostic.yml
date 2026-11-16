@@ -1,0 +1,85 @@
+name: Numeric slice baseline diagnosis only
+on:
+  push:
+    branches: [ci/numeric-slice-diagnostic-20261116]
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+      MSBUILDDISABLENODEREUSE: '1'
+      DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+      UseSharedCompilation: 'false'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: echo "DOTNET_INSTALL_DIR=$RUNNER_TEMP/slice-dotnet" >> "$GITHUB_ENV"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - uses: actions/setup-python@v5
+        id: python
+        with:
+          python-version: '3.12.13'
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
+        with:
+          toolchain: '1.99.1'
+      - name: 固定环境与未改产品
+        env:
+          FIXED_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/slice-evidence"
+          echo "EVIDENCE=$RUNNER_TEMP/slice-evidence" >> "$GITHUB_ENV"
+          echo "PYTHON=$FIXED_PYTHON" >> "$GITHUB_ENV"
+          test "$(readlink -f "$(command -v dotnet)")" = "$DOTNET_INSTALL_DIR/dotnet"
+          test "$(dotnet --version)" = 10.0.403
+          dotnet --info > "$RUNNER_TEMP/slice-evidence/sdk.txt"
+          for key in DOTNET DOTNET_HOST_PATH; do echo "$key=$DOTNET_INSTALL_DIR/dotnet" >> "$GITHUB_ENV"; done
+          for key in DOTNET_ROOT DOTNET_ROOT_X64; do echo "$key=$DOTNET_INSTALL_DIR" >> "$GITHUB_ENV"; done
+          echo "DOTNET_MULTILEVEL_LOOKUP=0" >> "$GITHUB_ENV"
+          "$FIXED_PYTHON" -c 'import sys; assert sys.version_info[:3] == (3,12,13); print(sys.version)' > "$RUNNER_TEMP/slice-evidence/python.txt"
+          git rev-parse HEAD HEAD^{tree} > "$RUNNER_TEMP/slice-evidence/diagnostic.txt"
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev patchelf binutils time
+      - name: 构建精确dev与同源host注入
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/slice-product"
+          git worktree add --detach "$work" 2128d6bc82e61a6ba6d1601dd475667873019772
+          git -C "$work" rev-parse HEAD HEAD^{tree} > "$EVIDENCE/product.txt"
+          (cd "$work"; CARGO_TARGET_DIR="$RUNNER_TEMP/slice-target" make build RELEASE_DIR="$RUNNER_TEMP/slice-cli") 2>&1 | tee "$EVIDENCE/build.log"
+          cp tests/perf/numeric-slice-diagnostic/SliceDiagnostic.cs "$work/runtime/RyuPy.Runtime.Tests/SliceDiagnostic.cs"
+          cp tests/perf/numeric-slice-diagnostic/SliceDiagnostic.cs "$EVIDENCE/SliceDiagnostic.cs"
+          (cd "$work"; SLICE_HOST_OUTPUT="$EVIDENCE/host" dotnet test runtime/RyuPy.Runtime.Tests -c Release --filter FullyQualifiedName~SliceDiagnostic --logger 'trx;LogFileName=host.trx' --results-directory "$EVIDENCE") 2>&1 | tee "$EVIDENCE/host.log"
+          git -C "$work" diff --exit-code
+          git -C "$work" status --porcelain > "$EVIDENCE/injection-status.txt"
+          test "$(cat "$EVIDENCE/injection-status.txt")" = '?? runtime/RyuPy.Runtime.Tests/SliceDiagnostic.cs'
+      - name: 真实源码CP JIT AOT与冷进程基线
+        run: |
+          set -euo pipefail
+          "$PYTHON" -B tests/perf/numeric-slice-diagnostic/validate.py "$EVIDENCE/source" --cli "$RUNNER_TEMP/slice-cli/ryupy" 2>&1 | tee "$EVIDENCE/source.log"
+          "$PYTHON" - <<'PY'
+          import json, os, pathlib, xml.etree.ElementTree as E
+          p = pathlib.Path(os.environ['EVIDENCE'])
+          rows = E.parse(p/'host.trx').getroot().findall('.//{http://microsoft.com/schemas/VisualStudio/TeamTest/2010}UnitTestResult')
+          assert len(rows)==1 and rows[0].get('outcome')=='Passed'
+          data=json.loads((p/'host/host.json').read_text())['rows']; assert len(data)==300
+          assert {(x['size'],x['mode'],x['shape'],x['repeat']) for x in data} == {(n,m,s,r) for n in (512,5000,50000) for m in ('fresh','partial','materialized','copied') for s in ('empty','one','eight','reverse-eight','full') for r in range(5)}
+          samples=json.loads((p/'source/samples.json').read_text()); assert len(samples)==4
+          assert sum(len(v) for row in samples for v in row['samples'].values())==96
+          assert len(list((p/'source').rglob('*-manifest.json')))==5
+          (p/'COMPLETE').write_text('baseline only; host300 + source96; no optimization or relocation acceptance\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: numeric-slice-baseline-${{ github.sha }}
+          path: ${{ runner.temp }}/slice-evidence
+          if-no-files-found: error
+          retention-days: 14
