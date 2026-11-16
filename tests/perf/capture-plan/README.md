@@ -45,3 +45,15 @@ scalar臂使用手写静态委托，与其它臂拥有等价返回身份；不�
 合同测试补充四个arity、原始数组回退、同站点重入与重绑、super异常恢复、
 owned globals/builtins/cells/元数据身份、弱键循环回收及重复登记拒绝。
 完整Python差分、错误来源与动态默认值绑定仍是后续编译器接线验收，不以本host替代。
+
+## AOT 成本分解与受限优化
+
+继续保留late/bound/plan/scalar完整调用基线；新增scalar_split只把无super热路
+与有EH的原调用分开，scalar_narrow再使用context/function/self/arg专用委托。
+全部捕获、arity、star、UsesSuper与receiver late守卫保留；不改原公共调用入口。
+capture_only只捕获不调用，invoke_only复用预先捕获的目标只调用。
+后两者不具完整调用语义，不能与产品速度等同，也不能简单相加推算完整调用成本。
+窄委托臂使用另一等价函数实例；所有臂仍为手写host，不是编译器发射证明。
+
+CI默认/feature完整门禁及PIC0合同之外，保留四构建轮与正常/禁分层JIT、AOT。
+每进程160批记录，共24进程3840记录。必须逐臂报告，不能挑最佳轮代替全部轮次。

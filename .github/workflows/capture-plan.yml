@@ -87,7 +87,7 @@ jobs:
             --filter FullyQualifiedName~PyCapturedMethodPlanTests \
             --logger trx --results-directory "$EVIDENCE/plan-pic0" \
             > "$EVIDENCE/plan-pic0.log" 2>&1
-      - name: Runtime 计划原型四臂性能分配
+      - name: Runtime 计划原型分解与受限优化性能分配
         run: |
           set -euo pipefail
           "$PYTHON" tests/perf/capture-plan/run.py "$RUNNER_TEMP/plan-results"

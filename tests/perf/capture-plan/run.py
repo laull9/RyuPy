@@ -55,9 +55,10 @@ try:
                         extra["DOTNET_TieredCompilation"] = "0" if profile == "no-tier" else "1"
                     stdout = run(argv, f"run-{tag}-{profile}-pic{pic}", extra)
                     rows = [json.loads(line) for line in stdout.splitlines()]
-                    assert len(rows) == 80
+                    assert len(rows) == 160
                     assert {(r["batch"], r["arm"]) for r in rows} == {
-                        (b, a) for b in range(20) for a in ("late", "bound", "plan", "scalar")}
+                        (b, a) for b in range(20) for a in ("late", "bound", "plan", "scalar",
+                                                               "scalar_split", "scalar_narrow", "capture_only", "invoke_only")}
                     for row in rows:
                         assert row["count"] == 100000 and row["ms"] >= 0 and row["allocation"] >= 0
                         REPORT["rows"].append(row | {"round": round_id, "backend": backend,

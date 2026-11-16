@@ -14,26 +14,65 @@ public static partial class PyPic
     internal delegate object? ExperimentalScalarCall(object? context, PyFunction function,
         object? p0, object? p1, object? p2, object? p3);
 
-    private sealed class ScalarCapability(int arity, object? context, ExperimentalScalarCall call)
+    // 两位置值专用委托，隔离测试统一宽委托的空槽传参成本。
+    internal delegate object? ExperimentalScalar2Call(object? context, PyFunction function, object? p0, object? p1);
+
+    private sealed class ScalarCapability(int arity, object? context, ExperimentalScalarCall call,
+        ExperimentalScalar2Call? call2 = null)
     {
         internal readonly int Arity = arity;
         internal readonly object? Context = context;
         internal readonly ExperimentalScalarCall Call = call;
+        internal readonly ExperimentalScalar2Call? Call2 = call2;
     }
 
     // 弱键防止独立函数永久驻留；值可合法引用键，依赖CWT的ephemeron语义。
     // 能力一次登记不可替换；计划在miss读取，热调用不查弱表。
     private static readonly ConditionalWeakTable<PyFunction, ScalarCapability> ScalarCapabilities = new();
 
-    internal static void RegisterExperimentalScalar(PyFunction function, int arity, ExperimentalScalarCall call)
+    internal static void RegisterExperimentalScalar(PyFunction function, int arity, ExperimentalScalarCall call) =>
+        RegisterScalarCore(function, arity, call, null);
+
+    internal static void RegisterExperimentalScalar2(PyFunction function, ExperimentalScalar2Call call) =>
+        RegisterScalarCore(function, 2, (ctx, fn, p0, p1, _, _) => call(ctx, fn, p0, p1), call);
+
+    private static void RegisterScalarCore(PyFunction function, int arity, ExperimentalScalarCall call,
+        ExperimentalScalar2Call? call2)
     {
         if (arity < 1 || arity > 4 || !function.Signature.SimplePositional
             || function.Signature.Names.Length != arity)
             throw new PyRuntimeError("invalid experimental scalar contract");
         // 不替换Body.Target，元数据和来源检查继续看到原PyFunctionOwner。
         object? context = function.Body.Target is PyFunctionOwner ? PyFunctionOwner.GetContext(function) : null;
-        try { ScalarCapabilities.Add(function, new ScalarCapability(arity, context, call)); }
+        try { ScalarCapabilities.Add(function, new ScalarCapability(arity, context, call, call2)); }
         catch (ArgumentException) { throw new PyRuntimeError("scalar capability already registered"); }
+    }
+
+    // 独立实验入口：不改原CallCapturedPlan1，保留同次完整baseline。
+    // 无super热路没有EH，带super、star、无能力和非计划一律回原合同路径。
+    internal static object? CallExperimentalScalarNoSuper(int site, bool captured, object? plan,
+        object? receiver, string name, object? argument)
+    {
+        if (captured && plan is CapturedClassPlan bound && bound.Scalar is { Arity: 2 } capability
+            && !bound.Function.UsesSuper && !PyOps.IsStarredArgument(argument))
+        {
+            PyLexicalClassGuard.Receiver(receiver);
+            return capability.Call(capability.Context, bound.Function, receiver, argument, null, null);
+        }
+        return CallCapturedPlan1(site, captured, plan, receiver, name, argument);
+    }
+
+    // 窄委托另查Call2能力；不删除任何判据，不省略receiver late guard。
+    internal static object? CallExperimentalScalar2(int site, bool captured, object? plan,
+        object? receiver, string name, object? argument)
+    {
+        if (captured && plan is CapturedClassPlan bound && bound.Scalar is { Arity: 2, Call2: not null } capability
+            && !bound.Function.UsesSuper && !PyOps.IsStarredArgument(argument))
+        {
+            PyLexicalClassGuard.Receiver(receiver);
+            return capability.Call2(capability.Context, bound.Function, receiver, argument);
+        }
+        return CallCapturedPlan1(site, captured, plan, receiver, name, argument);
     }
 
     private static object? InvokeScalar(CapturedClassPlan plan, object? receiver,

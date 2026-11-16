@@ -311,19 +311,26 @@ public sealed class PyCapturedMethodPlanTests
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static WeakReference RegisterScalarCycle()
+    private static WeakReference RegisterScalarCycle(bool narrow)
     {
         PyFunction? fn = null;
         fn = new PyFunction("f", ScalarSignature(1), static (_, args, _, _) => args[0], [], false);
         // 值的闭包反向引用弱键；若误用普通Dictionary，此环会被静态根保留。
-        PyPic.RegisterExperimentalScalar(fn, 1, (_, f, p0, _, _, _) => ReferenceEquals(fn, f) ? p0 : null);
+        if (narrow)
+        {
+            fn = new PyFunction("f", ScalarSignature(2), static (_, args, _, _) => args[1], [], false);
+            PyPic.RegisterExperimentalScalar2(fn, (_, f, _, p1) => ReferenceEquals(fn, f) ? p1 : null);
+        }
+        else PyPic.RegisterExperimentalScalar(fn, 1, (_, f, p0, _, _, _) => ReferenceEquals(fn, f) ? p0 : null);
         return new WeakReference(fn);
     }
 
-    [Fact]
-    public void ScalarCapabilityWeakKeyDoesNotRootFunctionCycle()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ScalarCapabilityWeakKeyDoesNotRootFunctionCycle(bool narrow)
     {
-        WeakReference fn = RegisterScalarCycle();
+        WeakReference fn = RegisterScalarCycle(narrow);
         for (int i = 0; i < 3; i++) { GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect(); }
         Assert.False(fn.IsAlive);
     }
@@ -335,5 +342,56 @@ public sealed class PyCapturedMethodPlanTests
         Assert.Throws<PyRuntimeError>(() => PyPic.RegisterExperimentalScalar(fn, 2, static (_, _, p0, _, _, _) => p0));
         PyPic.RegisterExperimentalScalar(fn, 1, static (_, _, p0, _, _, _) => p0);
         Assert.Throws<PyRuntimeError>(() => PyPic.RegisterExperimentalScalar(fn, 1, static (_, _, p0, _, _, _) => p0));
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void ExperimentalDispatchPreservesOwnedReentrySuperAndFallback(bool narrow, bool usesSuper)
+    {
+        var state = new PyModuleInstanceState(null); var builtins = new PyDict(); builtins.Set("answer", 9L);
+        var context = new PyModuleExecutionContext(state, builtins);
+        var cls = new PyClass("DispatchContract"); var self = new PyInstance(cls);
+        var error = new PyValueError("dispatch"); int arrays = 0; bool nested = false; object? plan = null;
+        PyFunction? function = null;
+        object? Invoke(object? argument) => narrow
+            ? PyPic.CallExperimentalScalar2(3530, true, plan, self, "f", argument)
+            : PyPic.CallExperimentalScalarNoSuper(3530, true, plan, self, "f", argument);
+        object? Core(object ctx, PyFunction fn, object? receiver, object? arg)
+        {
+            Assert.Same(context, ctx); Assert.Same(function, fn); Assert.Same(self, receiver);
+            Assert.Equal(9L, PyModuleInstances.LoadName(ctx, "answer"));
+            if (usesSuper) { Assert.Same(cls, PyMethodContext.CurrentOwner); Assert.Same(self, PyMethodContext.CurrentSelf); }
+            if (arg is string) throw error;
+            if (!nested)
+            {
+                nested = true;
+                cls.SetAttr("f", Function(static (_, _, _, _) => -1L));
+                _ = PyPic.CaptureMethodPlan(3530, self, "f");
+                Assert.Equal(7L, Invoke(7L)); nested = false;
+            }
+            return arg;
+        }
+        function = PyModuleInstances.CreateOwnedFunction(context, "f", ScalarSignature(2),
+            (ctx, fn, args, _, _) => { arrays++; return Core(ctx, fn, args[0], args[1]); }, [], usesSuper, null);
+        object? bodyTarget = function.Body.Target;
+        if (narrow) PyPic.RegisterExperimentalScalar2(function, (ctx, fn, p0, p1) => Core(ctx!, fn, p0, p1));
+        else PyPic.RegisterExperimentalScalar(function, 2, (ctx, fn, p0, p1, _, _) => Core(ctx!, fn, p0, p1));
+        cls.SetAttr("f", function); plan = PyPic.CaptureMethodPlan(3530, self, "f");
+        var oldOwner = PyMethodContext.CurrentOwner; var oldSelf = PyMethodContext.CurrentSelf;
+        Assert.Equal(5L, Invoke(5L)); Assert.Equal(PicEnabled ? 0 : 2, arrays);
+        Assert.Same(error, Assert.Throws<PyValueError>(() => Invoke("throw")));
+        Assert.Same(oldOwner, PyMethodContext.CurrentOwner); Assert.Same(oldSelf, PyMethodContext.CurrentSelf);
+        int before = arrays;
+        Assert.Equal(8L, Invoke(PyOps.StarArg(new PyTuple([8L]))));
+        Assert.True(arrays > before); Assert.Same(bodyTarget, function.Body.Target);
+        Assert.Same(state.Globals, PyObject.GetAttr(function, "__globals__"));
+        Assert.Same(builtins, PyObject.GetAttr(function, "__builtins__"));
+        var list = new PyList();
+        if (narrow) PyPic.CallExperimentalScalar2(3530, false, list, list, "append", 42L);
+        else PyPic.CallExperimentalScalarNoSuper(3530, false, list, list, "append", 42L);
+        Assert.Equal(42L, list.GetItem(0));
     }
 }
