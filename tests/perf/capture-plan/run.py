@@ -43,7 +43,7 @@ try:
                 cmd += ["-r", "linux-x64", "-p:PublishAot=true"]
             run(cmd, "publish-" + tag)
             shutil.rmtree(obj)
-            entry = product / ("Host.dll" if backend == "jit" else "Host")
+            entry = product / ("RyuPy.CapturedPlanPrototypeHost.dll" if backend == "jit" else "RyuPy.CapturedPlanPrototypeHost")
             REPORT["entries"].append({"path": str(entry.relative_to(OUT)),
                 "sha256": hashlib.sha256(entry.read_bytes()).hexdigest()})
             # 正常分层与禁分层分别记录；不能把后者当作默认产品配置。
@@ -55,9 +55,9 @@ try:
                         extra["DOTNET_TieredCompilation"] = "0" if profile == "no-tier" else "1"
                     stdout = run(argv, f"run-{tag}-{profile}-pic{pic}", extra)
                     rows = [json.loads(line) for line in stdout.splitlines()]
-                    assert len(rows) == 60
+                    assert len(rows) == 80
                     assert {(r["batch"], r["arm"]) for r in rows} == {
-                        (b, a) for b in range(20) for a in ("late", "bound", "plan")}
+                        (b, a) for b in range(20) for a in ("late", "bound", "plan", "scalar")}
                     for row in rows:
                         assert row["count"] == 100000 and row["ms"] >= 0 and row["allocation"] >= 0
                         REPORT["rows"].append(row | {"round": round_id, "backend": backend,
