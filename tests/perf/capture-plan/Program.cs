@@ -13,9 +13,15 @@ if (Environment.GetEnvironmentVariable("RYUPY_PIC") != "0"
     throw new Exception("计划快路未命中");
 const int count = 100000;
 object value = 7L;
-for (int batch = 0; batch < 14; batch++)
+// 按时间预热同一调用站点，避免短批次结束时仍处于分层编译过渡期。
+// 不把这视为稳态证明，报告保留逐批数据供检查漂移。
+long warmupStart = Stopwatch.GetTimestamp();
+int batch = -1;
+int cycle = 0;
+while (batch < 20)
 {
-    string[] arms = batch % 2 == 0 ? ["late", "bound", "plan"] : ["plan", "bound", "late"];
+    if (batch < 0 && Stopwatch.GetElapsedTime(warmupStart).TotalSeconds >= 3) batch = 0;
+    string[] arms = cycle++ % 2 == 0 ? ["late", "bound", "plan"] : ["plan", "bound", "late"];
     foreach (string arm in arms)
     {
         object? result = null;
@@ -45,7 +51,8 @@ for (int batch = 0; batch < 14; batch++)
         allocation = GC.GetAllocatedBytesForCurrentThread() - allocation;
         if (!ReferenceEquals(result, value)) throw new Exception("返回身份变化");
         double ms = ticks * 1000.0 / Stopwatch.Frequency;
-        if (batch >= 2)
+        if (batch >= 0)
             Console.WriteLine(FormattableString.Invariant($"{{\"batch\":{batch},\"arm\":\"{arm}\",\"count\":{count},\"ms\":{ms},\"allocation\":{allocation}}}"));
     }
+    if (batch >= 0) batch++;
 }
