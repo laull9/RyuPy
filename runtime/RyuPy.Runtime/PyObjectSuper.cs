@@ -7,15 +7,17 @@ public static partial class PyObject
     {
         PyLexicalClassGuard.Receiver(super.Self);
         if (name == "__class__") return PyLexicalSuper.Type;
+        PyClass? actual = super.Self is PyInstance instance ? instance.Class : super.Self as PyClass;
+        if (actual is { HasForeignHierarchy: true } && super.Owner.ForeignClass is not null)
+        {
+            // 真实外部 super 同时负责 MRO 成员与自身元数据的查找次序，
+            // 保留基类覆盖 __self__ 等名字时的描述符语义。
+            return PyForeignClassBridge.Require().GetSuperAttribute(super.Owner, super.Self, name);
+        }
         PyLexicalSuper.GuardAttribute(name);
         PyTypingGenericProtocols.GuardSuper(super, name);
         PyTypingIo.GuardSuperAttribute(super, name);
-        PyClass? actual = super.Self is PyInstance instance ? instance.Class : super.Self as PyClass;
         if (actual is { HasDictC3Layout: true }) return GetDictC3Super(super, actual, name);
-        if (actual is { HasForeignHierarchy: true } && super.Owner.ForeignClass is not null)
-        {
-            return PyForeignClassBridge.Require().GetSuperAttribute(super.Owner, super.Self, name);
-        }
         foreach (PyClass current in PyClass.SuperClasses(super.Owner, super.Self))
         {
             if (current.Attributes.TryGetValue(name, out object? raw))

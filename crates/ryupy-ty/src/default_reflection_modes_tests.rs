@@ -57,3 +57,11 @@ fn global_and_module_dictionary_observers_demote_published_functions() {
         );
     }
 }
+
+#[test]
+fn published_class_methods_accept_added_defaults_without_typed_restriction() {
+    let result = modes(
+        "class Owner:\n    if True:\n        @staticmethod\n        def required(value: int) -> int:\n            return value\nOwner.required.__defaults__ = ('changed',)\n",
+    );
+    assert!(result.contains(&("required".into(), FuncMode::Dynamic)));
+}

@@ -29,7 +29,10 @@ def main():
             output = root / str(index)
             output.mkdir()
             oracle_code = (f'import sys; sys.path[:0] = [{str(FIXTURES)!r}, {str(PACKAGES)!r}]; '
-                           'import fixture; fixture.Subject.sample=fixture.target; fixture.test(False)')
+                           'import fixture; fixture.Subject.sample=fixture.target; '
+                           'fixture.Subject.kind=classmethod(fixture.class_target); '
+                           'fixture.Subject.twice=staticmethod(fixture.static_target); '
+                           'fixture.Subject.observed_offset=property(fixture.property_target); fixture.test(False)')
             oracle = checked(execute([python, '-I', '-B', '-c', oracle_code], cwd=root, env=env), '同次oracle')
             checked(execute(['sh', ROOT / 'runtime/RyuPy.CPython/native/build.sh', home, output, series],
                             cwd=root, env=env), '真实shim构建')

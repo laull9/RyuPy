@@ -10,6 +10,7 @@
 //! - 降级判定用不动点迭代，且只降不升，保证收敛；
 //! - 标注只提供优化线索：实参类型不符不再报 `E0203`，而是运行时的 Python `TypeError`。
 
+mod annotation_types;
 mod call;
 mod check;
 mod check_attrs;

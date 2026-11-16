@@ -72,17 +72,10 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
     }
     let is_comprehension = matches!(&source, FnSource::Comprehension(_));
     let is_coroutine = matches!(&source, FnSource::Def(def) if def.is_async);
-    if is_coroutine && !cfg!(feature = "native-coroutines") {
-        diagnostics.push(
-            Diagnostic::error(
-                Span::new(file, functions[func_id].range),
-                "原生协程需要显式 native-coroutines 编译特性",
-            )
-            .with_code("E0100"),
-        );
-    }
     let contains_yield = match &source {
-        FnSource::Def(def) => crate::generator_scan::analyze(file, &def.body, diagnostics),
+        FnSource::Def(def) => {
+            crate::generator_scan::analyze(file, &def.body, diagnostics, is_coroutine)
+        }
         FnSource::Comprehension(comp) => {
             let generator = comp.kind == crate::comprehension_ast::ComprehensionKind::Generator;
             crate::generator_scan::validate_expression(file, *comp, diagnostics);
@@ -98,7 +91,8 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
                 Span::new(file, functions[func_id].range),
                 "异步生成器尚未接入原生协程候选",
             )
-            .with_code("E0100"),
+            .with_code("E0100")
+            .with_deferred_failure(ryupy_base::diagnostic::DeferredFailure::SupportBoundary),
         );
     }
     let is_generator = contains_yield || is_coroutine;
@@ -107,6 +101,17 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
     // 嵌套函数（def / lambda）的默认值不在 main 作用域求值：
     // 它们由 lower_nested_def 在外层作用域的 def 位置求值。
     let is_nested = analysis.nested_order.iter().any(|(id, _)| *id == func_id);
+    // 嵌套 async 的关闭态诊断由定义位置独占，避免重复改变原有支持边界计数。
+    if is_coroutine && !is_nested && !cfg!(feature = "native-coroutines") {
+        diagnostics.push(
+            Diagnostic::error(
+                Span::new(file, functions[func_id].range),
+                "原生协程需要显式 native-coroutines 编译特性",
+            )
+            .with_code("E0100")
+            .with_deferred_failure(ryupy_base::diagnostic::DeferredFailure::SupportBoundary),
+        );
+    }
 
     let mut body = Body::default();
     let mut func_scope = FunctionScope::default();

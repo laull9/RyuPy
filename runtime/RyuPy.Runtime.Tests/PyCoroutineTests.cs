@@ -95,6 +95,26 @@ public class PyCoroutineTests
     }
 
     [Fact]
+    public void ClosingCoroutineKeepsReentrancyGuardActive()
+    {
+        PyCoroutine? coroutine = null;
+        coroutine = Coroutine(raw =>
+        {
+            var frame = (object?[])raw;
+            if ((long)frame[0]! == 0) { frame[0] = 1L; return "waiting"; }
+            try { return PyOps.GeneratorInput(frame); }
+            catch (PyGeneratorExit)
+            {
+                Assert.Equal("coroutine already executing",
+                    Assert.Throws<PyValueError>(() => coroutine!.Send(PyNone.Instance)).Message);
+                throw;
+            }
+        });
+        Assert.Equal("waiting", coroutine.Send(PyNone.Instance));
+        Assert.Same(PyNone.Instance, coroutine.Close());
+    }
+
+    [Fact]
     public void PropagatedExceptionKeepsIdentityAndClosesCoroutine()
     {
         var expected = new PyValueError("failure");

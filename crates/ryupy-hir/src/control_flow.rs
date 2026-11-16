@@ -65,7 +65,8 @@ impl StmtLowerCtx<'_> {
                     Span::new(self.file, for_stmt.range),
                     "async for 尚未接入原生协程状态机",
                 )
-                .with_code("E0100"),
+                .with_code("E0100")
+                .with_deferred_failure(ryupy_base::diagnostic::DeferredFailure::SupportBoundary),
             );
             return None;
         }

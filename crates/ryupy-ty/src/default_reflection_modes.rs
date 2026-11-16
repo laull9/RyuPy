@@ -3,9 +3,13 @@
 use crate::FuncMode;
 use la_arena::ArenaMap;
 use rustc_hash::FxHashSet;
-use ryupy_hir::{Builtin, ExprKind, FuncId, Module};
+use ryupy_hir::{Builtin, ClassItem, ClassItemKind, ExprKind, FuncId, Module};
 
 pub(crate) fn apply(module: &Module, modes: &mut ArenaMap<FuncId, FuncMode>) {
+    // 类方法经可变类属性发布；staticmethod即使无初始默认值也能随后新增任意对象默认值。
+    for (_, class) in module.classes.iter() {
+        exposed_methods(&class.body, modes);
+    }
     // 默认值tuple/dict支持动态替换；定义处的标注和初值不足以证明以后值的类型。
     for (id, function) in module.functions.iter() {
         if function
@@ -59,6 +63,21 @@ pub(crate) fn apply(module: &Module, modes: &mut ArenaMap<FuncId, FuncMode>) {
     if observes_published_functions {
         for function in &module.top_functions {
             modes.insert(*function, FuncMode::Dynamic);
+        }
+    }
+}
+
+fn exposed_methods(items: &[ClassItem], modes: &mut ArenaMap<FuncId, FuncMode>) {
+    for item in items {
+        match &item.kind {
+            ClassItemKind::Method { func, .. } => {
+                modes.insert(*func, FuncMode::Dynamic);
+            }
+            ClassItemKind::If { body, orelse, .. } => {
+                exposed_methods(body, modes);
+                exposed_methods(orelse, modes);
+            }
+            _ => {}
         }
     }
 }

@@ -52,4 +52,16 @@ except AttributeError:
     pass
 else:
     raise AssertionError('super lost missing-attribute error')
+
+
+class ShadowBase(UserDict):
+    __self__ = 'base-shadow'
+
+
+class ShadowLeaf(ShadowBase):
+    pass
+
+
+# CPython 优先搜索后继 MRO 成员，再回退 super 自身元数据。
+assert super(ShadowLeaf, ShadowLeaf()).__self__ == 'base-shadow'
 print('native super passed')

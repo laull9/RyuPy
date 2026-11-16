@@ -155,7 +155,7 @@
 ### 4.4 性能状态与演进记录（关于当前提交的性能边界说明）
 - **驱动位置**：[tests/run_benchmarks.py](../tests/run_benchmarks.py)（搭配 [tests/benchlib/](../tests/benchlib/)）
 - **历史文档与数据口径纠正**：
-  - [docs/aot-performance-baseline.md](aot-performance-baseline.md) 记录的是早期 Commit `e8c07b85`（2026-11-15 前）优化前数据（当时测得几何平均加速比 0.86x）；**该历史表不代表当前提交的性能状态，不能作为当前冻结性能使用**。
+  - [docs/aot-performance-baseline.md](aot-performance-baseline.md) 记录的是早期 Commit `e8c07b85`（2026-11-15 前）优化前数据（当时测得几何平均加速比 0.86x）；**当前提交的性能基线另行采集**。
   - 在 `e8c07b85` 之后，代码库陆续引入了多项性能优化切片：
     - [ADR-0201 / aot-hotspot-dispatch-optimization](aot-hotspot-dispatch-optimization.md)（Commit `767e665c`：tuple 直接比较、集合小参数 PIC、整型比较，使 records 缩短 15.86%、comprehensions 缩短 12.85%、list_ops 缩短 10.14%）；
     - [ADR-0202 / aot-generator-state-optimization](aot-generator-state-optimization.md)（生成器状态驻留优化）；
@@ -180,7 +180,7 @@
 
 ### 5.2 主代理当前测试状态说明
 - 主代理在通用项目验收中记录了当时完整 `make check` 通过（3349 项 C# 测试通过、3 项既有跳过；编译 e2e 482 项通过、291 项 ignored；cases-selftest 769 项通过）。
-- 当前工作树存在并行的开发改动（包括类桥与执行审计接口调整等未提交修改）；**当前状态不代表最终合流已验状态，最终集成完成后仍须重新全量运行 `make check` 进行回归验收**。
+- 当前工作树存在并行的开发改动（包括类桥与执行审计接口调整等未提交修改）；**最终集成完成后重新全量运行 `make check` 验收**。
 
 ---
 

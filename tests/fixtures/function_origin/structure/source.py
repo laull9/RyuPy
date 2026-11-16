@@ -1,4 +1,4 @@
-# 小方案结构源：Static保原ABI，Dynamic传真实函数，普通实参后读同实例默认值。
+# 小方案结构源：Static保原ABI，Dynamic传真实函数，缺省实参经真实实例即时绑定。
 def numeric_add(left: int, right: int) -> int:
     return left + right
 def numeric_loop(count: int) -> int:

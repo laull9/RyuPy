@@ -200,22 +200,29 @@ fn assert_direct_origin(program: &Program) {
     let (argument_id, _) = function(program, "argument");
     let body = function(program, "direct_with_argument").1;
     let source = target.dynamic_origin.unwrap().source_global.unwrap();
-    // 这个直线源码的callee、参数、defaults与call必须在同一块，精确核相对顺序而非全局文本顺序。
+    let published = target.function_global.unwrap();
+    // 缺省参数必须经当前函数对象绑定；冻结callee先于参数副作用，禁止读取定义期默认快照。
     let block = unique(
         body.body
             .blocks
             .iter()
             .map(|(_, block)| block)
             .filter(|block| {
-                assigned_calls(&block.stmts, Callee::Fn(target_id))
-                    .next()
-                    .is_some()
+                block.stmts.iter().any(|statement| {
+                    matches!(
+                        statement,
+                        Statement::Assign {
+                            value: Rvalue::DynCallValue { .. },
+                            ..
+                        }
+                    )
+                })
             }),
         "direct调用所在块",
     );
     let (freeze_at, frozen, _) = unique(
         assigned_calls(&block.stmts, Callee::Runtime(RuntimeFn::LoadName)).filter(
-            |(_, _, args)| matches!(args.first(), Some(Operand::Global(id)) if *id == source),
+            |(_, _, args)| matches!(args.first(), Some(Operand::Global(id)) if *id == published),
         ),
         "实参前实际实例",
     );
@@ -223,33 +230,29 @@ fn assert_direct_origin(program: &Program) {
         assigned_calls(&block.stmts, Callee::Fn(argument_id)),
         "参数回调",
     );
-    let (defaults_at, defaults, defaults_args) = unique(
-        assigned_calls(&block.stmts, Callee::Runtime(RuntimeFn::FunctionDefaults)),
-        "同实例defaults",
+    let (call_at, callee, args) = unique(
+        block
+            .stmts
+            .iter()
+            .enumerate()
+            .filter_map(|(at, statement)| match statement {
+                Statement::Assign {
+                    value: Rvalue::DynCallValue { callee, args },
+                    ..
+                } => Some((at, callee, args)),
+                _ => None,
+            }),
+        "缺省参数由实际函数实例绑定",
     );
-    assert_eq!(defaults_args.len(), 1);
-    assert_eq!(local(&defaults_args[0]), frozen);
-    let (get_at, extra, get_args) = unique(
-        assigned_calls(&block.stmts, Callee::Runtime(RuntimeFn::ArrayGet)),
-        "缺省extra",
-    );
-    assert_eq!(get_args.len(), 2);
-    assert_eq!(local(&get_args[0]), defaults);
-    assert!(matches!(get_args[1], Operand::Const(Constant::I64(1))));
-    let (call_at, _, args) = unique(
-        assigned_calls(&block.stmts, Callee::Fn(target_id)),
-        "普通direct尾owner",
-    );
-    assert!(
-        freeze_at < argument_at
-            && argument_at < defaults_at
-            && defaults_at < get_at
-            && get_at < call_at
-    );
-    assert_eq!(args.len(), target.params.len());
+    assert!(freeze_at < argument_at && argument_at < call_at);
+    assert_eq!(local(callee), frozen);
+    assert_eq!(args.len(), 1);
     assert_eq!(local(&args[0]), argument_result);
-    assert_eq!(local(&args[1]), extra);
-    assert_eq!(local(args.last().unwrap()), frozen);
+    assert!(trace_calls(body, RuntimeFn::FunctionDefaults).is_empty());
+    assert!(trace_calls(body, RuntimeFn::ArrayGet).is_empty());
+    assert!(!rvalues(body).any(
+        |value| matches!(value, Rvalue::Call { callee: Callee::Fn(id), .. } if *id == target_id)
+    ));
     assert_eq!(
         body.body
             .blocks
@@ -263,7 +266,7 @@ fn assert_direct_origin(program: &Program) {
     assert_eq!(
         trace_calls(body, RuntimeFn::LoadName)
             .iter()
-            .filter(|args| matches!(args.first(), Some(Operand::Global(id)) if *id == source))
+            .filter(|args| matches!(args.first(), Some(Operand::Global(id)) if *id == published))
             .count(),
         1
     );

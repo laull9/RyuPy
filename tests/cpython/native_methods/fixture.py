@@ -9,12 +9,35 @@ class Subject:
 
 
 def target(self, x, *, z=1):
+    if x < 0:
+        raise ValueError('native method exception')
     return self.offset + x + z
+
+
+def class_target(cls):
+    return cls.__name__
+
+
+def static_target(value):
+    return value * 2
+
+
+def property_target(self):
+    return self.offset
 
 
 def test(native):
     value = Subject()
     value.offset = 7
+    assert Subject.kind() == 'Subject'
+    assert value.twice(3) == 6
+    assert value.observed_offset == 7
+    try:
+        value.sample(-1)
+    except ValueError as error:
+        assert error.args == ('native method exception',)
+    else:
+        raise AssertionError('native method lost original exception')
     assert verify(Subject, value, native)
     descriptor = Subject.sample
     reference = weakref.ref(descriptor)

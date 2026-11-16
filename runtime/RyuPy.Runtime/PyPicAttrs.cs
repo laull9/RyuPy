@@ -220,9 +220,9 @@ public static partial class PyPic
         {
             return PyOps.CallMethod(obj, name, args, PyOps.EmptyArray(), PyOps.EmptyArray());
         }
-        PyLexicalSuper.GuardAttribute(name);
         if (name == "__class__" || super.Self is PyClass || super.Owner.ForeignClass is not null || super.Self is PyInstance { ForeignInstance: not null })
             return PyOps.CallMethod(obj, name, args, [], []);
+        PyLexicalSuper.GuardAttribute(name);
         PyLexicalClassGuard.Receiver(obj);
         long classVersion = PyClass.GlobalVersion;
         PyClass? receiverClass = super.Self switch { PyInstance value => value.Class, PyClass value => value, _ => null };

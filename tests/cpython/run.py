@@ -146,6 +146,7 @@ def main():
     parser.add_argument('--keep', action='store_true', help='失败调试时显式保留仓库外临时目录')
     parser.add_argument('--mode', choices=['baseline', 'jit', 'aot', 'all'], default='baseline')
     parser.add_argument('--case', action='append', help='稳定用例名，不含.py；默认发现全部')
+    parser.add_argument('--native-methods', action='store_true', help='显式验证原生方法描述符候选')
     args = parser.parse_args()
     fixture = Path(__file__).resolve().parent
     cases = sorted((fixture / 'cases').glob('*.py'))
@@ -160,6 +161,8 @@ def main():
             assert args.ryupy.is_relative_to(args.product_root.resolve()), '冻结模式必须实际使用私有根内CLI'
     root = external_workspace('ryupy-cpython-', args.out)
     env = environment(args.product_root)
+    if args.native_methods:
+        env['RYUPY_CPYTHON_NATIVE_METHODS'] = '1'
     records = []
     failures = []
 
@@ -231,6 +234,8 @@ def main():
                     empty = root / (case.stem + '-empty-cwd')
                     empty.mkdir()
                     clean = environment()
+                    if args.native_methods:
+                        clean['RYUPY_CPYTHON_NATIVE_METHODS'] = '1'
                     clean['PATH'] = str(empty)
                     # 显式污染探测隔离配置是否忽略外部Python配置。
                     clean['PYTHONHOME'] = clean['PYTHONPATH'] = str(empty / '不存在')

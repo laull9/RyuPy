@@ -113,3 +113,15 @@ try:
 except RuntimeError as e:
     print(str(e))
 raw.close()
+
+async def close_reentrant():
+    try:
+        await Pause()
+    finally:
+        try:
+            closing.send(None)
+        except ValueError as e:
+            print(str(e))
+closing = close_reentrant()
+print(closing.send(None))
+closing.close()

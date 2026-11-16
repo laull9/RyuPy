@@ -18,7 +18,7 @@ internal static class PyExplicitSuper
             if (!PyForeignClassBridge.IsType(foreignStart))
                 throw new PyTypeError($"super() argument 1 must be a type, not {PyRepr.TypeName(args[0])}");
             if (args.Length == 1 || args[1] is PyNone)
-                throw Unsupported("unbound receivers");
+                return PyForeignClassBridge.Require().CreateSuper(foreignStart, null)!;
             return PyForeignClassBridge.Require().CreateSuper(foreignStart, args[1])!;
         }
         if (args[0] is not PyClass start)
@@ -30,7 +30,12 @@ internal static class PyExplicitSuper
         bool dictReceiver = args.Length == 2 && args[1] is (PyInstance { Class.HasDictC3Layout: true } or PyClass { HasDictC3Layout: true });
         ValidateChain(start, null, dictReceiver);
         if (args.Length == 1 || args[1] is PyNone)
+        {
+            // 跨域类已有真实 PyTypeObject，未绑定代理由原生 super 保持类型身份。
+            if (start.ForeignClass is not null)
+                return PyForeignClassBridge.Require().CreateSuper(start, null)!;
             throw Unsupported("unbound receivers");
+        }
         object? receiver = args[1];
         if (receiver is PyClass receiverClass && (receiverClass.HasMultipleInheritance || receiverClass.HasForeignHierarchy))
         {

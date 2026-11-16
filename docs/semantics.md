@@ -1,5 +1,10 @@
 # 语言子集与语义规范
 
+> **C2 默认值元数据首切（2026-11-16）**：`__defaults__` / `__kwdefaults__` 的真实容器、
+> 更新与绑定范围见[函数默认值合同](cil-function-defaults.md)及
+> [ADR-0212](adr/0212-live-function-defaults.md)。跨模块原无默认值 typed 函数的新增异型
+> 默认值缺口保留 pending，原生 `inspect.signature` 与完整 code/frame 仍待后续切片。
+
 > **全 CIL 语义迁移规划（2026-11-16）**：协程、动态对象和反射后续由 CIL/Runtime 承接，
 > libpython 仅保留底层能力。详见[分阶段合同](cil-execution-roadmap.md)。新语义尚未实施；
 > 已有支持项、pending 和偏差保持现状，逐 API 同次 CPython 验收后再更新本规范。
@@ -256,6 +261,14 @@ NaN/Inf/±0短结果保符号规则，非零有限值复用固定.NET10显式有
 - `a and b` / `a or b`：Python 返回**操作数本身**而非 `bool`。Phase 1 要求两侧类型相同，结果类型即该类型。
 
 ## 4. 语义陷阱清单
+
+### C2 默认值反射的 typed 发布边界（2026-11-16）
+
+`__defaults__` / `__kwdefaults__` 的容器身份、替换、删除及字典别名修改从下一次
+绑定生效。已有默认值函数与同模块逃逸函数使用 Dynamic 参数，完整实参直调保留。
+跨模块的原无默认值 typed 函数被外模块新增不同类型默认值时，仍可触发原 thunk
+类型错误；复现保留于 `c2_function_defaults_cross_module_pending.py`。
+后续以跨模块发布证明或通用函数核心闭合，见 [ADR-0212](adr/0212-live-function-defaults.md)。
 
 ### CPython provider的项目与文本边界（2026-11-14）
 
@@ -1727,3 +1740,20 @@ warnings 的 error 筛选对同一 warning 调用现有 PrepareRaise，保留活
 默认输出吞掉 Python OSError 时只恢复编译回调帧，真实传播错误保留 write 帧。
 新版 PyErrors 的外部异常同步与 handled-scope 合同保持不变。纯原生 JIT/中性合同
 的测试不能代替真实 libpython 混合域、NativeAOT、跨平台或完整门禁验收。
+
+
+### 原生协程状态机显式候选（ADR-0210）
+
+Cargo feature `native-coroutines` 开启原生 async def / await 首切；普通编译维持 E0100。
+函数创建只绑定参数并保存独立状态，函数体由 CIL 恢复入口惰性执行。await 使用类型级
+__await__，返回对象必须已经是迭代器，保留委托终值、send/throw/close、原异常身份和
+跨暂停 finally。协程不能普通迭代，完成后重复恢复及活动协程重复 await 按独立协议报错。
+协程自身 PEP 479 与子生成器错误保持各自来源。
+
+async for/with、异步生成器/推导式、零参 super 跨暂停上下文继续明确拒绝。
+当前范围为原生普通动态域，显式 Instance 和 CPython awaitable 跨域协议留待后续；
+事件循环、IO、任务取消、contextvars、协程反射字段及未 await 析构警告尚未接入。
+候选 Runtime 没有 CPython ABI 依赖，既有产品 3.9–3.15 版本范围保持。
+固定 3.12.13 是同次差分配置；本机 3.9.25/3.12.13/3.13.3 三组源码输出一致。
+本切已通过 macOS arm64 JIT 差分与 cleanup 原生 AOT 删除输入/构建目录后的中文空格搬迁。
+其它平台、onefile、性能及 C3 完整调度门另验，候选默认关闭。

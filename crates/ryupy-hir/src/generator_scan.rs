@@ -69,12 +69,17 @@ impl<'a> Visitor<'a> for Scan {
     }
 }
 
-pub(crate) fn analyze(file: FileId, body: &[ast::Stmt], diagnostics: &mut Vec<Diagnostic>) -> bool {
+pub(crate) fn analyze(
+    file: FileId,
+    body: &[ast::Stmt],
+    diagnostics: &mut Vec<Diagnostic>,
+    coroutine: bool,
+) -> bool {
     let mut scan = Scan::default();
     for stmt in body {
         scan.visit_stmt(stmt);
     }
-    finish(scan, file, diagnostics)
+    finish(scan, file, diagnostics, coroutine)
 }
 
 pub(crate) fn analyze_lambda(
@@ -84,11 +89,11 @@ pub(crate) fn analyze_lambda(
 ) -> bool {
     let mut scan = Scan::default();
     scan.visit_expr(body);
-    finish(scan, file, diagnostics)
+    finish(scan, file, diagnostics, false)
 }
 
-fn finish(scan: Scan, file: FileId, diagnostics: &mut Vec<Diagnostic>) -> bool {
-    if scan.has_yield {
+fn finish(scan: Scan, file: FileId, diagnostics: &mut Vec<Diagnostic>, coroutine: bool) -> bool {
+    if scan.has_yield || coroutine {
         for (range, message) in scan.unsupported {
             diagnostics.push(
                 Diagnostic::error(Span::new(file, range), message)

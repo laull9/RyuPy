@@ -20,6 +20,12 @@ fn coroutine_identity_is_feature_gated_and_never_a_synchronous_function() {
         .1;
     assert!(function.is_coroutine && function.is_generator);
     assert_eq!(errors.is_empty(), cfg!(feature = "native-coroutines"));
+    for error in &errors {
+        assert_eq!(
+            error.deferred_failure,
+            Some(ryupy_base::diagnostic::DeferredFailure::SupportBoundary)
+        );
+    }
 }
 
 #[cfg(feature = "native-coroutines")]
@@ -38,7 +44,18 @@ fn await_is_an_explicit_hir_node_and_async_generator_and_for_are_rejected() {
         "async def f():\n    yield 1\n",
         "async def f():\n    async for value in []:\n        pass\n",
         "def f(value):\n    return await value\n",
+        "async def f(value):\n    async with value:\n        pass\n",
+        "class C:\n    async def f(self):\n        return super()\n",
     ] {
         assert!(!lower(source).1.is_empty(), "{source}");
     }
+}
+
+#[cfg(not(feature = "native-coroutines"))]
+#[test]
+fn disabled_nested_async_keeps_the_original_single_diagnostic() {
+    let (_, errors) =
+        lower("def outer():\n    async def inner():\n        return 1\n    return inner\n");
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].message, "嵌套函数暂不支持 async");
 }

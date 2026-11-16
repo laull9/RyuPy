@@ -22,3 +22,13 @@ def originally_required(value: int) -> int:
 alias = originally_required
 setattr(alias, "__defaults__", ("added",))
 print(originally_required())
+
+
+class Owner:
+    @staticmethod
+    def required(value: int) -> int:
+        return value
+
+
+Owner.required.__defaults__ = ("class",)
+print(Owner.required())

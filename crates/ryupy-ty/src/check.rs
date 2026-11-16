@@ -15,9 +15,10 @@
 
 use la_arena::ArenaMap;
 use ryupy_base::{Diagnostic, FileId};
-use ryupy_hir::{
-    BinOp, ExprId, ExprKind, Function, FunctionKind, Literal, LocalId, Module, TypeRef,
-};
+use ryupy_hir::{BinOp, ExprId, ExprKind, Function, FunctionKind, Literal, LocalId, Module};
+
+pub(crate) use crate::annotation_types::module_type_ref_to_ty;
+pub use crate::annotation_types::type_ref_to_ty;
 
 use crate::infer::{InferCtx, InferTy};
 use crate::ty::{FnSig, FuncMode, ModuleTypes, Ty, TypeckResults};
@@ -156,19 +157,6 @@ fn compute_sigs(
     sigs
 }
 
-/// 类装饰器可替换类对象；原静态布局不再是可信类型事实。
-pub(crate) fn module_type_ref_to_ty(module: &Module, annotation: &TypeRef) -> Ty {
-    match annotation {
-        TypeRef::Class(id)
-            if (module.classes[*id].decorated_binding.is_some()
-                || module.classes[*id].runtime_dataclass) =>
-        {
-            Ty::Dynamic
-        }
-        _ => type_ref_to_ty(annotation),
-    }
-}
-
 struct StaticOutcome {
     /// 本函数必须降级（体内出现 Dynamic 或超出 i64 的字面量）。
     needs_dynamic: bool,
@@ -238,19 +226,6 @@ fn expr_children(kind: &ExprKind) -> Vec<ExprId> {
         }
         ExprKind::Yield(value) => value.iter().copied().collect(),
         _ => Vec::new(),
-    }
-}
-
-pub fn type_ref_to_ty(type_ref: &TypeRef) -> Ty {
-    match type_ref {
-        TypeRef::Int => Ty::Int,
-        TypeRef::Float => Ty::Float,
-        TypeRef::Bool => Ty::Bool,
-        TypeRef::Str => Ty::OpaqueStr,
-        TypeRef::None => Ty::None,
-        TypeRef::Class(id) => Ty::Class(*id),
-        TypeRef::Error => Ty::Error,
-        TypeRef::Runtime => Ty::Dynamic,
     }
 }
 

@@ -19,7 +19,7 @@
 | **Git 引用** | 分支 `feat/adr0208-cil-execution`，Commit `5d36db1e952f1db07aee6563d7a800cc1df94548` | 在 `5d36db1e` 之上的未提交工作区修改与未跟踪文件 |
 | **C0 执行审计** | **无**（尚无 PEP 523 帧观测与审计门） | **新增固定 3.12.13 原生 PEP 523 审计**：[execution_audit.h](../runtime/RyuPy.CPython/native/execution_audit.h)、[CPythonExecutionAudit.cs](../runtime/RyuPy.CPython/CPythonExecutionAudit.cs)、[tests/cpython/execution_audit.py](../tests/cpython/execution_audit.py)、[tests/cil_execution/check_audit.py](../tests/cil_execution/check_audit.py) |
 | **C1 Python 胶水** | `_ryupy_imports` 含 9 个 Python `def` + 2 个查找/加载类 + 3 个别名，含 `_rp_object_new` / `_rp_object_init` / `_rp_object_setattr` / `_rp_object_delattr` | **候选 [ADR-0209](adr/0209-base-object-native-descriptors.md)**：从 [CPythonImports.cs](../runtime/RyuPy.CPython/CPythonImports.cs) 移除 4 个 `_rp_object_*` 转发函数；[CPythonClassBridge.cs](../runtime/RyuPy.CPython/CPythonClassBridge.cs#L519-L529) 直接获取并缓存 `object` 原生描述符；剩余 5 个 Python `def` + 2 个类 + 3 个别名仍在过渡期 |
-| **其余并行候选** | 无 | 另有并行未提交的 C0 基线文档（[cil-execution-baseline.md](cil-execution-baseline.md)）、`TODO.md`、`Makefile` 及 C2/C3 早期原型（`PyCoroutine*.cs`、`coroutines.rs`、`c2_function_defaults_dynamic.py`）；未合流前不代表主线已验收 |
+| **其余并行候选** | 无 | 另有并行未提交的 C0 基线文档（[cil-execution-baseline.md](cil-execution-baseline.md)）、`TODO.md`、`Makefile` 及 C2/C3 早期原型（`PyCoroutine*.cs`、`coroutines.rs`、`c2_function_defaults_dynamic.py`）；合流后按实际门禁登记验收 |
 
 ---
 

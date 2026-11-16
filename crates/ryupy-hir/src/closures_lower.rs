@@ -38,6 +38,7 @@ impl crate::lower::StmtLowerCtx<'_> {
             self.diagnostics.push(
                 Diagnostic::error(Span::new(self.file, fn_def.range), "嵌套函数暂不支持 async")
                     .with_code("E0100")
+                    .with_deferred_failure(ryupy_base::diagnostic::DeferredFailure::SupportBoundary)
                     .with_primary_label("异步按后续里程碑接入"),
             );
             return None;

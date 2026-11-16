@@ -41,7 +41,7 @@ public sealed class PyCoroutine : PyNativeObject
     public object Close()
     {
         if (_running) throw new PyValueError("coroutine already executing");
-        return _generator.Close();
+        return Resume(() => _generator.Close())!;
     }
 
     private void RequireResumable()

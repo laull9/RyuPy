@@ -32,6 +32,22 @@ static char *read_source(const char *path) {
     if (count != (size_t)size) { free(source); return NULL; }
     source[count] = 0; return source;
 }
+/* 同一原生可调用体必须能直接交给三种 CPython 描述符构造器，保持宿主版本的绑定。 */
+static int install_method(PyObject *globals, const char *source, const char *key, int kind) {
+    PyObject *name = PyUnicode_FromString(key), *qualname = PyUnicode_FromFormat("Subject.%s", key);
+    if (!name || !qualname) { Py_XDECREF(name); Py_XDECREF(qualname); return -1; }
+    PyObject *method = rp_native_method(PyDict_GetItemString(globals, source), name, qualname);
+    Py_DECREF(name); Py_DECREF(qualname);
+    if (!method) return -1;
+    PyObject *decorated = method;
+    if (kind == 1) decorated = PyClassMethod_New(method);
+    else if (kind == 2) decorated = PyStaticMethod_New(method);
+    else if (kind == 3) decorated = PyObject_CallFunctionObjArgs((PyObject *)&PyProperty_Type, method, NULL);
+    if (kind) Py_DECREF(method);
+    if (!decorated) return -1;
+    int status = PyObject_SetAttrString(PyDict_GetItemString(globals, "Subject"), key, decorated);
+    Py_DECREF(decorated); return status;
+}
 int main(int argc, char **argv) {
     if (argc != 6) return 2;
     const char *paths[] = {argv[2], argv[3], argv[4]};
@@ -46,14 +62,8 @@ int main(int argc, char **argv) {
     free(source);
     if (result) goto error;
     PyObject *globals = PyModule_GetDict(PyImport_AddModule("__main__"));
-    PyObject *name = PyUnicode_FromString("sample"), *qualname = PyUnicode_FromString("Subject.sample");
-    if (!name || !qualname) { Py_XDECREF(name); Py_XDECREF(qualname); goto error; }
-    PyObject *method = rp_native_method(PyDict_GetItemString(globals, "target"), name, qualname);
-    Py_DECREF(name); Py_DECREF(qualname);
-    if (!method) goto error;
-    int assigned = PyObject_SetAttrString(PyDict_GetItemString(globals, "Subject"), "sample", method);
-    Py_DECREF(method);
-    if (assigned) goto error;
+    if (install_method(globals, "target", "sample", 0) || install_method(globals, "class_target", "kind", 1) ||
+        install_method(globals, "static_target", "twice", 2) || install_method(globals, "property_target", "observed_offset", 3)) goto error;
     PyObject *args = PyTuple_Pack(1, Py_True);
     if (!args) goto error;
     PyObject *called = PyObject_CallObject(PyDict_GetItemString(globals, "test"), args);
