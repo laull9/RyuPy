@@ -8,12 +8,36 @@ namespace RyuPy.Runtime;
 public static class PyNativeModules
 {
     private static bool _registered;
+    private static bool baseComplete;
 
     /// <summary>系统入口初始化时登记；不运行任何第三方或用户代码。</summary>
     public static void Register()
     {
+        if (_registered)
+        {
+            // 保原先登记中的重入短路；只有已完成的基础启动才能补齐可选模块。
+            if (baseComplete) PyNativeInspectRegistration.Ensure();
+            return;
+        }
+        _registered = true;
+        RegisterPrefix();
+        PyNativeInspectRegistration.Ensure();
+        RegisterSuffix();
+        baseComplete = true;
+    }
+
+    // 编译产品只调用基础冷注册；所有原模块顺序保留，inspect由独立完整路径补齐。
+    internal static void RegisterBase()
+    {
         if (_registered) return;
         _registered = true;
+        RegisterPrefix();
+        RegisterSuffix();
+        baseComplete = true;
+    }
+
+    private static void RegisterPrefix()
+    {
         PyModules.RegisterNative("io", new Dictionary<string, object?>
         {
             ["StringIO"] = new PyNativeType("StringIO", "_io", PyIO.CreateStringIO,
@@ -83,7 +107,11 @@ public static class PyNativeModules
         });
         PyModules.RegisterNative("itertools", PyItertools.CreateAttributes());
         PyModules.RegisterNative("functools", PyFunctools.CreateAttributes());
-        PyInspectModule.Register();
+    }
+
+    // 完整首次登记保持functools→inspect→operator的通知顺序；基础路径不引用inspect。
+    private static void RegisterSuffix()
+    {
         PyModules.RegisterNative("operator", PyOperator.CreateAttributes());
         PyModules.RegisterNative("contextlib", PyContextLib.CreateAttributes());
         PyModules.RegisterNative("typing", PyTyping.CreateAttributes());

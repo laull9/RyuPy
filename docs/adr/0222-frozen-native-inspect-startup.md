@@ -1,7 +1,7 @@
 # ADR-0222：按冻结需求保留原生 inspect 的启动入口
 
 - 日期：2026-11-16
-- 状态：实施中；先登记 pending 与真实 PE/宿主保护
+- 状态：实现与定向产品验证完成；正式独占性能由主代理统一验收
 - 接续：ADR-0219、ADR-0218
 
 ## 依据与决定
@@ -16,6 +16,8 @@
 登记除inspect以外的原生模块。旧 `PySystem.Initialize` 与 `PyNativeModules.Register`
 继续全登记；先基础启动再调用旧API仍须补齐inspect，重复全登记不重置已导入模块。
 inspect的登记状态由独立冷holder持有，仅全登记路径引用；基础入口不可间接引用其工厂。
+共享prefix/suffix冷函数令首次完整登记保持functools→inspect→operator原有顺序；
+登记中重入仍沿旧短路，基础完成后升级仅追加inspect一次，不重置其它模块或inspect状态。
 
 MIR `LinkedProgram` 携带有限的 `NativeModuleRequirements { inspect: bool }`。
 原始MIR/link默认true，driver只有明确完成保守扫描后才关闭。codegen仅选择同参数的
@@ -45,3 +47,22 @@ dump沿用同一扫描；其单模块图存在导入时保守保留，避免漏�
 独立进程宿主测试验证基础→旧Initialize/Register升级、模块/已改属性身份不被重置。
 真实NativeAOT删除输入和整个构建目录后中文空格搬迁，并检查无inspect需求时相关符号被裁去。
 所有产物仓库外；独占性能窗口另行协调，保留原26项与全部控制样本。
+
+## 本次实际验证
+
+- driver全lib：299通过、5既有忽略；默认MIR436/候选MIR437通过、各4既有忽略；
+  codegen72通过、3既有忽略，含序列化PE的初始化目标/参数/EH逐指令保护。
+- 新专用产品门4/4通过：静态from/传递、保存动态导入器、显式include、旧宿主6种
+  独立新进程路径及原native inspect五组。裸`__import__`环境名仍保原HIR诊断；
+  成功别名用例从真实函数builtins字典取导入器，不扩原有准入。
+- 三组NativeAOT先查当次真实ILC对象：普通源码没有PyInspect符号，静态/动态需求均保留。
+  然后删除输入及整个build目录，中文空格路径搬迁运行，同次CPython3.12.13双流/退出一致。
+- Runtime相关12/12，包括原7个PE/provider ABI/inspect；实际Runtime启动ABI增量另1/1，
+  旧Initialize及新CompiledBase精确同签名且无额外重载。原C3协程21/21含AOT7继续通过。
+- fresh CLI/新compat shim的bridge、attrs、Pydantic与FastAPI（Python3.13.3）四组真实
+  消费者均同次CP预期、JIT/AOT删除input/build后搬迁通过，host关闭统计及inspect生命周期
+  保持。首次SDK空双流exit1未复现；保留目录复建成功，终轮显式禁MSBuild server复用。
+  atexit与owner两组桥生命周期也分别通过JIT/AOT删除输入/build后的真实搬迁。
+- 定向clippy（含native-coroutines/all-targets，-D warnings）、fmt与diff检查通过。
+
+这些是功能与裁图证据；性能数值沿用前面的外置归因实验，正式修复后26项另行独占采集。

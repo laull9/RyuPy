@@ -1,2 +1,1 @@
-# ryupy: pending
-entry: entry.py
+entry = entry.py

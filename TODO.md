@@ -2,11 +2,12 @@
 
 ## 全 CIL 执行长期主线（2026-11-16，实施中）
 
-目标：应用、标准库和第三方 Python 函数体全部由 CIL 执行，libpython 仅保留底层
-对象 ABI 与原生扩展能力；移除内部 Python 胶水及最终产品的 Python 执行载荷。
+目标：应用、标准库和第三方业务函数体逐步迁入 CIL，复用原版 libpython、静态 shim 和
+原生导入钩子，允许按清单审计的少量必要启动、导入、编码与清理胶水。
+用户最新授权与性能门见 [ADR-0223](docs/adr/0223-stock-libpython-bounded-glue.md)。
 方向见 [ADR-0208](docs/adr/0208-cil-execution-libpython-kernel.md)，
 任务、边界与准入见[全 CIL 路线](docs/cil-execution-roadmap.md)。
-实施分支为 `feat/adr0208-cil-execution`；主代理协调 Hydrogen、Flash 与 GPT-6.1 Sol 子代理。
+实施分支为 `feat/adr0208-cil-execution`；Gemini 4 已停止使用，后续子代理使用 GPT-6.1 Sol。
 完成门按阶段独立验收，C0 已完成，首轮 `cbb92535` 的完整检查与性能记录保留原提交口径。
 本轮 C1 类构造、C2 通用伴生核心、C3 async with/traceback 已有定向证据；C1–C5 整阶段继续待办。
 CreateSuper 历史 Object 返回公共 ABI 已恢复，真实 `5d36db1e` 的 1843 项公共签名全部保留；
@@ -15,14 +16,14 @@ CreateSuper 历史 Object 返回公共 ABI 已恢复，真实 `5d36db1e` 的 184
 - [x] 写入目标、分层、C0–C5 顺序、防回退与旧路径退出规则；同步主文档。
 - [x] **C0 首切：执行归属/启动链盘点与基线冻结**。登记源码/字节码入口、Python helper、
   C 扩展间接求值及 libpython frozen 启动/关闭链，明确严格内核方案和首个胶水替换边界。
-- [~] **C1 内部零 Python 胶水**。CIL/静态 shim 接管导入、类构建、描述符与回调；
+- [~] **C1 原生桥接与有界胶水**。CIL/静态 shim 接管类构建、描述符与热点回调，复用上游导入协议；
   保住身份、GIL、异常、关闭和原 SanBudget 路径，原生扩展 ABI 消费者逐项验证。
 - [~] **C2 对象与高级反射**。生成签名/注解/闭包/来源元数据，补齐框架反射、元类及帧合同；
   分离源码位置、资源根和用户数据根，替换随包 `.py` 锚点，明确原文查询边界。
 - [~] **C3 异步 CIL 状态机**。实现 coroutine/awaitable、async with/for、异步生成器与所需
   事件循环，逐切验证取消、contextvars、异常/finally、任务身份和连接/事务清理。
-- [ ] **C4 完整 Python 闭包与底层 libpython**。编译 Python 标准库/框架/包装层，保留真实
-  原生核心；启动、运行、关闭均零 CPython 字节码执行，产物无 `.py/.pyc` 或嵌入源码胶水。
+- [ ] **C4 业务闭包与原版 libpython 集成**。编译标准库/框架/包装层的业务函数，保留真实
+  原生核心与必要胶水清单；分别验收启动、稳态、关闭、内存、体积和 JIT/AOT 搬迁。
 - [ ] **C5 默认晋升与旧路径退出**。显式候选先过原项目、固定二十项目、JIT/NativeAOT、
   三平台搬迁和性能保护门；默认切换、稳定验证与删除旧路径分别提交，遇回退停止对应晋升。
 
@@ -65,8 +66,14 @@ CreateSuper 历史 Object 返回公共 ABI 已恢复，真实 `5d36db1e` 的 184
 - [x] **C4-1 冻结导入内核（ADR-0217）**：显式扩展注册表、每模块锁、纯 C Spec/Loader、
   包/循环/重试/关闭及静态 CIL create/exec 单事务；macOS arm64 官方 3.12.13 源码构建，
   22 项内核探针、30 个测试扩展、10 项 stock 对照全部通过，原结构 ABI 保留。
-- [ ] **C4-2 host 与产品接入**：把静态 CIL 回调与内核发行接入真实 C# host/CLI，
-  全 Python 闭包编译和三阶段产品零执行继续待办。C5 默认切换/退出门继续开放。
+- [ ] **C4 stock 模块事务与产品接入**：优先采用标准 PEP451 原生 loader 与真实模块字典，
+  复用现有冷 namespace 子合同；循环/失败重试/身份、三形态搬迁、胶水与性能逐项验收。
+- [ ] **可选严格内核研究（ADR-0221）**：Host Slice 1/2 源码候选已落地，最终内核与十二项
+  Host 子进程门尚未完成；暂停扩展。已有 22 内核/10 stock 探针保留原快照范围。
+- [x] **非侵入式嵌入研究与路线修订**：stock 3.12.13/3.13.3 启动、导入交接、codec 与求值
+  边界已有仓外实验；接受少量必要胶水，主线复用原版发行。研究结果见[评估](docs/libpython-noninvasive-evaluation.md)。
+- [ ] **有界胶水执行清单与成本门**：实现按来源/版本/阶段/函数记录的清单，区分必要胶水和业务
+  委派，保留严格零帧门；同 SDK、同次 oracle、平衡轮次验证启动/稳态/内存/体积与搬迁。
 - [x] **本轮最终集成**：CreateSuper 历史 ABI、完整 make check（3384 C# / 495 e2e）、
   冻结 Release 的六版本产品与三形态执行审计、26 项性能全部通过。墙钟整体 -0.03%，
   generators/exception/sieve 等单项成本见[第二轮验收](docs/cil-execution-second-slices-validation.md)，

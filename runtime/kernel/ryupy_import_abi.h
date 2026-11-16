@@ -58,8 +58,12 @@ typedef int (*rp_cil_exec_module_fn)(
     PyObject *spec,
     void *user_data);
 
-/* CIL 回调上下文释放钩子（可选）：随解释器销毁在 _PyImport_FiniCore 阶段调用（atexit 之后）。 */
+/* CIL 回调上下文释放钩子（可选）：随槽替换或解释器销毁调用，仅清理 CIL 自身 user_data。 */
 typedef void (*rp_cil_callback_cleanup_fn)(void *user_data);
+
+/* 独立解释器关机 Fence 回调：仅于 _PyImport_FiniCore（atexit 后、解释器销毁前）调用一次，
+ * 绝不随 rp_kernel_import_set_cil_callbacks 替换而提前触发。 */
+typedef void (*rp_kernel_fini_fence_fn)(void *user_data);
 
 /* 静态 CIL 导入回调槽配置：定义单一模块创建/初始化事务，避免内核与托管端重复执行。 */
 typedef struct {
@@ -82,6 +86,15 @@ PyAPI_FUNC(int) rp_kernel_import_register(
 PyAPI_FUNC(int) rp_kernel_import_set_cil_callbacks(
     PyInterpreterState *interp,
     const RpKernelCilImportCallbacks *callbacks);
+
+/* 为已初始化目标解释器注册唯一的关机 FiniCore Fence 钩子（失败返回 -1）。
+ * 1. `fence_fn` 不得为 NULL；传入 NULL 返回 ValueError / -1。
+ * 2. 每解释器生命周期仅允许写入一次；已安装时仅同一 `(fence_fn, user_data)` 幂等返回 0，
+ *    其余不同回调、不同 `user_data` 或试图清空均明确拒绝，防止覆盖/丢失宿主释放栅栏。 */
+PyAPI_FUNC(int) rp_kernel_set_fini_fence(
+    PyInterpreterState *interp,
+    rp_kernel_fini_fence_fn fence_fn,
+    void *user_data);
 
 /* 冻结已初始化目标解释器的导入注册表与 CIL 回调槽；冻结后禁止再注册，只允许按冻结表路由。 */
 PyAPI_FUNC(int) rp_kernel_import_freeze(PyInterpreterState *interp);

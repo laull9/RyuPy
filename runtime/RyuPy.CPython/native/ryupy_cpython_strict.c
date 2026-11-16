@@ -28,23 +28,33 @@ API int rp_strict_has_import_abi(void) {
 #include "cpython_bridge_ops.h"
 
 typedef void (*rp_fini_fence_fn)(void);
+typedef int (*rp_strict_exec_fn)(PyInterpreterState *interp, PyObject *module, PyObject *spec);
 static int strict_fini_core_calls;
 static int strict_reject_dropped;
 static int strict_audit_finalized;
+static int64_t strict_baseline_disable_epoch;
+static int64_t strict_baseline_reset_epoch;
+/* 单次安装静态 Exec trampoline：Slice 3 Seal 只注册条目并置位 Host 已封口与执行目标，
+ * 绝不二次调用 rp_kernel_import_set_cil_callbacks，避免替换槽提前触发 cleanup/FiniCore Fence。 */
+static rp_strict_exec_fn strict_cil_exec_trampoline;
 
-static int rp_strict_unsealed_exec_stub(
+static int rp_strict_cil_exec_dispatcher(
     PyInterpreterState *interp,
     PyObject *module,
     PyObject *spec,
     void *user_data) {
-    (void)interp; (void)module; (void)spec; (void)user_data;
-    PyErr_SetString(PyExc_NotImplementedError, "CIL module execution is not installed in Slice 1");
+    (void)user_data;
+    if (strict_cil_exec_trampoline) {
+        return strict_cil_exec_trampoline(interp, module, spec);
+    }
+    PyErr_SetString(PyExc_NotImplementedError, "CIL module execution is not sealed/installed");
     return -1;
 }
 
 /* 在 _PyImport_FiniCore（atexit 结束、解释器与 GIL 仍有效）阶段触发托管 Release Fence。 */
 static void rp_strict_fini_core_cleanup(void *user_data) {
     strict_fini_core_calls++;
+    strict_cil_exec_trampoline = NULL;
     if (rp_kernel_get_strict_reject() == 0) strict_reject_dropped = 1;
     rp_fini_fence_fn fence_cb = (rp_fini_fence_fn)user_data;
     if (fence_cb) fence_cb();
@@ -66,6 +76,7 @@ API int rp_strict_start(
     strict_fini_core_calls = 0;
     strict_reject_dropped = 0;
     strict_audit_finalized = 0;
+    strict_cil_exec_trampoline = NULL;
 
     if (rp_kernel_set_phase(0) != 0) {
         strcpy(init_error, "rp_kernel_set_phase(STARTUP) failed");
@@ -73,6 +84,8 @@ API int rp_strict_start(
     }
     rp_kernel_reset_eval_stats();
     rp_kernel_set_strict_reject(1);
+    strict_baseline_disable_epoch = rp_kernel_strict_disable_epoch();
+    strict_baseline_reset_epoch = rp_kernel_eval_reset_epoch();
     if (rp_kernel_get_strict_reject() == 0) strict_reject_dropped = 1;
 
     PyPreConfig preconfig; PyPreConfig_InitIsolatedConfig(&preconfig);
@@ -111,11 +124,21 @@ API int rp_strict_start(
     callbacks.abi_version = RYUPY_IMPORT_ABI_VERSION;
     callbacks.struct_size = (uint32_t)sizeof(RpKernelCilImportCallbacks);
     callbacks.create_module = NULL;
-    callbacks.exec_module = rp_strict_unsealed_exec_stub;
-    callbacks.cleanup = rp_strict_fini_core_cleanup;
-    callbacks.user_data = (void *)fini_fence_cb;
+    callbacks.exec_module = rp_strict_cil_exec_dispatcher;
+    /* cleanup 只属 CIL 槽自身，绝不承载宿主 FiniCore Fence，避免后续合法替换槽提前关闭宿主。 */
+    callbacks.cleanup = NULL;
+    callbacks.user_data = NULL;
     if (rp_kernel_import_set_cil_callbacks(PyInterpreterState_Get(), &callbacks) < 0) {
         strcpy(init_error, "rp_kernel_import_set_cil_callbacks failed");
+        PyErr_Clear();
+        Py_CLEAR(managed_type);
+        Py_FinalizeEx();
+        return -1;
+    }
+
+    if (rp_kernel_set_fini_fence(PyInterpreterState_Get(), rp_strict_fini_core_cleanup, (void *)fini_fence_cb) < 0
+        || rp_kernel_set_fini_fence(PyInterpreterState_Get(), rp_strict_fini_core_cleanup, (void *)fini_fence_cb) < 0) {
+        strcpy(init_error, "rp_kernel_set_fini_fence failed");
         PyErr_Clear();
         Py_CLEAR(managed_type);
         Py_FinalizeEx();
@@ -142,14 +165,24 @@ API int rp_strict_stop(void) {
     return result;
 }
 
+/* 返回严格启动阶段缓冲区只读借用 UTF-8 指针；由本 shim 静态存储拥有，下次 rp_strict_start 才覆写。 */
+API const char *rp_strict_init_error(void) { return init_error; }
 API int rp_strict_set_phase(int phase) { return rp_kernel_set_phase(phase); }
 API int rp_strict_get_phase(void) { return rp_kernel_get_phase(); }
 API int rp_strict_get_strict_reject(void) { return rp_kernel_get_strict_reject(); }
-API int rp_strict_reject_never_disabled(void) { return strict_reject_dropped == 0 ? 1 : 0; }
+API int rp_strict_reject_never_disabled(void) {
+    return strict_reject_dropped == 0
+        && rp_kernel_get_strict_reject() != 0
+        && rp_kernel_strict_disable_epoch() == strict_baseline_disable_epoch ? 1 : 0;
+}
+API int rp_strict_stats_never_reset(void) {
+    return rp_kernel_eval_reset_epoch() == strict_baseline_reset_epoch ? 1 : 0;
+}
 API int rp_strict_fini_core_calls(void) { return strict_fini_core_calls; }
 API int rp_strict_is_finalized(void) { return strict_audit_finalized; }
 API int64_t rp_strict_eval_entry_count(int phase) { return rp_kernel_eval_entry_count(phase); }
 API int64_t rp_strict_eval_executed_count(int phase) { return rp_kernel_eval_executed_count(phase); }
 API int64_t rp_strict_eval_rejected_count(int phase) { return rp_kernel_eval_rejected_count(phase); }
 API int64_t rp_strict_eval_total_entries(void) { return rp_kernel_eval_total_entries(); }
+API int64_t rp_strict_eval_total_executed(void) { return rp_kernel_eval_total_executed(); }
 API int64_t rp_strict_eval_total_rejected(void) { return rp_kernel_eval_total_rejected(); }

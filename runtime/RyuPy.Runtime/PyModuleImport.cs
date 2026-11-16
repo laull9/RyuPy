@@ -21,6 +21,7 @@ internal static class PyModuleImport
         {
             object?[] fromlist = args[3] switch
             {
+                null or PyNone => [],
                 PyTuple strictTuple => strictTuple.Items,
                 PyList strictList => strictList.Items.ToArray(),
                 _ => throw new PyNotImplementedError("strict __import__ requires list or tuple fromlist"),

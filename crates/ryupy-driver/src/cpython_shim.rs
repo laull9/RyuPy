@@ -41,6 +41,14 @@ pub(super) fn build(
                 include_str!("../../../runtime/RyuPy.CPython/native/ryupy_cpython.c"),
             ),
             (
+                "cpython_compat_env.h",
+                include_str!("../../../runtime/RyuPy.CPython/native/cpython_compat_env.h"),
+            ),
+            (
+                "cpython_bridge_ops.h",
+                include_str!("../../../runtime/RyuPy.CPython/native/cpython_bridge_ops.h"),
+            ),
+            (
                 "execution_audit.h",
                 include_str!("../../../runtime/RyuPy.CPython/native/execution_audit.h"),
             ),

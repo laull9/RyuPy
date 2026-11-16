@@ -9,6 +9,7 @@ internal sealed record StrictAuditSnapshot(
     string KernelVersion,
     bool Finalized,
     bool StrictRejectNeverDisabled,
+    bool StatsNeverReset,
     int FiniCoreCalls,
     long StartupEntries,
     long StartupExecuted,
@@ -20,6 +21,7 @@ internal sealed record StrictAuditSnapshot(
     long ShutdownExecuted,
     long ShutdownRejected,
     long TotalEntries,
+    long TotalExecuted,
     long TotalRejected);
 
 public sealed partial class CPythonHost
@@ -45,6 +47,7 @@ public sealed partial class CPythonHost
         KernelVersion: kernelVersion,
         Finalized: StrictNative.rp_strict_is_finalized() != 0,
         StrictRejectNeverDisabled: StrictNative.rp_strict_reject_never_disabled() != 0,
+        StatsNeverReset: StrictNative.rp_strict_stats_never_reset() != 0,
         FiniCoreCalls: StrictNative.rp_strict_fini_core_calls(),
         StartupEntries: StrictNative.rp_strict_eval_entry_count(0),
         StartupExecuted: StrictNative.rp_strict_eval_executed_count(0),
@@ -56,6 +59,7 @@ public sealed partial class CPythonHost
         ShutdownExecuted: StrictNative.rp_strict_eval_executed_count(2),
         ShutdownRejected: StrictNative.rp_strict_eval_rejected_count(2),
         TotalEntries: StrictNative.rp_strict_eval_total_entries(),
+        TotalExecuted: StrictNative.rp_strict_eval_total_executed(),
         TotalRejected: StrictNative.rp_strict_eval_total_rejected());
 
     private void WriteStrictExecutionAudit(Utf8JsonWriter writer)
@@ -65,16 +69,18 @@ public sealed partial class CPythonHost
             && snap.StartupEntries == 0 && snap.StartupExecuted == 0 && snap.StartupRejected == 0
             && snap.RuntimeEntries == 0 && snap.RuntimeExecuted == 0 && snap.RuntimeRejected == 0
             && snap.ShutdownEntries == 0 && snap.ShutdownExecuted == 0 && snap.ShutdownRejected == 0
-            && snap.TotalEntries == 0 && snap.TotalRejected == 0;
+            && snap.TotalEntries == 0 && snap.TotalExecuted == 0 && snap.TotalRejected == 0;
         bool complete = snap is not null
             && snap.Finalized
             && snap.StrictRejectNeverDisabled
+            && snap.StatsNeverReset
             && snap.FiniCoreCalls == 1
             && finiCoreError is null
             && zeroEntries;
         long coverageFailures = snap is null
             ? 1
             : (snap.StrictRejectNeverDisabled ? 0 : 1)
+                + (snap.StatsNeverReset ? 0 : 1)
                 + (snap.FiniCoreCalls == 1 ? 0 : 1)
                 + (finiCoreError is null ? 0 : 1);
 
@@ -86,9 +92,11 @@ public sealed partial class CPythonHost
         writer.WriteString("coverage", StrictCoverageDescription);
         writer.WriteString("python_version", "3.12.13");
         writer.WriteString("kernel_version", snap?.KernelVersion ?? "");
-        writer.WriteBoolean("hook_installed", snap is not null && snap.StrictRejectNeverDisabled);
+        writer.WriteBoolean("hook_installed", snap is not null && snap.StrictRejectNeverDisabled && snap.StatsNeverReset);
         writer.WriteBoolean("finalized", snap is not null && snap.Finalized);
         writer.WriteBoolean("strict_reject_never_disabled", snap is not null && snap.StrictRejectNeverDisabled);
+        writer.WriteBoolean("stats_never_reset", snap is not null && snap.StatsNeverReset);
+        writer.WriteNumber("eval_total_executed", snap?.TotalExecuted ?? 0);
         writer.WriteNumber("dropped_frames", 0);
         writer.WriteNumber("coverage_failures", coverageFailures);
         writer.WriteNumber("startup_frames", snap?.StartupEntries ?? 0);

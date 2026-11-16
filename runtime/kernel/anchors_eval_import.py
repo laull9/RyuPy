@@ -51,7 +51,12 @@ PyAPI_FUNC(int64_t) rp_kernel_eval_entry_count(int phase);
 PyAPI_FUNC(int64_t) rp_kernel_eval_executed_count(int phase);
 PyAPI_FUNC(int64_t) rp_kernel_eval_rejected_count(int phase);
 PyAPI_FUNC(int64_t) rp_kernel_eval_total_entries(void);
+PyAPI_FUNC(int64_t) rp_kernel_eval_total_executed(void);
 PyAPI_FUNC(int64_t) rp_kernel_eval_total_rejected(void);
+
+/* 单调审计纪元：传 0 关闭严格拒绝递增 disable_epoch；reset_eval_stats 递增 reset_epoch 且自身永不清零。 */
+PyAPI_FUNC(int64_t) rp_kernel_strict_disable_epoch(void);
+PyAPI_FUNC(int64_t) rp_kernel_eval_reset_epoch(void);
 
 #ifdef __cplusplus
 }
@@ -70,6 +75,8 @@ CEVAL_STATE_AND_API = """\
 /* RyuPy 严格内核原型：三阶段默认求值器入口计数与严格拒绝开关（进程级原子状态）。 */
 static _Atomic int rp_kernel_phase = RYUPY_KERNEL_PHASE_STARTUP;
 static _Atomic int rp_kernel_strict_reject_flag = 0;
+static _Atomic int64_t rp_kernel_strict_disable_epoch_value = 0;
+static _Atomic int64_t rp_kernel_eval_reset_epoch_value = 0;
 static _Atomic int64_t rp_kernel_eval_entries[3] = {0, 0, 0};
 static _Atomic int64_t rp_kernel_eval_executed[3] = {0, 0, 0};
 static _Atomic int64_t rp_kernel_eval_rejected[3] = {0, 0, 0};
@@ -108,6 +115,9 @@ rp_kernel_get_phase(void)
 void
 rp_kernel_set_strict_reject(int enabled)
 {
+    if (!enabled) {
+        atomic_fetch_add_explicit(&rp_kernel_strict_disable_epoch_value, 1, memory_order_acq_rel);
+    }
     atomic_store_explicit(&rp_kernel_strict_reject_flag, enabled ? 1 : 0, memory_order_release);
 }
 
@@ -120,6 +130,7 @@ rp_kernel_get_strict_reject(void)
 void
 rp_kernel_reset_eval_stats(void)
 {
+    atomic_fetch_add_explicit(&rp_kernel_eval_reset_epoch_value, 1, memory_order_acq_rel);
     for (int i = 0; i < 3; i++) {
         atomic_store_explicit(&rp_kernel_eval_entries[i], 0, memory_order_release);
         atomic_store_explicit(&rp_kernel_eval_executed[i], 0, memory_order_release);
@@ -165,6 +176,16 @@ rp_kernel_eval_total_entries(void)
 }
 
 int64_t
+rp_kernel_eval_total_executed(void)
+{
+    int64_t total = 0;
+    for (int i = 0; i < 3; i++) {
+        total += atomic_load_explicit(&rp_kernel_eval_executed[i], memory_order_acquire);
+    }
+    return total;
+}
+
+int64_t
 rp_kernel_eval_total_rejected(void)
 {
     int64_t total = 0;
@@ -172,6 +193,18 @@ rp_kernel_eval_total_rejected(void)
         total += atomic_load_explicit(&rp_kernel_eval_rejected[i], memory_order_acquire);
     }
     return total;
+}
+
+int64_t
+rp_kernel_strict_disable_epoch(void)
+{
+    return atomic_load_explicit(&rp_kernel_strict_disable_epoch_value, memory_order_acquire);
+}
+
+int64_t
+rp_kernel_eval_reset_epoch(void)
+{
+    return atomic_load_explicit(&rp_kernel_eval_reset_epoch_value, memory_order_acquire);
 }"""
 
 

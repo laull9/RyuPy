@@ -1,4 +1,3 @@
-# ryupy: pending
 # 保存动态导入函数并计算模块名；编译期未知名字也要保守保留原生inspect。
 import importlib as dispatch
 

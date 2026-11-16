@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace RyuPy.Runtime;
 
 /// <summary>进程参数、标准流与受控系统模块；入口初始化与静态/动态print共享同一状态。</summary>
-public static class PySystem
+public static partial class PySystem
 {
     private static PyModule? _sys;
     // 首次真实初始化绑定，后续Initialize不为被修改状态重新签发身份。
@@ -32,6 +32,12 @@ public static class PySystem
 
     /// <summary>由生成的Main调用；argv[0]使用编译入口源码标识而不是dotnet宿主路径。</summary>
     public static void Initialize(string sourceName, string[] args)
+    {
+        InitializeState(sourceName, args);
+        PyNativeModules.Register();
+    }
+
+    private static void InitializeState(string sourceName, string[] args)
     {
         var argv = new List<object?> { sourceName };
         argv.AddRange(args);
@@ -66,7 +72,6 @@ public static class PySystem
             }
         }
         else foreach (var pair in attributes) if (pair.Key is not ("modules" or "path")) _sys.SetAttr(pair.Key, pair.Value);
-        PyNativeModules.Register();
     }
 
     /// <summary>读取当前sys.stdout；模块属性赋值立即对所有print路径生效。</summary>

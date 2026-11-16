@@ -27,6 +27,10 @@ internal static partial class StrictRunnerProgram
                 "neg_strict_path_change_after_closed_rejected" => RunNegStrictPathChangeAfterClosed(),
                 "neg_fake_kernel_triggers_terminal_failed" => RunNegFakeKernelTriggersFailed(),
                 "neg_fence_blocks_new_leases_allows_op0" => RunNegFenceBlocksNewLeasesAllowsOp0(),
+                "neg_strict_toggle_0_to_1_breaks_audit" => RunNegStrictToggle0To1BreaksAudit(),
+                "neg_runtime_reset_eval_stats_breaks_audit" => RunNegRuntimeResetEvalStatsBreaksAudit(),
+                "strict_replace_cil_callbacks_keeps_host_active" => RunStrictReplaceCilCallbacksKeepsHostActive(),
+                "neg_compat_rebuild_rejected" => RunNegCompatRebuildRejected(),
                 _ => throw new ArgumentException($"未知测试场景: {args[0]}")
             };
         }
@@ -60,7 +64,7 @@ internal static partial class StrictRunnerProgram
             library,
             shim,
             search_paths = searchPaths,
-            modules = Array.Empty<string>(),
+            modules = new[] { "math", "atexit" },
             container_transfer = "proxy",
         };
         File.WriteAllText(path, JsonSerializer.Serialize(config));
@@ -81,7 +85,7 @@ internal static partial class StrictRunnerProgram
         if (!condition) throw new InvalidOperationException("断言失败: " + message);
     }
 
-    private static void RunCheckAudit(string reportPath)
+    private static (int ExitCode, string Output) InvokeCheckAudit(string reportPath)
     {
         string repoRoot = RequireEnv("RYUPY_TEST_REPO_ROOT");
         string py = RequireEnv("RYUPY_TEST_CHECK_PYTHON");
@@ -104,9 +108,13 @@ internal static partial class StrictRunnerProgram
             throw new TimeoutException("check_audit.py 超时");
         }
         Task.WaitAll(outTask, errTask);
-        string stdout = outTask.Result;
-        string stderr = errTask.Result;
-        AssertTrue(proc.ExitCode == 0, $"check_audit.py 失败 (exit={proc.ExitCode}): {stdout} {stderr}");
+        return (proc.ExitCode, $"{outTask.Result} {errTask.Result}");
+    }
+
+    private static void RunCheckAudit(string reportPath)
+    {
+        (int exitCode, string output) = InvokeCheckAudit(reportPath);
+        AssertTrue(exitCode == 0, $"check_audit.py 失败 (exit={exitCode}): {output}");
     }
 
     private static int RunStrictMathAtexitAudit()
@@ -126,7 +134,7 @@ internal static partial class StrictRunnerProgram
         AssertTrue(ProcessNativeBinding.Current.Profile == BindingProfile.StrictKernel, "Profile 必须为 StrictKernel");
 
         PyModule mathMod = PyModules.Import("math");
-        double sqrtVal = Convert.ToDouble(CallAttr(mathMod, "sqrt", 9.0));
+        double sqrtVal = PyCast.ToFloat64(CallAttr(mathMod, "sqrt", 9.0));
         AssertTrue(Math.Abs(sqrtVal - 3.0) < 1e-12, $"math.sqrt(9.0) 应为 3.0，实际 {sqrtVal}");
 
         bool atexitRan = false;
@@ -135,7 +143,7 @@ internal static partial class StrictRunnerProgram
         PyFunction cb = MakeNoArgCallable("strict_atexit_cb", () =>
         {
             atexitRan = true;
-            cosVal = Convert.ToDouble(CallAttr(mathMod, "cos", 0.0));
+            cosVal = PyCast.ToFloat64(CallAttr(mathMod, "cos", 0.0));
             return PyNone.Instance;
         });
         CallAttr(atexitMod, "register", cb);
@@ -173,20 +181,8 @@ internal static partial class StrictRunnerProgram
 
         string cfg = WriteConfig(workDir, "strict_dealloc.json", "strict", strictHome, strictLib, strictShim, [Path.Combine(strictHome, "lib", "python3.12")]);
         Bootstrap.StartStrictUnsealed(cfg, ["ryupy-strict-runner"]);
-
-        nint probeLib = NativeLibrary.Load(probePath);
-        ProbeResetFn probeReset;
-        ProbeCountFn probeCount;
-        ProbeCountFn probeGilValidCount;
-        ProbeCreateFn probeCreate;
-        unsafe
-        {
-            probeReset = Marshal.GetDelegateForFunctionPointer<ProbeResetFn>(NativeLibrary.GetExport(probeLib, "probe_reset"));
-            probeCount = Marshal.GetDelegateForFunctionPointer<ProbeCountFn>(NativeLibrary.GetExport(probeLib, "probe_count"));
-            probeGilValidCount = Marshal.GetDelegateForFunctionPointer<ProbeCountFn>(NativeLibrary.GetExport(probeLib, "probe_gil_valid_count"));
-            probeCreate = Marshal.GetDelegateForFunctionPointer<ProbeCreateFn>(NativeLibrary.GetExport(probeLib, "probe_create"));
-        }
-        probeReset();
+        ProbeNative.Initialize(probePath);
+        ProbeNative.probe_reset();
 
         // 构造三类释放时机均需通过 FiniCore 真实释放的探针对象：
         // 1) heldProxy: 一直保留至关闭；
@@ -194,27 +190,32 @@ internal static partial class StrictRunnerProgram
         // 3) CreateUnreachableProbe(): 在 atexit（state=4）触发 GC + WaitForPendingFinalizers() 由后台 Finalizer 释放。
         CPythonHost hostRef = Bootstrap.Host;
         PyFunction managedChild = MakeNoArgCallable("held_managed_child", () => PyNone.Instance);
-        object? CreateProbe(bool trackFinalizer = false)
+        object? CreateProbe()
         {
-            object? obj = hostRef.PythonCall(() =>
+            return hostRef.PythonCall(() =>
             {
                 nint childPtr = hostRef.ToPython(managedChild);
                 nint probePtr;
-                try { probePtr = probeCreate(childPtr); }
+                try { probePtr = ProbeNative.probe_create(childPtr); }
                 finally { hostRef.DecrefDirect(childPtr); }
                 return hostRef.FromOwned(probePtr);
             });
-            _ = trackFinalizer;
-            return obj;
         }
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
         void SpawnUnreachableProbe()
         {
-            object? temp = CreateProbe(trackFinalizer: true);
+            object? temp = CreateProbe();
             AssertTrue(temp is PythonObject, "unreachable probe 应包装为 PythonObject");
         }
 
-        object? heldProxy = CreateProbe();
+        object? heldProxy = hostRef.PythonCall(() =>
+        {
+            nint childPtr = hostRef.ToPython(managedChild);
+            nint probePtr;
+            try { probePtr = ProbeNative.probe_create_late_guard(childPtr); }
+            finally { hostRef.DecrefDirect(childPtr); }
+            return hostRef.FromOwned(probePtr);
+        });
         var atexitDisposed = AssertIs<PythonObject>(CreateProbe(), "atexitDisposed 应为 PythonObject");
         SpawnUnreachableProbe();
         GC.KeepAlive(heldProxy);
@@ -225,12 +226,12 @@ internal static partial class StrictRunnerProgram
         PyModule atexitMod = PyModules.Import("atexit");
         CallAttr(atexitMod, "register", MakeNoArgCallable("check_alive_in_atexit", () =>
         {
-            countDuringAtexitBefore = probeCount();
+            countDuringAtexitBefore = ProbeNative.probe_count();
             atexitDisposed.Dispose();
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect();
-            countDuringAtexitAfterDisposeAndGc = probeCount();
+            countDuringAtexitAfterDisposeAndGc = ProbeNative.probe_count();
             return PyNone.Instance;
         }));
 
@@ -239,10 +240,12 @@ internal static partial class StrictRunnerProgram
 
         AssertTrue(countDuringAtexitBefore == 0 && countDuringAtexitAfterDisposeAndGc == 0,
             $"atexit（state=4）期间仅入队，不应提前触发或遗漏 tp_dealloc: before={countDuringAtexitBefore}, after={countDuringAtexitAfterDisposeAndGc}");
-        long afterCount = probeCount();
-        long afterGilValid = probeGilValidCount();
+        long afterCount = ProbeNative.probe_count();
+        long afterGilValid = ProbeNative.probe_gil_valid_count();
+        long lateGuardRejected = ProbeNative.probe_late_guard_count();
         AssertTrue(afterCount == 3, $"FiniCore 必须真实 Py_DECREF 全部 3 个句柄（含 state=4 Dispose 与 Finalizer），实际={afterCount}");
         AssertTrue(afterGilValid == 3, $"全部 3 次 tp_dealloc 均须在有效 GIL/tstate 栅栏内运行，实际={afterGilValid}");
+        AssertTrue(lateGuardRejected == 2, $"FiniCore 析构重入 PyImport_ImportModule 与 rp_kernel_import_register 均必须被墓碑与 finalizing 守卫拦截（期望=2，实际={lateGuardRejected}）");
 
         HostStatistics stats = hostRef.Statistics;
         AssertTrue(stats.Handles == 0 && stats.ManagedRoots == 0 && stats.PendingReleases == 0 && stats.LateReleases == 0,
@@ -277,7 +280,7 @@ internal static partial class StrictRunnerProgram
             Bootstrap.StartStrictUnsealed(cfg, ["ryupy-strict-runner"]);
             AssertTrue(ProcessNativeBinding.Current.State == BindingState.Active, $"第 {round} 轮应为 Active");
             PyModule mathMod = PyModules.Import("math");
-            double v = Convert.ToDouble(CallAttr(mathMod, "sqrt", round == 1 ? 16.0 : 25.0));
+            double v = PyCast.ToFloat64(CallAttr(mathMod, "sqrt", round == 1 ? 16.0 : 25.0));
             AssertTrue(Math.Abs(v - (round == 1 ? 4.0 : 5.0)) < 1e-12, $"第 {round} 轮 sqrt 错误: {v}");
             bool cbRan = false;
             PyModule atexitMod = PyModules.Import("atexit");
@@ -401,9 +404,7 @@ internal static partial class StrictRunnerProgram
 
         string cfg = WriteConfig(workDir, "strict_fence_reentry.json", "strict", strictHome, strictLib, strictShim, [Path.Combine(strictHome, "lib", "python3.12")]);
         Bootstrap.StartStrictUnsealed(cfg, ["ryupy-strict-runner"]);
-        nint probeLib = NativeLibrary.Load(probePath);
-        var probeSetOnDealloc = Marshal.GetDelegateForFunctionPointer<ProbeSetOnDeallocFn>(
-            NativeLibrary.GetExport(probeLib, "probe_create_with_callback"));
+        ProbeNative.Initialize(probePath);
 
         // 构造由 C 探针对象持有的两个托管对象：
         // 1) 作为子对象挂接、测试 tp_dealloc -> Managed op=0 正常清除 Roots；
@@ -416,7 +417,7 @@ internal static partial class StrictRunnerProgram
         {
             nint c1 = hostRef.ToPython(legalManagedObj);
             nint c2 = hostRef.ToPython(illegalCallback);
-            try { return hostRef.FromOwned(probeSetOnDealloc(c1, c2)); }
+            try { return hostRef.FromOwned(ProbeNative.probe_create_with_callback(c1, c2)); }
             finally { hostRef.DecrefDirect(c1); hostRef.DecrefDirect(c2); }
         });
         GC.KeepAlive(held);
@@ -429,8 +430,127 @@ internal static partial class StrictRunnerProgram
         return 0;
     }
 
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate void ProbeResetFn();
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate long ProbeCountFn();
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate nint ProbeCreateFn(nint child);
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate nint ProbeSetOnDeallocFn(nint managedChild, nint callbackChild);
+    private static int RunNegStrictToggle0To1BreaksAudit()
+    {
+        string workDir = RequireEnv("RYUPY_TEST_WORKDIR");
+        string strictHome = RequireEnv("RYUPY_TEST_STRICT_HOME");
+        string strictLib = RequireEnv("RYUPY_TEST_STRICT_LIB");
+        string strictShim = RequireEnv("RYUPY_TEST_STRICT_SHIM");
+        string probePath = RequireEnv("RYUPY_TEST_DEALLOC_PROBE");
+        string reportPath = Path.Combine(workDir, "neg_toggle_report.json");
+        Environment.SetEnvironmentVariable("RYUPY_CPYTHON_REPORT", reportPath);
+
+        string cfg = WriteConfig(workDir, "strict_toggle.json", "strict", strictHome, strictLib, strictShim, [Path.Combine(strictHome, "lib", "python3.12")]);
+        Bootstrap.StartStrictUnsealed(cfg, ["ryupy-strict-runner"]);
+        ProbeNative.Initialize(probePath);
+        ProbeNative.probe_toggle_strict_reject_0_to_1();
+        Bootstrap.Stop();
+
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(reportPath));
+        JsonElement audit = doc.RootElement.GetProperty("execution_audit");
+        AssertTrue(!audit.GetProperty("strict_reject_never_disabled").GetBoolean(), "0->1 切换后 strict_reject_never_disabled 必须为 false");
+        AssertTrue(!audit.GetProperty("complete").GetBoolean(), "0->1 切换后 complete 必须为 false");
+        AssertTrue(audit.GetProperty("coverage_failures").GetInt64() >= 1, "0->1 切换后 coverage_failures 必须 >= 1");
+        (int exitCode, _) = InvokeCheckAudit(reportPath);
+        AssertTrue(exitCode != 0, "check_audit.py 必须拒绝运行期间 0->1 关闭严格拒绝的报告");
+        return 0;
+    }
+
+    private static int RunNegRuntimeResetEvalStatsBreaksAudit()
+    {
+        string workDir = RequireEnv("RYUPY_TEST_WORKDIR");
+        string strictHome = RequireEnv("RYUPY_TEST_STRICT_HOME");
+        string strictLib = RequireEnv("RYUPY_TEST_STRICT_LIB");
+        string strictShim = RequireEnv("RYUPY_TEST_STRICT_SHIM");
+        string probePath = RequireEnv("RYUPY_TEST_DEALLOC_PROBE");
+        string reportPath = Path.Combine(workDir, "neg_reset_report.json");
+        Environment.SetEnvironmentVariable("RYUPY_CPYTHON_REPORT", reportPath);
+
+        string cfg = WriteConfig(workDir, "strict_reset.json", "strict", strictHome, strictLib, strictShim, [Path.Combine(strictHome, "lib", "python3.12")]);
+        Bootstrap.StartStrictUnsealed(cfg, ["ryupy-strict-runner"]);
+        ProbeNative.Initialize(probePath);
+        ProbeNative.probe_reset_eval_stats();
+        Bootstrap.Stop();
+
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(reportPath));
+        JsonElement audit = doc.RootElement.GetProperty("execution_audit");
+        AssertTrue(!audit.GetProperty("stats_never_reset").GetBoolean(), "运行期 reset 后 stats_never_reset 必须为 false");
+        AssertTrue(!audit.GetProperty("complete").GetBoolean(), "运行期 reset 后 complete 必须为 false");
+        AssertTrue(audit.GetProperty("coverage_failures").GetInt64() >= 1, "运行期 reset 后 coverage_failures 必须 >= 1");
+        (int exitCode, _) = InvokeCheckAudit(reportPath);
+        AssertTrue(exitCode != 0, "check_audit.py 必须拒绝运行期重置求值计数的报告");
+        return 0;
+    }
+
+    private static int RunStrictReplaceCilCallbacksKeepsHostActive()
+    {
+        string workDir = RequireEnv("RYUPY_TEST_WORKDIR");
+        string strictHome = RequireEnv("RYUPY_TEST_STRICT_HOME");
+        string strictLib = RequireEnv("RYUPY_TEST_STRICT_LIB");
+        string strictShim = RequireEnv("RYUPY_TEST_STRICT_SHIM");
+        string probePath = RequireEnv("RYUPY_TEST_DEALLOC_PROBE");
+        string reportPath = Path.Combine(workDir, "strict_replace_cb_report.json");
+        Environment.SetEnvironmentVariable("RYUPY_CPYTHON_REPORT", reportPath);
+
+        string cfg = WriteConfig(workDir, "strict_replace.json", "strict", strictHome, strictLib, strictShim, [Path.Combine(strictHome, "lib", "python3.12")]);
+        Bootstrap.StartStrictUnsealed(cfg, ["ryupy-strict-runner"]);
+        ProbeNative.Initialize(probePath);
+
+        long cilCleanupCount = Bootstrap.Host.PythonCall(() => ProbeNative.probe_replace_cil_callbacks_twice());
+        AssertTrue(cilCleanupCount == 1, $"两次合法替换 CIL callbacks 后应仅触发 CIL 自身 old_cleanup=1 次，实际={cilCleanupCount}");
+        long fenceImmutable = Bootstrap.Host.PythonCall(() => ProbeNative.probe_verify_fini_fence_immutable());
+        AssertTrue(fenceImmutable == 1, $"已安装的 FiniCore Fence 必须拒绝 NULL 清空与异构替换，实际={fenceImmutable}");
+        AssertTrue(Bootstrap.Host.Statistics.State == "running",
+            $"替换 CIL callbacks 绝不能提前触发 FiniCore Fence 或退化宿主状态，实际={Bootstrap.Host.Statistics.State}");
+
+        PyModule mathMod = PyModules.Import("math");
+        double v = PyCast.ToFloat64(CallAttr(mathMod, "sqrt", 9.0));
+        AssertTrue(Math.Abs(v - 3.0) < 1e-12, $"替换 CIL callbacks 后 math.sqrt(9) 应仍为 3.0，实际={v}");
+
+        Bootstrap.Stop();
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(reportPath));
+        JsonElement fence = doc.RootElement.GetProperty("fini_core_fence");
+        AssertTrue(fence.GetProperty("executed").GetBoolean(), "真实关机必须执行 FiniCore Fence");
+        AssertTrue(fence.GetProperty("calls").GetInt32() == 1, $"FiniCore Fence 须精确触发 1 次，实际={fence.GetProperty("calls").GetInt32()}");
+        RunCheckAudit(reportPath);
+        return 0;
+    }
+
+    private static int RunNegCompatRebuildRejected()
+    {
+        string workDir = RequireEnv("RYUPY_TEST_WORKDIR");
+        string compatHome = RequireEnv("RYUPY_TEST_COMPAT_HOME");
+        string compatLib = RequireEnv("RYUPY_TEST_COMPAT_LIB");
+        string compatShim = RequireEnv("RYUPY_TEST_COMPAT_SHIM");
+        string cfg = Path.Combine(workDir, "compat_inspect.json");
+        File.WriteAllText(cfg, JsonSerializer.Serialize(new
+        {
+            schema = 1,
+            python_version = "3.12.13",
+            development = true,
+            kernel_mode = "compat",
+            native_inspect_profile = true,
+            home = compatHome,
+            library = compatLib,
+            shim = compatShim,
+            search_paths = new[]
+            {
+                Path.Combine(compatHome, "lib", "python3.12"),
+                Path.Combine(compatHome, "lib", "python3.12", "lib-dynload"),
+            },
+            modules = new[] { "collections" },
+            container_transfer = "proxy",
+        }));
+
+        Bootstrap.Start(cfg, ["ryupy-runner"]);
+        AssertTrue(Bootstrap.Host.Statistics.State == "running", "Compat 应为 running");
+        Bootstrap.Stop();
+        AssertTrue(ProcessNativeBinding.Current.State == BindingState.Closed, "Compat 关闭后应为 Closed");
+
+        bool threw = false;
+        try { Bootstrap.Start(cfg, ["ryupy-runner"]); }
+        catch (InvalidOperationException) { threw = true; }
+        AssertTrue(threw, "compat 通道在 Closed 后顺序重建必须明确拒绝，避免 managed_type 泄漏");
+        return 0;
+    }
 }

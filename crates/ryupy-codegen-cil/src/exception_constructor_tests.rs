@@ -70,6 +70,7 @@ fn serialized_warning_constructor_defers_message_policy_to_runtime() {
         factory_global: None,
     });
     let program = LinkedProgram {
+        native_modules: Default::default(),
         external_provider: None,
         candidate_modules: Vec::new(),
         metadata_unavailable: None,

@@ -75,6 +75,11 @@ public static class ProcessNativeBinding
             }
             if (_state == BindingState.Closed)
             {
+                if (_profile == BindingProfile.Compat)
+                {
+                    throw new InvalidOperationException(
+                        "compat 通道（3.9–3.15）当前保持单进程单次生命周期边界（managed_type 随旧会话驻留），禁止在 Closed 后顺序重建");
+                }
                 if (_profile != profile
                     || !string.Equals(_libraryPath, canonicalLib, cmp)
                     || !string.Equals(_shimPath, canonicalShim, cmp))

@@ -1,5 +1,15 @@
 # 可重建严格 libpython 内核原型
 
+按 [ADR-0223](../../docs/adr/0223-stock-libpython-bounded-glue.md)，本目录转为可选严格研究。
+产品主线复用原版 libpython 与少量必要胶水，暂停扩展自定义内核；已有源码与探针保留。
+当前未提交的 Host Slice 1 修改尚未完成十二项实跑验收，旧 22/10 探针成绩限定于其已测快照。
+常规 `make check` 不触发严格源码重建。独立启用 Host 研究测试：
+
+```bash
+dotnet test runtime/RyuPy.CPython.Tests -p:RyuPyStrictKernelTests=true \
+  --filter 'FullyQualifiedName~StrictKernelSlice1Tests'
+```
+
 本目录实施 [ADR-0208](../../docs/adr/0208-cil-execution-libpython-kernel.md) 的 C4 前置内核。
 由官方 CPython 3.12.13 源码构建，移除 frozen/deepfreeze 执行载荷，以纯 C 导入与 `_io`
 完成启动和标准流。现有 auto provider 的 Python 3.9–3.15 产品合同继续保留。

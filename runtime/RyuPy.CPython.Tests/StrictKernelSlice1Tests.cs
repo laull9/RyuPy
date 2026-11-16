@@ -43,4 +43,20 @@ public sealed class StrictKernelSlice1Tests(StrictKernelBuildFixture fixture) : 
     [Fact]
     public void StrictKernel_FiniCoreFenceAllowsReleaseOp0WhileBlockingNewExecution() =>
         RunScenario("neg_fence_blocks_new_leases_allows_op0");
+
+    [Fact]
+    public void StrictKernel_MidSessionDisable0ThenReenable1FailsAudit() =>
+        RunScenario("neg_strict_toggle_0_to_1_breaks_audit");
+
+    [Fact]
+    public void StrictKernel_RuntimeResetEvalStatsFailsAudit() =>
+        RunScenario("neg_runtime_reset_eval_stats_breaks_audit");
+
+    [Fact]
+    public void StrictKernel_ReplacingCilCallbacksBeforeFreezeKeepsHostActiveAndRunsFenceOnceAtStop() =>
+        RunScenario("strict_replace_cil_callbacks_keeps_host_active");
+
+    [Fact]
+    public void ProcessNativeBinding_RejectsCompatSequentialRebuildExplicitly() =>
+        RunScenario("neg_compat_rebuild_rejected");
 }

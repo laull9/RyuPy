@@ -280,6 +280,7 @@ pub(super) fn compile_linked_traced(
         entry_index
     };
     let mut linked = trace_product::link(sess, entry_file, units, emitted_entry, trace_proofs)?;
+    linked.native_modules = native_module_requirements::freeze(sess, &sources, true);
     linked.external_provider = sess
         .cpython_provider_state
         .plan

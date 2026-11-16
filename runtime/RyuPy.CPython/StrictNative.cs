@@ -21,11 +21,6 @@ internal static unsafe class StrictNative
     internal static extern int rp_strict_has_import_abi();
 
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int rp_strict_set_env(
-        [MarshalAs(UnmanagedType.LPUTF8Str)] string name,
-        [MarshalAs(UnmanagedType.LPUTF8Str)] string? value);
-
-    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int rp_strict_start(
         [MarshalAs(UnmanagedType.LPUTF8Str)] string home,
         nint* paths,
@@ -54,6 +49,9 @@ internal static unsafe class StrictNative
     internal static extern int rp_strict_reject_never_disabled();
 
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int rp_strict_stats_never_reset();
+
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int rp_strict_fini_core_calls();
 
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
@@ -70,6 +68,9 @@ internal static unsafe class StrictNative
 
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern long rp_strict_eval_total_entries();
+
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern long rp_strict_eval_total_executed();
 
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern long rp_strict_eval_total_rejected();

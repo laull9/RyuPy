@@ -88,7 +88,7 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
         return Ok(ryupy_mir::pretty::dump(&mir));
     }
 
-    let linked = trace_product::link(
+    let mut linked = trace_product::link(
         sess,
         module.parsed.file,
         vec![(
@@ -110,6 +110,8 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
         0,
         proof.into_iter().collect(),
     )?;
+    linked.native_modules =
+        native_module_requirements::freeze_parsed(sess, [&module.parsed], false);
     check_linked_exports(sess, &linked, module.parsed.file)?;
     let emit_opts = ryupy_codegen_cil::EmitOptions {
         assembly_name: assembly_name(input),

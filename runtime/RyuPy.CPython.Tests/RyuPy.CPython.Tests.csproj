@@ -18,6 +18,11 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <!-- ADR-0223：自定义严格内核为可选研究；常规门使用原版 libpython，避免隐式源码重建。 -->
+  <ItemGroup Condition="'$(RyuPyStrictKernelTests)' != 'true'">
+    <Compile Remove="StrictKernelSlice1Tests.cs;StrictKernelTestHarness.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\RyuPy.Runtime\RyuPy.Runtime.csproj" />
     <ProjectReference Include="..\RyuPy.CPython\RyuPy.CPython.csproj" />

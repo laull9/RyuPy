@@ -554,7 +554,11 @@ fn build_resolution_core(
             clr_exc_type,
             py_system_exit_type,
             set_file,
-            runtime_refs.system.initialize,
+            if program.native_modules.inspect {
+                runtime_refs.system.initialize
+            } else {
+                runtime_refs.system.initialize_compiled_base
+            },
             system_exit_code,
             runtime_refs.system.exit_flush,
             init_functions,

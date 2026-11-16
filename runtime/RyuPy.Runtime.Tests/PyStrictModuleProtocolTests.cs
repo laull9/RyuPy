@@ -54,6 +54,60 @@ public class PyStrictModuleProtocolTests
     }
 
     [Fact]
+    public void ExplicitNoneFromlistIsEmptyWithoutOpeningArbitraryIterables()
+    {
+        var provider = new StrictProvider(); PyProvider.Install(provider);
+        try
+        {
+            var value = new PyList([]); provider.Entries["os"] = value;
+            object? importer = PyModuleInstances.CreateCanonicalBuiltins().Get("__import__");
+            foreach (object? fromlist in new object?[] { null, PyNone.Instance })
+            {
+                Assert.Same(value, PyOps.CallValue(importer, ["os", PyNone.Instance, PyNone.Instance, fromlist], [], []));
+                Assert.Empty(provider.Fromlist!);
+            }
+            object?[] previous = provider.Fromlist!;
+            Assert.Throws<PyNotImplementedError>(() => PyOps.CallValue(importer,
+                ["os", PyNone.Instance, PyNone.Instance, new PySet()], [], []));
+            Assert.Same(previous, provider.Fromlist);
+        }
+        finally { PyProvider.Remove(provider); }
+    }
+
+    [Fact]
+    public void PlainModuleNoneFallbackAndPackageFromlistBlockingAreDifferentPhases()
+    {
+        var provider = new StrictProvider(); PyProvider.Install(provider);
+        try
+        {
+            object? context = null; int attributeReads = 0;
+            var globals = new PyForeignModuleStateTests.FakeNamespace();
+            globals.External["__builtins__"] = PyModuleInstances.CreateCanonicalBuiltins();
+            string name = "phase_context_" + Guid.NewGuid().ToString("N");
+            PyModules.RegisterInstanceSourceLocated(name, "", "phase.py", 1, "/virtual/phase.py", false, state => context = state);
+            PyModuleInstances.ExecuteBound(PyModuleInstances.BindForeign(PyModuleInstances.CaptureRegisteredCode(name), globals, new PyForeignModuleStateTests.ForeignModule()));
+            PyModule Module(string key, bool package) => PyProvider.Module(key, member =>
+            {
+                if (member == "__name__") return key;
+                if (member == "__path__" && package) return new PyList([]);
+                if (member == "x") attributeReads++;
+                throw new PyAttributeError(member);
+            }, (_, _, _) => { });
+            provider.Entries["plain"] = Module("plain", false); provider.Entries["plain.x"] = PyNone.Instance;
+            var plain = PyModuleInstances.RelativeImport(context!, "plain", 0, ["x"]);
+            Assert.Same(PyNone.Instance, PyModuleInstances.RelativeImportAttr(context!, plain, "x"));
+            Assert.Equal(1, attributeReads);
+            provider.Entries["package"] = Module("package", true); provider.Entries["package.x"] = PyNone.Instance;
+            // kernel负责包fromlist阶段的阻断；Runtime必须直接传播，不能先IMPORT_FROM或读取子缓存。
+            var blocked = new PyModuleNotFoundError("import of package.x halted; None in sys.modules");
+            provider.ImportFailure = blocked;
+            Assert.Same(blocked, Assert.Throws<PyModuleNotFoundError>(() => PyModuleInstances.RelativeImport(context!, "package", 0, ["x"])));
+            Assert.Equal(1, attributeReads); Assert.Equal(new object?[] { "x" }, provider.Fromlist);
+        }
+        finally { PyProvider.Remove(provider); }
+    }
+
+    [Fact]
     public void CanonicalSnapshotPreservesIdentityAndNeverSharesMutableDictionary()
     {
         var first = PyModuleInstances.CreateCanonicalBuiltins(); var second = PyModuleInstances.CreateCanonicalBuiltins();
@@ -159,6 +213,7 @@ public class PyStrictModuleProtocolTests
     {
         internal readonly Dictionary<string, object?> Entries = new(StringComparer.Ordinal);
         internal bool WrongIdentity;
+        internal PyBaseException? ImportFailure;
         internal object? Globals; internal object?[]? Fromlist; internal long Level; internal int LegacyImports;
         public bool TryGetNamespace(object value, out IPyModuleNamespace? result)
         {
@@ -174,6 +229,7 @@ public class PyStrictModuleProtocolTests
         public object ImportLevel(string name, object? globals, object?[] fromlist, long level)
         {
             Globals = globals; Fromlist = fromlist; Level = level;
+            if (ImportFailure is not null) throw ImportFailure;
             if (!Entries.TryGetValue(name, out var entry) || entry is PyNone)
                 throw new PyModuleNotFoundError("blocked or missing");
             return entry!;
