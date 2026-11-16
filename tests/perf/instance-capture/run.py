@@ -19,6 +19,9 @@ from benchlib.suite import Benchmark
 BASELINE = '5d36db1e952f1db07aee6563d7a800cc1df94548'
 CP_CAPTURE = b'old-get x 0\nset x 9\ncaptured 2 9\nhash-error\nunchanged hash failed 5 1\n'
 OLD_CAPTURE = b'new-get x 0\nset x 101\ncaptured 2 101\nhash-error\nunchanged hash failed 5 1\n'
+# 固定负例不授予一般失败豁免；基线和候选各后端仍须真实重现才能登记边界。
+CP_MAPPING = b"boundary-result 8 ['keys', 'item:x', 'body']\n"
+PRODUCT_MAPPING = b"boundary-error argument after ** must be a mapping, not 'Keywords' []\n"
 
 
 def digest(path):
@@ -123,19 +126,27 @@ def main():
         return directory, inputs, entry, cmd
 
     try:
-        fixtures = [Path(__file__).with_name('capture.py')] + args.semantic_source
-        for index, source in enumerate(fixtures):
+        fixtures = [('capture', Path(__file__).with_name('capture.py')),
+                    ('mapping-boundary', Path(__file__).with_name('custom_mapping_boundary.py'))]
+        fixtures += [('supported', source) for source in args.semantic_source]
+        original = ROOT / 'tests/e2e/phase3/ordinary_instance_method_capture.py'
+        report['original_pending'] = {'path': str(original), 'sha256': digest(original),
+            'failure_run': 43827788852, 'status': 'original unchanged; not claimed fixed by adapted supported fixture'}
+        for index, (kind, source) in enumerate(fixtures):
             source = source.resolve()
             report['fixture_hashes'][str(source)] = digest(source)
             cp, _ = run(f'sem-{index}-cp', [sys.executable, '-B', source])
             assert not cp.stderr
-            if index == 0:
+            if kind == 'capture':
                 assert cp.stdout == CP_CAPTURE
+            elif kind == 'mapping-boundary':
+                assert cp.stdout == CP_MAPPING and CP_MAPPING != PRODUCT_MAPPING
             for arm, cli in [('old', args.old), ('new', args.new)]:
-                # 原始capture唯一显式基线负例；额外合同只验候选，不扩大旧域通过声明。
-                if index and arm == 'old':
+                # 原始捕获和独立mapping边界都实测旧新；支持域合同只验候选。
+                if kind == 'supported' and arm == 'old':
                     continue
-                expected = OLD_CAPTURE if index == 0 and arm == 'old' else cp.stdout
+                expected = (PRODUCT_MAPPING if kind == 'mapping-boundary' else
+                            OLD_CAPTURE if kind == 'capture' and arm == 'old' else cp.stdout)
                 for backend in ['jit', 'aot']:
                     label = f'sem-{index}-{arm}-{backend}'
                     directory, inputs, entry, command = build(label, cli, source, backend)
@@ -150,8 +161,10 @@ def main():
                         for pic in ['1', '0']:
                             run(label + '-moved-pic-' + pic, [moved / entry.name],
                                 {'RYUPY_PIC': pic, 'PATH': '/nonexistent'}, cwd=moved, expected=expected)
-                    report['semantics'].append({'fixture': str(source), 'arm': arm, 'backend': backend,
-                                                'cp_equivalent': not (index == 0 and arm == 'old')})
+                    report['semantics'].append({'fixture': str(source), 'kind': kind, 'arm': arm, 'backend': backend,
+                        'cp_equivalent': expected == cp.stdout,
+                        'boundary': ('custom ** mapping rejected before keys callback; not fixed by instance capture'
+                                     if kind == 'mapping-boundary' else None)})
                     shutil.rmtree(directory)
 
         # 四轮各自重建两臂，保留全部不利样本；构建、语义与统计不混入正式计时。

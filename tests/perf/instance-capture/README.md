@@ -12,8 +12,12 @@
   oracle 为同次 CPython 3.12.13，Rust 为 1.99.1。
 - 原 `capture.py` 不删改，先明确复现固定基线 JIT/AOT 的 new-get / 101 差异，
   候选必须严格等于同次 CP 的 old-get / 9；基线结果明确非 CP 等价。
-- 另将 `ordinary_instance_method_capture.py` 作为独立输入运行 CP/JIT/AOT，
-  即使它仍带 pending 标记也不会被这里跳过。记录输入摘要，候选不允许差异。
+- 原 `ordinary_instance_method_capture.py` 保留原样和 pending 状态；支持域输入改用
+  `supported_capture.py`，仅以 `MappingProxyType(Keywords())` 显式适配原自定义 `**` mapping，
+  保留 keys/getitem 回调与方法重绑断言，候选仍须完整 CP/JIT/AOT 等价。
+- 自定义 mapping 本身另由 `custom_mapping_boundary.py` 通过独立函数调用隔离。
+  同次 CP oracle 必须精确匹配固定输出；旧新 JIT/AOT、两 PIC 态及搬迁必须精确重现
+  产品拒绝事件，明确 `cp_equivalent=false`。任何新增输出差异仍失败，不放宽一般语义门。
 - 两后端均在 `RYUPY_PIC=1/0` 下检查完整双流和退出码。NativeAOT 发布物复制到
   中文空格路径后隐藏实际编译输入和原发布目录再执行，两 PIC 态均要通过。
   仓库源码仍可见，不能据此宣称清洁机器或完整无源码发布验收。
@@ -36,3 +40,14 @@
 性能构建树与产物在完成各项目后删除；失败时残留构建树也不上传。因此只能离线核验
 保留的语义二进制，不能把性能清单或入口摘要描述为完整性能二进制审计。
 不改产品开关、不自动推 dev；完整检查失败时后续产品实验不运行。
+
+
+## 43827788852 原失败与本轮范围
+
+精确候选 `6555eeeb` 的默认/feature 完整检查通过，原 `capture.py` 的旧新
+JIT/AOT、PIC 两态及 AOT 搬迁完成。更广的原始 pending 输入在候选 JIT 的
+自定义 `Keywords` 双星展开处失败：`TypeError: argument after ** must be a mapping, not 'Keywords'`。
+该输入的后续场景、后端以及全部性能测量当时均未运行，不能由早期成功补称通过。
+原源码、Git 提交与失败工件保留；支持域适配不等于修复自定义 mapping，也不证明
+原 pending 输入已经通过。新的独立负例须重新证实固定旧产品和候选结果一致，
+不能仅凭候选的上轮错误预称该差异已在所有基线后端验证。

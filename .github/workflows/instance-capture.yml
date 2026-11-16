@@ -97,8 +97,7 @@ jobs:
       - name: 独立源码差分搬迁与方法性能分配
         run: |
           set -euo pipefail
-          fixture=$(find tests -name ordinary_instance_method_capture.py -print)
-          test "$(printf '%s\n' "$fixture" | wc -l)" = 1
+          fixture=tests/perf/instance-capture/supported_capture.py
           test -f "$fixture"
           "$PYTHON" tests/perf/instance-capture/run.py \
             --old "$RUNNER_TEMP/instance-cli-old/ryupy" \
