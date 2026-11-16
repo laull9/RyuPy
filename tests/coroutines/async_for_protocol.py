@@ -202,3 +202,23 @@ class NoneNext:
 
 
 finish(consume(NoneNext()))
+
+
+# 错误文案的精度按UTF-8字节计算；中文类型名在边界处保留CPython替换字符。
+class 甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲:
+    pass
+
+
+finish(consume(甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲甲()))
+
+
+class 乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙:
+    def __aiter__(self):
+        return self
+
+    @property
+    def __anext__(self):
+        raise ValueError("binding")
+
+
+finish(consume(乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙乙()))

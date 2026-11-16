@@ -179,6 +179,18 @@ pub(super) fn compile_linked_traced(
         else {
             continue;
         };
+        if aot_locations && plan.instance_globals() && instance_modules::inspect_profile(sess) {
+            if let Err(errors) = ryupy_mir::inspect_instance_contract::validate(&program) {
+                sess.diagnostics.push(
+                    ryupy_base::Diagnostic::error(
+                        ryupy_base::Span::new(module.parsed.file, ryupy_base::TextRange::default()),
+                        format!("inspect Instance AOT后置证明失败：{}", errors.join("；")),
+                    )
+                    .with_code("E0100"),
+                );
+                stop_if_errors(sess)?;
+            }
+        }
         if aot_locations {
             ordinary_mi::reject_emitted_aot(sess, module, &program);
             stop_if_errors(sess)?;

@@ -7,10 +7,10 @@ public static partial class PyOps
     public static object? AsyncIterStart(object? source)
     {
         if (!TryAsyncMethod(source, "__aiter__", out object? method))
-            throw new PyTypeError($"'async for' requires an object with __aiter__ method, got {PyRepr.TypeName(source)}");
+            throw new PyTypeError($"'async for' requires an object with __aiter__ method, got {AsyncTypeName(source)}");
         object? iterator = CallValue(method, [], [], []);
         if (!HasAsyncMethod(iterator, "__anext__"))
-            throw new PyTypeError($"'async for' received an object from __aiter__ that does not implement __anext__: {PyRepr.TypeName(iterator)}");
+            throw new PyTypeError($"'async for' received an object from __aiter__ that does not implement __anext__: {AsyncTypeName(iterator)}");
         return iterator;
     }
 
@@ -18,7 +18,7 @@ public static partial class PyOps
     public static object? AsyncIterNext(object? iterator)
     {
         if (!TryAsyncMethod(iterator, "__anext__", out object? method))
-            throw new PyTypeError($"'async for' requires an iterator with __anext__ method, got {PyRepr.TypeName(iterator)}");
+            throw new PyTypeError($"'async for' requires an iterator with __anext__ method, got {AsyncTypeName(iterator)}");
         return CallValue(method, [], [], []);
     }
 
@@ -35,7 +35,7 @@ public static partial class PyOps
             // 源__await__真实失败帧属于cause；包装错误产生于调用者，不能带上未弹出的callee。
             PyTraceback.ReceiveException(error, depth + 1);
             PyTraceback.PopTo(depth + 1);
-            var wrapped = new PyTypeError($"'async for' received an invalid object from __anext__: {PyRepr.TypeName(source)}");
+            var wrapped = new PyTypeError($"'async for' received an invalid object from __anext__: {AsyncTypeName(source)}");
             wrapped.WithCause(error); wrapped.Context = error;
             throw wrapped;
         }
@@ -79,10 +79,17 @@ public static partial class PyOps
             // 仅绑定失败进入此处；已经取得方法后的真实调用异常保持原身份。
             PyTraceback.ReceiveException(error, depth + 1);
             PyTraceback.PopTo(depth + 1);
-            string type = PyRepr.TypeName(value);
-            if (type.Length > 50) type = type[..50];
-            throw new PyAttributeError($"object {type} does not have {name} method");
+            throw new PyAttributeError($"object {AsyncTypeName(value, 50)} does not have {name} method");
         }
         return true;
+    }
+
+    // PyErr_Format的%.Ns按UTF-8字节截断并替换不完整字符，不能按UTF-16或字符数截断。
+    private static string AsyncTypeName(object? value, int precision = 100)
+    {
+        string name = PyRepr.TypeName(value);
+        if (System.Text.Encoding.UTF8.GetByteCount(name) <= precision) return name;
+        byte[] bytes = System.Text.Encoding.UTF8.GetBytes(name);
+        return System.Text.Encoding.UTF8.GetString(bytes, 0, precision);
     }
 }

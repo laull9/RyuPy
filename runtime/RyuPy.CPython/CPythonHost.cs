@@ -114,7 +114,7 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
             }
             finally { foreach (nint item in paths) Marshal.FreeCoTaskMem(item); foreach (nint item in args) Marshal.FreeCoTaskMem(item); }
             host.state = 1;
-            host.InstallInspectBridge();
+            host.InstallInspectBridge(configuration.NativeInspectProfile);
             host.InstallImports();
             if (host.executionAuditEnabled) { using Lease lease = host.Enter(); Native.rp_execution_audit_phase(1); }
             return host;

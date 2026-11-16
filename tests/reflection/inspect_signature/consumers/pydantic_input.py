@@ -28,3 +28,13 @@ except ValidationError:
 else:
     raise AssertionError("validation must run")
 print("pydantic: real signature rebuild and CIL validator")
+
+# 产品专用身份断言：真实CP函数会有CodeType；opaque CIL callable遵循受信缺失边界。
+import sys
+if "--require-cil" in sys.argv:
+    try:
+        compiled_callbacks.convert.__code__
+    except (AttributeError, NotImplementedError):
+        pass
+    else:
+        raise AssertionError("callback must execute compiled CIL")

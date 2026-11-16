@@ -46,7 +46,8 @@ CPython 3.12.13 的类型槽和错误包装依据为
 T 使用 Python 可观察类型名。`__aiter__`、`__anext__` 的调用异常直接传播，
 保留对象身份。描述符绑定失败与调用失败分开：CPython的 `slot_am_aiter/anext/await`
 将失败查找覆盖为 `AttributeError: object T does not have METHOD method`；此处不得
-把描述符抛出的 StopAsyncIteration 当作自然耗尽，类型名按对应槽的50字符上限处理。
+把描述符抛出的 StopAsyncIteration 当作自然耗尽。协议错误类型名按100个UTF-8字节、
+槽绑定错误按50个UTF-8字节截断；不完整字符使用CPython相同的替换字符。
 获取 await 迭代器失败时使用最后一类 TypeError 包装，并保留原 cause；
 这也覆盖用户 `__await__` 在取得迭代器前直接抛错和返回非法迭代器。
 已经取得合法迭代器后，其执行异常按正常 await 路径传播。
@@ -82,6 +83,15 @@ close 注入 GeneratorExit，清理仍产出时保留现有“忽略 GeneratorEx
 闭包捕获循环目标与普通 for 共用 cell，跨暂停保持身份和后期绑定；异步迭代器、
 当前 awaitable、循环状态和 pending 控制流跨暂停保活。普通 generator/yield-from
 仍使用既有路径，await 不能令 coroutine 被识别为普通 generator。
+纯合成标记/分派语句使用无源码行标记0，MIR不为它们发射Line；next与目标赋值仍登记
+真实for行，用户正文/else/finally/break继续使用各自源码行。真实差分覆盖已观察的同一
+frame在break、finally和else结束后的f_lineno及旧tb_lineno，防止合成耗尽检查覆盖末行。
+动态while的条件/正文回边、else入口和出口只继承进入前已确定的绑定，剔除相应循环/else
+中可能执行的del及except自动清除；不能把循环体新绑定当作零次执行路径的事实。该合流只在编译期进行，
+保留循环内快速事实、Typed路径与原生计数循环热路。空/非空/合法None、预绑定后删除、
+except清除和普通while的break/continue/finally均用真实差分保护。
+协程允许删除非cell动态局部，删除哨兵跨await持久化；普通generator和嵌套类仍保持原有
+准入，普通函数反射局部表不因该删除合同而扩展到协程。
 
 ## 实现边界
 
@@ -109,6 +119,7 @@ close 注入 GeneratorExit，清理仍产出时保留现有“忽略 GeneratorEx
 | `async_for_lifecycle.py` | 真 send/throw/close、取消、委托恢复、外层 async with、暂停清理及无隐式 aclose |
 | `async_for_global_shadow.py` | 全局同名变量不替换内建耗尽身份 |
 | `async_for_shared_awaitable.py` | GET_ANEXT与普通await的共享coroutine占用差异及完成后复用错误 |
+| `m3_dynamic_while_binding_join.py` | 默认模式动态while的零次/回边/else绑定、None、删除和except清除 |
 | 三个独立 `*_boundary_pending.py` | CPython成功；异步生成器/getattribute编译诊断、动态别名异常基类运行期NI |
 
 实施后，在同一进程测试轮显式指定 CPython 3.12.13，先生成预期，再构建无 CPython provider
@@ -130,6 +141,10 @@ close 注入 GeneratorExit，清理仍产出时保留现有“忽略 GeneratorEx
 本机本轮实际通过：六组成功源码在3.9.25/3.12.13/3.13.3输出一致，stderr为空；
 固定3.12.13同次候选门21项通过，包含原13项和六组新成功输入、两个独立边界门。
 AOT搬迁共七组，新增control/exceptions/lifecycle三组均执行删除输入、删除整个构建目录
-及中文空格路径搬迁后的真实原生产品。Runtime相关109项通过，含五个协议宿主用例、
-真实traceback身份/分配保护和七个PE门；MIR固定ABI实参篡改负例通过。
+及中文空格路径搬迁后的真实原生产品。Runtime最终扩展筛选135项通过，另两个既有
+dev-ABI基线门需外部基线；五个协议宿主用例、真实traceback身份/分配保护均通过，
+七个PE门另行7/7通过。默认HIR205/ty43/MIR436项、候选HIR210/ty43/MIR437项通过，
+MIR各保留四个既有忽略项；codegen71项通过、保留三个既有忽略项。MIR固定ABI实参篡改
+负例、C2五个MIR结构门及driver静态ABI门通过。普通while与companion/range/dataclass
+四组默认JIT真实产品均固定同次CPython差分通过；while源另在三版本oracle输出一致。
 公开asyncgen、调度器、跨线程异步IO、其它平台与onefile仍按后续竖切分别验收。

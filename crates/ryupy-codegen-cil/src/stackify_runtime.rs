@@ -235,6 +235,9 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         RuntimeFn::FunctionMetadata => ins.push(Instruction::call(
             ctx.runtime_refs.function_objects.metadata,
         )),
+        RuntimeFn::FunctionIntrospectionKind => ins.push(Instruction::call(
+            ctx.runtime_refs.function_objects.introspection_kind,
+        )),
         RuntimeFn::FunctionModule => {
             ins.push(Instruction::call(ctx.runtime_refs.function_objects.module))
         }

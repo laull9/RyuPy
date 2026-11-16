@@ -18,6 +18,10 @@ def verify_import_audit(path, native_methods=False):
     internal = [row for row in frames if row['file'] == '<string>']
     for name in REMOVED:
         assert sum(row['calls'] for row in internal if row['function'] == name) == 0, (name, internal)
+    wrappers = {}
     for name in ('_rp_wrap_method', '_rp_method'):
         calls = sum(row['calls'] for row in internal if row['function'] == name)
         assert (calls == 0 if native_methods else calls > 0), (name, calls)
+        wrappers[name] = calls
+    evidence = {phase: audit[phase + '_frames'] for phase in ('startup', 'runtime', 'shutdown')}
+    print('C1 native import audit passed:', evidence, 'removed=0', wrappers, flush=True)

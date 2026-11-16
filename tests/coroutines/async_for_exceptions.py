@@ -168,3 +168,50 @@ async def acquisition_error():
 
 
 finish(acquisition_error())
+
+
+# 已观察的同一frame结束后仍冻结真实末行；合成的耗尽标记不能覆盖break源码行。
+saved_frames = []
+saved_traces = []
+
+
+async def frozen_break_line():
+    try:
+        raise ValueError("observe-frame")
+    except ValueError as error:
+        saved_frames.append(error.__traceback__.tb_frame)
+        saved_traces.append(error.__traceback__)
+    async for value in One(1):
+        break
+
+
+async def frozen_finally_line():
+    try:
+        raise ValueError("observe-finally")
+    except ValueError as error:
+        saved_frames.append(error.__traceback__.tb_frame)
+        saved_traces.append(error.__traceback__)
+    async for value in One(2):
+        try:
+            break
+        finally:
+            pass
+
+
+async def frozen_else_line():
+    try:
+        raise ValueError("observe-else")
+    except ValueError as error:
+        saved_frames.append(error.__traceback__.tb_frame)
+        saved_traces.append(error.__traceback__)
+    async for value in SyncEnd():
+        raise AssertionError("unreachable")
+    else:
+        pass
+
+
+for operation in [frozen_break_line, frozen_finally_line, frozen_else_line]:
+    finish(operation())
+for index in range(3):
+    print("frozen-lines", saved_frames[index].f_lineno, saved_traces[index].tb_lineno,
+          saved_traces[index].tb_frame is saved_frames[index])

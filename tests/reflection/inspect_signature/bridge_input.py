@@ -73,3 +73,54 @@ except TypeError:
 else:
     raise AssertionError("missing defaults must fail")
 print("bridge: real identity live metadata and monkeypatch")
+
+# 产品专用身份断言：真实CP函数会有CodeType；opaque CIL callable遵循受信缺失边界。
+import sys
+if "--require-cil" in sys.argv:
+    try:
+        compiled.direct.__code__
+    except (AttributeError, NotImplementedError):
+        pass
+    else:
+        raise AssertionError("callback must execute compiled CIL")
+
+# profile只为受信普通模块函数隐藏不存在的CodeType；unknown不能被静默当作同步函数。
+assert inspect.isgeneratorfunction(compiled.direct) is False
+assert inspect.iscoroutinefunction(compiled.direct) is False
+assert inspect.isasyncgenfunction(compiled.direct) is False
+unknown_callable = compiled.unknown_callable()
+if "--require-cil" in sys.argv:
+    for predicate in [inspect.isgeneratorfunction, inspect.iscoroutinefunction, inspect.isasyncgenfunction]:
+        try:
+            predicate(unknown_callable)
+        except NotImplementedError:
+            pass
+        else:
+            raise AssertionError("unknown canonical kind must remain explicit NI")
+else:
+    assert inspect.isgeneratorfunction(unknown_callable) is False
+
+import bridge_kind_callbacks
+if "--require-cil" in sys.argv:
+    try:
+        inspect.isgeneratorfunction(bridge_kind_callbacks.generated)
+    except NotImplementedError:
+        pass
+    else:
+        raise AssertionError("generator kind must not be silently classified as synchronous")
+else:
+    assert inspect.isgeneratorfunction(bridge_kind_callbacks.generated) is True
+
+# 类型slot是AOT受信schema；改变它必须NI，不能执行后来注入的setter或制造错误快照。
+if "--require-cil" in sys.argv:
+    original_slot = inspect.Parameter._name
+    try:
+        inspect.Parameter._name = None
+        try:
+            compiled.snapshot(compiled.direct)
+        except NotImplementedError:
+            pass
+        else:
+            raise AssertionError("replaced inspect slot must be rejected")
+    finally:
+        inspect.Parameter._name = original_slot

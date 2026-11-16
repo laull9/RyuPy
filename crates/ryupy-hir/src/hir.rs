@@ -40,6 +40,8 @@ impl std::fmt::Display for Name {
 pub struct ModuleInfo {
     /// driver 冻结的外部类构造能力；只有该域需要类体失败时的原生命名空间清理。
     pub foreign_class_construction: bool,
+    /// 显式inspect provider profile才发布受信函数种类；普通构建保持原def发射。
+    pub introspection_profile: bool,
     /// 模块真实名字绑定到每个模块对象独立的运行时命名空间。
     pub instance_globals: bool,
     pub instance_capabilities: ryupy_base::InstanceCapabilities,
@@ -247,6 +249,7 @@ pub struct Stmt {
     pub kind: StmtKind,
     pub range: TextRange,
     /// 语句起始行号（1 起）。traceback 直接用它，MIR 不需要再回查源码。
+    /// 0表示纯合成控制流，没有新的源码执行位置，不能覆盖最后一条真实语句行号。
     pub line: u32,
 }
 

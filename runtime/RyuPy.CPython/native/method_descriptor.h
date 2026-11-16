@@ -108,7 +108,12 @@ static PyObject *native_method_canonical_get(NativeMethod *self, void *closure) 
         if (override) return Py_NewRef(override);
     }
     if (!self->target) { PyErr_SetString(PyExc_RuntimeError, "RyuPy native method was cleared"); return NULL; }
-    return PyObject_GetAttrString(self->target, name);
+    PyObject *value = PyObject_GetAttrString(self->target, name);
+    if (!value && strcmp(name, "__globals__") == 0 && PyErr_ExceptionMatches(PyExc_NotImplementedError)) {
+        /* 无受信 globals 的宿主目标仍保留既有 code/layout 边界诊断。 */
+        PyErr_Clear(); return native_method_unsupported_get(self, NULL);
+    }
+    return value;
 }
 static int native_method_signature_set(NativeMethod *self, PyObject *value, void *closure) {
     (void)closure;

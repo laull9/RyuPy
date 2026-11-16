@@ -33,3 +33,10 @@ def read_bound(value):
 def apply_bound(value):
     value.apply_defaults()
     return value
+
+
+def unknown_callable():
+    return inspect.Signature().parameters.keys
+
+def late(value):
+    return value

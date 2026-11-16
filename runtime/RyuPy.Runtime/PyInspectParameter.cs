@@ -1,6 +1,5 @@
 // inspect.Parameter的不可变快照；默认值和注解保持原始对象身份，仅replace创建新参数。
 using System;
-using System.Text.RegularExpressions;
 
 namespace RyuPy.Runtime;
 
@@ -27,8 +26,11 @@ public sealed class PyInspectParameter : PyNativeObject
     public PyInspectParameter(string name, PyInspectKind kind, object? defaultValue, object? annotation)
     {
         if (name.StartsWith(".", StringComparison.Ordinal) && int.TryParse(name.AsSpan(1), out int index))
-        { name = "implicit" + index; kind = PyInspectKind.Values[0]; }
-        if (!Regex.IsMatch(name, @"^[\p{L}_][\p{L}\p{Nd}_]*$") || IsKeyword(name))
+        {
+            if (kind.Value != 1) throw new PyValueError("implicit arguments must be passed as positional or keyword arguments");
+            name = "implicit" + index; kind = PyInspectKind.Values[0];
+        }
+        if (!PyInspectIdentifier.Valid(name) || (kind.Value != 0 && IsKeyword(name)))
             throw new PyValueError($"'{name}' is not a valid parameter name");
         if (kind.Value is 2 or 4 && !ReferenceEquals(defaultValue, PyInspectModule.Empty))
             throw new PyValueError($"{kind.GetAttr("description")} parameters cannot have default values");
@@ -52,7 +54,7 @@ public sealed class PyInspectParameter : PyNativeObject
         "empty" => PyInspectModule.Empty,
         "replace" => PyInspectModule.Method(name, Replace),
         "__eq__" or "__ne__" => PyInspectModule.Method(name, (a, n, v) =>
-        { var b = PyInspectModule.Arguments(name, ["other"], ["posonly"], [null], 1, a, n, v); return EqualsParameter(b[0]) != (name == "__ne__"); }),
+        { var b = PyInspectModule.Arguments(name, ["other"], ["posonly"], [null], 1, a, n, v); return b[0] is PyInspectParameter ? EqualsParameter(b[0]) != (name == "__ne__") : PyNotImplemented.Instance; }),
         "__hash__" => PyInspectModule.Method(name, (a, n, v) =>
         { PyInspectModule.Arguments(name, [], [], [], 0, a, n, v); return Hash(); }),
         _ => throw Missing(name),

@@ -6,10 +6,11 @@ static PyObject *inspect_kinds[5];
 static PyObject *inspect_signature_api, *inspect_unwrap_api;
 static PyObject *inspect_parameter_fields[4], *inspect_signature_fields[2], *inspect_bound_fields[2];
 static int inspect_profile_captured;
+static PyObject *inspect_module;
 
 static void inspect_bridge_clear(void) {
     Py_CLEAR(inspect_parameter); Py_CLEAR(inspect_signature); Py_CLEAR(inspect_bound);
-    Py_CLEAR(inspect_empty); Py_CLEAR(inspect_kind);
+    Py_CLEAR(inspect_empty); Py_CLEAR(inspect_kind); Py_CLEAR(inspect_module);
     Py_CLEAR(inspect_signature_api); Py_CLEAR(inspect_unwrap_api);
     for (int i = 0; i < 5; i++) Py_CLEAR(inspect_kinds[i]);
     for (int i = 0; i < 4; i++) Py_CLEAR(inspect_parameter_fields[i]);
@@ -32,8 +33,34 @@ mismatch:
     return -1;
 }
 
+/* API函数属性可被用户替换并原样往返；静态类型/empty/kind是冻结schema，变更必须拒绝。 */
+static int inspect_profile_valid(void) {
+    const char *names[] = {"Parameter", "Signature", "BoundArguments", "_empty", "_ParameterKind"};
+    PyObject *values[] = {inspect_parameter, inspect_signature, inspect_bound, inspect_empty, inspect_kind};
+    PyObject *dictionary = PyModule_GetDict(inspect_module);
+    if (!dictionary) return -1;
+    for (int i = 0; i < 5; i++) {
+        if (PyDict_GetItemString(dictionary, names[i]) != values[i]) goto changed;
+    }
+    PyObject *parameter_empty = PyObject_GetAttrString(inspect_parameter, "empty");
+    PyObject *signature_empty = PyObject_GetAttrString(inspect_signature, "empty");
+    int valid = parameter_empty == inspect_empty && signature_empty == inspect_empty;
+    Py_XDECREF(parameter_empty); Py_XDECREF(signature_empty);
+    if (PyErr_Occurred()) return -1;
+    if (!valid) goto changed;
+    const char *kinds[] = {"POSITIONAL_ONLY", "POSITIONAL_OR_KEYWORD", "VAR_POSITIONAL", "KEYWORD_ONLY", "VAR_KEYWORD"};
+    for (int i = 0; i < 5; i++) {
+        PyObject *current = PyObject_GetAttrString(inspect_parameter, kinds[i]);
+        if (!current) return -1;
+        int same = current == inspect_kinds[i]; Py_DECREF(current);
+        if (!same) goto changed;
+    }
+    return 0;
+changed:
+    PyErr_SetString(PyExc_NotImplementedError, "inspect trusted type/empty/kind schema was replaced"); return -1;
+}
 static int inspect_bridge_ready(void) {
-    if (inspect_parameter) return 0;
+    if (inspect_parameter) return inspect_profile_valid();
     if (inspect_profile_captured) {
         PyErr_SetString(PyExc_NotImplementedError, "inspect profile is closed; late reflection cannot recapture user module state"); return -1;
     }
@@ -46,7 +73,7 @@ static int inspect_bridge_ready(void) {
     inspect_kind = PyObject_GetAttrString(module, "_ParameterKind");
     inspect_signature_api = PyObject_GetAttrString(module, "signature");
     inspect_unwrap_api = PyObject_GetAttrString(module, "unwrap");
-    Py_DECREF(module);
+    inspect_module = module;
     if (!inspect_parameter || !inspect_signature || !inspect_bound || !inspect_empty || !inspect_kind || !inspect_signature_api || !inspect_unwrap_api) goto fail;
     const char *parameter_slots[] = {"_name", "_kind", "_default", "_annotation"};
     const char *signature_slots[] = {"_return_annotation", "_parameters"};
@@ -113,18 +140,19 @@ API PyObject *rp_inspect_identity(int tag) {
 /* 未观察inspect时仅一个NULL检查，不加载模块、不读用户属性；kind必须先于一般int转换。 */
 API int rp_inspect_tag(PyObject *value) {
     if (!inspect_parameter) return 0;
-    if (value == inspect_empty) return 1;
-    for (int i = 0; i < 5; i++) if (value == inspect_kinds[i]) return i + 2;
-    if (value == inspect_parameter) return 11;
-    if (value == inspect_signature) return 12;
-    if (value == inspect_bound) return 13;
-    if (value == inspect_kind) return 14;
-    if (value == inspect_signature_api) return 15;
-    if (value == inspect_unwrap_api) return 16;
-    if (Py_IS_TYPE(value, (PyTypeObject *)inspect_parameter)) return 20;
-    if (Py_IS_TYPE(value, (PyTypeObject *)inspect_signature)) return 21;
-    if (Py_IS_TYPE(value, (PyTypeObject *)inspect_bound)) return 22;
-    return 0;
+    int tag = 0;
+    if (value == inspect_empty) tag = 1;
+    for (int i = 0; i < 5; i++) if (value == inspect_kinds[i]) tag = i + 2;
+    if (value == inspect_parameter) tag = 11;
+    if (value == inspect_signature) tag = 12;
+    if (value == inspect_bound) tag = 13;
+    if (value == inspect_kind) tag = 14;
+    if (value == inspect_signature_api) tag = 15;
+    if (value == inspect_unwrap_api) tag = 16;
+    if (Py_IS_TYPE(value, (PyTypeObject *)inspect_parameter)) tag = 20;
+    if (Py_IS_TYPE(value, (PyTypeObject *)inspect_signature)) tag = 21;
+    if (Py_IS_TYPE(value, (PyTypeObject *)inspect_bound)) tag = 22;
+    return tag && inspect_profile_valid() < 0 ? -1 : tag;
 }
 
 API PyObject *rp_inspect_parameter(PyObject *name, int kind, PyObject *default_value, PyObject *annotation) {
@@ -172,6 +200,7 @@ API int rp_inspect_prepare(void) { return inspect_bridge_ready(); }
 /* 精确schema读取只走已验证的slot描述符；返回新引用组成的tuple。 */
 API PyObject *rp_inspect_payload(PyObject *value) {
     int tag = rp_inspect_tag(value);
+    if (tag < 0) return NULL;
     if (tag >= 20 && tag <= 22 && inspect_object_schema(tag) < 0) return NULL;
     const char *names[4]; int count;
     if (tag == 20) { names[0] = "_name"; names[1] = "_kind"; names[2] = "_default"; names[3] = "_annotation"; count = 4; }

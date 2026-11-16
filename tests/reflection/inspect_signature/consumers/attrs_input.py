@@ -21,3 +21,13 @@ assert record.value == 42
 assert inspect.signature(Record).parameters["value"].annotation is str
 assert compiled_callbacks.signature_names(Record) == ["value"]
 print("attrs: converter annotation and actual CIL callback")
+
+# 产品专用身份断言：真实CP函数会有CodeType；opaque CIL callable遵循受信缺失边界。
+import sys
+if "--require-cil" in sys.argv:
+    try:
+        compiled_callbacks.convert.__code__
+    except (AttributeError, NotImplementedError):
+        pass
+    else:
+        raise AssertionError("callback must execute compiled CIL")

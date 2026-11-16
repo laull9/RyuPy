@@ -11,6 +11,7 @@ fn check(source: &str) -> (ryupy_hir::Module, crate::ModuleTypes) {
         &parsed,
         &ryupy_hir::ModuleInfo {
             foreign_class_construction: false,
+            introspection_profile: false,
             instance_capabilities: Default::default(),
             name: "__main__".into(),
             package: String::new(),

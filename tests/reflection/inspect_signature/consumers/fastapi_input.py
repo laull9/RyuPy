@@ -30,3 +30,13 @@ with TestClient(app) as client:
     assert parameters[0]["schema"]["default"] == 1
 assert list(compiled_callbacks.calls) == [41]
 print("fastapi: signature globals OpenAPI validation and CIL dependency")
+
+# 产品专用身份断言：真实CP函数会有CodeType；opaque CIL callable遵循受信缺失边界。
+import sys
+if "--require-cil" in sys.argv:
+    try:
+        compiled_callbacks.convert.__code__
+    except (AttributeError, NotImplementedError):
+        pass
+    else:
+        raise AssertionError("callback must execute compiled CIL")

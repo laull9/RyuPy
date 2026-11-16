@@ -7,6 +7,7 @@ public sealed partial class CPythonHost
 {
     internal void SetInspectAttribute(object? target, string name, nint pointer)
     {
+        if (!inspectProfileReady) { PyObject.SetAttr(target, name, FromBorrowed(pointer)); return; }
         object? value;
         if (target is PyFunction && name == "__defaults__" && Native.rp_exact_tuple(pointer) != 0)
         {
@@ -45,7 +46,7 @@ public sealed partial class CPythonHost
             long index = 0;
             while (Native.rp_dict_next(pointer, ref index, out nint key, out nint item) != 0)
             {
-                try { result.Set(FromBorrowed(key), FromBorrowed(item)); }
+                try { result.Set(ReadInspectValue(key), ReadInspectValue(item)); }
                 finally { Native.rp_decref(key); Native.rp_decref(item); }
             }
             ThrowIfError(); transfer.DictSnapshot = [.. result.Entries()]; return result;

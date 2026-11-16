@@ -133,12 +133,12 @@ public static partial class PyModuleInstances
 
 public static partial class PyModules
 {
-    /// <summary>注册真实实例源码能力；仅文件来源1/2有效，未改变任何Python API。</summary>
+    /// <summary>注册真实实例源码能力；来源1/2及受校验provider bundle来源3有效。</summary>
     public static void RegisterInstanceSourceLocated(string name, string package, string diagnosticFile,
         long locationKind, string locationValue, bool isPackage, PyModuleExecute execute)
     {
         EnsureRegistrationAvoidsCacheAliases(name);
-        if (locationKind is not (1 or 2)) throw new PyNotImplementedError("instance modules require an explicit source location");
+        if (locationKind is not (1 or 2 or 3)) throw new PyNotImplementedError("instance modules require an explicit source location");
         string resolved = PyModuleLocations.Resolve(locationKind, locationValue);
         var code = new PyCompiledModuleCode(name, package, resolved, isPackage, execute);
         Registry[name] = new Registration(package, diagnosticFile, () => { },

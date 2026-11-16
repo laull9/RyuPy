@@ -67,7 +67,7 @@ public sealed class PyInspectSignature : PyNativeObject
         "bind" or "bind_partial" => PyInspectModule.Method(name, (a, n, v) => Bind(a, n, v, name == "bind_partial")),
         "replace" => PyInspectModule.Method(name, Replace),
         "__eq__" or "__ne__" => PyInspectModule.Method(name, (a, n, v) =>
-        { var b = PyInspectModule.Arguments(name, ["other"], ["posonly"], [null], 1, a, n, v); return EqualsSignature(b[0]) != (name == "__ne__"); }),
+        { var b = PyInspectModule.Arguments(name, ["other"], ["posonly"], [null], 1, a, n, v); return b[0] is PyInspectSignature ? EqualsSignature(b[0]) != (name == "__ne__") : PyNotImplemented.Instance; }),
         "__hash__" => PyInspectModule.Method(name, (a, n, v) =>
         { PyInspectModule.Arguments(name, [], [], [], 0, a, n, v); return Hash(); }),
         _ => throw Missing(name),

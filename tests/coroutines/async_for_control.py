@@ -153,3 +153,45 @@ async def empty():
 
 
 finish(empty())
+
+
+# else也可能在目标从未绑定时读取它；非空路径仍须返回真实最后一项。
+async def else_target(values):
+    async for value in Values(values):
+        pass
+    else:
+        return value
+
+
+for values in [[], [22], [None]]:
+    try:
+        finish(else_target(values))
+    except UnboundLocalError as error:
+        print("else-target", type(error).__name__)
+
+
+async def deleted_target():
+    value = 5
+    async for value in Values([1]):
+        del value
+        await Pause("deleted-after")
+    else:
+        return value
+
+
+async def handler_target():
+    value = 5
+    async for item in Values([1]):
+        try:
+            raise ValueError("clear-local")
+        except ValueError as value:
+            pass
+    else:
+        return value
+
+
+for operation in [deleted_target, handler_target]:
+    try:
+        finish(operation())
+    except UnboundLocalError as error:
+        print("cleared-target", type(error).__name__)

@@ -89,8 +89,10 @@ mod async_iteration;
 mod async_iteration_abi;
 #[cfg(all(test, feature = "native-coroutines"))]
 mod async_iteration_tests;
+mod fixed_runtime_abi;
 pub mod link;
 mod link_placeholders;
+mod loop_assignment_join;
 mod mir;
 mod module_execution;
 mod module_location;
@@ -103,6 +105,9 @@ mod validate_regions;
 pub use module_execution::{
     GlobalStorage, InstanceStateSource, LegacySourceEntry, ModuleExecutionKind,
 };
+pub mod inspect_instance_contract;
+#[cfg(test)]
+mod inspect_instance_tests;
 mod instance_module;
 pub mod source_provenance;
 #[cfg(test)]
@@ -183,7 +188,7 @@ mod dynamic_origin_tests;
 mod function_locals_tests;
 
 mod function_definition;
-pub use function_definition::DefinitionInfo;
+pub use function_definition::{DefinitionInfo, PythonFunctionKind};
 #[cfg(test)]
 mod function_definition_tests;
 

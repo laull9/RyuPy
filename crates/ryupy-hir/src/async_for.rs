@@ -50,6 +50,7 @@ impl StmtLowerCtx<'_> {
             range,
         );
         let take = self.async_assign(item, awaited, range);
+        self.body.stmts[take].line = self.line_of(range.start().to_usize());
         let yes = self.async_expr(ExprKind::Literal(Literal::Bool(true)), range);
         let mark = self.async_assign(exhausted, yes, range);
         let leave = self.async_stmt(StmtKind::Break, range);
@@ -103,6 +104,7 @@ impl StmtLowerCtx<'_> {
             },
             range,
         );
+        self.body.stmts[bind].line = self.line_of(range.start().to_usize());
         let mut loop_body = vec![protected, bind];
         loop_body.extend(body);
         let cond = self.async_expr(ExprKind::Literal(Literal::Bool(true)), range);
@@ -180,7 +182,8 @@ impl StmtLowerCtx<'_> {
         self.body.stmts.alloc(Stmt {
             kind,
             range,
-            line: self.line_of(range.start().to_usize()),
+            // 标记/分派不执行新的源码；下一项与目标赋值单独登记for行。
+            line: 0,
         })
     }
     fn async_assign(&mut self, local: LocalId, value: ExprId, range: TextRange) -> StmtId {

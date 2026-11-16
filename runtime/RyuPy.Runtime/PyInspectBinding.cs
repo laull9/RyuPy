@@ -26,6 +26,8 @@ internal static class PyInspectBinding
                     if (kind == 1 && keywords.TryGet(p.Name, out _)) throw new PyTypeError($"multiple values for argument '{p.Name}'");
                     supplied.Set(p.Name, args[position++]);
                 }
+                else if (kind == 0 && ReferenceEquals(p.Default, PyInspectModule.Empty) && keywords.TryGet(p.Name, out _))
+                    throw new PyTypeError($"'{p.Name}' parameter is positional only, but was passed as a keyword");
                 else if (kind == 1 && keywords.TryGet(p.Name, out object? value))
                 { supplied.Set(p.Name, value); keywords.Delete(p.Name); }
             }

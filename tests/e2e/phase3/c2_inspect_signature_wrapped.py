@@ -66,3 +66,31 @@ try:
     inspect.signature(Broken())
 except RuntimeError as error:
     print(str(error))
+
+# 无wrapped的终端不调用stop；类对象即使有该属性也保持原对象。
+seen.clear()
+print(inspect.unwrap(target, stop=stop) is target, seen)
+class WrappedClass:
+    __wrapped__ = target
+    def __init__(self, chosen=1):
+        pass
+print(inspect.unwrap(WrappedClass) is WrappedClass)
+print(list(inspect.signature(WrappedClass).parameters))
+
+reads = []
+class DynamicWrapper:
+    @property
+    def __wrapped__(self):
+        reads.append("wrapped")
+        return target
+    def __call__(self, *args, **kwargs):
+        return target(*args, **kwargs)
+wrapped_instance = DynamicWrapper()
+print(inspect.unwrap(wrapped_instance) is target, reads)
+reads.clear()
+print(list(inspect.signature(wrapped_instance).parameters), reads)
+
+# 显式Signature已经是用户快照；eval_str=True也不执行其中的字符串注解。
+custom_strings = inspect.Signature([inspect.Parameter("value", 1, annotation="opaque")])
+wrapper.__signature__ = custom_strings
+print(inspect.signature(wrapper, eval_str=True) is custom_strings)

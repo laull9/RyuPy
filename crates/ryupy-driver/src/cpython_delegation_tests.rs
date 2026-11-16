@@ -352,3 +352,128 @@ fn delegated_entry_compiles_stub_and_emits_valid_assembly_and_probe() {
     );
     assert_eq!(probe["modules"]["sync_helper"]["provider"], "user_source");
 }
+
+#[test]
+fn inspect_instance_bundle_preserves_frozen_source_mapping_and_native_aot_gate() {
+    let root = crate::test_temp::Root::new("inspect-instance-bundle");
+    let entry = root.join("app.py");
+    std::fs::write(&entry, "import helper\nprint(helper.f())\n").unwrap();
+    std::fs::write(
+        root.join("helper.py"),
+        "def f(value=1):\n    return value\n",
+    )
+    .unwrap();
+    for aot in [false, true] {
+        let mut sess = base_session(&root, vec![], false);
+        sess.instance_modules = vec!["helper".into()];
+        let linked = crate::compile_linked_locations(&mut sess, &entry, &[], false, None, aot)
+            .unwrap_or_else(|error| panic!("{error}: {}", sess.render_diagnostics(false)))
+            .0;
+        let module = linked
+            .modules
+            .iter()
+            .find(|(_, m)| m.name == "helper")
+            .unwrap()
+            .1;
+        assert_eq!(
+            module.execution,
+            ryupy_mir::ModuleExecutionKind::InstanceGlobals
+        );
+        assert_eq!(
+            module.location,
+            ryupy_mir::ModuleLocation::BundleRelative("python/ryupy_compiled/helper.py".into())
+        );
+        let provider = sess.cpython_provider_state.plan.as_ref().unwrap();
+        assert!(
+            provider
+                .delegation
+                .compiled_sources
+                .iter()
+                .any(|source| source.source == root.join("helper.py")
+                    && source.destination == "ryupy_compiled/helper.py")
+        );
+        if aot {
+            let (sources, entry_index) =
+                crate::modules::load_build_graph(&mut sess, &entry, &[], false).unwrap();
+            let validated =
+                crate::instance_modules::validate_aot(&mut sess, &sources, entry_index, true, None)
+                    .unwrap()
+                    .unwrap();
+            let index = sources
+                .iter()
+                .position(|source| source.name == "helper")
+                .unwrap();
+            for location in [
+                "python/ryupy_compiled/other.py",
+                "python/ryupy_compiled/../helper.py",
+            ] {
+                assert!(
+                    validated
+                        .validate_location(
+                            &mut sess,
+                            index,
+                            &sources[index],
+                            &ryupy_mir::ModuleLocation::BundleRelative(location.into())
+                        )
+                        .is_err()
+                );
+            }
+        }
+    }
+    let mut ordinary = Session {
+        instance_modules: vec!["helper".into()],
+        ..Default::default()
+    };
+    assert!(
+        crate::compile_linked_locations(&mut ordinary, &entry, &[], false, None, true).is_err()
+    );
+    assert!(ordinary.render_diagnostics(false).contains("资源清单"));
+}
+
+#[test]
+fn inspect_instance_eager_annotations_keep_public_callable_abi_dynamic() {
+    let root = crate::test_temp::Root::new("inspect-annotated-instance");
+    let entry = root.join("app.py");
+    std::fs::write(&entry, "import helper\n").unwrap();
+    std::fs::write(root.join("helper.py"),
+        "def convert(value: str) -> int:\n    return int(value)\ndef dependency(value: int = 1) -> int:\n    return value + 1\n").unwrap();
+    let mut sess = base_session(&root, vec![], false);
+    sess.instance_modules = vec!["helper".into()];
+    let linked = crate::compile_linked_locations(&mut sess, &entry, &[], false, None, false)
+        .unwrap()
+        .0;
+    for name in ["convert", "dependency"] {
+        let functions: Vec<_> = linked
+            .functions
+            .iter()
+            .filter(|(_, f)| f.name == name)
+            .collect();
+        assert_eq!(functions.len(), 1, "{name}");
+        let function = functions[0].1;
+        assert_eq!(function.ret, ryupy_mir::MirType::Dynamic, "{name}");
+        for parameter in &function.params {
+            assert_eq!(
+                function.body.locals[*parameter].ty,
+                ryupy_mir::MirType::Dynamic,
+                "{name}"
+            );
+        }
+    }
+    sess.cpython_provider_state
+        .plan
+        .as_mut()
+        .unwrap()
+        .delegation
+        .dynamic_modules
+        .push("inspect".into());
+    let linked = crate::compile_linked_locations(&mut sess, &entry, &[], false, None, true)
+        .unwrap()
+        .0;
+    assert!(
+        linked
+            .functions
+            .iter()
+            .filter(|(_, f)| f.name == "convert" || f.name == "dependency")
+            .all(|(_, f)| f.ret == ryupy_mir::MirType::Dynamic)
+    );
+}

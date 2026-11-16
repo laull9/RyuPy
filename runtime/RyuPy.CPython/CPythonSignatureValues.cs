@@ -123,12 +123,7 @@ public sealed partial class CPythonHost
     private object? ReadInspectItem(nint tuple, int index)
     {
         nint item = Check(Native.rp_op(18, tuple, n: index));
-        foreach (string name in new[] { "int", "str", "float", "bool", "list", "dict", "tuple", "set", "bytes", "object", "type" })
-        {
-            nint builtin = Check(Native.rp_builtin(name)); bool same = item == builtin; Native.rp_decref(builtin);
-            if (same) { Native.rp_decref(item); return PyType.Get(name); }
-        }
-        if (Native.rp_scalar_kind(item) == 4) return ReadTextOwned(item);
-        return FromOwned(item);
+        try { return ReadInspectValue(item); }
+        finally { Native.rp_decref(item); }
     }
 }

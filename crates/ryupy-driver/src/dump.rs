@@ -35,6 +35,7 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
     let plan = module_environments::plan(sess, &module, false);
     let info = ryupy_hir::ModuleInfo {
         foreign_class_construction: sess.cpython_provider.is_some(),
+        introspection_profile: crate::instance_modules::inspect_profile(sess),
         instance_globals: plan.instance_globals(),
         instance_capabilities: plan.capabilities,
         name: module.name.clone(),

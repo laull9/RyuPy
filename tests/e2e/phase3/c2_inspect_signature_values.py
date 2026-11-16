@@ -79,3 +79,18 @@ try:
     Signature([Parameter("first", 3), Parameter("second", 1)])
 except ValueError:
     print("invalid-kind-order")
+
+keyword = Parameter("for", Parameter.POSITIONAL_ONLY)
+implicit = Parameter(".0", Parameter.POSITIONAL_OR_KEYWORD)
+print(keyword.name, implicit.name, implicit.kind is Parameter.POSITIONAL_ONLY)
+for name in ["中文", "e\u0301", "\u2118"]:
+    print(Parameter(name, 1).name)
+try:
+    Parameter(".0", Parameter.POSITIONAL_ONLY)
+except ValueError:
+    print("invalid-implicit-kind")
+
+kind = Parameter.KEYWORD_ONLY
+print(bool(Parameter.POSITIONAL_ONLY), bool(kind), kind == 3.0, {kind: "numeric"}[3.0])
+print(kind + 1, 10 - kind, kind * "x", kind & 1, -kind, ~kind)
+print(kind >> 1, 2 << kind, inspect._ParameterKind(3.0) is kind)

@@ -30,6 +30,7 @@ p.x = 3.0
         &parsed,
         &ryupy_hir::ModuleInfo {
             foreign_class_construction: false,
+            introspection_profile: false,
             instance_capabilities: Default::default(),
             instance_globals: false,
             resolve_file_at_runtime: false,
@@ -67,6 +68,7 @@ v.x = 10
         &parsed,
         &ryupy_hir::ModuleInfo {
             foreign_class_construction: false,
+            introspection_profile: false,
             instance_capabilities: Default::default(),
             instance_globals: false,
             resolve_file_at_runtime: false,
@@ -95,6 +97,7 @@ fn check(src: &str) -> (crate::ModuleTypes, Vec<ryupy_base::Diagnostic>) {
         &parsed,
         &ryupy_hir::ModuleInfo {
             foreign_class_construction: false,
+            introspection_profile: false,
             instance_capabilities: Default::default(),
             instance_globals: false,
             resolve_file_at_runtime: false,

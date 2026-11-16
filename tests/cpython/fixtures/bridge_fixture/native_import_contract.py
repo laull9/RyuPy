@@ -48,9 +48,9 @@ def cache_overrides(name):
             assert error.name == name
         else:
             raise AssertionError('sys.modules None was ignored')
-        replacement = types.ModuleType(name)
-        sys.modules[name] = replacement
-        assert load(name) is replacement
+        for replacement in (types.ModuleType(name), object()):
+            sys.modules[name] = replacement
+            assert load(name) is replacement
     finally:
         sys.modules[name] = original
     assert load(name) is original
@@ -117,7 +117,20 @@ def verify():
         assert not isinstance(child, types.ModuleType)
         finder = native_finder()
         assert type(finder).__module__ == 'ryupy'
-        assert finder.find_spec('native_import_empty').submodule_search_locations is not None
+        spec = finder.find_spec('native_import_empty')
+        another = finder.find_spec('native_import_empty', path=None, target=None)
+        assert type(spec) is sys.modules['_frozen_importlib'].ModuleSpec
+        assert spec is not another and spec.loader is not another.loader
+        assert spec.name == spec.parent == 'native_import_empty'
+        assert spec.submodule_search_locations == []
+        assert spec.origin is spec.cached is spec.loader_state is None
+        assert spec.has_location is False
+        assert not hasattr(type(finder).find_spec, '__code__')
+        assert not hasattr(type(spec.loader).create_module, '__code__')
+        assert not hasattr(type(spec.loader).exec_module, '__code__')
+        repeat_exec(child.__name__, child)
+        assert counts[child.__name__] == 1
+        assert finder.find_spec('c1_native_missing_name') is None
         for attr in ('_RyuPyFinder', '_RyuPyLoader', '_rp_staticmethod', '_rp_classmethod', '_rp_property'):
             assert not hasattr(sys.modules['_ryupy_imports'], attr), attr
     atexit.register(_at_shutdown)
@@ -125,6 +138,8 @@ def verify():
 
 
 def repeat_exec(name, module):
-    loader = native_finder().find_spec(name).loader
+    spec = native_finder().find_spec(name)
+    loader = spec.loader
+    assert loader.create_module(spec=spec) is module
     assert loader.exec_module(module) is None
-    assert loader.exec_module(module) is None
+    assert loader.exec_module(module=module) is None

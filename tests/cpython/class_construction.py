@@ -36,6 +36,17 @@ def main():
             shim_name = 'libryupy_cpython.dylib' if sys.platform == 'darwin' else 'libryupy_cpython.so'
             checked(execute(['sh', ROOT / 'runtime/RyuPy.CPython/native/build.sh', home, selected, series],
                             cwd=root, env=env), '真实shim构建')
+            library = Path(home) / 'lib'
+            abi = selected / 'native-import-abi'
+            checked(execute([shutil.which('cc'), '-Wall', '-Wextra', '-Werror',
+                             '-I' + str(Path(home) / 'include' / ('python' + series)),
+                             ROOT / 'tests/cpython/native_import_abi.c',
+                             '-L' + str(selected), '-lryupy_cpython', '-L' + str(library), '-lpython' + series,
+                             '-Wl,-rpath,' + str(selected), '-Wl,-rpath,' + str(library), '-o', abi],
+                            cwd=selected, env=env), version + ' native import ABI build')
+            stdlib = library / ('python' + series)
+            checked(execute([abi, home, stdlib, stdlib / 'lib-dynload'], cwd=selected, env=env),
+                    version + ' native import ABI')
             oracle_env = dict(env, PYTHONPATH=str(ROOT / 'tests/cpython/fixtures'))
             for name in CASES:
                 checked(execute([python, '-B', ROOT / 'tests/cpython/cases' / (name + '.py')],

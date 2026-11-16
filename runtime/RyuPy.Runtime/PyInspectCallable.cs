@@ -17,14 +17,7 @@ public static class PyInspectCallable
     /// <summary>建立当前签名快照；字符串求值和lazy annotations仍为显式边界。</summary>
     public static PyInspectSignature Signature(object? value, bool followWrapped = true, bool evalStr = false)
     {
-        var signature = Resolve(value, followWrapped, new HashSet<object>(ReferenceEqualityComparer.Instance));
-        if (evalStr)
-        {
-            if (signature.ReturnAnnotation is string) throw new PyNotImplementedError("inspect.signature eval_str with string annotations is not supported");
-            foreach (var p in signature.Parameters)
-                if (p.Annotation is string) throw new PyNotImplementedError("inspect.signature eval_str with string annotations is not supported");
-        }
-        return signature;
+        return Resolve(value, followWrapped, new HashSet<object>(ReferenceEqualityComparer.Instance), evalStr);
     }
     internal static object UnwrapCall(object?[] a, string[] n, object?[] v)
     {
@@ -33,33 +26,45 @@ public static class PyInspectCallable
     }
     private static object? Unwrap(object? value, object? stop)
     {
+        object? original = value;
         var seen = new HashSet<object>(ReferenceEqualityComparer.Instance);
-        while (true)
+        if (value is not null) seen.Add(value);
+        while (!IsClass(value) && PyInspectModule.OptionalAttr(value, "__wrapped__", out _))
         {
-            if (value is not null && !seen.Add(value)) throw new PyValueError("wrapper loop when unwrapping");
-            if (!PyInspectModule.IsNone(stop) && PyOps.Truthy(PyOps.CallValue(stop, [value], [], []))) return value;
-            if (!PyInspectModule.OptionalAttr(value, "__wrapped__", out object? wrapped)) return value;
-            value = wrapped;
+            // hasattr式观察先于stop；继续展开时再次读取描述符，保留其两次副作用。
+            if (!PyInspectModule.IsNone(stop) && PyOps.Truthy(PyOps.CallValue(stop, [value], [], []))) break;
+            value = PyObject.GetAttr(value, "__wrapped__");
+            if ((value is not null && !seen.Add(value)) || seen.Count >= 1000)
+                throw new PyValueError("wrapper loop when unwrapping " + PyRepr.Repr(original));
         }
+        return value;
     }
-    private static PyInspectSignature Resolve(object? value, bool follow, HashSet<object> seen)
+    private static bool IsClass(object? value) => value is PyClass or PyType or PyNativeType
+        || value is IPyForeignObject foreign && foreign.IsInstanceOf(PyType.Get("type"));
+    private static PyInspectSignature Resolve(object? value, bool follow, HashSet<object> seen, bool evalStr)
     {
         if (!PyFunctools.IsCallable(value)) throw new PyTypeError($"{PyRepr.Repr(value)} is not a callable object");
-        if (value is IPyForeignObject foreign && PyInspectForeign.Current is { } bridge) return bridge.Signature(foreign, follow);
+        if (value is IPyForeignObject foreign && PyInspectForeign.Current is { } bridge)
+        {
+            if (!seen.Add(value)) throw new PyValueError("wrapper loop when unwrapping " + PyRepr.Repr(value));
+            return bridge.Signature(foreign, follow, evalStr, child => Resolve(child, follow, seen, evalStr));
+        }
         // 方法先解析底层显式签名，再移除接收者一次；自定义签名也遵循此规则。
-        if (value is PyBoundMethod method) return DropReceiver(Resolve(method.Target, follow, seen));
-        if (value is not null && !seen.Add(value)) throw new PyValueError("wrapper loop when unwrapping");
+        if (value is PyBoundMethod method) return DropReceiver(Resolve(method.Target, follow, seen, evalStr));
+        if (value is not null && !seen.Add(value)) throw new PyValueError("wrapper loop when unwrapping " + PyRepr.Repr(value));
+        if (seen.Count >= 1000) throw new PyValueError("wrapper loop when unwrapping " + PyRepr.Repr(value));
+        if (follow && !IsClass(value) && PyInspectModule.OptionalAttr(value, "__wrapped__", out _)
+            && !PyInspectModule.OptionalAttr(value, "__signature__", out _))
+            return Resolve(PyObject.GetAttr(value, "__wrapped__"), follow, seen, evalStr);
         bool explicitSignature = PyInspectModule.OptionalAttr(value, "__signature__", out object? custom);
         if (explicitSignature && !PyInspectModule.IsNone(custom))
             return custom as PyInspectSignature ?? throw new PyTypeError("unexpected object in __signature__ attribute");
-        if (follow && !explicitSignature && PyInspectModule.OptionalAttr(value, "__wrapped__", out object? wrapped))
-            return Resolve(wrapped, follow, seen);
         return value switch
         {
-            PyFunction function => Function(function),
-            PyPartial partial => Partial(partial, follow, seen),
-            PyClass cls => Class(cls, follow, seen),
-            PyInstance instance => Resolve(PyObject.GetAttr(instance, "__call__"), follow, seen),
+            PyFunction function => Function(function, evalStr),
+            PyPartial partial => Partial(partial, follow, seen, evalStr),
+            PyClass cls => Class(cls, follow, seen, evalStr),
+            PyInstance instance => Resolve(PyObject.GetAttr(instance, "__call__"), follow, seen, evalStr),
             PyBuiltinFunction { Name: "len" } => new PyInspectSignature([P("obj", 0)], PyInspectModule.Empty),
             PyType { Name: "float" } => new PyInspectSignature([P("x", 0, 0.0)], PyInspectModule.Empty),
             PyType { Name: "object" } => new PyInspectSignature([], PyInspectModule.Empty),
@@ -67,7 +72,7 @@ public static class PyInspectCallable
         };
     }
     // 读取默认值会建立既有冷反射state，使缺省直调守卫正确失效；不维护第二份函数元数据。
-    private static PyInspectSignature Function(PyFunction function)
+    private static PyInspectSignature Function(PyFunction function, bool evalStr)
     {
         PySignature shape = function.Signature;
         var annotations = (PyDict)function.GetMetadata("__annotations__")!;
@@ -86,18 +91,25 @@ public static class PyInspectCallable
             object? annotation = annotations.TryGet(name, out object? found) ? found : PyInspectModule.Empty;
             parameters.Add(new PyInspectParameter(name, PyInspectKind.Values[kind], defaultValue, annotation));
         }
-        return new PyInspectSignature(parameters,
+        var signature = new PyInspectSignature(parameters,
             annotations.TryGet("return", out object? result) ? result : PyInspectModule.Empty, false);
+        if (evalStr && (signature.ReturnAnnotation is string || parameters.Exists(p => p.Annotation is string)))
+            throw new PyNotImplementedError("inspect.signature eval_str with string annotations is not supported");
+        return signature;
     }
-    private static PyInspectSignature Class(PyClass cls, bool follow, HashSet<object> seen)
+    private static PyInspectSignature Class(PyClass cls, bool follow, HashSet<object> seen, bool evalStr)
     {
-        // 普通类沿MRO寻找实际声明的构造器，特殊原生/外部metaclass由各自域明确处理。
-        if (cls.TryLookup("__new__", out _, out object? create))
+        // 按MRO的首个实际构造器声明选择：派生__init__优先于更远祖先的__new__。
+        foreach (object? item in cls.MroTuple().Items)
         {
-            if (create is PyStaticMethod staticMethod) create = staticMethod.Value;
-            return DropReceiver(Resolve(create, follow, seen));
+            if (item is not PyClass owner) continue;
+            if (owner.Attributes.TryGetValue("__new__", out object? create))
+            {
+                if (create is PyStaticMethod staticMethod) create = staticMethod.Value;
+                return DropReceiver(Resolve(create, follow, seen, evalStr));
+            }
+            if (owner.Attributes.TryGetValue("__init__", out object? init)) return DropReceiver(Resolve(init, follow, seen, evalStr));
         }
-        if (cls.TryLookup("__init__", out _, out object? init)) return DropReceiver(Resolve(init, follow, seen));
         return new PyInspectSignature([], PyInspectModule.Empty);
     }
     private static PyInspectSignature DropReceiver(PyInspectSignature signature)
@@ -108,9 +120,9 @@ public static class PyInspectCallable
         var result = new List<PyInspectParameter>(signature.Parameters); result.RemoveAt(0);
         return new PyInspectSignature(result, signature.ReturnAnnotation, false);
     }
-    private static PyInspectSignature Partial(PyPartial partial, bool follow, HashSet<object> seen)
+    private static PyInspectSignature Partial(PyPartial partial, bool follow, HashSet<object> seen, bool evalStr)
     {
-        var signature = Resolve(partial.GetAttr("func"), follow, seen);
+        var signature = Resolve(partial.GetAttr("func"), follow, seen, evalStr);
         var args = ((PyTuple)partial.GetAttr("args")!).Items; var keywords = (PyDict)partial.GetAttr("keywords")!;
         var names = new List<string>(); var values = new List<object?>();
         foreach (var (key, item) in keywords.Entries())
@@ -150,7 +162,7 @@ public static class PyInspectCallable
 public interface IPyInspectForeignBridge
 {
     /// <summary>读取外部真实签名并保留其值身份。</summary>
-    PyInspectSignature Signature(IPyForeignObject value, bool followWrapped);
+    PyInspectSignature Signature(IPyForeignObject value, bool followWrapped, bool evalStr, Func<object?, PyInspectSignature> resolve);
 }
 
 /// <summary>组合根登记的inspect桥；纯原生运行没有外部依赖。</summary>

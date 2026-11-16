@@ -61,3 +61,11 @@ try:
     inspect.signature(1)
 except TypeError:
     print("non-callable")
+
+class ParentConstructor:
+    def __new__(cls, parent=1):
+        return object.__new__(cls)
+class ChildConstructor(ParentConstructor):
+    def __init__(self, child=2):
+        pass
+print(list(inspect.signature(ChildConstructor).parameters))

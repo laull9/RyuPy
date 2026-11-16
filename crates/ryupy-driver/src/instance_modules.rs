@@ -20,7 +20,8 @@ pub(crate) fn validate_selection(
     }
     let mut invalid_selection = false;
     let file = sources[entry].parsed.file;
-    if aot && (sess.fixed_binding_build || !has_resources) {
+    let bundled_provider = sess.cpython_provider_state.plan.is_some();
+    if aot && (sess.fixed_binding_build || (!has_resources && !bundled_provider)) {
         invalid_selection = true;
         sess.diagnostics.push(
             Diagnostic::error(
@@ -95,10 +96,33 @@ impl ValidatedAot {
         source: &SourceModule,
         location: &ryupy_mir::ModuleLocation,
     ) -> Result<()> {
+        let bundled = match (location, sess.cpython_provider_state.plan.as_ref()) {
+            (ryupy_mir::ModuleLocation::BundleRelative(value), Some(provider)) => {
+                let expected = format!(
+                    "ryupy_compiled/{}{}",
+                    source.name.replace('.', "/"),
+                    if source.kind == SourceKind::Package {
+                        "/__init__.py"
+                    } else {
+                        ".py"
+                    }
+                );
+                value == &format!("python/{expected}")
+                    && provider.delegation.compiled_sources.iter().any(|entry| {
+                        entry.source == source.resolved_source_path && entry.destination == expected
+                    })
+            }
+            _ => false,
+        };
         if self.required.contains(&index)
             && !matches!(location, ryupy_mir::ModuleLocation::ExecutableRelative(_))
+            && !bundled
         {
-            reject(sess, source, "最终 UnitMeta 缺少 ExecutableRelative 来源")?;
+            reject(
+                sess,
+                source,
+                "最终 UnitMeta 缺少 ExecutableRelative 或已冻结provider bundle来源",
+            )?;
         }
         Ok(())
     }
@@ -164,9 +188,11 @@ pub(crate) fn validate_indices(
                 }
                 parent = prefix;
             }
-            if resources
-                .and_then(|p| p.module_location(index as u32))
-                .is_none()
+            // provider在后续UnitMeta构建中冻结同一源码路径及目标；最终位置还需精确核对该映射。
+            if sess.cpython_provider_state.plan.is_none()
+                && resources
+                    .and_then(|p| p.module_location(index as u32))
+                    .is_none()
             {
                 reject(
                     sess,
@@ -177,14 +203,35 @@ pub(crate) fn validate_indices(
             validated.required.push(index);
         }
         if selected.contains(&index) {
-            sess.diagnostics
-                .extend(ryupy_hir::validate_instance_aot_direct_globals(
+            let validation = if inspect_profile(sess) {
+                ryupy_hir::validate_instance_aot_inspect_profile(
                     &source.parsed,
                     sess.instance_direct_globals,
-                ));
+                )
+            } else {
+                ryupy_hir::validate_instance_aot_direct_globals(
+                    &source.parsed,
+                    sess.instance_direct_globals,
+                )
+            };
+            sess.diagnostics.extend(validation);
             validated.selected.push(index);
         }
     }
     crate::stop_if_errors(sess)?;
     Ok(Some(validated))
+}
+
+/// 只读已冻结的显式能力请求；不从模块库存/用户名称或运行时环境猜反射消费者。
+pub(crate) fn inspect_profile(sess: &Session) -> bool {
+    sess.cpython_provider_state
+        .plan
+        .as_ref()
+        .is_some_and(|provider| {
+            provider
+                .delegation
+                .dynamic_modules
+                .iter()
+                .any(|name| name == "inspect")
+        })
 }

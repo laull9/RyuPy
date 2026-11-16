@@ -58,4 +58,24 @@ public sealed class PyInspectTests
         Assert.Throws<PyAttributeError>(() => a.SetAttr("name", "new"));
         Assert.Throws<PyValueError>(() => new PyInspectSignature([a, a], PyInspectModule.Empty));
     }
+    [Fact]
+    public void TrustedKindsAreCanonicalAndDoNotOpenRuntimeCodeReflection()
+    {
+        var shape = PySignature.Create("f", [], [], []);
+        var ordinary = new PyFunction("f", shape, (_, _, _, _) => PyNone.Instance, []);
+        var unknown = new PyFunction("f", shape, ordinary.Body, []);
+        PyOps.FunctionIntrospectionKind(ordinary, 0);
+        Assert.True(PyInspectFunctionKind.IsOrdinaryModule(ordinary));
+        Assert.False(PyInspectFunctionKind.IsOrdinaryModule(unknown));
+        Assert.Throws<PyNotImplementedError>(() => PyObject.GetAttr(ordinary, "__code__"));
+        for (long kind = 1; kind <= 4; kind++)
+        {
+            var function = new PyFunction("f", shape, ordinary.Body, []);
+            PyOps.FunctionIntrospectionKind(function, kind);
+            Assert.False(PyInspectFunctionKind.IsOrdinaryModule(function));
+        }
+        Assert.Throws<PyRuntimeError>(() => PyOps.FunctionIntrospectionKind(ordinary, 0));
+        Assert.Throws<PyValueError>(() => PyOps.FunctionIntrospectionKind(unknown, 9));
+    }
+
 }

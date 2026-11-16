@@ -412,6 +412,7 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
         vars,
         module_scope: false,
         forbid_lexical_class: is_generator || matches!(&source, FnSource::Def(def) if def.is_async),
+        coroutine_scope: is_coroutine && cfg!(feature = "native-coroutines"),
         direct_stmt_index: 0,
         package,
         classes,

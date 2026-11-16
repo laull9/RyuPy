@@ -246,3 +246,6 @@ mod generator_state_emit;
 mod records_guard_tests;
 
 mod native_traceback_refs;
+
+#[cfg(test)]
+mod inspect_kind_tests;

@@ -58,6 +58,7 @@ fn only_next_and_await_are_inside_the_synthetic_exhaustion_region() {
         panic!("需要真实窄try");
     };
     assert_eq!(protected.len(), 1);
+    assert!(body.stmts[protected[0]].line > 0);
     assert!(finalbody.is_empty());
     let StmtKind::Assign { value, .. } = body.stmts[protected[0]].kind else {
         panic!("需要下一项赋值");
@@ -81,6 +82,11 @@ fn only_next_and_await_are_inside_the_synthetic_exhaustion_region() {
         HandlerSemantics::SynthesizedAsyncFor
     );
     assert!(body.handlers[handlers[0]].types.is_none());
+    assert!(body.stmts[while_body[1]].line > 0);
+    let StmtKind::If { then_, .. } = &body.stmts[body.root[0]].kind else {
+        panic!("需要合成外壳");
+    };
+    assert_eq!(body.stmts[*then_.last().unwrap()].line, 0);
     assert!(matches!(
         body.stmts[while_body[1]].kind,
         StmtKind::Assign {
@@ -122,4 +128,31 @@ fn async_iteration_does_not_open_plain_functions_or_async_generators() {
         errors.iter().all(|e| e.deferred_failure
             == Some(ryupy_base::diagnostic::DeferredFailure::SupportBoundary))
     );
+}
+
+#[cfg(feature = "native-coroutines")]
+#[test]
+fn coroutine_delete_scope_does_not_leak_to_nested_generators_or_classes() {
+    let (_, errors) = lower(
+        "async def outer():\n    def inner():\n        value = 1\n        del value\n    return inner\n",
+    );
+    assert!(errors.is_empty(), "{errors:?}");
+    let (_, errors) = lower(
+        "async def outer():\n    def inner():\n        value = 1\n        yield value\n        del value\n    return inner\n",
+    );
+    assert!(errors.iter().any(|e| e.message == "暂不支持该 del 目标"));
+    let (_, errors) = lower(
+        "async def outer():\n    class Inner:\n        value = 1\n        del value\n    return Inner\n",
+    );
+    assert!(!errors.is_empty(), "协程中的类体仍在原有拒绝域");
+    // 允许删除不发布普通函数反射局部表；合法None与删除哨兵仍由不同真实值表示。
+    let (module, errors) = lower("async def outer():\n    value = None\n    del value\n");
+    assert!(errors.is_empty(), "{errors:?}");
+    let function = module
+        .functions
+        .iter()
+        .find(|(_, f)| f.is_coroutine)
+        .unwrap()
+        .1;
+    assert!(function.body.function_locals.is_none());
 }

@@ -6,15 +6,14 @@ namespace RyuPy.CPython;
 public sealed partial class CPythonHost : IPyInspectForeignBridge
 {
     private bool inspectProfileReady;
-    internal void PrepareInspectModule(string name) { if (name == "inspect") RequireInspectProfile(); }
     private void RequireInspectProfile()
     {
-        if (!inspectProfileReady) throw new PyNotImplementedError("inspect bridge requires explicit inspect provider ownership at host bootstrap");
+        if (!inspectProfileReady) throw new PyNotImplementedError("inspect bridge requires --cpython-dynamic-module inspect at host bootstrap");
     }
-    internal void InstallInspectBridge()
+    internal void InstallInspectBridge(bool requested)
     {
         using Lease lease = Enter();
-        if (modules.Contains("inspect"))
+        if (requested)
         {
             if (SignatureNative.rp_inspect_prepare() < 0) ThrowError();
             inspectProfileReady = true;
@@ -27,6 +26,9 @@ public sealed partial class CPythonHost : IPyInspectForeignBridge
     // 仅跨域原生函数代理具有计算视图；Python层函数本身仍没有合成__signature__属性。
     internal object? InspectAttribute(object? target, string name)
     {
+        if (!inspectProfileReady) return PyObject.GetAttr(target, name);
+        if (name == "__code__" && target is PyFunction direct && PyInspectFunctionKind.IsOrdinaryModule(direct))
+            throw new PyAttributeError("opaque CIL callable has no CPython __code__");
         if (target is ForeignMethodTarget method && name is "__signature__" or "__globals__") target = method.Function;
         if (target is PyFunction function && name == "__signature__")
         {
@@ -34,20 +36,34 @@ public sealed partial class CPythonHost : IPyInspectForeignBridge
             catch (PyAttributeError) { }
             // 真wrapped链交给CPinspect默认unwrap；false不得静默返回展开后的签名。
             try { _ = PyObject.GetAttr(function, "__wrapped__"); }
-            catch (PyAttributeError) { return PyInspectCallable.Signature(function, false); }
+            catch (PyAttributeError)
+            {
+                var signature = PyInspectCallable.Signature(function, false);
+                if (signature.ReturnAnnotation is string || signature.Parameters.Any(p => p.Annotation is string))
+                    throw new PyNotImplementedError("cross-domain string annotations require native inspect with eval_str=False");
+                return signature;
+            }
             throw new PyAttributeError("__signature__");
         }
         return PyObject.GetAttr(target, name);
     }
     /// <inheritdoc/>
-    public PyInspectSignature Signature(IPyForeignObject value, bool followWrapped) => PythonCall(() =>
+    public PyInspectSignature Signature(IPyForeignObject value, bool followWrapped, bool evalStr, Func<object?, PyInspectSignature> resolve) => PythonCall(() =>
     {
         RequireInspectProfile();
         PythonObject foreign = RequireForeignObject(value);
-        object? explicitSignature;
+        bool hasSignature = true; object? explicitSignature;
         try { explicitSignature = foreign.GetAttr("__signature__"); }
-        catch (PyAttributeError) { return ReadForeignFunctionSignature(foreign); }
-        return explicitSignature as PyInspectSignature
-            ?? throw new PyValueError("external callable requires an explicit supported Signature");
+        catch (PyAttributeError) { hasSignature = false; explicitSignature = PyNone.Instance; }
+        if (explicitSignature is not (null or PyNone))
+            return explicitSignature as PyInspectSignature ?? throw new PyTypeError("unexpected object in __signature__ attribute");
+        if (followWrapped && !hasSignature && Native.rp_is_type(foreign.Pointer) == 0)
+        {
+            object? wrapped;
+            try { wrapped = foreign.GetAttr("__wrapped__"); }
+            catch (PyAttributeError) { return ReadForeignFunctionSignature(foreign, evalStr); }
+            return resolve(wrapped);
+        }
+        return ReadForeignFunctionSignature(foreign, evalStr);
     });
 }

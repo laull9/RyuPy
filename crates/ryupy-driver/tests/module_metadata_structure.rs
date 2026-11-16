@@ -12,6 +12,7 @@ fn synthetic_metadata_preserves_final_ordinary_global_types() {
         &parsed,
         &ryupy_hir::ModuleInfo {
             foreign_class_construction: false,
+            introspection_profile: false,
             instance_capabilities: Default::default(),
             instance_globals: false,
             name: "unit".into(),
@@ -86,6 +87,7 @@ fn module_metadata_real_slots_survive_lowering_and_pe_emission() {
     assert!(errors.is_empty(), "{errors:?}");
     let info = ryupy_hir::ModuleInfo {
         foreign_class_construction: false,
+        introspection_profile: false,
         instance_capabilities: Default::default(),
         instance_globals: false,
         name: "pkg.unit".into(),

@@ -36,7 +36,6 @@ public sealed partial class CPythonHost
         string moduleName;
         try { moduleName = name ?? ReadTextOwned(Native.rp_op(2, pointer, s: "__name__")); }
         catch { Native.rp_decref(pointer); throw; }
-        PrepareInspectModule(moduleName);
         var foreign = new PythonObject(this, pointer);
         PyModule module = PyProvider.Module(moduleName, foreign.GetAttr, (_, key, value) => foreign.SetAttr(key, value), foreign);
         imported[moduleName] = module;

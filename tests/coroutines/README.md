@@ -38,3 +38,5 @@ ADR-0218新增async_for_protocol/control/exceptions/lifecycle/global_shadow/shar
 普通类的自定义__getattribute__、动态别名内建异常基类和异步生成器分别保留独立pending
 与拒绝门；受信宿主另测特殊槽绕过实例hook，不能借此放开普通类的深属性协议。
 范围见[ADR-0218](../../docs/adr/0218-native-async-for.md)。
+普通动态while的同根绑定合流修复另由phase3/m3_dynamic_while_binding_join.py保护，
+默认关闭候选时也要保持空循环/回边未绑定错误、合法None和finally副作用。

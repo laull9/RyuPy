@@ -23,21 +23,28 @@ static PyObject *import_hook_new(PyTypeObject *type, PyObject *args, PyObject *k
     }
     return type->tp_alloc(type, 0);
 }
-static PyObject *native_loader_create(PyObject *self, PyObject *spec) {
+static PyObject *native_loader_create(PyObject *self, PyObject *args, PyObject *kwargs) {
     (void)self;
+    PyObject *spec;
+    static char *keywords[] = {"spec", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O:create_module", keywords, &spec)) return NULL;
     PyObject *name = PyObject_GetAttrString(spec, "name");
     if (!name) return NULL;
     PyObject *module = dispatch(-1, 21, name, NULL, NULL, 0, NULL);
     Py_DECREF(name); return module;
 }
-static PyObject *native_loader_exec(PyObject *self, PyObject *module) {
-    (void)self; (void)module;
+static PyObject *native_loader_exec(PyObject *self, PyObject *args, PyObject *kwargs) {
+    (void)self;
+    PyObject *module;
+    static char *keywords[] = {"module", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O:exec_module", keywords, &module)) return NULL;
+    (void)module;
     /* Runtime Import 已完成初始化；重复 exec 不重复求值，保留既有单点事务。 */
     Py_RETURN_NONE;
 }
 static PyMethodDef native_loader_methods[] = {
-    {"create_module", native_loader_create, METH_O, NULL},
-    {"exec_module", native_loader_exec, METH_O, NULL}, {NULL, NULL, 0, NULL}
+    {"create_module", (PyCFunction)(void (*)(void))native_loader_create, METH_VARARGS | METH_KEYWORDS, NULL},
+    {"exec_module", (PyCFunction)(void (*)(void))native_loader_exec, METH_VARARGS | METH_KEYWORDS, NULL}, {NULL, NULL, 0, NULL}
 };
 static PyObject *native_finder_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) {
     NativeImportHook *self = (NativeImportHook *)import_hook_new(type, args, kwargs);

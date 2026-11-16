@@ -5,7 +5,7 @@ namespace RyuPy.CPython;
 
 public sealed partial class CPythonHost
 {
-    private PyInspectSignature ReadForeignFunctionSignature(PythonObject callable)
+    private PyInspectSignature ReadForeignFunctionSignature(PythonObject callable, bool evalStr)
     {
         nint schema = Check(SignatureNative.rp_inspect_function_schema(callable.Pointer));
         try
@@ -52,7 +52,10 @@ public sealed partial class CPythonHost
                 for (int i = positional; i < positional + keywordOnly; i++)
                     parameters.Add(Parameter(i, 3, Lookup(keywordDefaults, Name(i))));
                 if ((flags & 8) != 0) parameters.Add(Parameter(variadic, 4, PyInspectModule.Empty));
-                return new PyInspectSignature(parameters, Lookup(annotations, "return"), false);
+                var signature = new PyInspectSignature(parameters, Lookup(annotations, "return"), false);
+                if (evalStr && (signature.ReturnAnnotation is string || parameters.Any(p => p.Annotation is string)))
+                    throw new PyNotImplementedError("inspect.signature eval_str with string annotations is not supported");
+                return signature;
             }
             finally { Native.rp_decref(names); Native.rp_decref(defaults); Native.rp_decref(keywordDefaults); Native.rp_decref(annotations); }
         }
@@ -66,7 +69,11 @@ public sealed partial class CPythonHost
             nint builtin = Check(Native.rp_builtin(name)); bool same = item == builtin; Native.rp_decref(builtin);
             if (same) return PyType.Get(name);
         }
-        if (Native.rp_scalar_kind(item) == 4) return ReadText(item);
+        if (Native.rp_scalar_kind(item) == 4)
+        {
+            if (objects.TryGetValue(item, out WeakReference<object>? weak) && weak.TryGetTarget(out object? cached) && cached is string text) return text;
+            string value = ReadText(item); CacheInspectValue(value, Native.rp_incref(item)); return value;
+        }
         return FromBorrowed(item);
     }
 }
