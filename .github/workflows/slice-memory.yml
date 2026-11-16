@@ -1,0 +1,122 @@
+# 仅验证隔离数值列表候选，不修改dev，也不将Runtime合同当作AOT性能验收。
+name: Slice retained memory two layers
+on:
+  push:
+    branches: [ci/slice-memory-20261116]
+permissions:
+  contents: read
+jobs:
+  candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+      MSBUILDDISABLENODEREUSE: '1'
+      DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+      UseSharedCompilation: 'false'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 选择独立SDK安装目录
+        run: echo "DOTNET_INSTALL_DIR=$RUNNER_TEMP/numeric-list-dotnet" >> "$GITHUB_ENV"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - uses: actions/setup-python@v5
+        id: python
+        with:
+          python-version: '3.12.13'
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
+        with:
+          toolchain: '1.99.1'
+          components: rustfmt, clippy
+      - name: 固定环境并记录身份
+        env:
+          FIXED_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/numeric-list-evidence"
+          echo "EVIDENCE=$RUNNER_TEMP/numeric-list-evidence" >> "$GITHUB_ENV"
+          echo "PYTHON=$FIXED_PYTHON" >> "$GITHUB_ENV"
+          echo "RYUPY_FOREACH_PYTHON=$FIXED_PYTHON" >> "$GITHUB_ENV"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git rev-parse HEAD HEAD^{tree} > "$RUNNER_TEMP/numeric-list-evidence/source.txt"
+          # 独立安装目录避免runner自带较新SDK被默认选择，保留门禁失败时的实际版本。
+          dotnet --info > "$RUNNER_TEMP/numeric-list-evidence/dotnet.txt"
+          dotnet --version | tee "$RUNNER_TEMP/numeric-list-evidence/sdk.txt"
+          test "$(readlink -f "$(command -v dotnet)")" = "$DOTNET_INSTALL_DIR/dotnet"
+          test "$(dotnet --version)" = 10.0.403
+          for key in DOTNET DOTNET_HOST_PATH; do echo "$key=$DOTNET_INSTALL_DIR/dotnet" >> "$GITHUB_ENV"; done
+          for key in DOTNET_ROOT DOTNET_ROOT_X64; do echo "$key=$DOTNET_INSTALL_DIR" >> "$GITHUB_ENV"; done
+          echo "DOTNET_MULTILEVEL_LOOKUP=0" >> "$GITHUB_ENV"
+          "$FIXED_PYTHON" -c 'import sys; assert sys.version_info[:3] == (3,12,13); print(sys.version)' > "$RUNNER_TEMP/numeric-list-evidence/python.txt"
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev patchelf binutils time
+      - name: 四轮固定产品独立构建与内存门
+        run: |
+          set -euo pipefail
+          uname -a > "$EVIDENCE/uname.txt"
+          lscpu > "$EVIDENCE/cpu.txt"
+          getconf PAGESIZE > "$EVIDENCE/pagesize.txt"
+          cat /proc/meminfo > "$EVIDENCE/meminfo.txt"
+          cp tests/perf/slice-memory/probe.py "$EVIDENCE/probe.py"
+          cp tests/perf/slice-memory/Program.cs "$EVIDENCE/Program.cs"
+          orders=(AB BA BA AB)
+          for round in 0 1 2 3; do
+            order="${orders[$round]}"
+            for ((slot=0;slot<2;slot++)); do
+              arm="${order:$slot:1}"
+              if [[ "$arm" == A ]]; then sha=2128d6bc82e61a6ba6d1601dd475667873019772; else sha=917f27b23126a29925ca5e6a1f1e369abc2e50a6; fi
+              work="$RUNNER_TEMP/memory-$round-$arm"
+              target="$RUNNER_TEMP/memory-target-$round-$arm"
+              cli="$RUNNER_TEMP/memory-cli-$round-$arm"
+              product="$RUNNER_TEMP/memory-product-$round-$arm"
+              host="$RUNNER_TEMP/memory-host-$round-$arm"
+              stage="$EVIDENCE/build-$round-$arm"
+              mkdir -p "$stage" "$host"
+              git worktree add --detach "$work" "$sha"
+              test "$(git -C "$work" rev-parse HEAD)" = "$sha"
+              git -C "$work" rev-parse HEAD HEAD^{tree} > "$stage/product-source.txt"
+              (cd "$work"; CARGO_TARGET_DIR="$target" make build RELEASE_DIR="$cli") 2>&1 | tee "$stage/cli-build.log"
+              "$PYTHON" tests/perf/slice-memory/build_product.py "$cli/ryupy" "$product" "$stage"
+              cp tests/perf/slice-memory/Host.csproj tests/perf/slice-memory/Program.cs "$host/"
+              dotnet publish "$host/Host.csproj" -c Release -r linux-x64 -o "$host/published" \
+                -p:RuntimeProject="$work/runtime/RyuPy.Runtime/RyuPy.Runtime.csproj" \
+                2>&1 | tee "$stage/host-publish.log"
+              sha256sum "$host/Program.cs" "$host/Host.csproj" "$host/published/Host" > "$stage/host-sha256.txt"
+              file "$host/published/Host" > "$stage/host-file.txt"
+              test ! -e "$host/published/Host.dll"
+              git -C "$work" diff --exit-code
+              rm -rf -- "$target"
+            done
+            "$PYTHON" tests/perf/slice-memory/measure.py "$EVIDENCE/round-$round" --round "$round" \
+              --product-a "$(cat "$EVIDENCE/build-$round-A/executable")" --product-b "$(cat "$EVIDENCE/build-$round-B/executable")" \
+              --host-a "$RUNNER_TEMP/memory-host-$round-A/published/Host" --host-b "$RUNNER_TEMP/memory-host-$round-B/published/Host" \
+              2>&1 | tee "$EVIDENCE/round-$round.log"
+          done
+      - name: 核两层独立样本不混表
+        run: |
+          "$PYTHON" - <<'PY'
+          import json,os,pathlib
+          p=pathlib.Path(os.environ['EVIDENCE']); rows=[]
+          for r in range(4):
+              stage=p/f'round-{r}'; assert (stage/'COMPLETE').is_file()
+              data=json.loads((stage/'rows.json').read_text());assert len(data)==48
+              assert {(x['layer'],x['size'],x['scenario'],x['phase'],x['arm']) for x in data}=={(l,n,s,ph,a) for l in ('python-nativeaot','runtime-nativeaot') for n in (32768,131072) for s in ('near','cumulative','full') for ph in ('held','released') for a in 'AB'}
+              assert all(len(x['samples'])==5 and x['round']==r for x in data)
+              rows.extend(data)
+          assert len(rows)==192
+          assert len(list(p.glob('build-*/manifest.json')))==8
+          assert all('managed' not in x for x in rows if x['layer']=='python-nativeaot')
+          assert all('managed' in x for x in rows if x['layer']=='runtime-nativeaot')
+          (p/'COMPLETE').write_text('192 independent processes; Python AOT residency and Runtime AOT managed heap are separate\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slice-memory-${{ github.sha }}
+          path: ${{ runner.temp }}/numeric-list-evidence
+          if-no-files-found: error
+          retention-days: 14
