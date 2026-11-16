@@ -98,12 +98,12 @@ public static partial class PyTraceback
             Array.Resize(ref _files, _depth * 2);
             Array.Resize(ref _lines, _depth * 2);
             Array.Resize(ref _origins, _depth * 2);
+            NativeGrow(_functions.Length);
         }
 #if TRACE_ADAPTER_TEST
         AdapterPush(_depth);
 #endif
         ProductPush(_depth);
-        if (_nativeGenerators is not null || _nativeFrames is not null) NativePush(_depth);
         _functions[_depth] = function;
         _files[_depth] = file;
         _lines[_depth] = 0;

@@ -153,4 +153,136 @@ public sealed class PyNativeTracebackTests : IDisposable
         { long depth = PyTraceback.PushFrame("trace.py", "ordinary"); PyTraceback.SetLine(2); PyTraceback.PopTo(depth); }
         Assert.Equal(0L, GC.GetAllocatedBytesForCurrentThread() - before);
     }
+
+    [Fact]
+    public void UnobservedShallowCatchHasCompactAllocationCost()
+    {
+        const int count = 1000;
+        var ordinary = Enumerable.Range(0, count).Select(_ => new PyValueError("ordinary")).ToArray();
+        var native = Enumerable.Range(0, count).Select(_ => new PyValueError("native")).ToArray();
+        long receiver = PyTraceback.PushFrame("cold.py", "receiver");
+        // 两条路径都真实throw/catch、附legacy Frames；只比较新增传播元数据的分配。
+        // 先预热同样入口，避免把一次性表初始化计入每异常合同。
+        CatchCost([new PyValueError("warm")], receiver, false);
+        CatchCost([new PyValueError("warm")], receiver, true);
+        long baseline = CatchCost(ordinary, receiver, false);
+        long actual = CatchCost(native, receiver, true);
+        Assert.InRange(actual - baseline, 1L, count * 224L);
+        var trace = Trace(native[^1]);
+        Assert.Equal(11L, PyObject.GetAttr(trace, "tb_lineno"));
+        var tail = Assert.IsType<PyNativeTraceback>(PyObject.GetAttr(trace, "tb_next"));
+        Assert.Equal(22L, PyObject.GetAttr(tail, "tb_lineno"));
+        Assert.Same(PyNone.Instance, PyObject.GetAttr(tail, "tb_next"));
+    }
+
+    private static long CatchCost(PyValueError[] errors, long receiver, bool native)
+    {
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        foreach (var error in errors)
+        {
+            PyTraceback.SetLine(11);
+            long depth = PyTraceback.PushFrame("cold.py", "failure");
+            PyTraceback.SetLine(22);
+            try
+            {
+                throw (PyBaseException)(native ? PyErrors.PrepareExplicitRaise(error) : PyErrors.PrepareRaise(error));
+            }
+            catch (PyBaseException caught)
+            {
+                if (native) PyTraceback.ReceiveException(caught, receiver);
+            }
+            finally { PyTraceback.PopTo(depth); }
+        }
+        return GC.GetAllocatedBytesForCurrentThread() - before;
+    }
+
+    [Fact]
+    public void CodeViewCacheHitsAcrossActivationsAllocateNoLookupClosures()
+    {
+        var origin = Origin();
+        var frames = new object[100];
+        var codes = new object[frames.Length];
+        for (int i = 0; i < frames.Length; i++)
+        {
+            long depth = PyTraceback.PushFrameWithOrigin("trace.py", "source", origin);
+            var error = new PyValueError("view");
+            PyErrors.PrepareExplicitRaise(error);
+            frames[i] = Frame(Trace(error));
+            PyTraceback.PopTo(depth);
+        }
+        object first = Code(frames[0]);
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < frames.Length; i++) codes[i] = Code(frames[i]);
+        Assert.Equal(0L, GC.GetAllocatedBytesForCurrentThread() - before);
+        foreach (object code in codes) Assert.Same(first, code);
+        Assert.NotSame(frames[0], frames[1]);
+    }
+
+    [Fact]
+    public void TruncatedTailStaysTruncatedAcrossExplicitAndBareReraise()
+    {
+        long receiver = PyTraceback.PushFrame("trace.py", "receiver");
+        long middle = PyTraceback.PushFrame("trace.py", "middle");
+        long failure = PyTraceback.PushFrame("trace.py", "failure");
+        var error = new PyValueError("failure");
+        PyErrors.PrepareExplicitRaise(error);
+        PyTraceback.ReceiveException(error, middle);
+        var original = Trace(error);
+        PyObject.SetAttr(original, "tb_next", PyNone.Instance);
+        PyTraceback.PopTo(failure);
+        PyErrors.PrepareExplicitRaise(error);
+        var explicitHead = Trace(error);
+        Assert.NotSame(original, explicitHead);
+        Assert.Same(original, PyObject.GetAttr(explicitHead, "tb_next"));
+        Assert.Same(PyNone.Instance, PyObject.GetAttr(original, "tb_next"));
+        object? token = PyErrors.EnterHandler(error);
+        try { Assert.Same(error, PyErrors.Reraise()); }
+        finally { PyErrors.LeaveHandler(token); }
+        PyTraceback.PopTo(middle);
+        PyTraceback.ReceiveException(error, receiver);
+        Assert.Same(explicitHead, PyObject.GetAttr(Trace(error), "tb_next"));
+        Assert.Same(PyNone.Instance, PyObject.GetAttr(original, "tb_next"));
+    }
+
+    [Fact]
+    public void DeepReceiversDeduplicateIndependentlyOfWritableTail()
+    {
+        for (int i = 0; i < 6; i++) PyTraceback.PushFrame("deep.py", "layer" + i);
+        var error = new PyValueError("deep");
+        PyErrors.PrepareExplicitRaise(error);
+        PyTraceback.ReceiveException(error, 4);
+        var inside = Trace(error);
+        PyObject.SetAttr(inside, "tb_next", PyNone.Instance);
+        // 中间catch再次接收时，已接收的三个内层激活都不能从去重历史中消失。
+        PyTraceback.ReceiveException(error, 2);
+        var head = Trace(error);
+        var next = Assert.IsType<PyNativeTraceback>(PyObject.GetAttr(head, "tb_next"));
+        Assert.Same(inside, PyObject.GetAttr(next, "tb_next"));
+        Assert.Same(PyNone.Instance, PyObject.GetAttr(inside, "tb_next"));
+    }
+
+    [Fact]
+    public void ColdTablesGrowWithRealStackAndPoppedSlotsGetNewActivation()
+    {
+        PyTraceback.PushFrame("grow.py", "warm");
+        PyErrors.PrepareExplicitRaise(new PyValueError("warm"));
+        PyTraceback.Reset();
+        for (int i = 0; i < 260; i++) PyTraceback.PushFrame("grow.py", "layer");
+        var error = new PyValueError("grow");
+        PyErrors.PrepareExplicitRaise(error);
+        PyTraceback.ReceiveException(error, 1);
+        var frames = new HashSet<object>(ReferenceEqualityComparer.Instance);
+        object? node = Trace(error);
+        while (node is PyNativeTraceback trace)
+        {
+            Assert.True(frames.Add(Frame(trace)));
+            node = PyObject.GetAttr(trace, "tb_next");
+        }
+        Assert.Equal(260, frames.Count);
+        PyTraceback.Reset();
+        PyTraceback.PushFrame("grow.py", "layer");
+        var later = new PyValueError("later");
+        PyErrors.PrepareExplicitRaise(later);
+        Assert.DoesNotContain(Frame(Trace(later)), frames);
+    }
 }

@@ -40,16 +40,24 @@ public sealed class PyNativeTraceback : PyNativeObject
 /// <summary>同一逻辑激活共享一个frame视图；普通调用仅在实际观察时分配。</summary>
 internal sealed class PyNativeFrame : PyNativeObject
 {
-    private readonly PyNativeCode? _code;
+    private readonly string _file;
+    private readonly string _function;
+    private readonly object? _origin;
+    private PyNativeCode? _code;
     internal int Line;
     internal PyNativeFrame(string file, string function, int line, object? origin)
-    { Line = line; _code = PyNativeCode.For(file, function, origin); }
+    {
+        Line = line; _file = file; _function = function;
+        // frame只需代码定义身份，不能因延迟f_code而额外保活整个函数及其闭包。
+        _origin = origin is PyFunction callable ? callable.Signature : origin;
+    }
     /// <inheritdoc/>
     public override string TypeName => "frame";
     /// <inheritdoc/>
     public override object? GetAttr(string name) => name switch
     {
-        "f_code" => _code ?? throw new PyNotImplementedError("native frame code origin is not registered"),
+        "f_code" => (_code ??= PyNativeCode.For(_file, _function, _origin))
+            ?? throw new PyNotImplementedError("native frame code origin is not registered"),
         "f_lineno" => (long)PyTraceback.NativeFrameLine(this),
         "__class__" => PyType.Get("frame"),
         "f_lasti" or "f_locals" or "f_globals" or "f_builtins" or "f_back" or "f_trace"
@@ -75,8 +83,12 @@ internal sealed class PyNativeCode(string file, string function) : PyNativeObjec
         if (source is null) return null;
         if (!String.Equals(source.File, file, StringComparison.Ordinal))
             throw new PyRuntimeError("traceback frame and compiled origin disagree");
-        return Codes.GetValue(key!, _ => new(file, function));
+        if (Codes.TryGetValue(key!, out PyNativeCode? code)) return code;
+        return FirstCode(key!, file, function);
     }
+    // CWT命中不创建捕获file/function的闭包；工厂仅在首次f_code观察时分配。
+    private static PyNativeCode FirstCode(object key, string file, string function) =>
+        Codes.GetValue(key, _ => new(file, function));
     /// <inheritdoc/>
     public override string TypeName => "code";
     /// <inheritdoc/>

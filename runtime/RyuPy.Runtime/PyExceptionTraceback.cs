@@ -6,13 +6,31 @@ namespace RyuPy.Runtime;
 internal sealed class NativeTracebackState
 {
     internal PyNativeTraceback? Head;
-    internal readonly HashSet<PyNativeFrame> Seen = new(ReferenceEqualityComparer.Instance);
+    // 常见异常只经过失败帧与接收帧；两项内联，深传播才分配扩展表。
+    // 去重记录独立于可写tb_next，用户截链不会改变当前传播已接收的激活。
+    private PyNativeFrame? _firstSeen;
+    private PyNativeFrame? _secondSeen;
+    private List<PyNativeFrame>? _moreSeen;
     internal bool Active;
+    internal bool MarkSeen(PyNativeFrame frame)
+    {
+        if (ReferenceEquals(_firstSeen, frame) || ReferenceEquals(_secondSeen, frame)) return false;
+        if (_firstSeen is null) { _firstSeen = frame; return true; }
+        if (_secondSeen is null) { _secondSeen = frame; return true; }
+        if (_moreSeen is not null && _moreSeen.Contains(frame)) return false;
+        (_moreSeen ??= []).Add(frame);
+        return true;
+    }
+    internal void Restart()
+    {
+        _firstSeen = _secondSeen = null;
+        _moreSeen?.Clear();
+        Active = true;
+    }
     internal void BeginReceive()
     {
         if (Active) return;
-        Seen.Clear();
-        Active = true;
+        Restart();
     }
     internal void EnterHandler()
     {
@@ -20,11 +38,10 @@ internal sealed class NativeTracebackState
     }
     internal void Reraise()
     {
-        Seen.Clear();
+        Restart();
         var current = PyTraceback.CurrentNativeFrame();
         // RERAISE本身不为当前指令帧新增节点；跨出调用者时仍按真实接收补外层帧。
-        if (current is not null) Seen.Add(current);
-        Active = true;
+        if (current is not null) MarkSeen(current);
     }
 }
 
@@ -41,11 +58,10 @@ public static partial class PyErrors
     {
         var error = (PyBaseException)PrepareRaise(exception);
         var state = error.NativeTraceback ??= new NativeTracebackState();
-        state.Seen.Clear();
-        state.Active = true;
+        state.Restart();
         if (PyTraceback.CurrentNativeFrame() is { } frame)
         {
-            state.Seen.Add(frame);
+            state.MarkSeen(frame);
             state.Head = new(frame, frame.Line, state.Head);
         }
         return error;

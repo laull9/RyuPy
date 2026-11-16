@@ -206,7 +206,7 @@ public sealed partial class PyGenerator : IPyIterator
     {
         if (_running) throw new PyValueError("generator already executing");
         PyBaseException error = NormalizeThrown(exception);
-        if (error.NativeTraceback is { } trace) { trace.Seen.Clear(); trace.Active = true; }
+        error.NativeTraceback?.Restart();
         if (_frame is null && _state is null) throw PyErrors.Prepare(error);
         if (MoveNextCore(PyNone.Instance, out object? value, error)) return Current();
         throw new PyStopIteration(value);

@@ -9,20 +9,22 @@ public static partial class PyTraceback
     // 只有生成器写非null；固定并行数组不产生逐调用对象分配。
     private static PyGenerator?[]? _nativeGenerators;
 
-    private static void NativePush(int slot)
+    // Pop/Reset已经清除退出槽；正常Push不重复清槽，容量只随原帧表冷扩容。
+    private static void NativeGrow(int capacity)
     {
-        if (_nativeGenerators is not null)
-        {
-            if (_nativeGenerators.Length < _functions.Length) Array.Resize(ref _nativeGenerators, _functions.Length);
-            _nativeGenerators[slot] = null;
-        }
-        if (_nativeFrames is null) return;
-        if (_nativeFrames.Length < _functions.Length)
-            Array.Resize(ref _nativeFrames, _functions.Length);
-        _nativeFrames[slot] = null;
+        if (_nativeGenerators is not null) Array.Resize(ref _nativeGenerators, capacity);
+        if (_nativeFrames is not null) Array.Resize(ref _nativeFrames, capacity);
     }
     private static void NativePop(int start, int count)
     {
+        if (count == 1)
+        {
+            // generator每轮恢复通常只退出自身一槽，避免通用Array.Clear调用。
+            if (_nativeGenerators is not null) _nativeGenerators[start] = null;
+            if (_nativeFrames is not null && _nativeFrames[start] is { } frame)
+            { frame.Line = _lines[start]; _nativeFrames[start] = null; }
+            return;
+        }
         if (_nativeGenerators is not null) Array.Clear(_nativeGenerators, start, count);
         if (_nativeFrames is not null)
         {
@@ -77,7 +79,7 @@ public static partial class PyTraceback
         for (int slot = _depth - 1; slot >= (int)receiverDepth - 1; slot--)
         {
             var frame = NativeFrameAt(slot);
-            if (state.Seen.Add(frame)) state.Head = new(frame, _lines[slot], state.Head);
+            if (state.MarkSeen(frame)) state.Head = new(frame, _lines[slot], state.Head);
         }
     }
     internal static void ReceiveGeneratorException(object frame, object exception)

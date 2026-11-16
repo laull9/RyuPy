@@ -1771,7 +1771,7 @@ async with 的后续实现见下节；async for、异步生成器/推导式、�
 按实际函数对象的冷登记继续分派；原完整供参的 typed ABI 与边界保持。
 单源码未知外部反射、闭包/实例/状态机的 typed 特化恢复继续另切，见 ADR-0214。
 
-### 原生 async with 与异常 traceback（ADR-0215，集成中）
+### 原生 async with 与异常 traceback（ADR-0215）
 
 显式 native-coroutines 候选以真实 await 推进 __aenter__/__aexit__，类型级协议查找
 忽略实例同名覆盖；enter 成功后才进入保护区，as 赋值/解包失败也调用退出方法。
