@@ -8,7 +8,13 @@ fn tail_insert_sources_emit_numeric_producer() {
     let evidence = std::env::var_os("NUMERIC_EVIDENCE").expect("需要独立证据目录");
     let evidence = std::path::PathBuf::from(evidence);
     std::fs::create_dir_all(&evidence).unwrap();
-    for name in ["semantic", "tail_once", "tail_many", "head_once", "head_many"] {
+    for name in [
+        "semantic",
+        "tail_once",
+        "tail_many",
+        "head_once",
+        "head_many",
+    ] {
         let input = root.join(format!("tests/perf/numeric-tail-insert/{name}.py"));
         let mir = ryupy_driver::dump(&mut Session::default(), &input, Stage::Mir).unwrap();
         std::fs::write(evidence.join(format!("{name}.mir.txt")), &mir).unwrap();
