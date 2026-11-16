@@ -18,7 +18,7 @@ fn payload_boundaries() -> Result<()> {
         )?;
         std::fs::write(
             root.join("Tests.csproj"),
-            "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup></Project>",
+            "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><RollForward>Major</RollForward><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup></Project>",
         )?;
         sdk(
             &root,
@@ -64,7 +64,7 @@ fn onefile_native_process() -> Result<()> {
         )?;
         std::fs::write(
             source.join("Fixture.csproj"),
-            "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><PublishAot>true</PublishAot></PropertyGroup></Project>",
+            "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><RollForward>Major</RollForward><ImplicitUsings>enable</ImplicitUsings><PublishAot>true</PublishAot></PropertyGroup></Project>",
         )?;
         sdk(
             &source,

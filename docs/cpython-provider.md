@@ -47,7 +47,11 @@ Rust driver：模块/provider 选择、依赖闭包、目标 ABI、分发计划
 标准库源码/包，E0100携冲突路径拒绝。额外第三方以声明和随包库存固定归属。
 记录选择理由、版本、RID、CPython ABI、资源与原生依赖边；运行中固定归属。
 CPython 的普通源码依赖直接交由其导入器执行，无需让 RyuPy 编译器支持依赖内部全部语法。
-应用中尚未支持的语法仍报 Diagnostic；未来整模块委派须显式声明和单独验收。
+应用中尚未支持的语法仍报 Diagnostic。显式 `--cpython-module` 将本地顶层模块或整包
+委派给随包解释器，`--cpython-entry` 委派入口；未声明的应用模块继续编译。
+动态第三方导入可用 `--cpython-dynamic-module` 补充。源码、反射和异步在所选域执行，
+归属与委派原因写入分发报告。macOS arm64 实测见 [通用项目验收](../tests/general_projects/README.md)
+和 [ADR-0204](adr/0204-cpython-local-delegation.md)。
 
 CPython 拥有该域唯一的 `sys.modules`，RyuPy 持有指向同一模块的代理。重复导入、
 包属性、类型和异常身份必须稳定。一个完整模块名只能有一个初始化权威，禁止双份执行。

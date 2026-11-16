@@ -18,6 +18,15 @@ struct Owner {
     build: Vec<files::Node>,
     dist: Option<Vec<files::Node>>,
 }
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LegacyOwner {
+    version: u32,
+    source: String,
+    stem: String,
+    build: Vec<files::LegacyNode>,
+    dist: Option<Vec<files::LegacyNode>>,
+}
 /// 仅外层排他创建attempt后可构造；调用者不能靠目录名字伪造资格。
 pub(crate) struct OwnedAttempt {
     root: PathBuf,
@@ -86,20 +95,7 @@ pub(crate) fn build(
             manifest_files::plain_metadata(&build)?.is_dir(),
             "已有build不是普通目录"
         );
-        let owner: Owner = serde_json::from_slice(&files::read_json(&build.join(files::OWNER))?)?;
-        ensure!(
-            owner.version == 1 && owner.source == source && owner.stem == stem,
-            "已有build没有匹配的工具所有权"
-        );
-        ensure!(
-            owner.build.len() <= 100_000 && owner.dist.as_ref().is_none_or(|d| d.len() <= 100_000),
-            "owner条目过多"
-        );
-        ensure!(
-            files::snapshot(&build, true)? == owner.build,
-            "已有build被修改/新增文件，拒绝覆盖"
-        );
-        owner
+        load_owner(&build, &dist, &source, &stem)?
     } else {
         ensure!(!files::exists(&dist)?, "dist存在但无owned build，拒绝接管");
         std::fs::create_dir(&build)?;
@@ -146,6 +142,69 @@ pub(crate) fn build(
                 files::snapshot(&build, true).context("失败现场无法安全归档，保留目录")?;
             save_owner(&build, &owner).context("失败现场owner无法提交，禁止自动重试接管")?;
             Err(error)
+        }
+    }
+}
+fn load_owner(build: &Path, dist: &Path, source: &str, stem: &str) -> Result<Owner> {
+    let bytes = files::read_json(&build.join(files::OWNER))?;
+    match serde_json::from_slice::<Owner>(&bytes) {
+        Ok(owner) => {
+            ensure!(
+                owner.version == 1 && owner.source == source && owner.stem == stem,
+                "已有build没有匹配的工具所有权"
+            );
+            ensure!(
+                owner.build.len() <= 100_000
+                    && owner.dist.as_ref().is_none_or(|d| d.len() <= 100_000),
+                "owner条目过多"
+            );
+            ensure!(
+                files::snapshot(build, true)? == owner.build,
+                "已有build被修改/新增文件，拒绝覆盖"
+            );
+            Ok(owner)
+        }
+        Err(primary_err) => {
+            let legacy = serde_json::from_slice::<LegacyOwner>(&bytes).map_err(|_| {
+                anyhow::Error::new(primary_err)
+                    .context("已有build的owner格式无效或不兼容，请核验后更换输出ROOT或重建")
+            })?;
+            ensure!(
+                legacy.version == 1 && legacy.source == source && legacy.stem == stem,
+                "已有build（旧版owner）没有匹配的工具所有权"
+            );
+            ensure!(
+                legacy.build.len() <= 100_000
+                    && legacy.dist.as_ref().is_none_or(|d| d.len() <= 100_000),
+                "旧版owner条目过多"
+            );
+            let current_build = files::snapshot(build, true)?;
+            ensure!(
+                files::matches_legacy(&current_build, &legacy.build),
+                "已有build（旧版owner）被修改/新增文件，拒绝迁移覆盖"
+            );
+            let migrated_dist = match &legacy.dist {
+                Some(legacy_dist) => {
+                    ensure!(files::exists(dist)?, "旧版owner登记的dist缺失，拒绝迁移");
+                    let current_dist = files::snapshot(dist, false)?;
+                    ensure!(
+                        files::matches_legacy(&current_dist, legacy_dist),
+                        "已有dist（旧版owner）内容/权限被修改，拒绝迁移替换"
+                    );
+                    Some(current_dist)
+                }
+                None => {
+                    ensure!(!files::exists(dist)?, "发现未拥有dist，拒绝迁移替换");
+                    None
+                }
+            };
+            Ok(Owner {
+                version: 1,
+                source: legacy.source,
+                stem: legacy.stem,
+                build: current_build,
+                dist: migrated_dist,
+            })
         }
     }
 }

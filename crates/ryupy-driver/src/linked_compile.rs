@@ -112,25 +112,61 @@ pub(super) fn compile_linked_traced(
         .map(|source| source.name.clone())
         .collect();
     let mut mapping = vec![None; sources.len()];
+    if let Some(provider) = sess.cpython_provider_state.plan.as_mut() {
+        provider.delegation.compiled_sources.clear();
+    }
     for (index, (module, plan)) in sources.iter().zip(plans).enumerate() {
         if collect_manifest && !automatic {
             summaries.push(manifest::SourceSummary::new(u32::try_from(index)?, module));
         }
+        let is_delegated_entry = index == entry_index
+            && sess
+                .cpython_provider_state
+                .plan
+                .as_ref()
+                .is_some_and(|p| p.delegation.entry_script.is_some());
         // 真正已选Instance的编译失败必须硬停，不能借soft候选吞掉AOT证明失败。
-        let compile = |sess: &mut Session| {
-            compile_module(
+        let compiled = if is_delegated_entry {
+            let (stub_parsed, _) = ryupy_syntax::parse(module.parsed.file, "");
+            let stub = modules::SourceModule {
+                candidate: module.candidate,
+                hard: module.hard,
+                catalog: None,
+                parse_diagnostics: Vec::new(),
+                kind: module.kind,
+                resource_discovery: None,
+                resolved_source_path: module.resolved_source_path.clone(),
+                name: module.name.clone(),
+                package: module.package.clone(),
+                file: module.file.clone(),
+                logical_source: module.logical_source.clone(),
+                parsed: stub_parsed,
+                text: String::new(),
+            };
+            Some(compile_module(
                 sess,
-                module,
+                &stub,
                 &native_exceptions,
                 &plan,
                 trace,
                 trace_request,
-            )
-        };
-        let compiled = if automatic && selected.contains(&index) {
-            Some(compile(sess)?)
+            )?)
         } else {
-            optional_sources::compile(sess, module, compile)?
+            let compile = |sess: &mut Session| {
+                compile_module(
+                    sess,
+                    module,
+                    &native_exceptions,
+                    &plan,
+                    trace,
+                    trace_request,
+                )
+            };
+            if automatic && selected.contains(&index) {
+                Some(compile(sess)?)
+            } else {
+                optional_sources::compile(sess, module, compile)?
+            }
         };
         let Some(CompiledModule {
             trace_proof,
@@ -157,8 +193,33 @@ pub(super) fn compile_linked_traced(
         if let Some(proof) = trace_proof {
             trace_proofs.push(proof);
         }
-        sess.module_environment_report[index].compiled = true;
-        let location = if !aot_locations {
+        if is_delegated_entry {
+            sess.module_environment_report[index].compiled = false;
+            sess.module_environment_report[index].execution = "CPythonDelegatedEntry".into();
+            sess.module_environment_report[index].reason = "explicit-cpython-entry".into();
+        } else {
+            sess.module_environment_report[index].compiled = true;
+        }
+        let location = if !is_delegated_entry
+            && let Some(provider) = sess.cpython_provider_state.plan.as_mut()
+        {
+            let relative = format!(
+                "ryupy_compiled/{}{}",
+                module.name.replace('.', "/"),
+                if module.kind == modules::SourceKind::Package {
+                    "/__init__.py"
+                } else {
+                    ".py"
+                }
+            );
+            provider.delegation.compiled_sources.push(
+                cpython_provider::delegation::DelegatedEntry {
+                    source: module.resolved_source_path.clone(),
+                    destination: relative.clone(),
+                },
+            );
+            ryupy_mir::ModuleLocation::BundleRelative(format!("python/{relative}"))
+        } else if !aot_locations {
             ryupy_mir::ModuleLocation::SourceAbsolute(
                 module
                     .resolved_source_path
@@ -182,7 +243,11 @@ pub(super) fn compile_linked_traced(
             ryupy_mir::UnitMeta {
                 instance_capabilities: plan.capabilities,
                 execution: plan.execution,
-                environment_reason: plan.reason.clone(),
+                environment_reason: if is_delegated_entry {
+                    "explicit-cpython-entry".into()
+                } else {
+                    plan.reason.clone()
+                },
                 protected_exports,
                 name: module.name.clone(),
                 package: module.package.clone(),

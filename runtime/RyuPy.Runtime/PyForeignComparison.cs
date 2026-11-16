@@ -15,7 +15,9 @@ public static partial class PyOps
                 _ => throw new PyRuntimeError($"unknown compare opcode {op}"),
             });
         if (a is IPyForeignObject left) return left.RichCompare(op, b, false);
+        if (a is PyInstance { ForeignInstance: { } leftDerived }) return leftDerived.RichCompare(op, b, false);
         if (b is IPyForeignObject right) return right.RichCompare(op, a, true);
+        if (b is PyInstance { ForeignInstance: { } rightDerived }) return rightDerived.RichCompare(op, a, true);
         if (PyOrdinaryRichComparison.TryCompare(op, a, b, out object? result)) return result!;
         return BoxBool(Compare(op, a, b));
     }

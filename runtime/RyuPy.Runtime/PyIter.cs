@@ -80,6 +80,7 @@ public sealed class PyIter : IPyIterator
     public static IPyIterator Create(object? source) => source switch
     {
         IPyForeignObject foreign => foreign.Iterate(),
+        PyInstance { ForeignInstance: { } foreignDerived } => foreignDerived.Iterate(),
         null or PyNone => throw NotIterable(source),
         PyList list => new PyIter(list, 0, null, null),
         PyTuple tuple => new PyIter(tuple, 0, null, null),

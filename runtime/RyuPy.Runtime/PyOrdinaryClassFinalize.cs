@@ -26,6 +26,7 @@ public sealed partial class PyClass
         if (HasStringLayout) { FinalizeStringConstruction(); return; }
         if (HasListLayout) { FinalizeListConstruction(); return; }
         if (HasDictLayout) { FinalizeDictConstruction(); return; }
+        if (HasForeignHierarchy) { FinalizeForeignDerivedConstruction(); return; }
         if (_ordinaryFinalized) throw new PyNotImplementedError("ordinary class is already finalized");
         FinalizeTypingGenericDefinition();
         ValidateTypingIoDefinition();

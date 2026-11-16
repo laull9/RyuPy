@@ -176,6 +176,8 @@ pub(crate) fn reason(plan: &Plan, name: &str) -> &'static str {
     let root = name.split('.').next().unwrap_or(name);
     if plan.stdlib.contains(root) {
         "fixed_stdlib_inventory"
+    } else if plan.delegation.local_modules.iter().any(|m| m == root) {
+        "explicit_local_delegation"
     } else if plan.dependency_report["distributions"]
         .as_array()
         .is_some_and(|items| {

@@ -49,7 +49,7 @@ public static class Bootstrap
     }
 }
 
-internal sealed record HostConfiguration(string Home, string Library, string Shim, string[] SearchPaths, string[] Modules, bool SynchronizeContainers, string[] NativeSearchPaths, string ExpectedVersion)
+internal sealed record HostConfiguration(string Home, string Library, string Shim, string[] SearchPaths, string[] Modules, bool SynchronizeContainers, string[] NativeSearchPaths, string ExpectedVersion, string? EntryScript = null)
 {
     internal static HostConfiguration Read(string filename)
     {
@@ -92,11 +92,24 @@ internal sealed record HostConfiguration(string Home, string Library, string Shi
         if (paths.Length == 0 || paths.Any(p => p.Contains('\n'))) throw new InvalidDataException("CPython搜索路径为空或包含换行");
         string mode = root.TryGetProperty("container_transfer", out JsonElement transfer) ? transfer.GetString()! : "proxy";
         if (mode is not ("proxy" or "synchronized")) throw new InvalidDataException("container_transfer必须为proxy或synchronized");
+        string? entryScript = null;
+        if (root.TryGetProperty("entry_script", out JsonElement entryElement) && entryElement.ValueKind != JsonValueKind.Null)
+        {
+            if (entryElement.ValueKind != JsonValueKind.String)
+                throw new InvalidDataException("entry_script必须为字符串");
+            string rawEntry = entryElement.GetString()!;
+            if (string.IsNullOrEmpty(rawEntry))
+                throw new InvalidDataException("entry_script不能为空字符串");
+            entryScript = ResolveValue(rawEntry);
+            if (!File.Exists(entryScript))
+                throw new FileNotFoundException("CPython委派入口脚本缺失：" + entryScript, entryScript);
+        }
         return new(Resolve("home"), Resolve("library"), Resolve("shim"), paths,
             root.GetProperty("modules").EnumerateArray().Select(p => p.GetString()!).ToArray(),
             mode == "synchronized",
             root.TryGetProperty("native_search_paths", out JsonElement nativePaths)
                 ? nativePaths.EnumerateArray().Select(p => ResolveValue(p.GetString()!)).ToArray() : [],
-            expectedVersion);
+            expectedVersion,
+            entryScript);
     }
 }

@@ -8,11 +8,12 @@ namespace RyuPy.Runtime;
 /// <summary>静态编译的词法类体使用的冷事务入口；成功终结后由编译代码填cell并发布。</summary>
 public static class PyLexicalClassFactory
 {
-    private sealed class Frame(string name, PyClass? parent, object? module, string qualname, object?[]? bases = null)
+    private sealed class Frame(string name, PyClass? parent, object? module, string qualname, object?[]? bases = null, IPyForeignObject? foreignBase = null)
     {
         internal readonly string Name = name;
         internal readonly PyClass? Parent = parent;
         internal readonly object?[]? Bases = bases;
+        internal readonly IPyForeignObject? ForeignBase = foreignBase;
         internal readonly Dictionary<string, object?> Namespace = new(StringComparer.Ordinal)
         { ["__module__"] = module ?? PyNone.Instance, ["__qualname__"] = qualname };
         // 0正文、1终结中、2完成、3失败；所有失败frame都不能重试成另一个类。
@@ -30,14 +31,31 @@ public static class PyLexicalClassFactory
             if (bases.Length > 1 || bases.Length == 1 && (PyClass.HasDictProvider(bases[0])
                 || bases[0] is PyClass { HasMultipleInheritance: true }))
             {
-                if (!supportsDynamicCode) throw Unsupported("MI or native-layout C3 without dynamic code support");
+                bool foreignMi = Array.Exists(bases, static value => value is IPyForeignObject || value is PyClass { HasForeignHierarchy: true });
+                if (!foreignMi && !supportsDynamicCode) throw Unsupported("MI or native-layout C3 without dynamic code support");
                 // 私有frame冻结原引用；已知layout冲突及C3错误保留到正文后的Finish。
-                bool dict = Array.Exists(bases, PyClass.HasDictProvider);
+                bool dict = !foreignMi && Array.Exists(bases, PyClass.HasDictProvider);
                 foreach (object? value in bases)
-                    if (dict) PyClass.ValidateDictC3Base(value);
+                    if (foreignMi)
+                    {
+                        if (ReferenceEquals(value, PyBaseObject.Type)) continue;
+                        if (value is IPyForeignObject f)
+                        {
+                            if (!PyForeignClassBridge.IsType(f)) throw Unsupported("non-ordinary base or metaclass protocol");
+                            continue;
+                        }
+                        if (value is PyClass c) { ValidateAncestors(c); continue; }
+                        throw Unsupported("non-ordinary base");
+                    }
+                    else if (dict) PyClass.ValidateDictC3Base(value);
                     else if (!ReferenceEquals(value, PyBaseObject.Type))
                         ValidateAncestors(value as PyClass ?? throw Unsupported("non-ordinary base"));
                 return new Frame(name, null, module, qualname, (object?[])bases.Clone());
+            }
+            if (bases.Length == 1 && bases[0] is IPyForeignObject foreignBase)
+            {
+                if (!PyForeignClassBridge.IsType(foreignBase)) throw Unsupported("non-ordinary base or metaclass protocol");
+                return new Frame(name, null, module, qualname, foreignBase: foreignBase);
             }
             PyClass? parent = null;
             if (bases.Length == 1 && !ReferenceEquals(bases[0], PyBaseObject.Type))
@@ -73,6 +91,13 @@ public static class PyLexicalClassFactory
             if (current.Bases is { } bases)
             {
                 result = (PyClass)PyOps.PrepareOrdinaryMiClass(current.Name, bases);
+                foreach (var pair in current.Namespace) result.Attributes[pair.Key] = pair.Value;
+                result.FinalizeOrdinaryConstruction();
+            }
+            else if (current.ForeignBase is { } foreignBase)
+            {
+                ValidateNamespace(current.Namespace);
+                result = new PyClass(current.Name) { ForeignBase = foreignBase };
                 foreach (var pair in current.Namespace) result.Attributes[pair.Key] = pair.Value;
                 result.FinalizeOrdinaryConstruction();
             }

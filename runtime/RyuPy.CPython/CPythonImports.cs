@@ -7,7 +7,15 @@ public sealed partial class CPythonHost
 {
     /// <inheritdoc />
     public PyModule Import(string name) => PythonCall(() =>
-        ModuleFromOwned(Check(Native.rp_op(1, s: name)), name));
+    {
+        if (name == "__main__" && entryScript is not null && !entryStarted)
+        {
+            entryStarted = true;
+            string source = File.ReadAllText(entryScript);
+            if (Native.rp_run_entry(entryScript, source) != 0) ThrowError();
+        }
+        return ModuleFromOwned(Check(Native.rp_op(1, s: name)), name);
+    });
 
     /// <summary>所有CPython模块指针共用唯一视图；sys.modules是初始化与替换的权威。</summary>
     private PyModule ModuleFromOwned(nint pointer, string? name = null)
@@ -53,6 +61,7 @@ public sealed partial class CPythonHost
         Native.rp_decref(Check(Native.rp_install_imports("""
 import sys as _rp_sys
 import importlib.util as _rp_util
+import types as _rp_types
 class _RyuPyLoader:
     def create_module(self, spec):
         return _rp_load(spec.name)
@@ -63,6 +72,51 @@ class _RyuPyFinder:
         if _rp_has(fullname):
             return _rp_util.spec_from_loader(fullname, _RyuPyLoader(), is_package=_rp_package(fullname))
 _rp_sys.meta_path.insert(0, _RyuPyFinder())
+def _rp_calculate_meta(meta, bases):
+    winner = meta
+    for base in bases:
+        base_meta = type(base)
+        if issubclass(winner, base_meta):
+            continue
+        if issubclass(base_meta, winner):
+            winner = base_meta
+            continue
+        raise TypeError("metaclass conflict: the metaclass of a derived class must be a (non-strict) subclass of the metaclasses of all its bases")
+    return winner
+def _rp_make_class(name, bases, ns):
+    resolved_bases = _rp_types.resolve_bases(bases)
+    meta = type
+    if "__metaclass__" in ns:
+        meta = ns.pop("__metaclass__")
+    if isinstance(meta, type):
+        meta = _rp_calculate_meta(meta, resolved_bases)
+    prepare = getattr(meta, "__prepare__", None)
+    namespace = prepare(name, resolved_bases) if prepare is not None else {}
+    for k, v in ns.items():
+        namespace[k] = v
+    return meta(name, resolved_bases, namespace)
+def _rp_wrap_method(fn, name, qualname):
+    def _rp_method(*args, **kwargs):
+        return fn(*args, **kwargs)
+    _rp_method.__name__ = name
+    _rp_method.__qualname__ = qualname
+    return _rp_method
+def _rp_object_new(cls, *args, **kwargs):
+    return object.__new__(cls, *args, **kwargs)
+def _rp_object_init(self, *args, **kwargs):
+    return object.__init__(self, *args, **kwargs)
+def _rp_object_setattr(self, name, value):
+    return object.__setattr__(self, name, value)
+def _rp_object_delattr(self, name):
+    return object.__delattr__(self, name)
+def _rp_super_getattr(start, receiver, name):
+    proxy = super(start) if receiver is None else super(start, receiver)
+    return getattr(proxy, name)
+def _rp_super_create(start, receiver):
+    return super(start) if receiver is None else super(start, receiver)
+_rp_staticmethod = staticmethod
+_rp_classmethod = classmethod
+_rp_property = property
 """)));
     }
 

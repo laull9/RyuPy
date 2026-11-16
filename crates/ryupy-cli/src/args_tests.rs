@@ -86,3 +86,38 @@ fn legacy_commands_keep_execution_domain_and_global_options() {
     cli.take_command().unwrap();
     assert_eq!(cli.cpython_provider, Some(PathBuf::from("auto")));
 }
+
+#[test]
+fn cpython_delegation_flags_parse_and_conflict_with_native() {
+    let mut cli = Cli::try_parse_from([
+        "ryupy",
+        "probe.py",
+        "--cpython-entry",
+        "--cpython-module",
+        "main",
+        "--cpython-module",
+        "databases",
+        "--cpython-dynamic-module",
+        "aiosqlite",
+    ])
+    .unwrap();
+    assert!(cli.cpython_entry);
+    assert_eq!(cli.cpython_modules, ["main", "databases"]);
+    assert_eq!(cli.cpython_dynamic_modules, ["aiosqlite"]);
+    assert!(cli.take_command().is_ok());
+    assert_eq!(cli.cpython_provider, Some(PathBuf::from("auto")));
+
+    for bad in [
+        vec!["ryupy", "app.py", "--native", "--cpython-entry"],
+        vec!["ryupy", "app.py", "--native", "--cpython-module", "routes"],
+        vec![
+            "ryupy",
+            "app.py",
+            "--native",
+            "--cpython-dynamic-module",
+            "aiosqlite",
+        ],
+    ] {
+        assert!(Cli::try_parse_from(bad).is_err());
+    }
+}

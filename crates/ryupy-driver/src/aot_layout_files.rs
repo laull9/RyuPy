@@ -1,4 +1,5 @@
-//! 布局事务的有限树快照：记录普通文件/目录及权限，拒绝链接，不把目录名当作所有权。
+//! 布局事务的有限树快照：记录普通文件/目录元数据（大小、mtime、权限），
+//! 只精确忽略 `.DS_Store` / `Thumbs.db` 普通旁件，拒绝链接与非普通文件，不为普通文件计算摘要。
 use crate::manifest_files as files;
 use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
@@ -15,8 +16,29 @@ pub(super) struct Node {
     path: String,
     directory: bool,
     size: u64,
+    modified: Option<u128>,
+    mode: u32,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct LegacyNode {
+    path: String,
+    directory: bool,
+    size: u64,
+    #[allow(dead_code)]
     sha256: String,
     mode: u32,
+}
+pub(super) fn matches_legacy(current: &[Node], legacy: &[LegacyNode]) -> bool {
+    let mut legacy_sorted: Vec<&LegacyNode> = legacy.iter().collect();
+    legacy_sorted.sort_by(|a, b| a.path.cmp(&b.path));
+    current.len() == legacy_sorted.len()
+        && current.iter().zip(legacy_sorted).all(|(cur, old)| {
+            cur.path == old.path
+                && cur.directory == old.directory
+                && cur.size == old.size
+                && cur.mode == old.mode
+        })
 }
 fn mode(m: &std::fs::Metadata) -> u32 {
     #[cfg(unix)]
@@ -29,7 +51,17 @@ fn mode(m: &std::fs::Metadata) -> u32 {
         u32::from(m.permissions().readonly())
     }
 }
-/// 只排除根owner文件；其它新增文件（包括未完成owner临时文件）必须导致核验失败。
+fn modified_nanos(m: &std::fs::Metadata) -> Result<Option<u128>> {
+    if m.is_dir() {
+        return Ok(None);
+    }
+    Ok(m.modified()?
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .map(|duration| duration.as_nanos()))
+}
+/// 只排除根owner文件与精确 OS 普通旁件（`.DS_Store`、`Thumbs.db`）；
+/// 其它新增文件（包括锁文件、临时文件及任何链接）必须导致核验失败。
 pub(super) fn snapshot(root: &Path, owner: bool) -> Result<Vec<Node>> {
     ensure!(files::plain_metadata(root)?.is_dir(), "布局根不是普通目录");
     let mut result = Vec::new();
@@ -61,23 +93,23 @@ fn walk(
         }
         files::safe_relative(&relative)?;
         let meta = files::plain_metadata(&path)?;
+        if files::is_os_sidecar(&path, &meta) {
+            continue;
+        }
         let directory = meta.is_dir();
-        let digest = if directory {
-            None
-        } else {
+        if !directory {
             ensure!(meta.len() <= FILE_LIMIT, "布局单文件超过8GiB");
             *total = total.checked_add(meta.len()).context("布局总大小溢出")?;
             ensure!(
                 *total <= TREE_LIMIT,
                 "布局历史树超过64GiB；请保留诊断后人工选择新输出ROOT"
             );
-            Some(bounded_read(&path, meta.len())?)
-        };
+        }
         out.push(Node {
             path: relative,
             directory,
             size: if directory { 0 } else { meta.len() },
-            sha256: digest.unwrap_or_default(),
+            modified: modified_nanos(&meta)?,
             mode: mode(&meta),
         });
         if directory {
@@ -93,17 +125,39 @@ pub(super) fn exists(path: &Path) -> Result<bool> {
         Err(e) => Err(e.into()),
     }
 }
-/// 使用已核快照复制整个publish；copy保权限，复制后以及源树均重新核对。
+/// 使用已核快照复制整个publish；保留文件mtime与权限，复制后以及源树均重新核对元数据。
 pub(super) fn copy_tree(source: &Path, target: &Path) -> Result<()> {
     let before = snapshot(source, false)?;
     std::fs::create_dir(target)?;
+    let mut dirs = Vec::new();
     for node in &before {
         let from = source.join(&node.path);
         let to = target.join(&node.path);
         if node.directory {
+            let dir_meta = files::plain_metadata(&from)?;
+            ensure!(dir_meta.is_dir(), "复制源目录类型变化");
             std::fs::create_dir(&to)?;
+            dirs.push((to, dir_meta.permissions()));
         } else {
-            let mut input = std::fs::File::open(&from)?.take(node.size + 1);
+            let from_meta = files::plain_metadata(&from)?;
+            ensure!(
+                from_meta.is_file()
+                    && from_meta.len() == node.size
+                    && modified_nanos(&from_meta)? == node.modified,
+                "复制源元数据变化"
+            );
+            let file = std::fs::File::open(&from)?;
+            let handle = same_file::Handle::from_file(file)?;
+            ensure!(
+                handle == same_file::Handle::from_path(&from)?,
+                "复制源打开身份变化"
+            );
+            let opened = handle.as_file().metadata()?;
+            ensure!(
+                opened.len() == node.size && opened.modified()? == from_meta.modified()?,
+                "复制源打开元数据变化"
+            );
+            let mut input = handle.as_file().take(node.size + 1);
             let mut output = std::fs::OpenOptions::new()
                 .write(true)
                 .create_new(true)
@@ -113,8 +167,21 @@ pub(super) fn copy_tree(source: &Path, target: &Path) -> Result<()> {
                 "复制源大小变化"
             );
             output.sync_all()?;
+            output.set_modified(from_meta.modified()?)?;
+            drop(output);
+            let after_meta = files::plain_metadata(&from)?;
+            ensure!(
+                after_meta.len() == node.size
+                    && after_meta.modified()? == from_meta.modified()?
+                    && handle.as_file().metadata()?.modified()? == opened.modified()?
+                    && handle == same_file::Handle::from_path(&from)?,
+                "复制发布树期间源文件变化"
+            );
+            std::fs::set_permissions(&to, from_meta.permissions())?;
         }
-        std::fs::set_permissions(&to, std::fs::metadata(&from)?.permissions())?;
+    }
+    for (dir, permissions) in dirs.into_iter().rev() {
+        std::fs::set_permissions(&dir, permissions)?;
     }
     ensure!(
         snapshot(source, false)? == before && snapshot(target, false)? == before,
@@ -215,62 +282,38 @@ pub(super) fn relocate(root: &Path, old: &str, new: &str) -> Result<()> {
     Ok(())
 }
 
-/// 有限读取并在同活handle前后核身份/mtime；不把stat长度当作实际读取上限的替代。
-fn bounded_read(path: &Path, size: u64) -> Result<String> {
-    ensure!(size <= FILE_LIMIT, "布局单文件超过8GiB");
-    let before = files::plain_metadata(path)?;
-    ensure!(
-        before.is_file() && before.len() == size,
-        "文件类型/大小变化"
-    );
-    let file = std::fs::File::open(path)?;
-    let handle = same_file::Handle::from_file(file)?;
-    ensure!(
-        handle == same_file::Handle::from_path(path)?,
-        "文件打开身份变化"
-    );
-    let opened = handle.as_file().metadata()?;
-    ensure!(
-        opened.len() == size && opened.modified()? == before.modified()?,
-        "文件打开元数据变化"
-    );
-    let mut reader = handle.as_file().take(size + 1);
-    let mut buffer = [0u8; 65536];
-    let mut count = 0u64;
-    loop {
-        let n = reader.read(&mut buffer)?;
-        if n == 0 {
-            break;
-        }
-        count += n as u64;
-    }
-    let after = files::plain_metadata(path)?;
-    let closed = handle.as_file().metadata()?;
-    ensure!(
-        count == size
-            && after.len() == size
-            && closed.len() == size
-            && before.modified()? == after.modified()?
-            && opened.modified()? == closed.modified()?
-            && handle == same_file::Handle::from_path(path)?,
-        "文件读取期间变化"
-    );
-    Ok(String::new())
-}
+/// 单次有界读取布局 JSON，并在同活句柄前后核对身份、长度与 mtime。
 pub(super) fn read_json(path: &Path) -> Result<Vec<u8>> {
     let before = files::plain_metadata(path)?;
     ensure!(
         before.is_file() && before.len() <= JSON_LIMIT,
         "布局JSON超过32MiB或不是文件"
     );
-    bounded_read(path, before.len())?;
+    let file = std::fs::File::open(path)?;
+    let handle = same_file::Handle::from_file(file)?;
+    ensure!(
+        handle == same_file::Handle::from_path(path)?,
+        "布局JSON打开身份变化"
+    );
+    let opened = handle.as_file().metadata()?;
+    ensure!(
+        opened.len() == before.len() && opened.modified()? == before.modified()?,
+        "布局JSON打开元数据变化"
+    );
     let mut bytes = Vec::new();
-    std::fs::File::open(path)?
+    handle
+        .as_file()
         .take(JSON_LIMIT + 1)
         .read_to_end(&mut bytes)?;
+    let after = files::plain_metadata(path)?;
+    let closed = handle.as_file().metadata()?;
     ensure!(
         bytes.len() as u64 == before.len()
-            && before.modified()? == files::plain_metadata(path)?.modified()?,
+            && after.len() == before.len()
+            && closed.len() == before.len()
+            && before.modified()? == after.modified()?
+            && opened.modified()? == closed.modified()?
+            && handle == same_file::Handle::from_path(path)?,
         "布局JSON读取变化"
     );
     Ok(bytes)

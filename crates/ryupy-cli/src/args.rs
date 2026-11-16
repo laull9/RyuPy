@@ -58,6 +58,19 @@ pub(super) struct Cli {
     /// 强制使用纯 RyuPy 执行域
     #[arg(long, global = true, conflicts_with = "cpython_provider")]
     pub(super) native: bool,
+    /// 显式将本地整模块/包委派给随包 CPython 解释执行（可重复，禁止静默回退）
+    #[arg(long = "cpython-module", global = true, conflicts_with = "native")]
+    pub(super) cpython_modules: Vec<String>,
+    /// 显式将应用入口（__main__）委派给随包 CPython 解释执行（禁止静默回退）
+    #[arg(long = "cpython-entry", global = true, conflicts_with = "native")]
+    pub(super) cpython_entry: bool,
+    /// 显式补充动态导入的第三方 CPython 模块（如 aiosqlite、httpx；可重复）
+    #[arg(
+        long = "cpython-dynamic-module",
+        global = true,
+        conflicts_with = "native"
+    )]
+    pub(super) cpython_dynamic_modules: Vec<String>,
     /// 显示兼容参数与实验诊断选项
     #[arg(long, global = true)]
     pub(super) help_advanced: bool,

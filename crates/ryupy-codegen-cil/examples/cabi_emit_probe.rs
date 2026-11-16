@@ -188,7 +188,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let bytes = emit()?;
     let report = verify(&bytes)?;
     write_new(out, "RyupyCabiProbe.dll", &bytes)?;
-    write_new(out, "RyupyCabiProbe.runtimeconfig.json", br#"{"runtimeOptions":{"tfm":"net10.0","framework":{"name":"Microsoft.NETCore.App","version":"10.0.0"}}}"#)?;
+    write_new(out, "RyupyCabiProbe.runtimeconfig.json", br#"{"runtimeOptions":{"tfm":"net10.0","rollForward":"Major","framework":{"name":"Microsoft.NETCore.App","version":"10.0.0"}}}"#)?;
     // 最后才写readback完成标志，失败不伪报成功；目录清理由外层自有harness负责。
     write_new(out, "metadata.txt", report.as_bytes())?;
     println!("emitted-and-readback-verified");

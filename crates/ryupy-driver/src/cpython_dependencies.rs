@@ -39,6 +39,8 @@ pub(super) fn collect(
             entry,
             search_paths: &[],
             include_modules: &[],
+            delegated_modules: &[],
+            dynamic_modules: &[],
         },
         provided,
         stdlib,
@@ -63,6 +65,8 @@ pub(super) struct SourceInput<'a> {
     pub entry: &'a Path,
     pub search_paths: &'a [PathBuf],
     pub include_modules: &'a [String],
+    pub delegated_modules: &'a [String],
+    pub dynamic_modules: &'a [String],
 }
 
 pub(super) fn collect_for_version(
@@ -77,6 +81,10 @@ pub(super) fn collect_for_version(
     let environment = absolute(base, &declaration.environment)?
         .canonicalize()
         .context("依赖构建环境不存在，请准备固定CPython环境")?;
+    let mut dynamic_modules = declaration.dynamic_modules;
+    dynamic_modules.extend(source.dynamic_modules.iter().cloned());
+    dynamic_modules.sort();
+    dynamic_modules.dedup();
     collect_internal(CollectRequest {
         auto_tools: false,
         environment: &environment,
@@ -86,7 +94,7 @@ pub(super) fn collect_for_version(
         stdlib,
         version,
         requirements: declaration.requirements,
-        dynamic_modules: declaration.dynamic_modules,
+        dynamic_modules,
     })
 }
 
@@ -107,7 +115,7 @@ pub(super) fn collect_auto(
         stdlib,
         version,
         requirements: Vec::new(),
-        dynamic_modules: Vec::new(),
+        dynamic_modules: source.dynamic_modules.to_vec(),
     })
 }
 
@@ -140,6 +148,7 @@ fn collect_internal(req: CollectRequest<'_>) -> Result<Closure> {
         "stdlib": req.stdlib, "provided_modules": req.provided,
         "auto_tools": req.auto_tools, "search_paths": req.source.search_paths,
         "include_modules": req.source.include_modules,
+        "delegated_modules": req.source.delegated_modules,
     });
     // -I -S隔离应用导入；-X utf8固定JSON管道编码，避免Windows中文路径被ANSI解码破坏。
     let script = format!(

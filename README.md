@@ -14,6 +14,7 @@ ryupy main.py --onefile               # 显式选择同一形态
 ryupy main.py --mode standalone       # 独立运行目录
 ryupy main.py --native                # 纯RyuPy执行域
 ryupy main.py -o release              # 指定输出根，默认./dist
+ryupy main.py --cpython-entry --cpython-module web  # 显式委派入口及本地 web 包
 ```
 
 普通多文件项目的静态导入自动进入编译图。工具依次探测项目venv、激活环境和PATH中的Python，
@@ -25,9 +26,14 @@ ryupy main.py -o release              # 指定输出根，默认./dist
 启动时在独占临时目录解包，正常退出及已覆盖的中断后清理。目录发布位于`dist/main.dist`。
 原生发布会自动检测.NET SDK 10及以上和Python环境，构建机还需平台C工具链、curl及支持
 Zstandard的tar或zstd；运行生成的AOT应用无需安装.NET、Python或构建工具。
-托管运行需要.NET Runtime 10。CLI的帮助、版本和许可查询无需.NET或Python。
+托管运行需要.NET Runtime 10及以上，生成配置允许向上使用已安装的正式主版本。CLI的帮助、版本和许可查询无需.NET或Python。
 
 ## 当前验收
+
+2026-11-16：显式整模块/入口委派、编译类继承 CPython 类型、Tk 资源与发布旁件处理已接入。
+macOS arm64 的真实 FastAPI 和原业务编译 SanBudget 均通过 JIT、standalone、onefile
+删除输入后的搬迁行为验收，见[通用项目验收](tests/general_projects/README.md)。
+原生 async 状态机与其它平台本轮验收继续单独登记。
 
 2026-11-14：macOS arm64已经用仓库外的唯一CLI文件、全新私有缓存构建普通五文件项目；
 四路原生JIT冷缓存并发、深层第三方依赖与资源、删除CLI/缓存/项目全部输入后的唯一AOT搬迁，
@@ -41,7 +47,7 @@ Zstandard的tar或zstd；运行生成的AOT应用无需安装.NET、Python或构
 
 ## 从源码构建
 
-需要Rust stable（2024 edition，MSRV 1.85）和.NET SDK 10。Cargo在隔离输出目录编译C#组件
+需要Rust stable（2024 edition，MSRV 1.85）和.NET SDK 10及以上。Cargo在隔离输出目录编译C#组件
 并嵌入CLI，源码仓库保留源码、手写测试输入、配置和人工文档。
 
 ```sh

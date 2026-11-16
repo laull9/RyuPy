@@ -41,12 +41,12 @@ internal static class PyBaseObjectMethods
         };
         public object? Invoke(object?[] args, string[] names, object?[] values)
         {
-            try { return InvokeCore(args, names); }
+            try { return InvokeCore(args, names, values); }
             catch (PyBaseException error) { throw (PyBaseException)PyErrors.PrepareRaise(error); }
         }
-        private object? InvokeCore(object?[] args, string[] names)
+        private object? InvokeCore(object?[] args, string[] names, object?[] values)
         {
-            if (name == "__new__") return New(args, names);
+            if (name == "__new__") return New(args, names, values);
             int offset = receiver is null ? 1 : 0;
             if (args.Length < offset)
                 throw new PyTypeError($"descriptor '{name}' of 'object' object needs an argument");
@@ -55,6 +55,11 @@ internal static class PyBaseObjectMethods
             int extra = args.Length - offset;
             if (name == "__init__")
             {
+                if (self is PyInstance { ForeignInstance: { } foreignInit })
+                {
+                    PyForeignClassBridge.Require().InitializeFromBaseObject(foreignInit, args[offset..], names, values);
+                    return PyNone.Instance;
+                }
                 // str沿真正object根init身份；仅其实际布局走专用参数规则，普通对象原路不变。
                 if (PyStringLayout.TryGet(self, out _))
                     return PyStringLayout.Init(self, offset == 0 ? args : args[1..], names, []);
@@ -72,7 +77,9 @@ internal static class PyBaseObjectMethods
                     throw new PyTypeError($"object.__setattr__() takes exactly 2 arguments ({extra + 1} given with self)");
                 if (args[offset] is not string attrName)
                     throw new PyTypeError("attribute name must be string");
-                if (self is PyInstance instance)
+                if (self is PyInstance { ForeignInstance: { } foreignSet })
+                    PyForeignClassBridge.Require().SetAttrFromBaseObject(foreignSet, attrName, args[offset + 1]);
+                else if (self is PyInstance instance)
                     PyObject.InitializeDataclassField(instance, attrName, args[offset + 1]);
                 else
                     PyObject.SetAttr(self, attrName, args[offset + 1]);
@@ -103,12 +110,14 @@ internal static class PyBaseObjectMethods
                 throw new PyNotImplementedError("explicit object repr/str for derived or other builtins is not supported yet");
             return bare.PythonRepr();
         }
-        private static object New(object?[] args, string[] names)
+        private static object? New(object?[] args, string[] names, object?[] values)
         {
             if (args.Length == 0) throw new PyTypeError("object.__new__(): not enough arguments");
             object? cls = args[0];
             if (cls is PyClass userClass)
-                return userClass.AllocateFromObject(args.Length - 1, names.Length);
+                return userClass.AllocateFromObject(args.Length - 1, names.Length, args, names, values);
+            if (cls is IPyForeignObject foreignClass && PyForeignClassBridge.IsType(foreignClass))
+                return PyForeignClassBridge.Require().AllocateFromBaseObject(foreignClass, args[1..], names, values);
             if (!ReferenceEquals(cls, PyBaseObject.Type))
             {
                 if (cls is PyType or PyNativeType)

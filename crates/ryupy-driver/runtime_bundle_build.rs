@@ -37,6 +37,8 @@ pub(crate) fn build() {
     let output = PathBuf::from(std::env::var_os("OUT_DIR").unwrap());
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=src/runtime_assets.rs");
+    // SDK 共享属性影响内嵌托管工具的启动策略，变更时也要重建完整载荷。
+    println!("cargo:rerun-if-changed=../../runtime/Directory.Build.props");
     println!("cargo:rerun-if-env-changed=DOTNET");
     for project in ["RyuPy.Runtime", "RyuPy.CPython"] {
         watch_sources(&workspace.join("runtime").join(project)).expect("读取C#运行时源码失败");

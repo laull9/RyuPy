@@ -65,6 +65,9 @@ public static partial class PyObject
         PyModule { ForeignObject: { } foreign } => foreign.ForeignType,
         PyModule => PyType.Get("module"),
         PyClass cls when cls.HasEnumMetadata => PyEnum.MetaType,
+        PyClass cls when cls.ForeignClass is not null =>
+            PyForeignClassBridge.IsPlainType(cls.ForeignClass.ForeignType)
+                ? PyType.Get("type") : cls.ForeignClass.ForeignType,
         PyClass => PyType.Get("type"),
         PyBaseException exception when exception.PythonClass is not null => exception.PythonClass,
         PyBoundMethod => PyType.Get("method"),
@@ -324,6 +327,12 @@ public static partial class PyObject
             result = PyOps.CallValue(httpError.Attribute(name), args, [], []);
             return true;
         }
+        if (self is PyInstance { ForeignInstance: PyNativeObject foreignSelf })
+        {
+            if (!TryGetNativeSpecial(foreignSelf, name, out object? method)) { result = null; return false; }
+            result = PyOps.CallValue(method, args, [], []);
+            return true;
+        }
         if (self is PyInstance { Class.HasDictC3Layout: true } mixed)
         {
             if (mixed.Class.TryResolveDictC3(name, out var resolved))
@@ -368,6 +377,7 @@ public static partial class PyObject
     {
         PyNamedTupleInstance instance => instance.Class.IsSubclassOf(cls),
         PyInstance instance => instance.Class.IsSubclassOf(cls),
+        IPyForeignObject foreign when cls.ForeignClass is { } fc => fc.Accepts(foreign),
         PyBaseException exception => exception.PythonClass is not null
             ? exception.PythonClass.IsSubclassOf(cls)
             : string.Equals(exception.PyTypeName, cls.Name, StringComparison.Ordinal),
@@ -380,6 +390,7 @@ public static partial class PyObject
     private static object? GetInstanceAttr(PyInstance instance, string name)
     {
         instance.Class.RequireLexicalFactoryReady();
+        if (instance.ForeignInstance is { } foreignInstance) return GetAttr(foreignInstance, name);
         if (PyTypingGenericMetadata.InstanceAttribute(instance, name, out object? genericValue)) return genericValue;
         if (PyTypingIo.TryInstanceMetadata(instance, name, out object? ioValue)) return ioValue;
         if (PyStringLayout.TryInstanceMetadata(instance, name, out object? stringValue)) return stringValue;
@@ -453,6 +464,7 @@ public static partial class PyObject
     private static object? GetClassAttr(PyClass cls, string name)
     {
         cls.RequireLexicalFactoryReady();
+        if (cls.TryForeignGetClassAttr(name, out object? foreignValue)) return foreignValue;
         if (PyTypingGenericMetadata.ClassAttribute(cls, name, out object? genericValue)) return genericValue;
         if (PyTypingIo.TryClassMetadata(cls, name, out object? ioValue)) return ioValue;
         if (PyNamedTupleLayout.TryClassMetadata(cls, name, out object? tupleValue)) return tupleValue;

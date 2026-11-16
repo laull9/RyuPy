@@ -14,7 +14,7 @@ pub(super) fn write(root: &Path, executable: &Path, output: &Path) -> Result<()>
         .context("onefile 入口必须位于 dist 内")?;
     let entry = portable(entry)?;
     let mut nodes = Vec::new();
-    collect(root, root, &mut nodes, &mut HashSet::new())?;
+    collect(root, root, &entry, &mut nodes, &mut HashSet::new())?;
     nodes.sort_by(|a, b| a.0.cmp(&b.0));
     ensure!(
         nodes
@@ -68,6 +68,7 @@ pub(super) fn write(root: &Path, executable: &Path, output: &Path) -> Result<()>
 fn collect(
     root: &Path,
     dir: &Path,
+    entry: &str,
     nodes: &mut Vec<(String, PathBuf, Metadata)>,
     seen: &mut HashSet<String>,
 ) -> Result<()> {
@@ -80,6 +81,9 @@ fn collect(
             path.display()
         );
         let name = portable(path.strip_prefix(root)?)?;
+        if name != entry && crate::manifest_files::is_os_sidecar(&path, &meta) {
+            continue;
+        }
         // 单文件仅同宿主发布；Linux 的官方 terminfo 含大小写不同的真实条目。
         // Windows/macOS 保留不区分大小写的冲突保护，Linux 则按其路径语义完整收齐。
         let identity = if cfg!(target_os = "linux") {
@@ -91,7 +95,7 @@ fn collect(
         ensure!(nodes.len() < 100_000, "onefile 文件数超过限制");
         nodes.push((name, path.clone(), meta));
         if nodes.last().is_some_and(|n| n.2.is_dir()) {
-            collect(root, &path, nodes, seen)?;
+            collect(root, &path, entry, nodes, seen)?;
         }
     }
     Ok(())
@@ -197,5 +201,43 @@ mod tests {
             portable(Path::new("中文 空格/a.txt")).unwrap(),
             "中文 空格/a.txt"
         );
+    }
+    #[test]
+    fn collects_ignores_exact_os_sidecars_only_and_rejects_symlinks() -> Result<()> {
+        let root = super::super::work_root()?;
+        let result = (|| -> Result<()> {
+            let payload = root.join("dist");
+            std::fs::create_dir(&payload)?;
+            std::fs::write(payload.join("app"), b"exe")?;
+            std::fs::write(payload.join(".DS_Store"), b"finder")?;
+            std::fs::write(payload.join("Thumbs.db"), b"explorer")?;
+            std::fs::write(payload.join("keep.tmp"), b"tmp")?;
+            let mut nodes = Vec::new();
+            collect(&payload, &payload, "app", &mut nodes, &mut HashSet::new())?;
+            let names: Vec<_> = nodes.iter().map(|n| n.0.as_str()).collect();
+            assert!(names.contains(&"app"));
+            assert!(names.contains(&"keep.tmp"));
+            assert!(!names.contains(&".DS_Store"));
+            assert!(!names.contains(&"Thumbs.db"));
+            #[cfg(unix)]
+            {
+                let sub = payload.join("sub");
+                std::fs::create_dir(&sub)?;
+                std::os::unix::fs::symlink(payload.join("app"), sub.join(".DS_Store"))?;
+                assert!(
+                    collect(
+                        &payload,
+                        &payload,
+                        "app",
+                        &mut Vec::new(),
+                        &mut HashSet::new()
+                    )
+                    .is_err()
+                );
+            }
+            Ok(())
+        })();
+        std::fs::remove_dir_all(root)?;
+        result
     }
 }

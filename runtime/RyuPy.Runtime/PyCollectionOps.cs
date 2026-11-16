@@ -55,6 +55,7 @@ public static partial class PyOps
     public static void SetItem(object? obj, object? key, object? value)
     {
         if (obj is IPyForeignObject foreign) { foreign.WriteItem(key, value, false); return; }
+        if (obj is PyInstance { ForeignInstance: { } foreignDerived }) { foreignDerived.WriteItem(key, value, false); return; }
         switch (obj)
         {
             case PyList list:
@@ -92,6 +93,12 @@ public static partial class PyOps
     {
         switch (obj)
         {
+            case IPyForeignObject foreign:
+                foreign.WriteItem(key, null, true);
+                return;
+            case PyInstance { ForeignInstance: { } foreignDerived }:
+                foreignDerived.WriteItem(key, null, true);
+                return;
             case PyList list:
                 list.DelItem(key!);
                 return;
@@ -126,6 +133,8 @@ public static partial class PyOps
     public static bool Contains(object? container, object? value) => container switch
     {
         PyClass cls when PyEnum.IsEnumClass(cls) => PyEnum.Contains(cls, value),
+        IPyForeignObject foreign => PyForeignClassBridge.Contains(foreign, value),
+        PyInstance { ForeignInstance: { } foreignDerived } => PyForeignClassBridge.Contains(foreignDerived, value),
         PyList list => list.Contains(value),
         PyTuple tuple => tuple.Contains(value),
         PyDict dict => dict.Contains(value),
@@ -153,6 +162,7 @@ public static partial class PyOps
     public static long Len(object? value) => value switch
     {
         IPyForeignObject foreign => foreign.Length(),
+        PyInstance { ForeignInstance: { } foreignDerived } => foreignDerived.Length(),
         PyClass cls when PyEnum.IsEnumClass(cls) => PyEnum.Length(cls),
         PyList list => list.Count,
         PyTuple tuple => tuple.Length,
@@ -202,6 +212,8 @@ public static partial class PyOps
     public static object?[] ToSequence(object? value) => value switch
     {
         object?[] array => array,
+        IPyForeignObject foreign => DrainIterator(foreign.Iterate()),
+        PyInstance { ForeignInstance: { } foreignDerived } => DrainIterator(foreignDerived.Iterate()),
         PyList list => [.. list.Items],
         PyTuple tuple => tuple.Items,
         PyDict dict => KeysOf(dict),

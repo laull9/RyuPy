@@ -45,6 +45,11 @@ public static partial class PyModuleInstances
     private static void ValidateOrdinaryBase(object? value)
     {
         if (ReferenceEquals(value, PyBaseObject.Type)) return;
+        if (value is IPyForeignObject foreign)
+        {
+            if (!PyForeignClassBridge.IsType(foreign)) throw UnsupportedBase();
+            return;
+        }
         if (value is not PyClass cls) throw UnsupportedBase();
         // 复用已有冷路对完整继承链、循环、异常/native/Enum/dataclass的验证。
         PyRuntimeBases.Validate(cls);

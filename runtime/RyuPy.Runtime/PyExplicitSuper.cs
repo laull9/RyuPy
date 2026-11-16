@@ -13,6 +13,14 @@ internal static class PyExplicitSuper
             throw new PyTypeError($"super() expected at most 2 arguments, got {args.Length}");
         if (args.Length == 0)
             throw new PyNotImplementedError("zero-argument super requires an explicit lexical call frame");
+        if (args[0] is IPyForeignObject foreignStart)
+        {
+            if (!PyForeignClassBridge.IsType(foreignStart))
+                throw new PyTypeError($"super() argument 1 must be a type, not {PyRepr.TypeName(args[0])}");
+            if (args.Length == 1 || args[1] is PyNone)
+                throw Unsupported("unbound receivers");
+            return PyForeignClassBridge.Require().CreateSuper(foreignStart, args[1])!;
+        }
         if (args[0] is not PyClass start)
         {
             if (args[0] is PyType or PyNativeType)
@@ -24,10 +32,12 @@ internal static class PyExplicitSuper
         if (args.Length == 1 || args[1] is PyNone)
             throw Unsupported("unbound receivers");
         object? receiver = args[1];
-        if (receiver is PyClass { HasMultipleInheritance: true } receiverClass)
+        if (receiver is PyClass receiverClass && (receiverClass.HasMultipleInheritance || receiverClass.HasForeignHierarchy))
         {
             receiverClass.RequireLexicalFactoryReady();
-            if (!ValidateChain(receiverClass, start, dictReceiver)) throw Unrelated();
+            bool ok = ValidateChain(receiverClass, start, dictReceiver)
+                || (receiverClass.ForeignMiBases is not null && receiverClass.IsSubclassOf(start));
+            if (!ok) throw Unrelated();
             return new PySuper(start, receiverClass);
         }
         if (receiver is PyClass or PyType or PyNativeType or PyNativeObject or PyNamedTupleInstance or PyBaseException)
@@ -35,7 +45,9 @@ internal static class PyExplicitSuper
         if (receiver is not PyInstance instance) throw Unrelated();
         instance.Class.RequireLexicalFactoryReady();
         // 检查完整链，不能找到start就跳过后面的特殊布局；不调用用户hash/eq/getter。
-        if (!ValidateChain(instance.Class, start, dictReceiver))
+        bool instanceOk = ValidateChain(instance.Class, start, dictReceiver)
+            || (instance.Class.ForeignMiBases is not null && instance.Class.IsSubclassOf(start));
+        if (!instanceOk)
         {
             if (instance.Class.TryLookup("__class__", out _, out _)
                 || instance.Class.TryLookup("__getattribute__", out _, out _)

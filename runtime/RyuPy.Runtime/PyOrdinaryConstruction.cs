@@ -116,9 +116,14 @@ public sealed partial class PyClass
             throw new PyTypeError($"__init__() should return None, not '{PyRepr.TypeName(result)}'");
     }
 
-    internal PyInstance AllocateFromObject(int extra, int keywords)
+    internal object? AllocateFromObject(int extra, int keywords, object?[]? fullArgs = null, string[]? kwNames = null, object?[]? kwValues = null)
     {
         PyAbc.RequireConcrete(this);
+        if (HasForeignHierarchy)
+        {
+            object?[] extraArgs = fullArgs is { Length: > 1 } ? fullArgs[1..] : [];
+            return ForeignAllocateFromObject(extraArgs, kwNames ?? [], kwValues ?? []);
+        }
         if (IsTypingGenericRoot)
         {
             if (extra != 0 || keywords != 0)

@@ -12,6 +12,12 @@ public static class PyDir
         if (names.Length != 0) throw new PyTypeError("dir() takes no keyword arguments");
         if (args.Length == 0) throw new PyNotImplementedError("dir() without an object is not supported");
         if (args.Length != 1) throw new PyTypeError($"dir expected at most 1 argument, got {args.Length}");
+        if (args[0] is PyInstance { ForeignInstance: { } foreignInstance })
+            return Sort(PyForeignClassBridge.Dir(foreignInstance));
+        if (args[0] is PyClass { ForeignClass: { } foreignClass })
+            return Sort(PyForeignClassBridge.Dir(foreignClass));
+        if (args[0] is IPyForeignObject foreign)
+            return Sort(PyForeignClassBridge.Dir(foreign));
         if (args[0] is PyInstance instance)
         {
             // 特殊方法从类型查找，不能用实例上同名属性替代，也不为枚举读取property。

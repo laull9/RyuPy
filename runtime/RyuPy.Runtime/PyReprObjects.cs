@@ -25,6 +25,7 @@ public static partial class PyRepr
 
     private static object StrInstanceObject(PyInstance instance)
     {
+        if (instance.ForeignInstance is PyNativeObject foreign) return foreign.PythonStr();
         if (PyEnum.IsMember(instance)) return PyEnum.MemberRepr(instance, false);
         if (PyObject.TryMethod(instance, "__str__", [], out object? result))
             return RequireStringObject(result, "__str__");
@@ -38,6 +39,7 @@ public static partial class PyRepr
 
     private static object ReprInstanceObject(PyInstance instance)
     {
+        if (instance.ForeignInstance is PyNativeObject foreign) return foreign.PythonRepr();
         if (PyEnum.IsMember(instance)) return PyEnum.MemberRepr(instance, true);
         if (PyObject.TryMethod(instance, "__repr__", [], out object? result))
             return RequireStringObject(result, "__repr__");

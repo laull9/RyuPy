@@ -61,6 +61,7 @@ public static partial class PyOps
             return PreparedLength(obj!, name, args, kwNames, kwValues);
         }
         if (obj is string translateText && name == "translate") return PyTextTranslate.Invoke(translateText, args, kwNames);
+        if (obj is string titleText && name == "title") return PyTextProviderMethods.Title(titleText, args, kwNames, kwValues);
         if (obj is string splitText && name == "split") return PyTextSplit.Invoke(splitText, args, kwNames, kwValues);
         if (obj is string spaceText && name is "isspace" or "isalnum") return PyUnicodeWhitespace.Invoke(spaceText, args, kwNames, name);
         // 搜索族在通用keyword拒绝前进入同一绑定器；派生实例仍走上面的真实属性路径。

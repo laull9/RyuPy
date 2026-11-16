@@ -7,6 +7,11 @@ fn serialized_module_locations_keep_diagnostic_and_runtime_values_separate() {
     for (location, expected_kind, value) in [
         (ModuleLocation::LegacyDiagnostic, 0, ""),
         (
+            ModuleLocation::BundleRelative("python/ryupy_compiled/pkg/unit.py".into()),
+            3,
+            "python/ryupy_compiled/pkg/unit.py",
+        ),
+        (
             ModuleLocation::SourceAbsolute("/private/source/pkg/unit.py".into()),
             1,
             "/private/source/pkg/unit.py",

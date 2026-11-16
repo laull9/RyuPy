@@ -52,6 +52,7 @@ public static partial class PyOps
         "encode" => new PyBytes(PyEncoding.Encode(text, args.Length > 0 ? AsText(args[0]) : "utf-8")),
         "upper" => text.ToUpperInvariant(),
         "lower" => text.ToLowerInvariant(),
+        "title" => PyTextProviderMethods.Title(text, args, [], []),
         "strip" => StripText(text, args, left: true, right: true),
         "lstrip" => StripText(text, args, left: true, right: false),
         "rstrip" => StripText(text, args, left: false, right: true),

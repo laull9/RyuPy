@@ -9,6 +9,7 @@ public static partial class PyOps
     public static object? GetItem(object? obj, object? key) => obj switch
     {
         IPyForeignObject foreign => foreign.Item(key),
+        PyInstance { ForeignInstance: { } foreignDerived } => foreignDerived.Item(key),
         PyClass { IsTypingGenericRoot: true } => PyTypingGeneric.Subscribe(key),
         PyClass { IsTypingGenericFamily: true } => throw PyTypingGeneric.Unsupported("user Generic class subscription is not supported yet"),
         PyClass cls when PyEnum.IsEnumClass(cls) => PyEnum.GetItem(cls, key),

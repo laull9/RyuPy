@@ -168,9 +168,20 @@ fn verify_target(target: &Path, owner: &Owner) -> Result<()> {
             manifest_files::plain_metadata(target)?.is_dir(),
             "单文件发布目录不是普通目录"
         );
-        let entries: Vec<_> = std::fs::read_dir(target)?.collect::<std::io::Result<_>>()?;
+        let mut remaining = Vec::new();
+        for entry in std::fs::read_dir(target)? {
+            let entry = entry?;
+            let path = entry.path();
+            let meta = manifest_files::plain_metadata(&path)?;
+            if entry.file_name() != owner.name.as_str()
+                && manifest_files::is_os_sidecar(&path, &meta)
+            {
+                continue;
+            }
+            remaining.push(entry.file_name());
+        }
         ensure!(
-            entries.len() == 1 && entries[0].file_name() == owner.name.as_str(),
+            remaining.len() == 1 && remaining[0] == owner.name.as_str(),
             "单文件目录被修改或加入其他文件"
         );
         ensure!(
@@ -209,4 +220,50 @@ fn file_state(path: &Path) -> Result<FileState> {
             .as_nanos(),
         mode,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn verify_target_ignores_exact_os_sidecars_and_rejects_foreign_or_symlinks() {
+        let root = crate::test_temp::Root::new("onefile-sidecar");
+        let target = root.join("app.onefile");
+        std::fs::create_dir(&target).unwrap();
+        let exe = target.join("app");
+        std::fs::write(&exe, b"bin").unwrap();
+        let owner = Owner {
+            schema: 1,
+            source: root.join("app.py"),
+            name: "app".into(),
+            file: Some(file_state(&exe).unwrap()),
+        };
+
+        std::fs::write(target.join(".DS_Store"), b"finder").unwrap();
+        std::fs::write(target.join("Thumbs.db"), b"explorer").unwrap();
+        verify_target(&target, &owner).unwrap();
+
+        std::fs::write(target.join("extra.tmp"), b"tmp").unwrap();
+        assert!(verify_target(&target, &owner).is_err());
+        std::fs::remove_file(target.join("extra.tmp")).unwrap();
+
+        std::fs::create_dir(target.join("Thumbs.db.dir")).unwrap();
+        assert!(verify_target(&target, &owner).is_err());
+        std::fs::remove_dir(target.join("Thumbs.db.dir")).unwrap();
+        std::fs::remove_file(target.join("Thumbs.db")).unwrap();
+        std::fs::create_dir(target.join("Thumbs.db")).unwrap();
+        assert!(verify_target(&target, &owner).is_err());
+        std::fs::remove_dir(target.join("Thumbs.db")).unwrap();
+
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(&exe, target.join("link_ds")).unwrap();
+            assert!(verify_target(&target, &owner).is_err());
+            std::fs::remove_file(target.join("link_ds")).unwrap();
+            std::fs::remove_file(target.join(".DS_Store")).unwrap();
+            std::os::unix::fs::symlink(&exe, target.join(".DS_Store")).unwrap();
+            assert!(verify_target(&target, &owner).is_err());
+        }
+    }
 }

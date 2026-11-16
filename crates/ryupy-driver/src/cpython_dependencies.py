@@ -92,7 +92,8 @@ def main(request):
                 break
 
     def scan(path, root):
-        path = path.absolute()
+        # macOS 的 /var 与 /private/var 指向同一目录，边界比较须采用同一真实路径。
+        path = path.resolve()
         identity = (path.resolve(), root)
         if identity in seen:
             return
@@ -141,6 +142,19 @@ def main(request):
         if local_root is None:
             fail('显式包含的本地模块未找到源码：' + name)
         follow_local(local_root, local_root.joinpath(*name.split('.')))
+    for name in request.get('delegated_modules', []):
+        if not all(part.isidentifier() for part in name.split('.')):
+            fail('显式委派本地模块名非法：' + name)
+        top = name.split('.')[0]
+        local_root = next((root for root in roots if (root / top).is_dir() or (root / top).with_suffix('.py').is_file()), None)
+        if local_root is None:
+            fail('显式委派的本地模块未找到源码：' + name)
+        target = local_root.joinpath(*name.split('.'))
+        follow_local(local_root, target)
+        if target.is_dir() and (target / '__init__.py').is_file():
+            for py_file in sorted(target.rglob('*.py')):
+                if '__pycache__' not in py_file.parts:
+                    scan(py_file, local_root)
     for module in sorted(modules):
         if not all(part.isidentifier() for part in module.split('.')):
             fail(f'动态导入模块名非法：{module}')
@@ -216,11 +230,26 @@ def main(request):
         if not all(metadata_root + '/' + required in recorded for required in ('METADATA', 'WHEEL', 'RECORD')):
             fail(f'{name} 的RECORD未收齐METADATA/WHEEL/RECORD')
         collected = []
+        build_headers = []
         for file in sorted(files, key=str):
             logical = str(file)
             parts = Path(logical).parts
             # wheel的命令行脚本不属于嵌入解释器载荷；其余越界记录必须拒绝。
             if logical.startswith(('../../../bin/', '../../bin/', '../../Scripts/')):
+                continue
+            # wheel 的 headers 安装方案位于环境 include 内；它们仅供扩展构建，
+            # 不进入运行期 site-packages。只接受精确方案和真实存在的 C/C++ 头文件。
+            header_prefix = '../' * len(site.relative_to(environment).parts) + 'include/'
+            if logical.lower().startswith(header_prefix.lower()):
+                tail = Path(logical[len(header_prefix):])
+                include = (environment / 'include').resolve()
+                header = (site / logical).resolve()
+                if (not tail.parts or '..' in tail.parts or '\\' in logical
+                        or tail.suffix.lower() not in ('.h', '.hpp', '.hh', '.hxx')
+                        or not include.is_relative_to(environment)
+                        or not header.is_relative_to(include) or not header.is_file()):
+                    fail(f'{name} 的RECORD头文件路径越界或缺失：{logical}')
+                build_headers.append(logical)
                 continue
             if '..' in parts or Path(logical).is_absolute() or '\\' in logical:
                 fail(f'{name} 的RECORD路径越界：{logical}')
@@ -250,7 +279,7 @@ def main(request):
                                    'wheel_tags': sorted(map(str, tags)),
                                    'installer': dist.read_text('INSTALLER') or '未登记安装器'},
                         'licenses': licenses, 'license_expression': license_text,
-                        'files': collected})
+                        'files': collected, 'build_headers': build_headers})
     return {'modules': sorted(selected_modules),
             'payloads': [{'source': source, 'destination': destination}
                          for destination, source in sorted(payloads.items())],

@@ -10,13 +10,15 @@ namespace RyuPy.CPython;
 public sealed record HostStatistics(string State, long BridgeCalls, int ActiveLeases, int Handles, int ManagedRoots, int PendingReleases, long LateReleases);
 
 /// <summary>固定CPython3.12.13、单次初始化的随包宿主。</summary>
-public sealed partial class CPythonHost : IDisposable, IPyModuleProvider
+public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyForeignClassBridge
 {
     private static int processStarted;
     internal static CPythonHost? Instance;
     private readonly object gate = new();
     private readonly int ownerThread = Environment.CurrentManagedThreadId;
     private readonly HashSet<string> modules;
+    private readonly string? entryScript;
+    private bool entryStarted;
     private readonly Dictionary<nint, WeakReference<object>> objects = new();
     private readonly Dictionary<string, PyModule> imported = new(StringComparer.Ordinal);
     internal readonly ConcurrentDictionary<nint, object> Roots = new();
@@ -31,6 +33,7 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider
     // 原生库保留到进程退出，扩展仍可能持有函数地址。
     private nint pythonLibrary, shimLibrary;
     private string pythonPath = "", shimPath = "";
+    private TclTkEnvironment? tclTkEnvironment;
     [DllImport("libSystem.B.dylib", EntryPoint = "dlopen")] private static extern nint MacLoad([MarshalAs(UnmanagedType.LPUTF8Str)] string path, int flags);
     [DllImport("libdl.so.2", EntryPoint = "dlopen")] private static extern nint LinuxLoad([MarshalAs(UnmanagedType.LPUTF8Str)] string path, int flags);
     [DllImport("libc.so.6", EntryPoint = "dlopen")] private static extern nint LinuxLibcLoad([MarshalAs(UnmanagedType.LPUTF8Str)] string path, int flags);
@@ -64,7 +67,9 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider
 
     private CPythonHost(HostConfiguration configuration)
     {
-        modules = new(configuration.Modules, StringComparer.Ordinal); synchronizeContainers = configuration.SynchronizeContainers;
+        modules = new(configuration.Modules, StringComparer.Ordinal);
+        entryScript = configuration.EntryScript;
+        synchronizeContainers = configuration.SynchronizeContainers;
     }
 
     internal static unsafe CPythonHost Start(string path, string[] argv)
@@ -97,6 +102,7 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider
             else if (configuration.ExpectedVersion != "3.12.13")
                 throw new InvalidDataException("多版本CPython shim缺少构建版本导出");
             NativeLibrary.SetDllImportResolver(typeof(Native).Assembly, (name, _, _) => name == Native.Library ? host.shimLibrary : 0);
+            host.tclTkEnvironment = TclTkEnvironment.Configure(configuration.Home);
             nint[] paths = configuration.SearchPaths.Select(Marshal.StringToCoTaskMemUTF8).ToArray();
             nint[] args = argv.Select(Marshal.StringToCoTaskMemUTF8).ToArray();
             try
@@ -113,6 +119,7 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider
         catch (Exception error)
         {
             if (host.state == 1) { try { host.Dispose(); } catch { } }
+            host.tclTkEnvironment?.TryRestore();
             host.state = 3; Instance = null;
             throw new InvalidOperationException($"CPython启动失败 [stage=load/init config={path} library={configuration.Library} shim={configuration.Shim}]：{error.Message}", error);
         }
@@ -196,6 +203,7 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider
         {
             using Lease lease = Enter();
             try { CaptureModulePaths(); } catch (Exception error) { observationError = error; }
+            ReleaseClassBridgeResources();
             Drain(); lock (gate) liveHandlesAtShutdown = handles.Count;
             // 活代理可能被atexit回调再次使用，保留其owned引用与身份缓存到Finalize结束。
         }
@@ -205,8 +213,9 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider
         try { result = Native.rp_stop(); }
         finally
         {
-            // Finalize期间的C代理析构/atexit仍可访问Roots；完成后才清除托管根。
+            // Finalize期间的C代理析构/atexit仍可访问Roots；完成后才清除托管根并恢复进程Tcl/Tk环境。
             Roots.Clear(); imported.Clear(); objects.Clear(); transfers.Clear(); transferIndex.Clear(); lock (gate) { state = 3; handles.Clear(); } Instance = null;
+            tclTkEnvironment?.TryRestore();
         }
         WriteReport();
         if (observationError is not null) throw new InvalidOperationException("CPython关闭观测失败", observationError);
@@ -222,7 +231,10 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider
         try { return FromOwned(Native.rp_op(2, system, s: name)); } finally { Native.rp_decref(system); }
     });
     /// <inheritdoc />
-    public bool Owns(string name) => modules.Contains(name) || modules.Any(m => name.StartsWith(m + ".", StringComparison.Ordinal));
+    public bool Owns(string name) =>
+        (entryScript is not null && name == "__main__")
+        || modules.Contains(name)
+        || modules.Any(m => name.StartsWith(m + ".", StringComparison.Ordinal));
     /// <summary>确定释放一个opaque对象；调用者应保证后续不再使用其任何别名。</summary>
     public void ReleaseObject(object value)
     {
@@ -234,6 +246,10 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider
     private void ReleaseCore(object value)
     {
         if (value is PythonObject foreign) { if (!foreign.IsDisposed) objects.Remove(foreign.Pointer); foreign.Dispose(); }
+        else if (value is PyInstance instance && PyForeignClassBridge.GetForeignInstance(instance) is PythonObject foreignInstance)
+        { if (!foreignInstance.IsDisposed) objects.Remove(foreignInstance.Pointer); foreignInstance.Dispose(); }
+        else if (value is PyClass cls && PyForeignClassBridge.GetForeignClass(cls) is PythonObject foreignClass)
+        { if (!foreignClass.IsDisposed) objects.Remove(foreignClass.Pointer); foreignClass.Dispose(); }
         else if (value is PyBaseException { ForeignObject: PythonObject origin })
         { if (!origin.IsDisposed) objects.Remove(origin.Pointer); origin.Dispose(); }
         else if (reverse.TryGetValue(value, out ManagedReference? reference))

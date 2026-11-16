@@ -219,7 +219,7 @@ impl PlatformKind {
     pub(crate) fn copy_directories(&self) -> &'static [&'static str] {
         match self {
             Self::MacOSArm64 | Self::LinuxX64 => &["lib", "include", "share", "licenses"],
-            Self::WindowsX64 => &["Lib", "DLLs", "include", "libs", "licenses", "share"],
+            Self::WindowsX64 => &["Lib", "DLLs", "include", "libs", "licenses", "share", "tcl"],
         }
     }
 

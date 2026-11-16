@@ -121,6 +121,7 @@ pub(super) fn relocate_macos(output: &Path, shim_name: &str, system_deps: &[&str
     for image in &all {
         super::platform_abi::check_architecture(image, super::rid()?)?;
         let report = Command::new("otool")
+            .args(["-arch", "arm64"])
             .arg("-L")
             .arg(image)
             .output()
@@ -131,11 +132,26 @@ pub(super) fn relocate_macos(output: &Path, shim_name: &str, system_deps: &[&str
             image.display()
         );
         let text = String::from_utf8(report.stdout)?;
-        for line in text.lines().skip(1) {
-            let Some(dependency) = line.trim().split(" (compatibility version ").next() else {
-                continue;
-            };
-            if dependency.is_empty()
+        // .so 也可能是 MH_DYLIB，LC_ID_DYLIB 可与磁盘文件名不同（如 pydantic-core）。
+        // 它声明映像自身身份，并非需要收集的外部加载边。
+        let identity_report = Command::new("otool")
+            .args(["-arch", "arm64", "-D"])
+            .arg(image)
+            .output()
+            .context("无法读取 Mach-O 自身身份")?;
+        ensure!(
+            identity_report.status.success(),
+            "无法读取 Mach-O LC_ID_DYLIB"
+        );
+        let identity_text = String::from_utf8(identity_report.stdout)?;
+        let identity = identity_text
+            .lines()
+            .skip(1)
+            .map(str::trim)
+            .find(|line| !line.is_empty());
+        for dependency in macho_dependencies(&text) {
+            if Some(dependency) == identity
+                || dependency.is_empty()
                 || system_deps
                     .iter()
                     .any(|prefix| dependency.starts_with(prefix))
@@ -172,10 +188,7 @@ pub(super) fn relocate_macos(output: &Path, shim_name: &str, system_deps: &[&str
                 )?;
             }
         }
-        if image
-            .extension()
-            .is_some_and(|extension| extension == "dylib")
-        {
+        if identity.is_some() {
             let id = format!("@rpath/{}", image.file_name().unwrap().to_string_lossy());
             run_command(
                 "install_name_tool",
@@ -193,6 +206,30 @@ pub(super) fn relocate_macos(output: &Path, shim_name: &str, system_deps: &[&str
         )?;
     }
     Ok(())
+}
+
+/// universal2 的分架构标题不是加载边；只解析携带依赖版本信息的真实条目。
+fn macho_dependencies(report: &str) -> impl Iterator<Item = &str> {
+    report.lines().filter_map(|line| {
+        line.trim()
+            .split_once(" (compatibility version ")
+            .map(|(path, _)| path)
+    })
+}
+
+#[cfg(test)]
+mod macho_report_tests {
+    #[test]
+    fn universal_headers_are_not_native_dependencies() {
+        let report = "extension.so (architecture x86_64):\n\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1.0.0)\nextension.so (architecture arm64):\n\t@loader_path/含 空格/libx.dylib (compatibility version 1.0.0, current version 1.0.0)\n";
+        assert_eq!(
+            super::macho_dependencies(report).collect::<Vec<_>>(),
+            [
+                "/usr/lib/libSystem.B.dylib",
+                "@loader_path/含 空格/libx.dylib"
+            ]
+        );
+    }
 }
 
 /// Linux ELF 共享库依赖与 rpath 封闭性校验及重定位。

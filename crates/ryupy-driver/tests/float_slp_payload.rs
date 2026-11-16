@@ -30,7 +30,7 @@ fn packed_lanes_preserve_scalar_payload_zero_and_operand_order() {
     std::fs::create_dir_all(&host).unwrap();
     let runtime = artifact.dll.parent().unwrap().join("RyuPy.Runtime.dll");
     std::fs::write(host.join("payload_host.csproj"), format!(
-        "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup><ItemGroup><Reference Include=\"RyuPy.Runtime\"><HintPath>{}</HintPath></Reference></ItemGroup></Project>", runtime.display()
+        "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><RollForward>Major</RollForward><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup><ItemGroup><Reference Include=\"RyuPy.Runtime\"><HintPath>{}</HintPath></Reference></ItemGroup></Project>", runtime.display()
     )).unwrap();
     std::fs::write(host.join("Program.cs"), HOST).unwrap();
     let built = std::process::Command::new("dotnet")

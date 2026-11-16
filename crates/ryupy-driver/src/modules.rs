@@ -116,7 +116,14 @@ pub(crate) fn load_program_with_discovery(
     let mut seen: BTreeSet<String> = BTreeSet::new();
 
     // 入口模块：名字固定 `__main__`，不参与按名字查重。
-    let entry_source = read_module(sess, entry, "__main__", "", SourceKind::Entry)?;
+    let entry_source = read_module_internal(
+        sess,
+        entry,
+        "__main__",
+        "",
+        SourceKind::Entry,
+        !sess.cpython_entry,
+    )?;
     collect_requests(&entry_source.parsed, &entry_source.package, &mut queue);
     let entry_module = entry_source;
 
@@ -125,6 +132,13 @@ pub(crate) fn load_program_with_discovery(
             continue;
         }
         if crate::cpython_provider::selected(sess, &name) {
+            if crate::cpython_provider::is_local_delegated(sess, &name) {
+                // 显式委派本地模块仍需扫描其导入边，使未委派的本地模块继续进入 RyuPy 编译图（禁止静默回退）。
+                crate::cpython_provider::delegation::enqueue_local_imports(
+                    &roots, &name, &mut queue,
+                );
+                continue;
+            }
             let top = name.split('.').next().unwrap_or(&name);
             if sess
                 .cpython_provider_state
@@ -197,10 +211,26 @@ fn read_module(
     package: &str,
     kind: SourceKind,
 ) -> Result<SourceModule> {
+    read_module_internal(sess, path, name, package, kind, true)
+}
+
+fn read_module_internal(
+    sess: &mut Session,
+    path: &Path,
+    name: &str,
+    package: &str,
+    kind: SourceKind,
+    report_parse_diagnostics: bool,
+) -> Result<SourceModule> {
     let file = sess.load_file(path)?;
     let text = sess.sources.get(file).text.clone();
     let (parsed, diags) = ryupy_syntax::parse(file, &text);
-    sess.diagnostics.extend(diags);
+    let parse_diagnostics = if report_parse_diagnostics {
+        sess.diagnostics.extend(diags);
+        Vec::new()
+    } else {
+        diags
+    };
     let display = path
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
@@ -214,7 +244,7 @@ fn read_module(
         candidate: false,
         hard: true,
         catalog: None,
-        parse_diagnostics: Vec::new(),
+        parse_diagnostics,
         kind,
         resource_discovery: None,
         resolved_source_path,
@@ -227,7 +257,7 @@ fn read_module(
     })
 }
 
-fn collect_requests(parsed: &ParsedModule, package: &str, queue: &mut Vec<String>) {
+pub(crate) fn collect_requests(parsed: &ParsedModule, package: &str, queue: &mut Vec<String>) {
     for request in ryupy_hir::imports::collect_all_imports(&parsed.module.body, package) {
         queue.push(request.module.clone());
         if let Some(name) = &request.name {

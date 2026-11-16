@@ -35,6 +35,12 @@ internal static partial class PyBuiltinFormat
         // 当前str布局禁止__format__覆盖；继承默认字符串格式不是object格式。
         if (value is PyStringInstance str)
             return text.Length == 0 ? PyRepr.StrObject(value) : Text(value, str.Value, Parse(text, "str"));
+        if (value is PyInstance { ForeignInstance: { } foreignInstance })
+        {
+            if (PyObject.TryMethod(foreignInstance, "__format__", [spec], out object? formatted))
+                return RequireResult(formatted);
+            return Default(value, text);
+        }
         if (value is PyInstance instance)
         {
             if (TrySlot(instance.Class, instance, spec, out object? result)) return RequireResult(result);

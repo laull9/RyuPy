@@ -70,7 +70,9 @@ fn inspect(argument: &str, need: &str) -> Result<String> {
         .arg(argument)
         .output()
         .with_context(|| {
-            format!("未找到可用.NET宿主，{need}；请安装.NET 10或用DOTNET/DOTNET_ROOT指定安装位置")
+            format!(
+                "未找到可用.NET宿主，{need}；请安装.NET 10及以上或用DOTNET/DOTNET_ROOT指定安装位置"
+            )
         })?;
     ensure!(
         output.status.success(),
@@ -100,19 +102,29 @@ pub(super) fn require_sdk() -> Result<()> {
 }
 
 pub(super) fn require_runtime() -> Result<()> {
-    let versions = inspect("--list-runtimes", "运行托管产物需要.NET Runtime 10")?;
+    let versions = inspect("--list-runtimes", "运行托管产物需要.NET Runtime 10及以上")?;
     ensure!(
-        versions.lines().any(|line| {
-            let mut words = line.split_whitespace();
-            words.next() == Some("Microsoft.NETCore.App")
-                && words
-                    .next()
-                    .is_some_and(|version| version.starts_with("10.") && !version.contains('-'))
-        }),
-        "运行托管产物需要.NET Runtime 10；当前检测到：{}",
+        supported_runtime(&versions),
+        "运行托管产物需要.NET Runtime 10及以上；当前检测到：{}",
         versions.trim()
     );
     Ok(())
+}
+
+/// 与生成的 Major roll-forward 合同一致，只接受正式版共享核心框架。
+fn supported_runtime(versions: &str) -> bool {
+    versions.lines().any(|line| {
+        let mut words = line.split_whitespace();
+        words.next() == Some("Microsoft.NETCore.App")
+            && words.next().is_some_and(|version| {
+                !version.contains('-')
+                    && version
+                        .split('.')
+                        .next()
+                        .and_then(|major| major.parse::<u32>().ok())
+                        .is_some_and(|major| major >= 10)
+            })
+    })
 }
 
 #[cfg(test)]
@@ -120,9 +132,26 @@ mod tests {
     use super::*;
 
     #[test]
+    fn runtime_accepts_ten_and_later_stable_core_frameworks() {
+        for version in ["10.0.0", "11.0.0", "12.1.2"] {
+            assert!(supported_runtime(&format!(
+                "Microsoft.NETCore.App {version} [/runtime]"
+            )));
+        }
+        for line in [
+            "Microsoft.NETCore.App 9.0.9 [/runtime]",
+            "Microsoft.NETCore.App 11.0.0-preview.1 [/runtime]",
+            "Microsoft.AspNetCore.App 11.0.0 [/runtime]",
+        ] {
+            assert!(!supported_runtime(line));
+        }
+    }
+
+    #[test]
     fn dotnet_root_discovers_actual_sdk_with_empty_path() {
         if std::env::var_os("RYUPY_DOTNET_ROOT_PROBE").is_some() {
             require_sdk().unwrap();
+            require_runtime().unwrap();
             return;
         }
         let dotnet = executable()

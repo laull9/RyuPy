@@ -52,7 +52,7 @@ public static partial class PyPic
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static object? GetAttr(int site, object? obj, string name)
     {
-        if (!Enabled || (uint)site >= MaxSites || obj is not PyInstance instance || instance.Class.HasEnumMetadata || instance.Class.HasSlotLayout || instance.Class.HasDictC3Layout)
+        if (!Enabled || (uint)site >= MaxSites || obj is not PyInstance instance || instance.ForeignInstance is not null || instance.Class.HasEnumMetadata || instance.Class.HasSlotLayout || instance.Class.HasDictC3Layout)
         {
             return PyObject.GetAttr(obj, name);
         }
@@ -150,7 +150,7 @@ public static partial class PyPic
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void SetAttr(int site, object? obj, string name, object? value)
     {
-        if (!Enabled || (uint)site >= MaxSites || obj is not PyInstance instance || instance.Class.HasEnumMetadata || instance.Class.HasSlotLayout || instance.Class.HasDictC3Layout)
+        if (!Enabled || (uint)site >= MaxSites || obj is not PyInstance instance || instance.ForeignInstance is not null || instance.Class.HasEnumMetadata || instance.Class.HasSlotLayout || instance.Class.HasDictC3Layout)
         {
             PyObject.SetAttr(obj, name, value);
             return;
@@ -221,7 +221,7 @@ public static partial class PyPic
             return PyOps.CallMethod(obj, name, args, PyOps.EmptyArray(), PyOps.EmptyArray());
         }
         PyLexicalSuper.GuardAttribute(name);
-        if (name == "__class__" || super.Self is PyClass)
+        if (name == "__class__" || super.Self is PyClass || super.Owner.ForeignClass is not null || super.Self is PyInstance { ForeignInstance: not null })
             return PyOps.CallMethod(obj, name, args, [], []);
         PyLexicalClassGuard.Receiver(obj);
         long classVersion = PyClass.GlobalVersion;

@@ -58,6 +58,7 @@ public static partial class PyOps
     private static bool MatchesBuiltin(object? value, string expected) => value switch
     {
         IPyForeignObject foreign => foreign.IsInstanceOf(PyType.Get(expected)),
+        PyInstance { ForeignInstance: { } foreignInstance } => foreignInstance.IsInstanceOf(PyType.Get(expected)),
         PyBaseException exception => exception.PythonClass is not null
             ? exception.PythonClass.IsSubclassOfBuiltin(expected)
             : PyExceptionHierarchy.IsSubclass(exception.PyTypeName, expected),
@@ -152,6 +153,16 @@ public static partial class PyOps
         // 普通真实类不能继承有独立native载体的类型；无关系不是非法class参数。
         (PyClass, PyNativeType) => false,
         (PyClass derived, PyClass baseClass) => derived.IsSubclassOf(baseClass),
+        (PyClass { ForeignClass: { } derivedForeign }, IPyForeignObject foreignParent) =>
+            PyForeignClassBridge.IsSubclass(derivedForeign, foreignParent),
+        (PyClass { ForeignClass: { } derivedForeign }, PyType builtinParent) =>
+            PyForeignClassBridge.IsSubclass(derivedForeign, builtinParent),
+        (IPyForeignObject foreignChild, IPyForeignObject foreignParent) =>
+            PyForeignClassBridge.IsSubclass(foreignChild, foreignParent),
+        (IPyForeignObject foreignChild, PyClass { ForeignClass: { } baseForeign }) =>
+            PyForeignClassBridge.IsSubclass(foreignChild, baseForeign),
+        (IPyForeignObject foreignChild, PyType builtinParent) =>
+            PyForeignClassBridge.IsSubclass(foreignChild, builtinParent),
         (PyType or PyNativeType or PyTypedDictType, PyClass target) when target.IsTypingIoFamily => false,
         (_, PyClass target) when target.IsTypingIoFamily => throw new PyTypeError("issubclass() arg 1 must be a class"),
         (PyType or PyNativeType, PyClass) => false,

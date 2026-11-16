@@ -14,6 +14,7 @@ public static partial class PyOps
     public static bool Truthy(object? value) => value switch
     {
         IPyForeignObject foreign => foreign.Truth(),
+        PyInstance { ForeignInstance: { } foreignDerived } => foreignDerived.Truth(),
         PyNotImplemented => PyWarnings.BooleanNotImplemented(),
         null => false,
         PyNone => false,

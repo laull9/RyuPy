@@ -34,6 +34,7 @@ internal static unsafe class Native
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern void rp_exception_set_chain(nint value, nint cause, nint context, int suppress);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_traceback_frame(nint error, int index, out nint file, out nint function, out int line);
     internal const string Library = "ryupy_cpython";
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_set_env([MarshalAs(UnmanagedType.LPUTF8Str)] string name, [MarshalAs(UnmanagedType.LPUTF8Str)] string? value);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_start([MarshalAs(UnmanagedType.LPUTF8Str)] string home, nint* paths, int pathCount, nint* argv, int argc, delegate* unmanaged[Cdecl]<nint, int, nint, nint, nint, long, nint, nint> callback);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_init_error();
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_gil();
@@ -65,4 +66,11 @@ internal static unsafe class Native
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern void rp_error_text([MarshalAs(UnmanagedType.LPUTF8Str)] string type, [MarshalAs(UnmanagedType.LPUTF8Str)] string message);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_exception_matches(nint error, nint type);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_is_exception_type(nint type);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_run_entry([MarshalAs(UnmanagedType.LPUTF8Str)] string path, [MarshalAs(UnmanagedType.LPUTF8Str)] string source);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_is_type(nint value);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_is_plain_type(nint value);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_is_subclass(nint cls, nint baseType);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_contains(nint container, nint item);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_dir(nint value);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_borrowed_type(nint value);
 }

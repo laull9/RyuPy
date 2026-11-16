@@ -74,6 +74,21 @@ public class PyBinaryCodecsTests
         Assert.Throws<PyAssertionError>(() => Call(Base64, "b64encode", Bytes("a"), Bytes("x")));
     }
 
+    [Theory]
+    [InlineData("AP==", 1)]
+    [InlineData("AAD=", 2)]
+    [InlineData("//==", 1)]
+    [InlineData("///=", 2)]
+    public void UnusedTailBitsAreAcceptedInBothValidationModes(string encoded, int length)
+    {
+        foreach (bool strict in new[] { false, true })
+        {
+            byte[] decoded = Result(PyOps.CallValue(Binary["a2b_base64"], [encoded], ["strict_mode"], [strict]));
+            Assert.Equal(length, decoded.Length);
+            Assert.All(decoded, value => Assert.Equal(encoded[0] == '/' ? (byte)255 : (byte)0, value));
+        }
+    }
+
     [Fact]
     public void HexAliasesGroupingAndCrcUnsignedMask()
     {

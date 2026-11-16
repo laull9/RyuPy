@@ -3,7 +3,7 @@ namespace RyuPy.Runtime;
 
 internal static class PyStringMethods
 {
-    internal static bool Has(string name) => name is "encode" or "upper" or "lower" or "strip" or "lstrip"
+    internal static bool Has(string name) => (name == "title" && PyProvider.Current is not null) || name is "encode" or "upper" or "lower" or "strip" or "lstrip"
         or "rstrip" or "split" or "splitlines" or "join" or "replace" or "find" or "rfind"
         or "index" or "rindex" or "count" or "startswith" or "endswith" or "format"
         or "partition" or "rpartition" or "expandtabs" or "isspace" or "isalnum" or "translate";
@@ -26,6 +26,7 @@ public static partial class PyOps
 {
     internal static object? StringRootMethod(string text, string name, object?[] args, string[] names, object?[] values, bool bound)
     {
+        if (name == "title") return PyTextProviderMethods.Title(text, args, names, values);
         if (PyTextSearch.Has(name)) return PyTextSearch.Invoke(text, name, args, names);
         if (name is "startswith" or "endswith")
             return PyTextAffix.Match(text, name, args, names, qualified: !bound);

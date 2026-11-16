@@ -9,6 +9,11 @@ public static partial class PyObject
     private static void SetInstanceAttr(PyInstance instance, string name, object? value)
     {
         instance.Class.RequireLexicalFactoryReady();
+        if (instance.ForeignInstance is { } foreignInstance)
+        {
+            SetAttr(foreignInstance, name, value);
+            return;
+        }
         if (instance.Class.GenericDefinition is not null
             && (name is "__dict__" or "__class__" || instance.Class.TryLookup("__setattr__", out _, out _)))
             throw PyTypingGeneric.Unsupported("Generic subclass instance mutation protocol is not supported");

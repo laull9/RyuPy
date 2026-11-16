@@ -439,7 +439,7 @@ impl Initialization {
         let valid = match &meta.location {
             ModuleLocation::LegacyDiagnostic => true, // file-backed使实际codegen仍选择Source注册。
             ModuleLocation::SourceAbsolute(path) => std::path::Path::new(path).is_absolute(),
-            ModuleLocation::ExecutableRelative(path) => {
+            ModuleLocation::ExecutableRelative(path) | ModuleLocation::BundleRelative(path) => {
                 !path.is_empty()
                     && !std::path::Path::new(path).is_absolute()
                     && !std::path::Path::new(path)

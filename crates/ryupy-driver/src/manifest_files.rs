@@ -136,6 +136,8 @@ fn walk(
         let metadata = plain_metadata(&path)?;
         if metadata.is_dir() {
             walk(root, &path, native, depth + 1, visited, files)?;
+        } else if path != native && is_os_sidecar(&path, &metadata) {
+            continue;
         } else {
             ensure!(files.len() < MAX_FILES, "publish 文件数超出清单预算");
             let role = if path == native {
@@ -170,11 +172,64 @@ pub(crate) fn write_atomic(publish: &Path, bytes: &[u8]) -> Result<PathBuf> {
     Ok(target)
 }
 
+/// 仅精确识别 macOS `.DS_Store` 与 Windows `Thumbs.db` 普通旁件文件；
+/// 符号链接、目录及锁/临时等其余文件名一律不忽略。
+pub(crate) fn is_os_sidecar(path: &Path, metadata: &Metadata) -> bool {
+    metadata.is_file()
+        && path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| matches!(name, ".DS_Store" | "Thumbs.db"))
+}
+
 /// 不把权限错误或悬空链接当作不存在，写前与 rename 前都使用同一规则。
 pub(crate) fn ensure_absent(path: &Path) -> Result<()> {
     match std::fs::symlink_metadata(path) {
         Ok(_) => bail!("本次清单/SDK记录目标已存在，拒绝覆盖"),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(error) => Err(error).context("无法确认本次目标不存在"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn collect_ignores_exact_os_sidecars_only_and_rejects_symlinks_or_locks() {
+        let root = crate::test_temp::Root::new("manifest-sidecars");
+        let native = root.join("app");
+        std::fs::write(&native, b"exe").unwrap();
+        std::fs::write(root.join(".DS_Store"), b"finder").unwrap();
+        std::fs::write(root.join("Thumbs.db"), b"explorer").unwrap();
+        std::fs::write(root.join("app.lock"), b"lock").unwrap();
+        std::fs::write(root.join("scratch.tmp"), b"tmp").unwrap();
+
+        let entries = collect(&root, &native).unwrap();
+        let names: Vec<_> = entries
+            .iter()
+            .map(|entry| entry.relative_path.as_str())
+            .collect();
+        assert_eq!(names, ["app", "app.lock", "scratch.tmp"]);
+
+        #[cfg(unix)]
+        {
+            let dir = root.join("sub");
+            std::fs::create_dir(&dir).unwrap();
+            std::os::unix::fs::symlink(&native, dir.join(".DS_Store")).unwrap();
+            assert!(collect(&root, &native).is_err());
+            std::fs::remove_file(dir.join(".DS_Store")).unwrap();
+            std::os::unix::fs::symlink(&native, dir.join("Thumbs.db")).unwrap();
+            assert!(collect(&root, &native).is_err());
+            std::fs::remove_file(dir.join("Thumbs.db")).unwrap();
+        }
+        std::fs::create_dir(root.join("dir_case")).unwrap();
+        std::fs::create_dir(root.join("dir_case/.DS_Store")).unwrap();
+        let with_dir = collect(&root, &native).unwrap();
+        assert!(
+            with_dir
+                .iter()
+                .all(|entry| entry.relative_path != "dir_case/.DS_Store")
+        );
     }
 }

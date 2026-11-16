@@ -1,6 +1,7 @@
 // 模块位置只在注册时解析一次；诊断文件名、公开可写 __file__ 槽与不可变初始位置分别保存。
 using System;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 
 namespace RyuPy.Runtime;
@@ -8,7 +9,7 @@ namespace RyuPy.Runtime;
 /// <summary>编译器显式位置模式的冷路径，不执行导入、不搜索资源或回退到源码目录。</summary>
 public static class PyModuleLocations
 {
-    /// <summary>0=旧诊断位置，1=源码绝对位置，2=真实 NativeAOT 可执行文件相对位置。</summary>
+    /// <summary>0=旧诊断位置，1=源码绝对位置，2=NativeAOT位置，3=随包编译源码位置。</summary>
     public static string Resolve(long kind, string value) =>
         ResolveForPlatform(kind, value, RuntimeFeature.IsDynamicCodeSupported, Environment.ProcessPath);
 
@@ -21,6 +22,7 @@ public static class PyModuleLocations
             if (!Path.IsPathFullyQualified(value)) throw new PyRuntimeError("source module location is not absolute");
             return value;
         }
+        if (kind == 3) return ResolveBundle(value, AppContext.BaseDirectory);
         if (kind != 2) throw new PyRuntimeError("unknown compiled module location kind");
         // 普通 dotnet/JIT 进程不能拿 dotnet 宿主目录冒充 NativeAOT 应用目录。
         if (dynamicCodeSupported) throw new PyNotImplementedError("executable-relative module locations require NativeAOT");
@@ -44,6 +46,19 @@ public static class PyModuleLocations
             throw new PyNotImplementedError("actual NativeAOT executable path is unavailable");
         string directory = Path.GetDirectoryName(processPath)
             ?? throw new PyRuntimeError("NativeAOT executable has no directory");
+        return Path.GetFullPath(Path.Combine(directory, value.Replace('/', Path.DirectorySeparatorChar)));
+    }
+
+    /// <summary>只接受编译器冻结的随包源码树；不加入 CPython 的模块搜索域。</summary>
+    public static string ResolveBundle(string value, string directory)
+    {
+        if (value.Length > 1024 || !value.StartsWith("python/ryupy_compiled/", StringComparison.Ordinal))
+            throw new PyRuntimeError("invalid bundled module location");
+        foreach (string part in value.Split('/'))
+            if (part.Length == 0 || part is "." or ".." || part.Any(c => !(char.IsAsciiLetterOrDigit(c) || c is '_' or '.')))
+                throw new PyRuntimeError("invalid bundled module location component");
+        if (!Path.IsPathFullyQualified(directory))
+            throw new PyRuntimeError("bundle directory is not absolute");
         return Path.GetFullPath(Path.Combine(directory, value.Replace('/', Path.DirectorySeparatorChar)));
     }
 }

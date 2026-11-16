@@ -104,7 +104,9 @@ public static partial class PyOps
     public static object Binary(int op, object a, object b)
     {
         if (a is IPyForeignObject leftForeign) return leftForeign.Binary(op, b, false);
+        if (a is PyInstance { ForeignInstance: { } leftDerived }) return leftDerived.Binary(op, b, false);
         if (b is IPyForeignObject rightForeign) return rightForeign.Binary(op, a, true);
+        if (b is PyInstance { ForeignInstance: { } rightDerived }) return rightDerived.Binary(op, a, true);
         if ((op & InPlaceFlag) != 0)
         {
             return InPlaceBinary(op & ~InPlaceFlag, a, b);
@@ -281,7 +283,9 @@ public static partial class PyOps
     public static bool Compare(int op, object a, object b)
     {
         if (a is IPyForeignObject leftForeign) return leftForeign.Compare(op, b, false);
+        if (a is PyInstance { ForeignInstance: { } leftDerived }) return leftDerived.Compare(op, b, false);
         if (b is IPyForeignObject rightForeign) return rightForeign.Compare(op, a, true);
+        if (b is PyInstance { ForeignInstance: { } rightDerived }) return rightDerived.Compare(op, a, true);
         // 快路径：两侧都是 long / double / str 时与通用路径结果相同（不涉及用户魔术方法），
         // 但跳过了 `__eq__` / `__lt__` 探测与 Order 的形态分类。double 的 IEEE 比较本身就满足
         // Python 的 NaN 规则（相等为假、不等为真、排序比较为假）。
@@ -369,6 +373,7 @@ public static partial class PyOps
     public static object Unary(int op, object value)
     {
         if (value is IPyForeignObject foreign) return foreign.Unary(op);
+        if (value is PyInstance { ForeignInstance: { } derivedForeign }) return derivedForeign.Unary(op);
         switch (op)
         {
             case Neg:
@@ -416,6 +421,7 @@ public static partial class PyOps
     public static object ToIntValue(object value) => value switch
     {
         IPyForeignObject foreign => foreign.ReadScalar("integer"),
+        PyInstance { ForeignInstance: { } foreignDerived } => foreignDerived.ReadScalar("integer"),
         bool b => b ? 1L : 0L,
         long or int or BigInteger => PyInt.Normalize(PyInt.ToBigInteger(value)),
         double d => PyInt.Normalize(TruncateToInteger(d, "float")),
@@ -427,6 +433,7 @@ public static partial class PyOps
     public static object ToFloatValue(object value) => value switch
     {
         IPyForeignObject foreign => foreign.ReadScalar("floating"),
+        PyInstance { ForeignInstance: { } foreignDerived } => foreignDerived.ReadScalar("floating"),
         bool b => b ? 1.0 : 0.0,
         long or int => ToDouble(value),
         BigInteger big => PyFloatConstructor.FromBigInteger(big),
@@ -454,6 +461,7 @@ public static partial class PyOps
     public static double ToDouble(object value) => value switch
     {
         IPyForeignObject foreign => (double)foreign.ReadScalar("float"),
+        PyInstance { ForeignInstance: { } foreignDerived } => (double)foreignDerived.ReadScalar("float"),
         bool b => b ? 1.0 : 0.0,
         double d => d,
         long l => l,

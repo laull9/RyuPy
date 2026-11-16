@@ -131,6 +131,14 @@ public sealed partial class PyClass
     /// <summary>写入 / 替换类属性。</summary>
     public void SetAttr(string name, object? value)
     {
+        if (ForeignClass is not null)
+        {
+            GuardConstructionSet(name, value);
+            PyForeignClassBridge.Require().SetClassAttribute(ForeignClass, this, name, value);
+            Attributes[name] = value;
+            Touch();
+            return;
+        }
         GuardExportedExceptionMutation();
         GuardNativeProtocolMutation(name);
         if (HasMultipleInheritance && name is "__bases__" or "__mro__")
@@ -152,6 +160,14 @@ public sealed partial class PyClass
     /// <summary>删除类属性；不存在时返回 <c>false</c>。</summary>
     public bool DeleteAttr(string name)
     {
+        if (ForeignClass is not null)
+        {
+            GuardConstructionDelete(name);
+            PyForeignClassBridge.Require().DeleteClassAttribute(ForeignClass, name);
+            Attributes.Remove(name);
+            Touch();
+            return true;
+        }
         GuardExportedExceptionMutation();
         GuardNativeProtocolMutation(name);
         if (HasMultipleInheritance && name is "__bases__" or "__mro__")
@@ -296,6 +312,7 @@ public sealed partial class PyClass
     /// <summary>是否为 <paramref name="other"/> 或其子类。</summary>
     public bool IsSubclassOf(PyClass other)
     {
+        if (ReferenceEquals(this, other)) return true;
         if (_ordinaryMro is { } mro)
         {
             foreach (PyClass current in mro) if (ReferenceEquals(current, other)) return true;
@@ -307,6 +324,10 @@ public sealed partial class PyClass
             {
                 return true;
             }
+        }
+        if (ForeignMiBases is not null && ForeignClass is { } fc && other.ForeignClass is { } otherFc)
+        {
+            return PyForeignClassBridge.IsSubclass(fc, otherFc);
         }
         return false;
     }
@@ -329,6 +350,7 @@ public sealed partial class PyClass
     public object? Invoke(object?[] args, string[] kwNames, object?[] kwValues)
     {
         RequireLexicalFactoryReady();
+        if (HasForeignHierarchy) return ForeignInvoke(args, kwNames, kwValues);
         PyAbc.RequireConcrete(this);
         if (IsTypingGenericRoot) return PyTypingGeneric.Construct(args, kwNames);
         RequireTypingIoReady();
@@ -364,7 +386,8 @@ public sealed partial class PyClass
     }
 
     /// <summary>与 CPython 一致的 <c>&lt;class 'Name'&gt;</c> 形式。</summary>
-    public override string ToString() => IsTypingGenericRoot ? PyTypingGenericMetadata.ClassRepr(this)
+    public override string ToString() => ForeignClass is PyNativeObject foreignClass ? foreignClass.PythonRepr()
+        : IsTypingGenericRoot ? PyTypingGenericMetadata.ClassRepr(this)
         : IsTypingIoFamily ? PyTypingIo.ClassRepr(this)
         : NamedTupleLayout is not null ? PyNamedTupleLayout.ClassRepr(this)
         : HasListLayout ? PyListLayout.ClassRepr(this)
@@ -428,9 +451,12 @@ public partial class PyInstance
     }
 
     /// <summary>创建实例；槽位数组按类当前的槽位数预分配（`__init__` 写属性时不必逐次扩容）。</summary>
-    public PyInstance(PyClass cls)
+    public PyInstance(PyClass cls) : this(cls, skipSlots: false) { }
+
+    private protected PyInstance(PyClass cls, bool skipSlots)
     {
         Class = cls;
+        if (skipSlots) return;
         int count = cls.InstanceSlotCount;
         if (count > 0)
         {
@@ -440,7 +466,8 @@ public partial class PyInstance
     }
 
     /// <summary>默认 `repr` 的地址部分；用运行时身份代替真实地址（D002）。</summary>
-    public string DefaultRepr() => Class.IsTypingGenericRoot ? PyTypingGenericMetadata.InstanceRepr(this)
+    public string DefaultRepr() => ForeignInstance is PyNativeObject foreign ? foreign.PythonRepr()
+        : Class.IsTypingGenericRoot ? PyTypingGenericMetadata.InstanceRepr(this)
         : Class.IsTypingIoFamily ? PyTypingIo.InstanceRepr(this)
         : $"<{Class.Name} object at 0x{System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this):x}>";
 

@@ -45,6 +45,8 @@ public sealed class PyBuiltinMethod
     /// <param name="values">关键字值。</param>
     public object? Invoke(object?[] args, string[] names, object?[] values)
     {
+        // 由真实 provider 描述符绑定参数，保留 CPython 的错误消息与关键字协议。
+        if (_receiver is string titleText && _name == "title") return PyTextProviderMethods.Title(titleText, args, names, values);
         if (_receiver is string && _name == "translate") return PyTextTranslate.Invoke(_receiver, args, names);
         if (_receiver is string splitText && _name == "split") return PyTextSplit.Invoke(splitText, args, names, values);
         if (_receiver is string spaceText && _name is "isspace" or "isalnum") return PyUnicodeWhitespace.Invoke(spaceText, args, names, _name);
@@ -124,6 +126,7 @@ public static partial class PyOps
         // 不能用空实参试调用来判断存在性，否则会提前执行副作用或触发参数错误。
         PyBuiltinMethodCall? call = receiver switch
         {
+            string when name == "title" && PyProvider.Current is not null => PreparedText,
             _ when name == "__len__" && IsBuiltinSized(receiver) => PreparedLength,
             PyList when name is "append" or "extend" or "insert" or "pop" or "remove"
                 or "index" or "count" or "clear" or "reverse" or "copy" or "sort" => PreparedList,
@@ -172,6 +175,7 @@ public static partial class PyOps
             (PyByteArray or PyBytes, "startswith" or "endswith") => (1, 3),
             (PyBytes, "hex") => (0, 0),
             (string, "format") => (0, int.MaxValue),
+            (string, "title") => (0, int.MaxValue),
             (string, "upper" or "lower" or "isspace" or "isalnum") => (0, 0),
             (string, "encode" or "strip" or "lstrip" or "rstrip" or "splitlines") => (0, 1),
             (string, "split") => (0, 2),
@@ -234,6 +238,7 @@ public static partial class PyOps
 
     private static object? PreparedText(object receiver, string name, object?[] args, string[] names, object?[] values)
     {
+        if (name == "title") return PyTextProviderMethods.Title((string)receiver, args, names, values);
         if (PyTextSearch.Has(name)) return PyTextSearch.Invoke((string)receiver, name, args, names);
         if (name is "startswith" or "endswith")
             return PyTextAffix.Match((string)receiver, name, args, names, qualified: false);

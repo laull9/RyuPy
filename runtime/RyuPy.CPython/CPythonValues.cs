@@ -28,10 +28,15 @@ public sealed partial class CPythonHost
         if (Native.rp_small_integer(pointer, out long small) != 0) { Native.rp_decref(pointer); return PyOps.BoxInt(small); }
         nint id = Native.rp_identity(pointer);
         if (id != 0 && Roots.TryGetValue(id, out object? original)) { Native.rp_decref(pointer); return original; }
-        if (objects.TryGetValue(pointer, out WeakReference<object>? weak) && weak.TryGetTarget(out object? existing) && existing is not PythonObject { IsDisposed: true } && existing is not PyBaseException { ForeignObject: PythonObject { IsDisposed: true } })
+        if (objects.TryGetValue(pointer, out WeakReference<object>? weak) && weak.TryGetTarget(out object? existing)
+            && existing is not PythonObject { IsDisposed: true }
+            && existing is not PyBaseException { ForeignObject: PythonObject { IsDisposed: true } }
+            && !(existing is PyInstance staleInstance && PyForeignClassBridge.GetForeignInstance(staleInstance) is PythonObject { IsDisposed: true })
+            && !(existing is PyClass staleClass && PyForeignClassBridge.GetForeignClass(staleClass) is PythonObject { IsDisposed: true }))
         { Native.rp_decref(pointer); return existing; }
         if (Native.rp_exception_instance(pointer) != 0) return ExceptionFromOwned(pointer);
         if (Native.rp_is_module(pointer) != 0) return ModuleFromOwned(pointer);
+        if (TryResolveForeignDerivedInstance(pointer, out PyInstance? derived)) return derived;
         var result = new PythonObject(this, pointer); objects[pointer] = new(result); return result;
     }
     internal unsafe nint ToPython(object? value)
@@ -41,6 +46,16 @@ public sealed partial class CPythonHost
         {
             if (!ReferenceEquals(foreign.Host, this)) throw new PyTypeError("objects belong to different interpreters");
             return Native.rp_incref(foreign.Pointer);
+        }
+        if (value is PyInstance instance && PyForeignClassBridge.GetForeignInstance(instance) is PythonObject foreignInstance)
+        {
+            if (!ReferenceEquals(foreignInstance.Host, this)) throw new PyTypeError("objects belong to different interpreters");
+            return Native.rp_incref(foreignInstance.Pointer);
+        }
+        if (value is PyClass cls && PyForeignClassBridge.GetForeignClass(cls) is PythonObject foreignClass)
+        {
+            if (!ReferenceEquals(foreignClass.Host, this)) throw new PyTypeError("objects belong to different interpreters");
+            return Native.rp_incref(foreignClass.Pointer);
         }
         if (value is PyBaseException { ForeignObject: PythonObject origin }) return Native.rp_incref(origin.Pointer);
         if (value is PyBaseException error) return Native.rp_incref(ExportException(error));

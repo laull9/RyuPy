@@ -267,6 +267,7 @@ pub(crate) fn append_module_registration(
                 ryupy_mir::ModuleLocation::LegacyDiagnostic => (0, ""),
                 ryupy_mir::ModuleLocation::SourceAbsolute(value) => (1, value.as_str()),
                 ryupy_mir::ModuleLocation::ExecutableRelative(value) => (2, value.as_str()),
+                ryupy_mir::ModuleLocation::BundleRelative(value) => (3, value.as_str()),
             };
             instructions.push(Instruction::LoadConstantInt64(kind));
             instructions.push(Instruction::load_string(value));

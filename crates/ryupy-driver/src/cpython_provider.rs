@@ -7,6 +7,8 @@ use std::path::{Component, Path, PathBuf};
 #[path = "cpython_native.rs"]
 pub(crate) mod native;
 pub(crate) use native::version;
+#[path = "cpython_delegation.rs"]
+pub(crate) mod delegation;
 #[path = "cpython_dependencies.rs"]
 mod dependencies;
 #[path = "cpython_deployment.rs"]
@@ -43,6 +45,10 @@ struct Declaration {
     source: Source,
     #[serde(default)]
     modules: Vec<String>,
+    #[serde(default)]
+    local_modules: Vec<String>,
+    #[serde(default)]
+    delegate_entry: bool,
     #[serde(default = "stdlib_provider")]
     stdlib_provider: String,
     #[serde(default)]
@@ -78,6 +84,7 @@ pub(crate) struct Plan {
     pub packages: std::collections::BTreeSet<String>,
     pub container_transfer: ContainerTransfer,
     pub payloads: Vec<Payload>,
+    pub delegation: delegation::DelegationPlan,
     pub bridge: PathBuf,
     pub shim: PathBuf,
     pub _shim_build: Option<std::sync::Arc<shim::BuildRoot>>,
@@ -86,13 +93,23 @@ pub(crate) struct Plan {
 
 pub(crate) fn prepare(sess: &mut Session, opts: &crate::BuildOptions) -> Result<()> {
     let included_modules = sess.include_modules.clone();
+    let delegated_modules = sess.cpython_modules.clone();
+    let dynamic_modules = sess.cpython_dynamic_modules.clone();
     let source_input = dependencies::SourceInput {
         entry: &opts.input,
         search_paths: &opts.search_paths,
         include_modules: &included_modules,
+        delegated_modules: &delegated_modules,
+        dynamic_modules: &dynamic_modules,
     };
     sess.cpython_provider_state.plan = None;
     let Some(path) = &sess.cpython_provider else {
+        ensure!(
+            sess.cpython_modules.is_empty()
+                && !sess.cpython_entry
+                && sess.cpython_dynamic_modules.is_empty(),
+            "--cpython-module / --cpython-entry / --cpython-dynamic-module 需要启用 CPython provider（使用默认应用入口或显式传入 --cpython-provider）"
+        );
         return Ok(());
     };
     if path == Path::new("auto") {
@@ -200,6 +217,7 @@ pub(crate) fn prepare(sess: &mut Session, opts: &crate::BuildOptions) -> Result<
 }
 
 fn prepare_auto(sess: &mut Session, source_input: dependencies::SourceInput<'_>) -> Result<()> {
+    let request = delegation::validate_requests(sess, &[], false)?;
     let entry = source_input.entry;
     ensure!(
         sess.distribution_metadata.is_none(),
@@ -232,10 +250,15 @@ fn prepare_auto(sess: &mut Session, source_input: dependencies::SourceInput<'_>)
     let stdlib = crate::cpython_inventory::stdlib_for_version(&root, &metadata, &version)?;
     let mut modules = Vec::new();
     let mut payloads = Vec::new();
+    let collect_input = dependencies::SourceInput {
+        delegated_modules: &request.local_modules,
+        dynamic_modules: &request.dynamic_modules,
+        ..source_input
+    };
     let closure = dependencies::collect_auto(
         &discovered.prefix,
         &root,
-        source_input,
+        collect_input,
         &modules,
         &stdlib,
         &version,
@@ -248,8 +271,17 @@ fn prepare_auto(sess: &mut Session, source_input: dependencies::SourceInput<'_>)
         crate::cpython_inventory::payload_packages_for_version(&payloads, &version)?
     };
     packages.extend(closure.modules);
+    let delegation = delegation::resolve_plan(
+        source_input.entry,
+        source_input.search_paths,
+        request,
+        &stdlib,
+        &packages,
+        &declared,
+    )?;
     modules.extend(stdlib.iter().cloned());
     modules.extend(packages.iter().cloned());
+    modules.extend(delegation.local_modules.iter().cloned());
     modules.sort();
     modules.dedup();
     for included in &sess.include_modules {
@@ -274,6 +306,7 @@ fn prepare_auto(sess: &mut Session, source_input: dependencies::SourceInput<'_>)
         packages,
         container_transfer: ContainerTransfer::Synchronized,
         payloads,
+        delegation,
         bridge,
         shim,
         _shim_build: Some(shim_build),
@@ -295,6 +328,11 @@ fn finish_prepare(
         declaration.stdlib_provider == "cpython",
         "CPython provider 必须统一使用 stdlib_provider=cpython，不能与原生标准库混配"
     );
+    let request = delegation::validate_requests(
+        sess,
+        &declaration.local_modules,
+        declaration.delegate_entry,
+    )?;
     let mut modules = declaration.modules;
     modules.sort();
     modules.dedup();
@@ -323,14 +361,19 @@ fn finish_prepare(
             .with_context(|| format!("CPython 包载荷不存在：{}", payload.source.display()))?;
     }
     let stdlib = crate::cpython_inventory::stdlib_for_version(&root, &metadata, &version)?;
+    let collect_input = dependencies::SourceInput {
+        delegated_modules: &request.local_modules,
+        dynamic_modules: &request.dynamic_modules,
+        ..source_input
+    };
     let closure = declaration
         .dependencies
-        .map(|request| {
+        .map(|dep_req| {
             dependencies::collect_for_version(
-                request,
+                dep_req,
                 base,
                 &root,
-                source_input,
+                collect_input,
                 &modules,
                 &stdlib,
                 &version,
@@ -346,8 +389,17 @@ fn finish_prepare(
         crate::cpython_inventory::payload_packages_for_version(&payloads, &version)?
     };
     packages.extend(closure.modules);
+    let delegation = delegation::resolve_plan(
+        source_input.entry,
+        source_input.search_paths,
+        request,
+        &stdlib,
+        &packages,
+        &declared,
+    )?;
     modules.extend(stdlib.iter().cloned());
     modules.extend(packages.iter().cloned());
+    modules.extend(delegation.local_modules.iter().cloned());
     modules.sort();
     modules.dedup();
     for included in &sess.include_modules {
@@ -384,6 +436,7 @@ fn finish_prepare(
         packages,
         container_transfer: declaration.container_transfer,
         payloads,
+        delegation,
         bridge,
         shim,
         _shim_build: shim_build,
@@ -397,6 +450,17 @@ pub(crate) fn selected(sess: &Session, name: &str) -> bool {
         .plan
         .as_ref()
         .is_some_and(|plan| plan.modules.iter().any(|root| domain(root, name)))
+}
+pub(crate) fn is_local_delegated(sess: &Session, name: &str) -> bool {
+    sess.cpython_provider_state
+        .plan
+        .as_ref()
+        .is_some_and(|plan| {
+            plan.delegation
+                .local_modules
+                .iter()
+                .any(|root| domain(root, name))
+        })
 }
 fn domain(root: &str, name: &str) -> bool {
     root == name

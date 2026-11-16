@@ -13,6 +13,8 @@ for length in range(5):
     corpus.extend(following)
     level = following
 corpus.extend([b"AA===A", b"AAAA=", b"AA==x", b"A=A===", b"AB==", b"AAB=", b"====AAAA"])
+# .NET 11 收紧尾位检查；两种验证模式仍逐项对齐固定 CPython。
+corpus.extend([b"AP==", b"AAD=", b"//==", b"///="])
 for value in corpus:
     for strict in [False, True]:
         try:

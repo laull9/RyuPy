@@ -1,5 +1,16 @@
 # TODO
 
+## 通用项目兼容性补齐（2026-11-16）
+
+- [x] 显式本地模块与入口 CPython 委派：保持编译域显式，覆盖异步和反射源码交付。
+- [x] 编译用户类继承 CPython 类型：真实外部类型/实例、方法回调及 super 合同。
+- [x] 发布树精确忽略 OS 普通旁件，补齐 Tk 可搬迁资源，移除布局普通文件摘要流程。
+- [x] .NET 最低版本 10、允许正式主版本向上运行；修复 .NET 11 Base64 尾位行为变化。
+- [x] 真实 FastAPI 与 SanBudget CPython 前置行为合同通过；驱动见 `tests/general_projects/`。
+- [x] 统一审查与完整 make check 通过（3349 C#、482编译 e2e、291 ignored）；macOS arm64 两项目三模式删除输入搬迁通过。
+  CPython 类桥5项、显式委派双向导入/退出/负例、动态依赖/NumPy/资源回归独立通过。
+  Windows/Linux、原生 async 状态机与 onefile 用户数据持久化继续单列，见 `tests/general_projects/README.md`。
+
 ## AOT 性能专项（2026-11-15）
 
 本专项运行速度优先，逐项对照固定 CPython 的速度与内存，按真实数据决定取舍；

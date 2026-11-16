@@ -23,7 +23,7 @@ Git。已跟踪产物按审查后的清单清理历史；先建立仓库外持�
 | 工具 | 版本 | 用途 |
 | --- | --- | --- |
 | Rust | stable（见 `rust-toolchain.toml`） | 编译器本体 |
-| .NET SDK | 10.x | 构建运行时、运行生成的 `.dll`、Native AOT |
+| .NET SDK | 10及以上 | 构建运行时、运行生成的 `.dll`、Native AOT；托管配置允许正式主版本向上运行 |
 | Python | 3.12+ | e2e 差分测试的「标准答案」 |
 | ilspycmd（可选） | 最新 | `dotnet tool install -g ilspycmd`，把生成的 `.dll` 反编译成 C# 查看 |
 

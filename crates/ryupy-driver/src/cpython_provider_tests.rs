@@ -31,6 +31,7 @@ fn session(root: &Path) -> Session {
         packages: Default::default(),
         container_transfer: ContainerTransfer::Proxy,
         payloads: vec![],
+        delegation: Default::default(),
         dependency_report: serde_json::Value::Null,
         bridge: root.into(),
         shim: root.join("shim"),

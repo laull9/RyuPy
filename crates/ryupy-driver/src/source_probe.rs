@@ -69,9 +69,24 @@ pub(crate) fn analyze(
             && detected_user.is_none()
             && name.contains('.')
             && crate::modules::resolve_in(roots, top).is_some();
-        let cpython = crate::cpython_provider::selected(sess, &name);
+        let delegated_entry = name == "__main__"
+            && sess
+                .cpython_provider_state
+                .plan
+                .as_ref()
+                .is_some_and(|plan| plan.delegation.entry_script.is_some());
+        let cpython = delegated_entry || crate::cpython_provider::selected(sess, &name);
         let mut record = if cpython {
-            json!({"provider": "cpython", "status": "provider_selected", "version": "3.12.13", "reason": sess.cpython_provider_state.plan.as_ref().map(|plan| crate::cpython_inventory::reason(plan,&name)).unwrap_or("explicit_dependency_family"), "dependencies": [], "dependency_coverage": "完整基础发行及显式包载荷"})
+            let reason = if delegated_entry {
+                "explicit_cpython_entry"
+            } else {
+                sess.cpython_provider_state
+                    .plan
+                    .as_ref()
+                    .map(|plan| crate::cpython_inventory::reason(plan, &name))
+                    .unwrap_or("explicit_dependency_family")
+            };
+            json!({"provider": "cpython", "status": "provider_selected", "version": "3.12.13", "reason": reason, "dependencies": [], "dependency_coverage": "完整基础发行及显式包载荷"})
         } else if let Some(source) = loaded.get(name.as_str()) {
             let catalog = source.catalog.is_some();
             json!({
@@ -115,7 +130,7 @@ pub(crate) fn analyze(
             json!({"provider": null, "status": "dependency_missing",
                 "reason": "显式搜索根、已准入 catalog 和 C# 注册表均无本次 provider", "dependencies": []})
         };
-        let scan = if cpython {
+        let scan = if cpython && !delegated_entry {
             None
         } else if let Some(source) = loaded.get(name.as_str()) {
             Some(source_scan::collect(&source.parsed, &source.package))

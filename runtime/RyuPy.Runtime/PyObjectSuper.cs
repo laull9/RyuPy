@@ -12,6 +12,10 @@ public static partial class PyObject
         PyTypingIo.GuardSuperAttribute(super, name);
         PyClass? actual = super.Self is PyInstance instance ? instance.Class : super.Self as PyClass;
         if (actual is { HasDictC3Layout: true }) return GetDictC3Super(super, actual, name);
+        if (actual is { HasForeignHierarchy: true } && super.Owner.ForeignClass is not null)
+        {
+            return PyForeignClassBridge.Require().GetSuperAttribute(super.Owner, super.Self, name);
+        }
         foreach (PyClass current in PyClass.SuperClasses(super.Owner, super.Self))
         {
             if (current.Attributes.TryGetValue(name, out object? raw))
@@ -26,6 +30,10 @@ public static partial class PyObject
                 }
                 return Bind(raw, current, super.Self);
             }
+        }
+        if (actual is { HasForeignHierarchy: true })
+        {
+            return PyForeignClassBridge.Require().GetSuperAttribute(super.Owner, super.Self, name);
         }
         if (super.Owner.TryRootConstructionAttribute(name, super.Self, out object? rootMethod)) return rootMethod;
         throw new PyAttributeError(

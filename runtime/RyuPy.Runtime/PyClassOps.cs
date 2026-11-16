@@ -100,6 +100,15 @@ public static partial class PyOps
                 case PyType type:
                     cls.BuiltinBase = type.Name;
                     break;
+                case IPyForeignObject foreignBase:
+                    if (!PyForeignClassBridge.IsType(foreignBase))
+                    {
+                        throw new PyTypeError(
+                            $"class base must be a class, not '{PyRepr.TypeName(bases[0])}'"
+                        );
+                    }
+                    cls.ForeignBase = foreignBase;
+                    break;
                 default:
                     throw new PyTypeError(
                         $"class base must be a class, not '{PyRepr.TypeName(bases[0])}'"

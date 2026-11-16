@@ -16,6 +16,36 @@ public sealed partial class PyClass
     // 类体前只冻结真实引用及能力，不在此计算C3/重复基错误。
     internal void PrepareMultipleBases(object?[] bases)
     {
+        if (ForeignCandidate(bases))
+        {
+            foreach (object? value in bases)
+            {
+                if (ReferenceEquals(value, PyBaseObject.Type)) continue;
+                if (value is IPyForeignObject foreign)
+                {
+                    if (!PyForeignClassBridge.IsType(foreign))
+                        throw new PyTypeError($"class base must be a class, not '{PyRepr.TypeName(value)}'");
+                    continue;
+                }
+                if (value is PyClass parent)
+                {
+                    if (parent.HasForeignHierarchy)
+                    {
+                        if (parent.ForeignClass is null)
+                            throw new PyNotImplementedError($"base foreign-derived class '{parent.Name}' is not finalized");
+                        continue;
+                    }
+                    PyLexicalClassFactory.ValidateFamily(parent);
+                    parent.ValidateMiStructuralMetadata();
+                    continue;
+                }
+                throw new PyNotImplementedError("foreign multiple inheritance requires ordinary or foreign class bases");
+            }
+            ForeignMiBases = (object?[])bases.Clone();
+            _pendingMiBases = (object?[])bases.Clone();
+            BaseClass = bases.Length == 0 ? null : bases[0] as PyClass;
+            return;
+        }
         bool dict = DictCandidate(bases);
         foreach (object? value in bases)
         {
@@ -30,6 +60,9 @@ public sealed partial class PyClass
         BaseClass = bases.Length == 0 ? null : bases[0] as PyClass;
     }
 
+    private static bool ForeignCandidate(object?[] bases) =>
+        Array.Exists(bases, static value => value is IPyForeignObject || value is PyClass { HasForeignHierarchy: true });
+
     // 正文成功后才合并C3；失败对象不发布，不回滚已经执行的正文副作用。
     private void CompleteMultipleInheritance()
     {
@@ -39,6 +72,12 @@ public sealed partial class PyClass
         if (_pendingMiBases is not { } bases) return;
         try
         {
+            if (ForeignCandidate(bases))
+            {
+                ForeignMiBases = (object?[])bases.Clone();
+                _pendingMiBases = null;
+                return;
+            }
             if (DictCandidate(bases)) { CompleteDictC3(bases); return; }
             var unique = new HashSet<object>(ReferenceEqualityComparer.Instance);
             var sequences = new List<List<object>>();
@@ -122,16 +161,23 @@ public sealed partial class PyClass
         return result;
     }
 
-    internal PyTuple DirectBasesTuple() => _miBasesTuple is { } bases ? bases
+    internal PyTuple DirectBasesTuple() => ForeignClass is { } fc
+        ? ToPyTuple(PyObject.GetAttr(fc, "__bases__"))
+        : _miBasesTuple is { } bases ? bases
         : BaseClass is { } parent ? new PyTuple([parent])
+        : ForeignBase is { } foreign ? new PyTuple([foreign])
         : new PyTuple([BuiltinBase is { } name ? PyType.Get(name) : PyBaseObject.Type]);
 
     internal PyTuple MroTuple()
     {
         RequireLexicalFactoryReady();
+        if (ForeignClass is { } fc) return ToPyTuple(PyObject.GetAttr(fc, "__mro__"));
         if (!HasOrdinaryLexicalLayout && !HasDictC3Layout) throw new PyNotImplementedError("special-layout MRO reflection");
         return _miMroTuple ?? new PyTuple(FullOrdinaryMro().ToArray());
     }
+
+    private static PyTuple ToPyTuple(object? value) =>
+        value is PyTuple tuple ? tuple : new PyTuple(PyOps.ToSequence(value));
 
     // struct遍历器不分配；无MI族仍直接沿原单链，热Walk/IsSubclass另保原循环。
     internal MroSequence MroClasses() => new(this, null);

@@ -54,7 +54,7 @@ public static class PyLexicalSuper
         // CP将真实None首参解释为未绑定super；本切不开放未绑定代理。
         if (receiver is PyNone)
             throw new PyNotImplementedError("unbound super receivers are not supported");
-        if (receiver is PyClass { HasMultipleInheritance: true } receiverClass)
+        if (receiver is PyClass receiverClass && (receiverClass.HasMultipleInheritance || receiverClass.HasForeignHierarchy))
         {
             receiverClass.RequireLexicalFactoryReady();
             bool classRelated = false;
@@ -62,6 +62,10 @@ public static class PyLexicalSuper
             {
                 GuardOrdinaryClass(current, dictReceiver);
                 classRelated |= ReferenceEquals(current, start);
+            }
+            if (!classRelated && receiverClass.ForeignMiBases is not null)
+            {
+                classRelated = receiverClass.IsSubclassOf(start);
             }
             if (!classRelated) throw new PyTypeError("super(type, obj): obj must be an instance or subtype of type");
             return new PySuper(start, receiverClass);
@@ -76,6 +80,10 @@ public static class PyLexicalSuper
         {
             GuardOrdinaryClass(current, dictReceiver);
             related |= ReferenceEquals(current, start);
+        }
+        if (!related && instance.Class.ForeignMiBases is not null)
+        {
+            related = instance.Class.IsSubclassOf(start);
         }
         if (!related)
         {

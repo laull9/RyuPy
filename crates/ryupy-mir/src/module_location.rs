@@ -8,4 +8,6 @@ pub enum ModuleLocation {
     SourceAbsolute(String),
     /// 真AOT已选择模块的可执行文件相对虚拟源码锚点。
     ExecutableRelative(String),
+    /// 随包 CPython 产品的编译源码位置，以应用程序集目录为根，适用于 JIT 与 AOT。
+    BundleRelative(String),
 }

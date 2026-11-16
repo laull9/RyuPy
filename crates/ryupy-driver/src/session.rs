@@ -11,6 +11,12 @@ pub struct Session {
     pub cpython_provider: Option<PathBuf>,
     #[doc(hidden)]
     pub cpython_provider_state: crate::CPythonProviderState,
+    /// 显式委派给随包 CPython 解释执行的本地整模块/包名列表（顶层名）；禁止静默回退。
+    pub cpython_modules: Vec<String>,
+    /// 显式将应用入口 `__main__` 委派给随包 CPython 解释执行；禁止静默回退。
+    pub cpython_entry: bool,
+    /// 显式补充动态导入的第三方 CPython 模块名（如 `aiosqlite`、`httpx`）。
+    pub cpython_dynamic_modules: Vec<String>,
     /// 不透明编排状态；公开字段保留既有Session结构更新语法，内部authority不可外部构造。
     #[doc(hidden)]
     pub default_source_state: crate::DefaultSourceState,

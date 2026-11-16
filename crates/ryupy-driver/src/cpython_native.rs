@@ -255,5 +255,8 @@ mod tests {
             let policy = p.certificate_policy();
             assert_eq!(policy["mode"], "system_default");
         }
+        assert!(PlatformKind::WindowsX64.copy_directories().contains(&"tcl"));
+        assert!(PlatformKind::MacOSArm64.copy_directories().contains(&"lib"));
+        assert!(PlatformKind::LinuxX64.copy_directories().contains(&"lib"));
     }
 }

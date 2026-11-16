@@ -4,8 +4,10 @@
 #include <Python.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #if defined(_WIN32)
+#include <windows.h>
 #define API __declspec(dllexport)
 #else
 #define API __attribute__((visibility("default")))
@@ -92,6 +94,37 @@ static inline void rp_compat_set_handled_exception(PyObject *exc) {
 
 /* 宿主在调用任何布局相关函数之前核对实际 shim 的构建头文件版本。 */
 API const char *rp_build_version(void) { return PY_VERSION; }
+
+/* 在解释器/Tcl 初始化前写入或清除原生进程环境变量，保证隔离生效。 */
+API int rp_set_env(const char *name, const char *value) {
+    if (!name || !*name) return -1;
+#if defined(_WIN32)
+    int name_len = MultiByteToWideChar(CP_UTF8, 0, name, -1, NULL, 0);
+    if (name_len <= 0) return -1;
+    wchar_t *wname = (wchar_t *)malloc((size_t)name_len * sizeof(wchar_t));
+    if (!wname) return -1;
+    MultiByteToWideChar(CP_UTF8, 0, name, -1, wname, name_len);
+    int rc = -1;
+    if (!value) {
+        rc = _wputenv_s(wname, L"") == 0 ? 0 : -1;
+    } else {
+        int val_len = MultiByteToWideChar(CP_UTF8, 0, value, -1, NULL, 0);
+        if (val_len > 0) {
+            wchar_t *wval = (wchar_t *)malloc((size_t)val_len * sizeof(wchar_t));
+            if (wval) {
+                MultiByteToWideChar(CP_UTF8, 0, value, -1, wval, val_len);
+                rc = _wputenv_s(wname, wval) == 0 ? 0 : -1;
+                free(wval);
+            }
+        }
+    }
+    free(wname);
+    return rc;
+#else
+    if (!value) return unsetenv(name);
+    return setenv(name, value, 1);
+#endif
+}
 
 typedef PyObject *(*managed_call)(intptr_t, int, PyObject *, PyObject *, PyObject *, int64_t, const char *);
 typedef struct { PyObject_HEAD intptr_t identity; } Managed;
@@ -489,3 +522,39 @@ API int rp_traceback_frame(PyObject *error, int index, const char **file, const 
     int result = *file && *function ? 1 : -1;
     Py_DECREF(code); Py_DECREF(root); return result;
 }
+/* 以 __main__ 模块上下文编译并执行显式委派入口源码；异常保留在 PyErr 供宿主接管。 */
+API int rp_run_entry(const char *path, const char *source) {
+    PyObject *main_module = PyImport_AddModule("__main__");
+    if (!main_module) return -1;
+    PyObject *globals = PyModule_GetDict(main_module);
+    if (!globals) return -1;
+    PyObject *filename = PyUnicode_DecodeUTF8(path, (Py_ssize_t)strlen(path), "surrogatepass");
+    if (!filename) return -1;
+    if (PyDict_SetItemString(globals, "__file__", filename) < 0 ||
+        PyDict_SetItemString(globals, "__cached__", Py_None) < 0 ||
+        PyDict_SetItemString(globals, "__package__", Py_None) < 0) {
+        Py_DECREF(filename);
+        return -1;
+    }
+    if (!PyDict_GetItemString(globals, "__builtins__")) {
+        if (PyDict_SetItemString(globals, "__builtins__", PyEval_GetBuiltins()) < 0) {
+            Py_DECREF(filename);
+            return -1;
+        }
+    }
+    PyObject *code = Py_CompileStringObject(source, filename, Py_file_input, NULL, -1);
+    Py_DECREF(filename);
+    if (!code) return -1;
+    PyObject *result = PyEval_EvalCode(code, globals, globals);
+    Py_DECREF(code);
+    if (!result) return -1;
+    Py_DECREF(result);
+    return 0;
+}
+/* 跨域类继承支持原语：类型判定、继承查询、容器成员测试、dir() 与借用类型指针。 */
+API int rp_is_type(PyObject *value) { return value && PyType_Check(value) ? 1 : 0; }
+API int rp_is_plain_type(PyObject *value) { return value == (PyObject *)&PyType_Type ? 1 : 0; }
+API int rp_is_subclass(PyObject *cls, PyObject *base) { return PyObject_IsSubclass(cls, base); }
+API int rp_contains(PyObject *container, PyObject *item) { return PySequence_Contains(container, item); }
+API PyObject *rp_dir(PyObject *value) { return PyObject_Dir(value); }
+API PyObject *rp_borrowed_type(PyObject *value) { return value ? (PyObject *)Py_TYPE(value) : NULL; }

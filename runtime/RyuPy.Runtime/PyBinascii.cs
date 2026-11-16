@@ -61,6 +61,11 @@ internal static class PyBinascii
                 if (quad >= 2 && quad + pads >= 4)
                 {
                     if (strict && index + 1 != data.Length) throw new PyBinasciiError("Excess data after padding");
+                    // CPython 忽略最后一个 sextet 的未使用位；.NET 11 的解码器要求
+                    // 这些位为零，先规范化等价编码，保留 Python 的宽松/严格共同语义。
+                    const string alphabet64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+                    int last = alphabet64.IndexOf(clean[clean.Length - 1]);
+                    clean[clean.Length - 1] = alphabet64[last & (quad == 2 ? 48 : 60)];
                     clean.Append('=', 4 - quad);
                     return Convert64(clean);
                 }

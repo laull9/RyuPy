@@ -73,12 +73,14 @@ public static class PyProvider
     {
         if (Interlocked.CompareExchange(ref current, provider, null) is not null)
             throw new InvalidOperationException("module provider is already installed");
+        if (provider is IPyForeignClassBridge classBridge) PyForeignClassBridge.TryInstall(classBridge);
     }
     /// <summary>关闭完成后只允许所属provider撤销登记。</summary>
     public static void Remove(IPyModuleProvider provider)
     {
         if (!ReferenceEquals(Interlocked.CompareExchange(ref current, null, provider), provider))
             throw new InvalidOperationException("module provider ownership mismatch");
+        if (provider is IPyForeignClassBridge classBridge) PyForeignClassBridge.TryRemove(classBridge);
     }
     /// <summary>构造全属性转发的模块视图，禁止建立第二份业务状态。</summary>
     public static PyModule Module(string name, PyModuleGet get, PyModuleSet set, IPyForeignObject? foreign = null) =>

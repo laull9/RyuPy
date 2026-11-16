@@ -28,6 +28,12 @@ public static class PyRuntimeBases
         if (ReferenceEquals(value, PyType.Get("str")) || ReferenceEquals(value, PyType.Get("list"))
             || ReferenceEquals(value, PyType.Get("dict"))) return value!;
         if (ReferenceEquals(value, PyOrderedDict.Type)) throw PyOrderedDict.Unsupported("inheritance");
+        // 来自外部执行域的类型对象（例如 CPython 的 tk.Tk）放行到 MakeClass/终结时由真实元类校验与创建。
+        if (value is IPyForeignObject foreign)
+        {
+            if (!PyForeignClassBridge.IsType(foreign)) throw Unsupported();
+            return foreign;
+        }
         if (value is not PyClass cls)
             throw Unsupported();
         // 仅定义时遍历；不向实例构造、属性访问等热路径增加守卫。
@@ -42,7 +48,8 @@ public static class PyRuntimeBases
             if (current.HasDictLayout) current.RequireDictReady();
             if (!seen.Add(current) || current.BuiltinBase is not null
                 || current.ExceptionFactory is not null || current.HasEnumMetadata
-                || current.DataclassActive || current.IsNativeRuntimeClass)
+                || current.DataclassActive || current.IsNativeRuntimeClass
+                || (current.HasForeignHierarchy && current.ForeignClass is null))
                 throw Unsupported();
         }
         return cls;

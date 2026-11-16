@@ -1,6 +1,21 @@
 # 兼容性清单与偏差
 
+## .NET 宿主最低版本（2026-11-16）
+
+构建机 SDK 与托管运行环境最低为 .NET 10，允许已安装的正式主版本 11 及以上。
+生成的 JIT `runtimeconfig.json` 通过 `rollForward: Major` 选择兼容主版本；优先使用
+满足要求的较低主版本。编译目标仍为 net10.0，NativeAOT 产品直接携带原生执行代码。
+开发工具与测试使用同一向上运行策略；运行时探测排除预览版本。
+本轮定向及完整门禁状态统一登记在通用项目验收记录，性能结论单独验收。
+
 ## 2026-11-14 应用入口与交付合同
+
+2026-11-16 补充：本地模块可通过 `--cpython-module` 显式整包委派，入口用
+`--cpython-entry`，动态第三方依赖用 `--cpython-dynamic-module`。编译用户类已支持
+CPython 类型基类与真实实例回调，纯原生执行域保留既有能力。
+FastAPI 与 SanBudget 的 macOS arm64 JIT/standalone/onefile 删除输入搬迁通过；
+SanBudget 原业务类保持 CIL 编译。详见[范围与重跑入口](../tests/general_projects/README.md)。
+本轮结果独立于下方固定二十项目矩阵，桥接行为计入产品功能兼容率。
 
 `ryupy main.py` 默认自动探测项目 Python 并生成 onefile；`--native` 显式选择纯 RyuPy。
 旧 build/run 子命令与 driver 默认合同保留。支持范围为正式 CPython 3.9–3.15、常规 GIL、

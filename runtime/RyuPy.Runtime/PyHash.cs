@@ -45,6 +45,7 @@ public static partial class PyHash
     public static long Of(object? value) => value switch
     {
         IPyForeignObject foreign => foreign.Hash(),
+        PyInstance { ForeignInstance: { } foreignDerived } => foreignDerived.Hash(),
         null or PyNone => 0x1F2A3B4C5D6E7F80L,
         // bool 与 int 的哈希必须一致：hash(True) == hash(1)
         bool b => b ? 1 : 0,
@@ -102,7 +103,9 @@ public static partial class PyHash
     public static bool Equal(object? a, object? b)
     {
         if (a is IPyForeignObject left) return left.Compare(PyOps.Eq, b, false);
+        if (a is PyInstance { ForeignInstance: { } leftDerived }) return leftDerived.Compare(PyOps.Eq, b, false);
         if (b is IPyForeignObject right) return right.Compare(PyOps.Eq, a, true);
+        if (b is PyInstance { ForeignInstance: { } rightDerived }) return rightDerived.Compare(PyOps.Eq, a, true);
         // 有限metadata对象不把尚未实现的值比较冒充CLR身份相等。
         if (a is PyEntryPoint or PyEntryPoints || b is PyEntryPoint or PyEntryPoints)
             throw PyDistributionSnapshot.Unsupported("entry point value equality");

@@ -40,6 +40,7 @@ internal static class PyAttributeDeletion
         }
         if (value is PyClass cls)
         {
+            if (cls.ForeignClass is not null) return;
             cls.GuardExportedExceptionMutation();
             // 已核原生类及IO派生的守卫仍处理__module__；其它反射不能被删普通字典伪装。
             if (name is "__class__" or "__name__" or "__qualname__" or "__dict__" or "__bases__" or "__base__" or "__mro__" or "__doc__"
@@ -50,6 +51,7 @@ internal static class PyAttributeDeletion
         PyClass? owner = value is PyInstance instance ? instance.Class
             : value is PyBaseException exception ? exception.PythonClass : null;
         if (owner is null) return;
+        if (value is PyInstance { ForeignInstance: not null }) return;
         if (value is PyInstance ordinary)
         {
             if (owner.IsTypingGenericRoot) PyTypingGenericMetadata.MutateInstance(owner, name, deleting: true);

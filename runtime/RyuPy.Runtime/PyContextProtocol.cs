@@ -11,6 +11,8 @@ public static partial class PyOps
         if (receiver is PyHTTPError httpError) return httpError.Attribute(name);
         if (receiver is PyNativeObject native && PyObject.TryGetNativeSpecial(native, name, out object? method))
             return method;
+        if (receiver is PyInstance { ForeignInstance: PyNativeObject foreign } && PyObject.TryGetNativeSpecial(foreign, name, out object? foreignMethod))
+            return foreignMethod;
         if (receiver is PyInstance instance)
         {
             if (instance.Class.HasDictC3Layout && instance.Class.TryResolveDictC3(name, out var resolved))

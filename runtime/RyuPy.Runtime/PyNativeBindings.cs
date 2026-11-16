@@ -31,7 +31,8 @@ public static partial class PyNativeBindings
     // C ABI只读取外部精确标量的载荷；普通原生值保持现有严格检查和常用热路。
     internal static object? ReadExactScalar(object? value, string kind)
     {
-        if (value is not IPyForeignObject foreign) return value;
+        IPyForeignObject? foreign = value as IPyForeignObject ?? (value as PyInstance)?.ForeignInstance;
+        if (foreign is null) return value;
         try { return foreign.ReadScalar(kind); }
         catch (PyBaseException error) { PyErrors.PrepareRaise(error); throw; }
     }

@@ -80,6 +80,8 @@ pub(super) fn stage(plan: &Plan, output: &Path) -> Result<()> {
         );
         copy_authorized(&payload.source, &destination, &payload.source)?;
     }
+    let (delegated_search_path, entry_script) =
+        super::delegation::stage(&plan.delegation, &python)?;
     ensure!(
         output.join("RyuPy.CPython.dll").is_file(),
         "CPython托管桥尚未随同Runtime冻结"
@@ -120,23 +122,37 @@ pub(super) fn stage(plan: &Plan, output: &Path) -> Result<()> {
     } else {
         None
     };
-    let config = json!({
+    let mut search_paths = Vec::new();
+    if let Some(delegated_path) = &delegated_search_path {
+        search_paths.push(delegated_path.clone());
+    }
+    search_paths.extend(native::search_paths_for_version(&plan.version)?);
+    let mut config = json!({
         "schema": 1, "python_version": version_str, "home": "python",
         "library": native::library_relpath_for_version(&plan.version)?,
         "shim": native::shim_name(),
-        "search_paths": native::search_paths_for_version(&plan.version)?, "native_search_paths": native_search_paths,
+        "search_paths": search_paths, "native_search_paths": native_search_paths,
         "stdlib_provider": "cpython", "modules": plan.modules, "container_transfer": plan.container_transfer,
     });
+    if let Some(entry_rel) = &entry_script {
+        config["entry_script"] = json!(entry_rel);
+    }
     std::fs::write(output.join(CONFIG), serde_json::to_vec_pretty(&config)?)?;
+    let delegated_entry = entry_script.is_some();
     let report = json!({
         "schema": 1, "python_version": version_str, "rid": native::rid()?,
         "source": plan.source,
         "archive_url": archive_url, "distribution_source": provenance,
         "build_configuration": {"implementation": "cpython", "gil": true, "archive_layout": "install_only", "source_build": format!("{}@{}", plan.source.project, plan.source.build_id)},
-        "container_transfer": plan.container_transfer, "execution": "ryupy_compiled_entry",
+        "container_transfer": plan.container_transfer,
+        "execution": if delegated_entry { "cpython_delegated_entry" } else { "ryupy_compiled_entry" },
         "modules": plan.modules.iter().map(|name| (name.clone(), json!({"provider": "cpython", "reason": crate::cpython_inventory::reason(plan,name)}))).collect::<serde_json::Map<_,_>>(),
         "stdlib_provider": "cpython", "stdlib_inventory": plan.stdlib, "declared_modules": plan.declared, "package_inventory": plan.packages,
-        "entry_provider": "ryupy_compiled_source", "files": files,
+        "delegated_local_modules": plan.delegation.local_modules,
+        "dynamic_modules": plan.delegation.dynamic_modules,
+        "entry_provider": if delegated_entry { "cpython_delegated_source" } else { "ryupy_compiled_source" },
+        "entry_script": entry_script,
+        "files": files,
         "dependency_collection": plan.dependency_report,
         "payloads": plan.payloads.iter().map(|payload| &payload.destination).collect::<Vec<_>>(),
         "managed_bundle": {"source": "single_bridge_output", "symbols": "embedded_portable_pdb"},
@@ -217,11 +233,16 @@ fn copy_tree(
         entries.sort_by_key(|entry| entry.file_name());
         for entry in entries {
             let name = entry.file_name();
-            // 字节码由源文件决定，开发机缓存与工具安装标记不进入发行。
-            if name == "__pycache__" || name == ".DS_Store" {
+            let entry_path = entry.path();
+            let sym = std::fs::symlink_metadata(&entry_path)?;
+            // 字节码由源文件决定，开发机缓存与精确 OS 普通旁件不进入发行；符号链接仍走边界检查。
+            if name == "__pycache__"
+                || (!sym.file_type().is_symlink()
+                    && crate::manifest_files::is_os_sidecar(&entry_path, &sym))
+            {
                 continue;
             }
-            copy_tree(&entry.path(), &output.join(name), boundary, stack, excluded)?;
+            copy_tree(&entry_path, &output.join(name), boundary, stack, excluded)?;
         }
         stack.pop();
     } else {
@@ -240,6 +261,10 @@ fn copy_tree(
 fn list_files(root: &Path, base: &Path, files: &mut Vec<serde_json::Value>) -> Result<()> {
     for entry in std::fs::read_dir(root)? {
         let path = entry?.path();
+        let sym = std::fs::symlink_metadata(&path)?;
+        if !sym.file_type().is_symlink() && crate::manifest_files::is_os_sidecar(&path, &sym) {
+            continue;
+        }
         if path.is_dir() {
             list_files(&path, base, files)?;
         } else {
@@ -298,6 +323,49 @@ mod tests {
                 .unwrap()
                 .file_type()
                 .is_symlink()
+        );
+    }
+
+    #[test]
+    fn cpython_payload_ignores_exact_os_sidecars_only_and_rejects_escaping_sidecar_symlinks() {
+        let root = Root(std::env::temp_dir().join(format!(
+            "ryupy-cpython-sidecars-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        )));
+        let input = root.0.join("input");
+        let output = root.0.join("output");
+        std::fs::create_dir_all(&input).unwrap();
+        std::fs::write(input.join("data.txt"), "ok").unwrap();
+        std::fs::write(input.join(".DS_Store"), "finder").unwrap();
+        std::fs::write(input.join("Thumbs.db"), "explorer").unwrap();
+        std::fs::write(input.join("keep.tmp"), "tmp").unwrap();
+        copy_authorized(&input, &output, &input).unwrap();
+        assert!(output.join("data.txt").is_file());
+        assert!(output.join("keep.tmp").is_file());
+        assert!(!output.join(".DS_Store").exists());
+        assert!(!output.join("Thumbs.db").exists());
+
+        // 同名目录并非普通 OS 旁件文件，仍按目录结构复制。
+        std::fs::remove_file(input.join(".DS_Store")).unwrap();
+        std::fs::create_dir(input.join(".DS_Store")).unwrap();
+        std::fs::write(input.join(".DS_Store/real.txt"), "nested").unwrap();
+        let output_dir_case = root.0.join("output_dir_case");
+        copy_authorized(&input, &output_dir_case, &input).unwrap();
+        assert_eq!(
+            std::fs::read(output_dir_case.join(".DS_Store/real.txt")).unwrap(),
+            b"nested"
+        );
+
+        std::fs::write(root.0.join("outside"), "secret").unwrap();
+        std::fs::remove_file(input.join("Thumbs.db")).unwrap();
+        symlink(root.0.join("outside"), input.join("Thumbs.db")).unwrap();
+        let output2 = root.0.join("output2");
+        assert!(
+            copy_authorized(&input, &output2, &input)
+                .unwrap_err()
+                .to_string()
+                .contains("越过授权源根")
         );
     }
 }

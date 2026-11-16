@@ -43,6 +43,9 @@ fn main() -> ExitCode {
     let mut sess = Session {
         distribution_metadata: cli.distribution_metadata,
         cpython_provider: cli.cpython_provider,
+        cpython_modules: cli.cpython_modules,
+        cpython_entry: cli.cpython_entry,
+        cpython_dynamic_modules: cli.cpython_dynamic_modules,
         trace_product_v1: cli.trace_product_v1,
         instance_modules: cli.instance_modules,
         instance_direct_globals: cli.instance_direct_globals,
@@ -189,6 +192,14 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
             })
         }
         Command::Dump { input, emit } => {
+            if !sess.cpython_modules.is_empty()
+                || sess.cpython_entry
+                || !sess.cpython_dynamic_modules.is_empty()
+            {
+                anyhow::bail!(
+                    "dump 不支持 --cpython-module / --cpython-entry / --cpython-dynamic-module"
+                );
+            }
             print!("{}", ryupy_driver::dump(sess, &input, emit.into())?);
             Ok(ExitCode::SUCCESS)
         }

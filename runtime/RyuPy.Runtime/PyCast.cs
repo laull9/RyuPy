@@ -23,6 +23,7 @@ public static class PyCast
         switch (value)
         {
             case IPyForeignObject foreign: return ToInt64(foreign.ReadScalar("int"));
+            case PyInstance { ForeignInstance: { } foreignDerived }: return ToInt64(foreignDerived.ReadScalar("int"));
             case bool b:
                 return b ? 1 : 0;
             case long l:
@@ -42,6 +43,7 @@ public static class PyCast
     public static double ToFloat64(object? value) => value switch
     {
         IPyForeignObject foreign => (double)foreign.ReadScalar("float"),
+        PyInstance { ForeignInstance: { } foreignDerived } => (double)foreignDerived.ReadScalar("float"),
         bool b => b ? 1.0 : 0.0,
         long l => l,
         int i => i,
@@ -55,7 +57,10 @@ public static class PyCast
 
     /// <summary>拆箱为 <c>str</c>：只接受字符串，不做隐式 <c>str()</c>。</summary>
     public static string ToStr(object? value) => value is IPyForeignObject foreign
-        ? (string)foreign.ReadScalar("str") : value as string ?? throw Mismatch("str", value);
+        ? (string)foreign.ReadScalar("str")
+        : value is PyInstance { ForeignInstance: { } foreignDerived }
+            ? (string)foreignDerived.ReadScalar("str")
+            : value as string ?? throw Mismatch("str", value);
 
     /// <summary><c>range()</c> 步长拆箱为 <c>int64</c>，并检查不能为 0。</summary>
     /// <remarks>

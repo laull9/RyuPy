@@ -118,6 +118,12 @@ def main():
         reject(gamma_metadata, gamma_metadata.read_text().replace('Version: 1.0', 'Version: 9.0'), '依赖版本冲突')
         gamma_record = site / 'closure_gamma-1.0.dist-info/RECORD'
         reject(gamma_record, gamma_record.read_text().rstrip() + '\n../escape.py,,\n', 'RECORD路径越界')
+        reject(gamma_record, gamma_record.read_text().rstrip() + '\n../../../include/../../escape.h,,\n', 'RECORD头文件路径越界')
+        header = venv / 'include/site/python3.12/closure_gamma/gamma.h'
+        header.parent.mkdir(parents=True)
+        header.write_text('/* 仅供扩展构建的手写头文件。 */\n')
+        header_record = '../../../include/site/python3.12/closure_gamma/gamma.h'
+        gamma_record.write_text(gamma_record.read_text().rstrip() + '\n' + header_record + ',,\n')
         reject(gamma_record, gamma_record.read_text().rstrip() + '\nmissing_payload.py,,\n', '缺少文件')
         gamma_wheel = site / 'closure_gamma-1.0.dist-info/WHEEL'
         reject(gamma_wheel, gamma_wheel.read_text().replace('py3-none-any', 'cp311-cp311-win_amd64'), 'wheel ABI/平台不匹配')
@@ -150,6 +156,11 @@ def main():
             report = json.loads((product / 'cpython-provider.json').read_text())
             names = {d['name'] for d in report['dependency_collection']['distributions']}
             assert names == {'closure-alpha', 'closure-beta', 'closure-gamma', 'closure-plugin', 'numpy'}, names
+            gamma_report = next(d for d in report['dependency_collection']['distributions']
+                                if d['name'] == 'closure-gamma')
+            assert gamma_report['build_headers'] == [header_record]
+            assert header_record not in gamma_report['files']
+            assert not list(product.rglob('gamma.h')), '构建头文件误入运行期载荷'
             assert not (product / 'python/lib/python3.12/site-packages/packaging').exists()
             assert 'unselected_development' not in report['modules']
             assert not (product / 'python/lib/python3.12/site-packages/unselected_development.py').exists()

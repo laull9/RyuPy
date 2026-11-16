@@ -242,6 +242,10 @@ public static partial class PyOps
         object?[] values
     )
     {
+        if (instance.ForeignInstance is { } foreign)
+        {
+            return foreign.Invoke(args, names, values);
+        }
         instance.Class.GuardInheritedGenericProtocol("__call__");
         if (instance.Class.TryLookup("__call__", out PyClass owner, out object? call))
         {

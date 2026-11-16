@@ -43,6 +43,12 @@ public static partial class PyObject
                 return;
             case PyInstance instance:
                 instance.Class.RequireLexicalFactoryReady();
+                if (instance.ForeignInstance is { } foreignInstance)
+                {
+                    if (fromObject) PyForeignClassBridge.Require().DelAttrFromBaseObject(foreignInstance, name);
+                    else DelAttr(foreignInstance, name);
+                    return;
+                }
                 if (name is "__class__" or "__dict__") PyTypingIo.GuardInstanceReservedMutation(instance.Class, name);
                 if (instance.Class.HasProperties
                     && instance.Class.TryLookup(name, out PyClass propertyOwner, out object? descriptor)
