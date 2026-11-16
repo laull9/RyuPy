@@ -38,6 +38,13 @@ PBS 3.12.13/3.13.3 窄探针验证接线；无需修改 interpreter 私有字段
 后续 stock 增量 decoder 调用两版仍新增 2 次默认求值器命中。继续追求零帧会把整个 importer、
 codec 和清理链重新变成 RyuPy 的维护责任。
 
+持久化 [A1 探针](../../tests/libpython_embedding/README.md) 直接 include 产品原生 hook，
+在 stock 3.12.13/3.13.3 验证了包/child/fromlist/相对导入与 codec/关闭，dispatch 为两个纯 C
+模块 stub。初始化后 PEP 523 观测首次导入 56/50 帧，全为 frozen importlib；缓存普通导入零帧，
+缓存包 fromlist 每次一帧，UTF-8 decoder 三帧来自 frozen codecs。真实 CIL 产品闭包另验。
+前置 6 轮初稿计时缺少独立全机负载监控，且 A2 缺完整事务；正式功能验收仅 10 次/2 轮，
+执行期间有其它验证负载。这些计时均不进入第 5 节产品性能准入。
+
 现在允许必要胶水，A1 在兼容性、多版本/平台成本和可审查范围上更好。
 A2 仅作为**实测热点驱动的局部优化**：必须先证明具体导入算法是实际瓶颈，再比较稳定性能收益、
 完整语义和维护增量。减少 Python 帧数本身不是晋升理由。私有结构 adapter、符号劫持与源码
@@ -145,10 +152,18 @@ stock 没有 ADR-0221 的内部 FiniCore fence 公共等价物；实施应先设
 5. A2 仅在第 5 节证据定位到具体瓶颈后另切，完整锁/回滚/缓存语义先验；不自动接替 A1。
    默认晋升与旧路径退出独立验收；严格内核研究资产保留，不用未验收候选替换主线。
 
-本轮已完成文档决策和 stock 研究证据整理；未修改产品代码、未运行构建或平台测试，未完成
+本次文档修订完成决策和 stock 研究证据整理；文档作者未修改产品代码或重跑构建/平台测试，未完成
 胶水清单产品化、固定项目全 CIL 闭包、stock 生命周期改造、多平台搬迁和第 5 节性能采样。
 
 ## 7. 原始资料
+
+2026-11-16–17 主代理集成检查：`651d9d5e` 加候选工作树的 `make check` 退出零，3418 Runtime C# /
+503 编译 e2e 通过，3 个既有 C# skip、295 个 e2e ignored。额外 compat 类桥 34 项通过。
+严格研究测试源码显式启用编译通过，十二项 Host 实跑仍待验；常规门不会隐式重建该内核。
+本目录探针经主代理复核后，对零退出但 stderr 非空、帧明细总数不符增加失败判据；两版功能
+复验均通过并清理仓外产物。这些检查不含第 5 节的隔离产品性能采样。
+未验收的 Host、Runtime 冷 namespace 与启动裁图候选保存在远端
+`wip/adr0208-cil-execution-backup`，与本次路线/探针提交分开。
 
 - [CPython 公开导入协议](https://docs.python.org/3.12/reference/import.html#the-meta-path) 与
   [C 导入 API](https://docs.python.org/3.12/c-api/import.html)：标准 finder/loader 与内部消费者。
@@ -157,5 +172,8 @@ stock 没有 ADR-0221 的内部 FiniCore fence 公共等价物；实施应先设
 - [PBS 维护者仓库](https://github.com/astral-sh/python-build-standalone)、
   [发行格式](https://gregoryszorc.com/docs/python-build-standalone/main/distributions.html) 与
   [许可说明](https://gregoryszorc.com/docs/python-build-standalone/main/running.html#licensing)。
-- 本轮研究者报告 `/tmp/ryupy-stock-sol.spVbVH/REPORT.md` 的持久化摘要见
+- 持久复现优先使用 [stock 胶水探针说明与两版命令](../../tests/libpython_embedding/README.md)、
+  [C 源码](../../tests/libpython_embedding/stock_glue_probe.c) 与
+  [runner](../../tests/libpython_embedding/run_probe.py)：macOS arm64 的 3.12.13/3.13.3 功能与逐帧归属。
+- 早期研究者报告 `/tmp/ryupy-stock-sol.spVbVH/REPORT.md` 的失败边界持久化摘要见
   [评估第 4 节](../libpython-noninvasive-evaluation.md#真实-stock-判别实验已读取报告未由本文作者重跑)。

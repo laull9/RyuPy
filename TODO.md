@@ -74,6 +74,9 @@ CreateSuper 历史 Object 返回公共 ABI 已恢复，真实 `5d36db1e` 的 184
   边界已有仓外实验；接受少量必要胶水，主线复用原版发行。研究结果见[评估](docs/libpython-noninvasive-evaluation.md)。
 - [ ] **有界胶水执行清单与成本门**：实现按来源/版本/阶段/函数记录的清单，区分必要胶水和业务
   委派，保留严格零帧门；同 SDK、同次 oracle、平衡轮次验证启动/稳态/内存/体积与搬迁。
+- [x] **胶水决策集成检查**：候选工作树完整 make check（3418 Runtime C# / 503 e2e）通过，
+  compat 类桥 34 项和 stock 3.12.13/3.13.3 持久化 C 探针通过；严格研究源码显式编译通过。
+  十二项严格 Host 实跑、stock 产品清单与隔离性能仍待验。
 - [x] **本轮最终集成**：CreateSuper 历史 ABI、完整 make check（3384 C# / 495 e2e）、
   冻结 Release 的六版本产品与三形态执行审计、26 项性能全部通过。墙钟整体 -0.03%，
   generators/exception/sieve 等单项成本见[第二轮验收](docs/cil-execution-second-slices-validation.md)，

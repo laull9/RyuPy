@@ -258,10 +258,45 @@ fromlist 加载、模块事务、锁等待、并发循环和死锁处理。不�
 边界保留。NumPy 仅静态确认一个 cp313 random 扩展依赖 ImportModuleLevelObject/Code/Frame，
 未运行其业务。Linux、Windows、其它 CPython 版本、真实产品和性能继续待验。
 
-原始研究报告位于本轮临时目录 `/tmp/ryupy-stock-sol.spVbVH/REPORT.md`，已清理探针二进制。
-本节把可用于决策的证据收入版本化文档，避免依赖临时报告存续；本文未复制原始日志或生成产物。
+以下持久化探针是 A1 的主要复现入口；上述失败边界另保留本节摘要，原始研究报告位于
+`/tmp/ryupy-stock-sol.spVbVH/REPORT.md`，已清理早期探针二进制。本文未复制原始日志或生成产物。
 源码复核：[3.13.3 codec 初始化前置](https://github.com/python/cpython/blob/v3.13.3/Python/codecs.c#L20-L35)、
 [3.13.3 导入实现](https://github.com/python/cpython/blob/v3.13.3/Python/import.c)。
+
+### 可复现的 A1 原生导入桥与胶水归属
+
+持久入口为 [探针说明与两版命令](../tests/libpython_embedding/README.md)、
+[C 探针](../tests/libpython_embedding/stock_glue_probe.c) 与
+[仓库外构建/清理 runner](../tests/libpython_embedding/run_probe.py)。2026-11-16，研究者已对
+macOS arm64 stock PBS 3.12.13/3.13.3 各运行 `--iterations 10 --repeats 2`，包/child/fromlist/
+相对导入返回 42，UTF-8 decoder 返回汉字，stdout 空写/flush 与 Finalize 成功，归属表完整性
+错误均零，临时目录清理完成。本文作者只读取说明和结果，未重跑命令。
+
+该探针直接 include 当前产品 `native/import_hooks.h`，dispatch 使用两个纯 C 模块 stub。
+它验证 A1 导入服务接线，真实 CIL 函数体、完整应用闭包、第三方扩展和搬迁仍须走产品门。
+profile 在初始化后安装 PEP 523 观察器逐函数记录来源，随后委托 stock 求值器；计时进程不装
+观察器。128 项归属表溢出、字符串超长、code/属性读取失败都会令进程失败。
+
+| A1 观察阶段 | 3.12.13 函数帧 | 3.13.3 函数帧 | 观察来源 |
+| --- | ---: | ---: | --- |
+| 安装原生 finder/loader | 0 | 0 | C API 与缓存模块 |
+| 首次导入固定包及 child，含 fromlist/相对调用 | 56 | 50 | frozen importlib 的锁、ModuleSpec、模块事务、fromlist |
+| 缓存普通模块直接导入一次 | 0 | 0 | C 缓存命中 |
+| 缓存包 fromlist 一次 | 1 | 1 | frozen importlib `_handle_fromlist` |
+| UTF-8 增量 decoder 构造及 decode | 3 | 3 | frozen codecs 两个 `__init__` 与 `decode` |
+| stdout 空 write/flush、关闭 | 0 | 0 | 本探针触发的 C 流路径 |
+
+此表是观察器覆盖期间的函数帧数，前表 387/345 是 LLDB 默认求值器入口次数；二者口径不同。
+本探针不统计启动函数帧，观察到的关闭零帧仅覆盖该输入，完整生命周期仍有独立覆盖门。
+有限源码族支持逐函数胶水清单，而不是整个模块树通配。正式 A2 对照仍用空锁和有限 fromlist
+桩；API 检查会引入额外属性帧，不能以其窄帧数替代完整 importer 合同。
+
+前置仓外初稿曾做 6 轮平衡次序、每轮 100 万次缓存导入：普通导入 native/A2 中位数为
+3.12 的 48.924/48.166ms、3.13 的 46.218/45.126ms；缓存包 fromlist 为
+103.746/106.497ms 与 105.018/109.607ms。两模块冷导入 native 约 17.5/18.5µs、A2 约 6µs。
+采样未独立监控全机负载，初稿与持久源码的 API 检查也不同；A2 省去的工作含其未实现的事务。
+这些数据只支持研究排序，无法建立 A2 的完整产品收益。正式功能验收的极小计时次数运行时
+还有其它验证负载，全部计时排除在性能结论外。ADR-0223 的产品预算仍待正式隔离采样。
 
 ## 5. 多版本、平台、wheel 与 ABI
 
@@ -385,7 +420,8 @@ C 只有实验覆盖的版本、平台与消费者可以登记；D 保留历史�
 
 已做：阅读指定 ADR/路线/盘点/kernel 说明和现有 shim/构建源码；在线核对 CPython 官方文档、
 固定 3.12.13/3.13.3 源码、3.9/3.15 维护分支及 PBS 维护者资料；读取另一研究者 macOS arm64
-stock 3.12.13/3.13.3 报告，并把方法、成功/失败/崩溃、入口计数和窄桩限制收入本文。
+stock 3.12.13/3.13.3 报告和仓库探针说明，把方法、成功/失败/崩溃、入口/函数帧两类计数、
+来源分布和窄桩限制收入本文，前置研究计时与正式功能验收分开登记。
 
 本文作者未做：stock 原型重跑、fork 源码重建、真实 wheel 动态探测、Windows/Linux/macOS 新运行
 验证、冷启动/大小/缓存收益测量；未核定 PBS 每个旧版本是否仍有新发布 artifact。

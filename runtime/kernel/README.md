@@ -2,8 +2,9 @@
 
 按 [ADR-0223](../../docs/adr/0223-stock-libpython-bounded-glue.md)，本目录转为可选严格研究。
 产品主线复用原版 libpython 与少量必要胶水，暂停扩展自定义内核；已有源码与探针保留。
-当前未提交的 Host Slice 1 修改尚未完成十二项实跑验收，旧 22/10 探针成绩限定于其已测快照。
-常规 `make check` 不触发严格源码重建。独立启用 Host 研究测试：
+Host Slice 1 修改尚未完成十二项实跑验收，候选源码保存在远端
+`wip/adr0208-cil-execution-backup`，旧 22/10 探针成绩限定于其已测快照。
+候选快照的常规 `make check` 不触发严格源码重建；在该 WIP 源码上独立启用 Host 研究测试：
 
 ```bash
 dotnet test runtime/RyuPy.CPython.Tests -p:RyuPyStrictKernelTests=true \

@@ -54,7 +54,8 @@ def run(command, *, label, timeout, cwd):
         raise SystemExit(1) from error
     if result.stderr:
         print(f"STDERR {label}:\n{result.stderr}", file=sys.stderr)
-    if result.returncode:
+    # 本探针的正向操作约定 stderr 为空；退出码为零的关闭告警也须成为失败证据。
+    if result.returncode or result.stderr:
         print(f"FAIL {label}: exit={result.returncode}", file=sys.stderr)
         print(result.stdout, file=sys.stderr)
         raise SystemExit(1)
@@ -72,6 +73,9 @@ def validate_output(output, *, profile):
         raise ValueError(f"逐帧观测不完整\n{output}")
     if profile and int(observation.group(1)) == 0:
         raise ValueError(f"codec 正向操作没有观测到帧\n{output}")
+    recorded = sum(int(count) for count in re.findall(r"^FRAME \S+ (\d+) .+$", output, re.MULTILINE))
+    if recorded != int(observation.group(1)):
+        raise ValueError(f"帧明细合计与总数不一致\n{output}")
 
 
 def main():
