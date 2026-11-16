@@ -13,7 +13,7 @@ OUT = Path(sys.argv[1]).resolve()
 OUT.mkdir(parents=True, exist_ok=False)
 ENV = {k: v for k, v in os.environ.items() if k not in
        {"RYUPY_PIC", "RYUPY_PIC_STATS", "RYUPY_RUNTIME_DIR",
-        "DOTNET_TieredCompilation", "COMPlus_TieredCompilation"}}
+        "DOTNET_TieredCompilation", "COMPlus_TieredCompilation", "RYUPY_CAPTURE_DRIVER"}}
 REPORT = {"commands": [], "rows": [], "entries": []}
 
 
@@ -53,17 +53,21 @@ try:
                     extra = {"RYUPY_PIC": pic}
                     if backend == "jit":
                         extra["DOTNET_TieredCompilation"] = "0" if profile == "no-tier" else "1"
-                    stdout = run(argv, f"run-{tag}-{profile}-pic{pic}", extra)
-                    rows = [json.loads(line) for line in stdout.splitlines()]
-                    assert len(rows) == 200
-                    assert {(r["batch"], r["arm"]) for r in rows} == {
-                        (b, a) for b in range(20) for a in ("late", "bound", "plan", "scalar",
-                                                               "scalar_split", "scalar_narrow", "capture_only", "invoke_only",
-                                                               "scalar_capture_split", "capture_split_only")}
-                    for row in rows:
-                        assert row["count"] == 100000 and row["ms"] >= 0 and row["allocation"] >= 0
-                        REPORT["rows"].append(row | {"round": round_id, "backend": backend,
-                                                    "profile": profile, "pic": pic})
+                    for driver in ("legacy", "isolated"):
+                        stdout = run(argv, f"run-{tag}-{profile}-pic{pic}-{driver}",
+                                     extra | {"RYUPY_CAPTURE_DRIVER": driver})
+                        rows = [json.loads(line) for line in stdout.splitlines()]
+                        arms = (("late", "bound", "plan", "scalar", "scalar_split",
+                                 "scalar_narrow", "capture_only", "invoke_only",
+                                 "scalar_capture_split", "capture_split_only") if driver == "legacy"
+                                else ("original", "legacy_split", "c0i0", "c0i1", "c1i0", "c1i1"))
+                        assert len(rows) == 20 * len(arms)
+                        assert {(r["batch"], r["arm"]) for r in rows} == {
+                            (b, a) for b in range(20) for a in arms}
+                        for row in rows:
+                            assert row["count"] == 100000 and row["ms"] >= 0 and row["allocation"] >= 0
+                            REPORT["rows"].append(row | {"round": round_id, "backend": backend,
+                                                        "profile": profile, "pic": pic, "driver": driver})
 
 finally:
     (OUT / "report.json").write_text(json.dumps(REPORT, ensure_ascii=False, indent=2))

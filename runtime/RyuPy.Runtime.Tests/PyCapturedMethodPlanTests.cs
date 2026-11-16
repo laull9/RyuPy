@@ -395,67 +395,90 @@ public sealed class PyCapturedMethodPlanTests
         Assert.Equal(42L, list.GetItem(0));
     }
 
-    // 两种捕获入口接受相同干预；原入口作为同次语义参照，不把冷热实验当默认行为。
-    private static object? CaptureForSplitContract(bool split, int site, object receiver, string name) => split
-        ? PyPic.CaptureMethodPlanSplit(site, receiver, name)
-        : PyPic.CaptureMethodPlan(site, receiver, name);
+    // 六入口接受相同干预：原入口、旧split、2×2消融，不把实验当默认行为。
+    private static object? CaptureForSplitContract(int mode, int site, object receiver, string name) => mode switch
+    {
+        0 => PyPic.CaptureMethodPlan(site, receiver, name),
+        1 => PyPic.CaptureMethodPlanSplit(site, receiver, name),
+        2 => PyPic.CaptureMethodPlanAblationCold0Inline0(site, receiver, name),
+        3 => PyPic.CaptureMethodPlanAblationCold0Inline1(site, receiver, name),
+        4 => PyPic.CaptureMethodPlanAblationCold1Inline0(site, receiver, name),
+        5 => PyPic.CaptureMethodPlanAblationCold1Inline1(site, receiver, name),
+        _ => throw new ArgumentOutOfRangeException(nameof(mode)),
+    };
 
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(false, true)]
-    [InlineData(true, false)]
-    [InlineData(true, true)]
-    public void SplitCaptureRechecksUnversionedFactoryOnClassAndAncestor(bool split, bool ancestor)
+    [InlineData(0, false)]
+    [InlineData(0, true)]
+    [InlineData(1, false)]
+    [InlineData(1, true)]
+    [InlineData(2, false)]
+    [InlineData(2, true)]
+    [InlineData(3, false)]
+    [InlineData(3, true)]
+    [InlineData(4, false)]
+    [InlineData(4, true)]
+    [InlineData(5, false)]
+    [InlineData(5, true)]
+    public void SplitCaptureRechecksUnversionedFactoryOnClassAndAncestor(int mode, bool ancestor)
     {
         var root = new PyClass("SplitFactoryRoot");
         var cls = ancestor ? (PyClass)PyOps.MakeClass("SplitFactoryLeaf", [root], null) : root;
         var self = new PyInstance(cls); int factoryCalls = 0;
         root.SetAttr("f", Function(static (_, args, _, _) => args[0]));
-        object? warm = CaptureForSplitContract(split, 3540, self, "f");
-        if (PicEnabled) Assert.Same(warm, CaptureForSplitContract(split, 3540, self, "f"));
+        object? warm = CaptureForSplitContract(mode, 3540, self, "f");
+        if (PicEnabled) Assert.Same(warm, CaptureForSplitContract(mode, 3540, self, "f"));
         long version = PyClass.GlobalVersion;
         // 此公开setter不Touch：缓存资格只按GlobalVersion将漏掉本次布局变化。
         root.ExceptionFactory = (_, _) => { factoryCalls++; return new PyValueError("unused"); };
         Assert.Equal(version, PyClass.GlobalVersion);
-        object? changed = CaptureForSplitContract(split, 3540, self, "f");
+        object? changed = CaptureForSplitContract(mode, 3540, self, "f");
         Assert.IsType<PyBoundMethod>(changed);
         Assert.Same(self, PyPic.CallCapturedPlan0(3540, true, changed, self, "f"));
         Assert.Same(self, PyPic.CallCapturedPlan0(3540, true, warm, self, "f"));
         Assert.Equal(0, factoryCalls);
         root.ExceptionFactory = null;
         Assert.Equal(version, PyClass.GlobalVersion);
-        object? restored = CaptureForSplitContract(split, 3540, self, "f");
+        object? restored = CaptureForSplitContract(mode, 3540, self, "f");
         if (PicEnabled) Assert.Same(warm, restored);
         Assert.Same(self, PyPic.CallCapturedPlan0(3540, true, restored, self, "f"));
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void SplitCaptureChecksExistingShadowSlotAndKeepsSavedTarget(bool split)
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    public void SplitCaptureChecksExistingShadowSlotAndKeepsSavedTarget(int mode)
     {
         var cls = new PyClass("SplitShadow"); var self = new PyInstance(cls); var other = new PyInstance(cls);
         cls.SetAttr("f", Function(static (_, _, _, _) => 9L));
         // 先让其它实例建立同名槽，保证warm保存的是已存在但self未填充的ShadowSlot。
         PyObject.SetAttr(other, "f", Function(static (_, _, _, _) => -1L));
-        object? warm = CaptureForSplitContract(split, 3541, self, "f");
-        if (PicEnabled) Assert.Same(warm, CaptureForSplitContract(split, 3541, self, "f"));
+        object? warm = CaptureForSplitContract(mode, 3541, self, "f");
+        if (PicEnabled) Assert.Same(warm, CaptureForSplitContract(mode, 3541, self, "f"));
         var shadow = Function(static (_, _, _, _) => 101L);
         PyObject.SetAttr(self, "f", shadow);
-        object? captured = CaptureForSplitContract(split, 3541, self, "f");
+        object? captured = CaptureForSplitContract(mode, 3541, self, "f");
         Assert.Same(shadow, captured);
         Assert.Equal(101L, PyPic.CallCapturedPlan0(3541, true, captured, self, "f"));
         Assert.Equal(9L, PyPic.CallCapturedPlan0(3541, true, warm, self, "f"));
         PyObject.DelAttr(self, "f");
-        object? restored = CaptureForSplitContract(split, 3541, self, "f");
+        object? restored = CaptureForSplitContract(mode, 3541, self, "f");
         Assert.Equal(9L, PyPic.CallCapturedPlan0(3541, true, restored, self, "f"));
         Assert.Equal(-1L, PyOps.CallValue(PyObject.GetAttr(other, "f"), [], [], []));
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void SplitCaptureSameSiteBodyReentryRetainsOuterSnapshotAndArguments(bool split)
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    public void SplitCaptureSameSiteBodyReentryRetainsOuterSnapshotAndArguments(int mode)
     {
         var cls = new PyClass("SplitReentry"); var self = new PyInstance(cls);
         object? outer = null; bool nested = false; var saved = new List<object?[]>();
@@ -466,7 +489,7 @@ public sealed class PyCapturedMethodPlanTests
             {
                 nested = true;
                 cls.SetAttr("f", Function(static (_, _, _, _) => 101L));
-                object? replacement = CaptureForSplitContract(split, 3542, self, "f");
+                object? replacement = CaptureForSplitContract(mode, 3542, self, "f");
                 Assert.Equal(101L, PyPic.CallCapturedPlan1(3542, true, replacement, self, "f", 0L));
                 // 同站点已换目标，仍以局部保存的outer再次调用原函数。
                 Assert.Equal(73L, PyPic.CallCapturedPlan1(3542, true, outer, self, "f", 73L));
@@ -474,12 +497,12 @@ public sealed class PyCapturedMethodPlanTests
             }
             Assert.Equal(before, args); return args[1];
         }));
-        outer = CaptureForSplitContract(split, 3542, self, "f");
+        outer = CaptureForSplitContract(mode, 3542, self, "f");
         Assert.Equal(42L, PyPic.CallCapturedPlan1(3542, true, outer, self, "f", 42L));
         Assert.Equal(2, saved.Count); Assert.NotSame(saved[0], saved[1]);
         Assert.Equal(new object?[] { self, 42L }, saved[0]);
         Assert.Equal(new object?[] { self, 73L }, saved[1]);
-        object? current = CaptureForSplitContract(split, 3542, self, "f");
+        object? current = CaptureForSplitContract(mode, 3542, self, "f");
         Assert.Equal(101L, PyPic.CallCapturedPlan1(3542, true, current, self, "f", 1L));
     }
 }

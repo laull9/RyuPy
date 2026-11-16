@@ -68,3 +68,19 @@ scalar_capture_split与scalar_narrow使用同一narrow类、receiver及CallExper
 两个入口共享同种缓存实现但使用不同站点，原入口及原八臂保留。
 四构建轮、24进程、每进程200批，共4800记录；同一narrow对象的两完整调用臂逐轮对照。
 内联提示只是候选，需要核机器码和实测，不能承诺收益；不改产品编译器或默认入口。
+
+## 冷热拆分与内联策略的 2×2 消融
+
+原十臂 legacy driver 保留，另在独立进程执行 isolated 六臂：original、legacy_split、
+c0i0、c0i1、c1i0、c1i1。四个因子臂使用相同语义：C 控制 miss 是否分离至 NoInlining 冷函数，
+I 控制 capture 与布局 helper 的 NoInlining/AggressiveInlining 策略。I 是两个内联提示的组合，
+不是保证发生内联；必须查看实际机器码。original 与 legacy_split 是旧实现参照，不应冒充显式 I0 因子。
+
+六个 isolated 臂各有同形 NoInlining driver，接收 site/receiver/value/count 参数，循环内直接调用固定入口。
+同一 receiver/function/value，共用完整窄调用合同；不同站点防止跨臂缓存污染。
+每进程三个秒组合预热、20 批、正逆顺序，四轮构建，48 进程共 7680 行。
+report 每行新增 driver 字段，原始流与8份入口及其散列保留。不跨进程把 legacy 与 isolated
+的绝对时间当作配对结果。仅同进程同批做因子对比，保留四轮与禁分层异常，不只报告最好一轮。
+
+这是 Runtime 机制实验，不改默认入口或编译器，不能宣称产品吞吐收益。
+完整布局检查继续每次执行，不用 GlobalVersion 替代未受保护的布局字段。

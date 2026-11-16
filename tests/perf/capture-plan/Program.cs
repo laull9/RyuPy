@@ -2,6 +2,12 @@
 using System.Diagnostics;
 using RyuPy.Runtime;
 
+if (Environment.GetEnvironmentVariable("RYUPY_CAPTURE_DRIVER") == "isolated")
+{
+    AblationDrivers.Run();
+    return;
+}
+
 var cls = new PyClass("PlanCounter");
 var receiver = new PyInstance(cls);
 cls.SetAttr("f", new PyFunction("f", PySignature.Create("f", ["self", "x"], ["pos", "pos"], ["0", "0"]),
