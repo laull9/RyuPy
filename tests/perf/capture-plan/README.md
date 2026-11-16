@@ -104,3 +104,15 @@ https://github.com/dotnet/runtime/issues/135192 。过滤与配置依据.NET10�
 https://github.com/dotnet/runtime/blob/v10.0.0/docs/design/coreclr/jit/viewing-jit-dumps.md 。
 正常计时环境移除DOTNET_/COMPlus_两别名诊断变量。诊断流可包含并发输出，审计需检查
 各method/tier块完整性及Total bytes，不以has_tier1聚合布尔值替代逐driver覆盖核验。
+
+## 布局失效反例门（未启用资格缓存）
+
+新增Runtime测试直接调用原私有IsPlainCaptureClass作为oracle，用真实PyClass的布局元数据
+setter构造自身/祖先/MI非首父的资格变化，检查GlobalVersion不足以代表布局资格。
+直接元数据状态只用于守卫反例，不当作合法完整对象执行，不称真实Python变更或并发测试。
+本轮不实现LayoutEpoch、不省遍历、不改变Runtime默认入口。
+
+拟议下一步仍是先建立所有底层写入的独立布局失效协议，再做影子模式：即使候选缓存命中
+也运行旧完整oracle，比较两者；覆盖不全或构造未稳定的依赖一律不缓存。单纯测试侧计数器
+不能证明生产setter覆盖，epoch双读也不构成多writer线程同步。公开Attributes字典绕Touch
+属于另一个既有边界，不能宣称布局epoch顺带修复，也不在此改变其ABI。
