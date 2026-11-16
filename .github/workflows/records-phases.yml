@@ -1,0 +1,67 @@
+name: Records native phase diagnosis
+on:
+  push:
+    branches: [ci/records-phases-20261116]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+      MSBUILDDISABLENODEREUSE: '1'
+      DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+      UseSharedCompilation: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.13'
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
+        with:
+          toolchain: '1.99.1'
+      - name: Fixed product independent builds and samples
+        shell: bash
+        run: |
+          set -euo pipefail
+          export EVIDENCE="$RUNNER_TEMP/records-phases"
+          mkdir "$EVIDENCE"
+          echo "EVIDENCE=$EVIDENCE" >> "$GITHUB_ENV"
+          sudo apt-get update -qq
+          sudo apt-get install -y clang zlib1g-dev patchelf binutils
+          uname -a > "$EVIDENCE/uname.txt"
+          lscpu > "$EVIDENCE/lscpu.txt"
+          dotnet --info > "$EVIDENCE/dotnet.txt"
+          dotnet --list-runtimes > "$EVIDENCE/available-runtimes.txt"
+          test "$(dotnet --version)" = 10.0.403
+          for round in 0 1 2 3; do
+            product="$RUNNER_TEMP/records-product-$round"
+            git worktree add --detach "$product" a1419ac5c41376e984969fea1eda435acc672a5e
+            printf '%s\n' '{"sdk":{"version":"10.0.403","rollForward":"disable","allowPrerelease":false}}' > "$product/global.json"
+            (cd "$product"; make build) > "$EVIDENCE/build-$round.log" 2>&1
+            sha256sum "$product/target/release/ryupy" > "$EVIDENCE/cli-$round.sha256"
+            python3 -B tests/perf/records-phases/run.py --product "$product" --cli "$product/target/release/ryupy" --out "$EVIDENCE/round-$round" --round "$round"
+            git -C "$product" diff --exit-code
+            rm -rf "$product/target"
+          done
+          python3 - "$EVIDENCE" <<'PY'
+          import json,sys
+          from pathlib import Path
+          p=Path(sys.argv[1]); rows=[r for f in p.glob('round-*/rows.json') for r in json.loads(f.read_text())]
+          assert len(rows)==288
+          assert len(list(p.glob('round-*/*/manifest.json')))==8
+          (p/'complete.json').write_text(json.dumps({'samples':288,'manifests':8,'product':'a1419ac5c41376e984969fea1eda435acc672a5e'}))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: records-phases-${{ github.sha }}
+          path: ${{ env.EVIDENCE }}
+          retention-days: 14
