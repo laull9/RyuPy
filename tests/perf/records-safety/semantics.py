@@ -19,6 +19,9 @@ KNOWN=b'custom-get ann buy\ncustom-set 6\nknown-rejection dict layout with non-s
 
 KNOWN_CALLBACKS=b'key-hash\nkey-hash\nkey-eq\nkey-hash\nkey-eq\nkey-value [2]\nreceiver-get a 0\nreceiver-set a 6\n'
 CP_CALLBACKS=b'key-hash\nkey-hash\nkey-hash\nkey-eq\nkey-hash\nkey-eq\nkey-value [2]\nreceiver-get a 0\nreceiver-set a 6\n'
+# 43816599556 已在固定默认 JIT 复现；本轮仍逐次要求默认 AOT 与实验两态重现，不能据此称 CP 兼容。
+CP_CAPTURE=b'old-get x 0\nset x 9\ncaptured 2 9\nhash-error\nunchanged hash failed 5 1\n'
+KNOWN_CAPTURE=b'new-get x 0\nset x 101\ncaptured 2 101\nhash-error\nunchanged hash failed 5 1\n'
 BASELINE_SHA='5d36db1e952f1db07aee6563d7a800cc1df94548'
 
 
@@ -65,9 +68,13 @@ def main():
         for case,counts in CASES.items():
             source=(Path(__file__).with_name(case+'.py') if case in ('wide','capture') else ROOT/'tests/fixtures/records_guard_source'/f'{case}.py')
             oracle=run(case+'-cp',[sys.executable,'-B',source]);assert not oracle[1]
-            expected=KNOWN if case=='known_subclass' else KNOWN_CALLBACKS if case=='known_callbacks' else oracle[0]
+            expected=KNOWN if case=='known_subclass' else KNOWN_CALLBACKS if case=='known_callbacks' else KNOWN_CAPTURE if case=='capture' else oracle[0]
             if case=='known_subclass':assert oracle[0]==b'custom-get ann buy\ncustom-set 6\ncustom-result 6 True\n'
-            info={'source_sha256':sha(source),'cp_equivalent':case not in ('known_subclass','known_callbacks'),'arms':{},'samples':[]};report['cases'][case]=info
+            info={'source_sha256':sha(source),'cp_equivalent':case not in ('known_subclass','known_callbacks','capture'),'arms':{},'samples':[]};report['cases'][case]=info
+            if case=='capture':
+                assert oracle[0]==CP_CAPTURE and expected!=oracle[0]
+                info['known_difference']='ordinary-instance callable lookup occurs after argument callback; CP captures old-get, fixed dev resolves new-get; not CP-compatible'
+                info['historical_failure_run']=43816599556
             if case=='known_callbacks':
                 assert oracle[0]==CP_CALLBACKS and expected!=oracle[0]
             if True:

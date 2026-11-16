@@ -16,3 +16,19 @@ Runtime released同样先构建第5组owner，再由NoInlining工厂仅返回弱
 两层第五组创建次序不同：Runtime先建存活/释放组再四批短命，Python先四批再最后组；两层只能各自off/on对照，不逐值比较或把其GC历史当等价。
 
 首轮43814354700默认完整check成功；feature的Runtime3349通过/3skip及Rust测试已跑，但cases-selftest因ryupy-e2e未声明裸records-increment-experiment feature失败，e2e编译执行阶段及后续准入/源码/内存均未运行。修订只把完整check的feature请求改为依赖限定ryupy-driver/records-increment-experiment，沿真实driver→MIR依赖启用，不改Makefile或e2e包；保存Cargo metadata及专门-p ryupy-e2e feature树，强制核driver/MIR节点和e2e→driver边，再原样完整make check。实验仍默认关闭，不因feature解析存在就声称运行期开启。
+
+
+## 43816599556 捕获差异与下一次限定复测
+
+本轮默认/feature 完整检查均通过；六个源码场景完成后，capture 的固定默认 JIT
+先于实验臂失败：CPython 输出 old-get / 9，默认产品输出 new-get / 101。
+原失败及原 oracle 保留，不能归因为 records 改写，也不能声称捕获语义兼容。
+根因是普通 PyInstance 不属于提前捕获域，实参回调重绑 get 后再次查找目标。
+通用预捕获会改变普通实例的绑定分配和 PIC 路径，单列后续语义/性能切片，不在此处修改产品。
+
+下一次复测将 capture 明确标成 cp_equivalent=false，精确保留 CP 原输出，并要求固定
+默认 JIT/AOT、实验 off/on 和诊断 JIT/AOT 全部重现同一个既有输出；任何偏离仍失败。
+原复杂源码不改、两态 MIR 均须零 records 改写，诊断仅允许不存在或严格 0/0。
+这是定位后单列既有差异，不是修复或扩大兼容性声明。其余六场景的合同保持不变。
+内存门此前被跳过；后续只有真实完成后才能报告 PSS 和 Runtime 活堆，无阈值绿灯
+仍不代表没有内存退化，必须独立比较各尺寸/阶段的四轮数据。
