@@ -84,3 +84,23 @@ report 每行新增 driver 字段，原始流与8份入口及其散列保留。�
 
 这是 Runtime 机制实验，不改默认入口或编译器，不能宣称产品吞吐收益。
 完整布局检查继续每次执行，不用 GlobalVersion 替代未受保护的布局字段。
+
+## 调用场景与独立 JIT 机器码诊断
+
+本轮保留 legacy/isolated，另将 compiler_shape、mro_depth8、polymorphic4、invalidate_miss
+各放一个独立进程，每场景 original/c0i0/c0i1/c1i0/c1i1 五臂。手写调用形态仅模拟
+捕获后求参数再调用，不是编译器输出，也不是编译器求值顺序验收。深MRO为8层用户类，
+多态为同站点4类轮换；invalidate_miss 每次修改独立类属性令全局版本变化，计时包含
+该修改与失效成本，不能叫纯miss延迟。场景定义与原始scenario字段一起保留。
+
+四构建轮正常计时144进程、17280行；同进程配对，跨场景/driver不做直接因果相除。
+另48个JIT诊断进程仅PIC1，分正常分层/禁分层。它们复用相同构建，但输出和时间不纳入性能行。
+仅设置JitDisasm方法过滤、Diffable及OnlyOptimized=0，不修改PGO/OSR/调用计数策略。
+完整stdout/stderr保留，逐条记录原始Assembly listing头；出现Tier1/Tier1-OSR才可说观察到该层，
+没有就标记缺口。禁分层FullOpts不是Tier1，最后输出块不证明最终稳态。
+
+不用JitStdOutFile，避免.NET仓库所报退出时后台编译写流竞态：
+https://github.com/dotnet/runtime/issues/135192 。过滤与配置依据.NET10官方文档：
+https://github.com/dotnet/runtime/blob/v10.0.0/docs/design/coreclr/jit/viewing-jit-dumps.md 。
+正常计时环境移除DOTNET_/COMPlus_两别名诊断变量。诊断流可包含并发输出，审计需检查
+各method/tier块完整性及Total bytes，不以has_tier1聚合布尔值替代逐driver覆盖核验。

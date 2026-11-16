@@ -8,6 +8,13 @@ if (Environment.GetEnvironmentVariable("RYUPY_CAPTURE_DRIVER") == "isolated")
     return;
 }
 
+if (Environment.GetEnvironmentVariable("RYUPY_CAPTURE_DRIVER") == "scenario")
+{
+    ScenarioDrivers.Run(Environment.GetEnvironmentVariable("RYUPY_CAPTURE_SCENARIO")
+        ?? throw new Exception("缺少场景名"));
+    return;
+}
+
 var cls = new PyClass("PlanCounter");
 var receiver = new PyInstance(cls);
 cls.SetAttr("f", new PyFunction("f", PySignature.Create("f", ["self", "x"], ["pos", "pos"], ["0", "0"]),
