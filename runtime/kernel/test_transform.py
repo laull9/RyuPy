@@ -113,6 +113,31 @@ class TransformTests(unittest.TestCase):
         self.assertIn("rp_kernel_register_utf8_codec", RYUPY_UTF8_CODEC_HEADER.content)
         self.assertIn("RpUtf8IncDecoder", RYUPY_UTF8_INCREMENTAL_HEADER.content)
 
+    def test_c4_1_import_router_anchors_and_abi_constraints(self):
+        from anchors_eval_import import RYUPY_KERNEL_HEADER
+        from anchors_import_router import (
+            RYUPY_IMPORT_ABI_HEADER,
+            RYUPY_IMPORT_REGISTRY_HEADER,
+            build_import_router_anchors,
+            build_import_router_headers,
+        )
+        from transform import default_headers
+
+        anchors = build_anchors()
+        router_anchors = build_import_router_anchors()
+        router_names = {a.name for a in router_anchors}
+        self.assertTrue(router_names.issubset({a.name for a in anchors}))
+        # 绝不修改 PyInterpreterState / struct _import_state 既有布局。
+        for a in anchors:
+            if a.rel_path == "Include/internal/pycore_import.h":
+                self.assertNotIn("ryupy_state", a.new)
+        header_paths = {h.rel_path for h in default_headers()}
+        for h in build_import_router_headers():
+            self.assertIn(h.rel_path, header_paths)
+        self.assertIn('#include "ryupy_import_abi.h"', RYUPY_KERNEL_HEADER.content)
+        self.assertNotIn("pycore_lock.h", RYUPY_IMPORT_REGISTRY_HEADER.content)
+        self.assertIn("package_dir", RYUPY_IMPORT_ABI_HEADER.content)
+
     def test_ensure_outside_repo_rejects_repo_paths(self):
         with self.assertRaises(KernelBuildError):
             ensure_outside_repo(KERNEL_DIR)

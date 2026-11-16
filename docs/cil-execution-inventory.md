@@ -245,11 +245,12 @@ JIT/NativeAOT 搬迁分别验收。本轮尚无该 ADR 的实现与准入结果�
 
 ### 8.2 选定「可重建最小 `libpython` 内核」的四大构件与当前落点
 
-以下是完整目标设计。当前 `runtime/kernel` 只接入内建模块路由、严格求值拒绝及纯 C UTF-8/stdio：
-主代理已在 macOS arm64 用真实 3.12.13 源码构建并运行十五个探针模式。新增扩展/router 文件（含
-`anchors_import_router.py`、`ryupy_import_*.h`）仍为独立候选，尚未接入 `transform.py`，
-尚未构建或运行；动态扩展/CIL 反向导入与产品接入继续待办，见
-[kernel README](../runtime/kernel/README.md) 与 [ADR-0216](adr/0216-strict-kernel-native-stdio.md)。
+以下是完整目标设计。当前 `runtime/kernel` 已接入严格求值拒绝、纯 C UTF-8/stdio、
+冻结扩展注册表、原生 Spec/Loader、每模块锁和静态 CIL 导入单事务 ABI。macOS arm64
+官方 3.12.13 源码构建的 22 项内核探针、30 个测试扩展及 10 项 stock 对照全部通过。
+真实 C# host/CLI 与完整闭包编译继续待办，见
+[kernel README](../runtime/kernel/README.md)、[ADR-0216](adr/0216-strict-kernel-native-stdio.md)
+与 [ADR-0217](adr/0217-strict-kernel-frozen-extensions-and-cil-import-abi.md)。
 
 1. **无字节码启动配置与空 Frozen 载荷**：
    - 启动参数固定 `PyConfig_InitIsolatedConfig` + `module_search_paths_set = 1` + `home` + `_install_importlib = 0` + `site_import = 0` + `write_bytecode = 0`。
@@ -268,7 +269,7 @@ JIT/NativeAOT 搬迁分别验收。本轮尚无该 ADR 的实现与准入结果�
 | 成本项 | 具体内容与工程影响 | 控制策略 |
 | :--- | :--- | :--- |
 | **三平台可重复构建与产物校验** | 需维护 macOS arm64（`pgo+lto`）、Linux x64（`pgo+lto`，关联 glibc/OpenSSL/`libcrypt`）、Windows x64（MSVC `pgo` + DLL）三平台内核构建流水线（可基于 `python-build-standalone` 构建配方精简补丁集） | 首切锁定 **CPython 3.12.13** 单一内核，与现成 auto 3.9–3.15 兼容路径隔离，待 C4 闭环后再评估滚动升级 |
-| **上游补丁维护面** | 首轮实际覆盖 `import.c`、`frozen.c`、`ceval.c`、`pylifecycle.c`、`codecs.c`、`getpath.c`、`pycore_ceval.h` 与 `Makefile.pre.in`；另注入纯 C UTF-8 codec/增量类型头 | 不改动对象模型、GC、字典/列表/数字布局，codec 与增量类型约六百余行 C，求值器/导入/启动锚点另列；版本扩展需逐处复验 |
+| **上游补丁维护面** | 当前覆盖 `import.c`、`frozen.c`、`ceval.c`、`pylifecycle.c`、`codecs.c`、`getpath.c`、`pycore_ceval.h`、`pycore_import.h`、`moduleobject.c`、`patchlevel.h` 与 `Makefile.pre.in`；另注入纯 C codec/增量类型及导入头 | 不改动对象模型、GC、字典/列表/数字布局，codec 与增量类型约六百余行 C，求值器/导入/启动锚点另列；版本扩展需逐处复验 |
 | **C 扩展 ABI 布局兼容性** | 第三方 wheel（`numpy/random/*.so`、`pydantic-core`、`greenlet`）对 `PyTypeObject`、`_PyInterpreterFrame`、`PyThreadState` 有强结构假设 | 严格保持与上游 3.12.13 完全一致的编译宏（常规 GIL、release 非 `Py_DEBUG`）与头文件路径，每版按真实 wheel 门禁验收 |
 | **开源许可与随包元数据** | 即使剥离 Python 标准库源码，内建 C 扩展（OpenSSL、SQLite、zlib-ng、expat、libffi、mpdecimal 等）仍留在 `libpython` 中；本机 `PYTHON.json` 显示需保留 **21** 份组件许可证 | 继续沿用 [cpython_deployment.rs](../crates/ryupy-driver/src/cpython_deployment.rs) 与 `PYTHON.json` + `licenses/` 校验链，无新增合规黑洞 |
 
@@ -341,7 +342,8 @@ C0 的执行入口/启动链/ABI 消费者盘点、严格内核路线选择和�
 本轮最终 make check 已通过（3384 项 C#、495 项 e2e），公共 ABI 已恢复；
 冻结 Release 的六版本产品、三形态审计与 26 项性能通过，整体墙钟 -0.03%，单项成本保留。
 
-严格内核独立原型的 macOS arm64 真实源码十五探针已通过；扩展/router 后续工作在独立 WIP 中验证，尚待集成验收。
+严格内核独立原型的 macOS arm64 真实源码 22 项探针与 10 项 stock 对照通过；
+原 CPython 结构布局保留。真实 C# host/CLI 接入仍待完成。
 现成兼容 provider 仍 `complete=false`，严格内核产品接入与全生命周期零执行归 C4。
 
 ### 10.2 C1–C5 整阶段继续待办
@@ -353,6 +355,6 @@ C0 的执行入口/启动链/ABI 消费者盘点、严格内核路线选择和�
 - **C3**：完成 async for、异步生成器、事件循环与真实 IO/任务取消/contextvars，明确跨域与线程/GIL
   合同；greenlet 需独立 resumable-sync ADR，完整 FastAPI 服务生命周期仍待原生准入。
 - **C4**：编译应用/stdlib/框架 Python 闭包，接入严格内核扩展与 CIL 导入路由、产品生命周期及真实
-  原生依赖；现有十五 C 探针和未接线扩展原型分别登记，三阶段零执行仍需产品证据。
+  原生依赖；现有 22 项内核探针及 10 项 stock 对照独立登记，三阶段零执行仍需产品证据。
 - **C5**：待 C0–C4、固定 20 项目、真实应用、3.9–3.15 和三平台 JIT/AOT/搬迁/性能门闭环，
   再分别验收默认切换与旧源码委派/胶水/过渡载荷退出。

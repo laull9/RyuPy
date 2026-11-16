@@ -70,7 +70,7 @@ Python 动态类与函数优先表示为运行时对象和元数据，操作由�
 | C1 | object/super helper 移除；原生方法显式候选；两阶段类构造、prepared mapping、重入身份与失败清理 | 进行中；Python finder/loader、默认 wrapper、三个别名及 `rp_install_imports` 仍保留 |
 | C2 | 实时默认值；冻结多模块图的通用 CIL 伴生核心及传递调用 | 进行中；完整框架反射、动态对象与源码/资源根分离继续待办 |
 | C3 | 默认关闭的 coroutine/await、async with 与有限真实 traceback 视图 | 进行中；完整调度、IO、async for/异步生成器及跨域 awaitable 继续待办 |
-| C4 | macOS arm64 独立 3.12.13 严格内核/UTF-8/stdio 共十五探针真源码运行通过 | 阶段待办；扩展/router 在独立 WIP 中继续验证，产品接入未完成 |
+| C4 | macOS arm64 独立 3.12.13 严格内核、UTF-8/stdio、冻结扩展与静态 CIL 导入 ABI；22 内核探针和 10 stock 对照通过 | 进行中；真实 C# host/CLI、完整闭包编译与产品零执行待办 |
 | C5 | 保留现有兼容默认与候选隔离 | 待办；默认晋升与旧执行路径退出分别验收 |
 
 ### C0：执行归属、启动链与回归基线盘点

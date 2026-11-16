@@ -17,10 +17,14 @@
 `transform.py` 对全部版本与结构锚点先做唯一匹配预检，失配时在写入前失败。
 没有普通文件摘要校验，也不生成 patch/diff 文件。
 
-- `anchors_eval_import.py`：固定发布版本、默认求值器计数与拒绝、内建导入。
+- `anchors_eval_import.py`：固定发布版本、默认求值器计数与拒绝、内建与 C4-1 导入路由器接线。
 - `anchors_frozen_build.py`：清空 frozen/deepfreeze 表及其构建依赖，跳过 getpath 字节码。
 - `anchors_guards.py`：无 importlib 的明确失败边界、PEP 523 严格分派保护。
 - `anchors_stdio_codecs.py`：纯 C UTF-8 codec 与 `_io` 标准流启动链。
+- `anchors_import_router.py` / `ryupy_import_*.h` / `ryupy_module_spec.h`：
+  不改动 `PyInterpreterState` 既有布局的纯 C 侧表、显式冻结扩展注册表、
+  每模块可重入锁与等待图死锁检测、纯 C `ModuleSpec`/Loader/模块 `repr`、
+  `fromlist`/相对导入及静态 CIL 单一事务回调槽。
 - `ryupy_utf8_codec.h` / `ryupy_utf8_incremental.h`：C codec 注册、增量编码与解码类型。
 
 上游源码、构建树、前缀和日志全部位于仓库外；默认结束后清理，显式 `--keep` 才保留。
@@ -74,25 +78,35 @@ python3 -B runtime/kernel/build_kernel.py --source-tarball /外部路径/Python-
 
 ## 已运行的验证
 
-2026-11-16 macOS arm64 完整源码构建与十五个独立探针模式通过：
+2026-11-16 macOS arm64 官方 CPython 3.12.13 完整源码构建、`test_transform.py`（7 项）与全部 22 项严格内核 C 探针（含 30 个测试 `.so`）以及 10 项未修改 CPython 3.12.13 `--with-stock-diff` 对照测试通过：
 
 | 探针 | 覆盖 |
 | --- | --- |
 | kernel_probe 四模式 | 零帧启动/内建 math/关闭；EvalCode 拒绝；诊断阶段计数 (1,2,1)；importlib 初始化拒绝 |
-| import_guard_probe 六模式 | GetMagicNumber、ExecCode 两入口、模块 repr、自定义 evaluator、生成器 throw 上下文 |
+| import_guard_probe 六模式 | GetMagicNumber、ExecCode 两入口、转正后的模块 repr、自定义 evaluator、生成器 throw 上下文 |
 | stdio_codecs_probe 两模式 | UTF-8/增量/错误处理/状态；标准流、输入输出、缓冲与 finalize |
 | stdio_edge_probe 三模式 | closefd、坏 fd、无缓冲与错误初始化 |
+| ext_import_probe 五模式 | 单/多阶段 `.so`、ModuleSpec/BuiltinImporter/Loader/`repr`、包与 `fromlist`/相对导入、循环/并发/死锁检测、坏 ABI/NUL 拒绝、`atexit` 导入 |
+| cil_import_probe 两模式 | 注册表/回调/preinit/cleanup 重入与异常保持负例、CIL 回调单一事务与 `.so` 混排/`atexit` 清理 |
 
-五个 stdio/codecs 模式在同次未修改 CPython 3.12.13 上编译运行同一 C 输入并通过。
-标准流和 codec 成功路径的严格内核 startup/runtime/shutdown entries/executed/rejected
-均为零；拒绝探针按预期记录入口和拒绝，执行数为零。
+五个 stdio/codecs 模式与五个 `ext_import_probe` 模式均在同次构建的未修改 CPython 3.12.13 上编译运行同一 C 输入并通过。
+标准流、codec 及 C4-1 全部成功导入路径的严格内核 startup/runtime/shutdown entries/executed/rejected 均为零；拒绝探针按预期记录入口和拒绝，执行数为零。
 
-原公开 importlib API 的三个空指针崩溃已实测复现并修复；内部 loader 三个非导出入口
-完成精确源码守卫，尚待后续真实消费者验证。所有未测平台继续列为待验。
+原公开 importlib API 的三个空指针崩溃已实测复现并修复；内部 loader 三个非导出入口完成精确源码守卫，尚待后续真实消费者验证。Windows 与 Linux 平台继续列为待验，尚未接入 RyuPy.CPython/CLI 产品。
+
+## 纯 C 导入、冻结扩展与静态 CIL 回调（C4-1，已过 macOS 源码与差分门禁）
+
+- 注册与冻结 ABI（`Include/ryupy_import_abi.h`，由 `ryupy_kernel.h` 自动包含）仅支持已初始化的
+  `PyInterpreterState *` 与所属 GIL 线程；`Py_InitializeFromConfig` 前调用纯 C 返回 `-1`。
+- 状态存放于不改动任何 CPython 既有结构布局的纯 C 解释器侧表，带 `finalizing` 墓碑与
+  `active_waiters` 排空，在 `_PyImport_FiniCore`（`atexit` 与 `finalize_modules` 之后）释放。
+- 磁盘 `.so` 扩展复用上游 `import_find_extension`、`_PyImport_LoadDynamicModuleWithSpec`
+  与 `exec_builtin_or_dynamic`，不手写 `dlopen` 绕过缓存；`origin` 与包资源目录 `package_dir` 分离。
+- 纯 C `ModuleSpec`、`BuiltinImporter`（类对象）、`ExtensionFileLoader`、`CilModuleLoader` 与
+  `module_repr` 替换原 `repr` 拒绝契约；CIL 回调采用 `create_module` + `exec_module` 单一事务，
+  并在 `rp_kernel_import_set_cil_callbacks` 旧 `cleanup` 期间以 `cil_cleanup_in_progress` 拒绝重入与保持异常/所有权。
 
 ## 后续
 
-当前导入只支持 sys.modules 与 PyImport_Inittab 内建模块。动态 `.so/.pyd`、包 fromlist、
-相对导入、CIL 反向导入和 reload 尚未接入；缺口返回明确异常。模块 repr 当前明确拒绝，
-完整原生元数据后续另切。Windows 探针需替换 POSIX pipe/fork 层并实现 MSVC/DLL 构建。
-完整 Python 依赖闭包、全部受支持 ABI、产品接入及三平台验收仍由 C4/C5 推进。
+本切已完成 C4-1 内核源码、30 个测试 `.so` 与全 22+10 差分验证；host/C# 接入（C4-2）、完整 Python 依赖闭包、
+全部受支持 ABI、Windows/Linux 构建及三平台验收仍由后续切片推进。

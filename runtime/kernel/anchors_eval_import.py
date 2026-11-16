@@ -21,6 +21,7 @@ RYUPY_KERNEL_HEADER = NewHeaderFile(
 
 #include "Python.h"
 #include <stdint.h>
+#include "ryupy_import_abi.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -175,66 +176,13 @@ rp_kernel_eval_total_rejected(void)
 
 
 IMPORT_BUILTIN_ROUTER = """\
-/* _install_importlib=0 首切专用：仅允许已注册在 PyImport_Inittab 的内建 C 模块通过
- * create_builtin + exec_builtin_or_dynamic 加载；其余模块（含冻结/磁盘 .py/.pyc 与
- * 未接入的扩展）明确抛出 ModuleNotFoundError，严禁静默回退字节码执行。 */
-static PyObject *
-rp_kernel_import_builtin_only(PyThreadState *tstate, PyObject *abs_name)
-{
-    int builtin_kind = is_builtin(abs_name);
-    if (builtin_kind == 0) {
-        _PyErr_Format(tstate, PyExc_ModuleNotFoundError,
-                      "module %R is not a built-in C module; full C/CIL import "
-                      "routing is deferred beyond RyuPy minimal kernel prototype",
-                      abs_name);
-        return NULL;
-    }
-
-    PyObject *attrs = Py_BuildValue("{s:O,s:s,s:O}",
-                                    "name", abs_name,
-                                    "origin", "built-in",
-                                    "has_location", Py_False);
-    if (attrs == NULL) {
-        return NULL;
-    }
-    PyObject *spec = _PyNamespace_New(attrs);
-    Py_DECREF(attrs);
-    if (spec == NULL) {
-        return NULL;
-    }
-
-    PyObject *mod = create_builtin(tstate, abs_name, spec);
-    if (mod == NULL) {
-        Py_DECREF(spec);
-        return NULL;
-    }
-    if (mod == Py_None) {
-        Py_DECREF(mod);
-        Py_DECREF(spec);
-        _PyErr_Format(tstate, PyExc_ModuleNotFoundError,
-                      "built-in module %R could not be instantiated", abs_name);
-        return NULL;
-    }
-    if (PyObject_SetAttr(mod, &_Py_ID(__spec__), spec) < 0) {
-        Py_DECREF(mod);
-        Py_DECREF(spec);
-        return NULL;
-    }
-    Py_DECREF(spec);
-
-    /* 多阶段初始化模块（如 math）在 create_builtin 阶段尚未写入 sys.modules，
-     * 须先登记 sys.modules 再执行 exec_builtin_or_dynamic，失败时回滚清理。 */
-    if (_PyImport_SetModule(abs_name, mod) < 0) {
-        Py_DECREF(mod);
-        return NULL;
-    }
-    if (exec_builtin_or_dynamic(mod) < 0) {
-        remove_module(tstate, abs_name);
-        Py_DECREF(mod);
-        return NULL;
-    }
-    return mod;
-}
+/* _install_importlib=0 C4-1 完整导入实现：置于 import.c 内部 static 辅助函数之后，
+ * 复用上游 create_builtin / exec_builtin_or_dynamic / import_find_extension /
+ * _PyImport_LoadDynamicModuleWithSpec 与每模块锁。 */
+#include "ryupy_import_loaders.h"
+#include "ryupy_import_helpers.h"
+#include "ryupy_import_router.h"
+#include "ryupy_import_api_impl.h"
 
 static PyObject *
 import_find_and_load(PyThreadState *tstate, PyObject *abs_name)"""
@@ -339,9 +287,7 @@ def build_eval_import_anchors() -> list[AnchorEdit]:
             new=(
                 "    if (busy) {\n"
                 "        if (IMPORTLIB(interp) == NULL) {\n"
-                "            PyErr_Format(PyExc_ImportError,\n"
-                '                         "module %R is still initializing without importlib", name);\n'
-                "            return -1;\n"
+                "            return rp_kernel_ensure_initialized(interp, mod, name);\n"
                 "        }\n"
                 "        /* Wait until module is done importing. */\n"
                 "        PyObject *value = _PyObject_CallMethodOneArg(\n"
@@ -368,7 +314,7 @@ def build_eval_import_anchors() -> list[AnchorEdit]:
             ),
             new=(
                 "    if (IMPORTLIB(interp) == NULL) {\n"
-                "        mod = rp_kernel_import_builtin_only(tstate, abs_name);\n"
+                "        mod = rp_kernel_import_find_and_load(tstate, abs_name);\n"
                 "    }\n"
                 "    else {\n"
                 "        mod = PyObject_CallMethodObjArgs(IMPORTLIB(interp), &_Py_ID(_find_and_load),\n"
@@ -391,13 +337,14 @@ def build_eval_import_anchors() -> list[AnchorEdit]:
                 "        if (path) {\n"
                 "            Py_DECREF(path);\n"
                 "            if (IMPORTLIB(interp) == NULL) {\n"
-                "                _PyErr_SetString(tstate, PyExc_NotImplementedError,\n"
-                '                                 "package fromlist import requires full C/CIL import router");\n'
-                "                goto error;\n"
+                "                final_mod = rp_kernel_handle_fromlist(\n"
+                "                            tstate, mod, fromlist, IMPORT_FUNC(interp), 0);\n"
                 "            }\n"
-                "            final_mod = PyObject_CallMethodObjArgs(\n"
-                "                        IMPORTLIB(interp), &_Py_ID(_handle_fromlist),\n"
-                "                        mod, fromlist, IMPORT_FUNC(interp), NULL);\n"
+                "            else {\n"
+                "                final_mod = PyObject_CallMethodObjArgs(\n"
+                "                            IMPORTLIB(interp), &_Py_ID(_handle_fromlist),\n"
+                "                            mod, fromlist, IMPORT_FUNC(interp), NULL);\n"
+                "            }\n"
                 "        }"
             ),
         ),

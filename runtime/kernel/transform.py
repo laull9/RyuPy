@@ -44,6 +44,7 @@ def build_anchors() -> list[AnchorEdit]:
     from anchors_eval_import import build_eval_import_anchors
     from anchors_frozen_build import build_frozen_build_anchors
     from anchors_guards import build_guard_anchors
+    from anchors_import_router import build_import_router_anchors
     from anchors_stdio_codecs import build_stdio_codecs_anchors
 
     return (
@@ -51,15 +52,22 @@ def build_anchors() -> list[AnchorEdit]:
         + build_frozen_build_anchors()
         + build_guard_anchors()
         + build_stdio_codecs_anchors()
+        + build_import_router_anchors()
     )
 
 
 def default_headers() -> list[NewHeaderFile]:
     """返回需要写入 CPython 源码树的新增头文件清单。"""
     from anchors_eval_import import RYUPY_KERNEL_HEADER
+    from anchors_import_router import build_import_router_headers
     from anchors_stdio_codecs import RYUPY_UTF8_CODEC_HEADER, RYUPY_UTF8_INCREMENTAL_HEADER
 
-    return [RYUPY_KERNEL_HEADER, RYUPY_UTF8_CODEC_HEADER, RYUPY_UTF8_INCREMENTAL_HEADER]
+    return [
+        RYUPY_KERNEL_HEADER,
+        RYUPY_UTF8_CODEC_HEADER,
+        RYUPY_UTF8_INCREMENTAL_HEADER,
+        *build_import_router_headers(),
+    ]
 
 
 def apply_anchors(

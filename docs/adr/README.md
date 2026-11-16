@@ -69,10 +69,11 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 | --- | --- | --- |
 | [0208](0208-cil-execution-libpython-kernel.md) | 全 CIL 执行、移除 Python 胶水与 libpython 底层化 | C0 已完成，C1–C4 分切实施中 |
 | [0181](0181-cpython-provider-first.md) | 随包 CPython provider、通用对象桥与实测热点优化 | 既有宿主/分发资产保留；长期执行归属由 0208 接续 |
-| [0213](0213-native-two-phase-class-construction.md) | 两阶段原生外部类构造 | 三版本类桥与macOS产品通过，集成待验 |
-| [0214](0214-generic-default-function-companions.md) | typed 函数缺省实参的通用伴生核心 | 定向语义/产品通过，集成待验 |
+| [0213](0213-native-two-phase-class-construction.md) | 两阶段原生外部类构造 | 三版本类桥、macOS产品与第二轮完整检查通过 |
+| [0214](0214-generic-default-function-companions.md) | typed 函数缺省实参的通用伴生核心 | 语义/产品、第二轮完整检查与性能复验通过 |
 | [0215](0215-native-async-with-traceback.md) | 原生async with与真实traceback冷视图 | 显式协程候选、清理回归及第二轮完整检查通过 |
 | [0216](0216-strict-kernel-native-stdio.md) | 严格内核原生 _io 与 UTF-8 codec | macOS arm64 原型与十五模式探针通过 |
+| [0217](0217-strict-kernel-frozen-extensions-and-cil-import-abi.md) | 严格内核冻结扩展与静态 CIL 导入 ABI | macOS arm64 22 项内核探针及 10 项 stock 对照通过，产品接入待办 |
 
 ## 模板
 

@@ -52,8 +52,11 @@ CreateSuper 历史 Object 返回公共 ABI 已恢复，真实 `5d36db1e` 的 184
   ThreadState/GIL、重入、contextvars、线程亲和性及真实 SQLAlchemy 生命周期。
 - [x] **C4 内核前置十五探针（ADR-0216）**：主代理已在 macOS arm64 从真实 3.12.13 源码构建，严格拒绝、纯 C
   UTF-8/stdio 与关闭十五独立模式通过；这是独立内核前置子合同。
-- [ ] **C4 路由与产品接入**：扩展/router 后续工作在独立 WIP 中验证，仍待集成验收；动态扩展、
-  包/CIL 反向导入、全 Python 闭包与三阶段产品零执行仍待办。C5 默认切换/退出门继续开放。
+- [x] **C4-1 冻结导入内核（ADR-0217）**：显式扩展注册表、每模块锁、纯 C Spec/Loader、
+  包/循环/重试/关闭及静态 CIL create/exec 单事务；macOS arm64 官方 3.12.13 源码构建，
+  22 项内核探针、30 个测试扩展、10 项 stock 对照全部通过，原结构 ABI 保留。
+- [ ] **C4-2 host 与产品接入**：把静态 CIL 回调与内核发行接入真实 C# host/CLI，
+  全 Python 闭包编译和三阶段产品零执行继续待办。C5 默认切换/退出门继续开放。
 - [x] **本轮最终集成**：CreateSuper 历史 ABI、完整 make check（3384 C# / 495 e2e）、
   冻结 Release 的六版本产品与三形态执行审计、26 项性能全部通过。墙钟整体 -0.03%，
   generators/exception/sieve 等单项成本见[第二轮验收](docs/cil-execution-second-slices-validation.md)，

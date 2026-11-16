@@ -75,8 +75,30 @@ rejected_import(const char *mode)
         result = PyImport_ExecCodeModuleWithPathnames("guard_unpublished", code, NULL, "probe.pyc");
     else if (strcmp(mode, "exec-object") == 0)
         result = PyImport_ExecCodeModuleObject(name, code, NULL, NULL);
-    else if (strcmp(mode, "repr") == 0)
-        result = PyObject_Repr(PyImport_AddModule("guard_repr"));
+    else if (strcmp(mode, "repr") == 0) {
+        /* C4-1 起纯 C module_repr 已真实实现：无 spec 模块与内建模块必须返回标准 repr 且零字节码。 */
+        PyObject *plain = PyImport_AddModule("guard_repr");
+        CHECK(plain != NULL, "add guard_repr");
+        PyObject *plain_repr = PyObject_Repr(plain);
+        CHECK(plain_repr != NULL && PyUnicode_Check(plain_repr), "guard_repr repr");
+        const char *plain_s = PyUnicode_AsUTF8(plain_repr);
+        CHECK(plain_s != NULL && strcmp(plain_s, "<module 'guard_repr'>") == 0,
+              "guard_repr repr mismatch");
+        Py_DECREF(plain_repr);
+
+        PyObject *math_mod = PyImport_ImportModule("math");
+        CHECK(math_mod != NULL, "import math for repr");
+        PyObject *math_repr = PyObject_Repr(math_mod);
+        CHECK(math_repr != NULL && PyUnicode_Check(math_repr), "math repr");
+        const char *math_s = PyUnicode_AsUTF8(math_repr);
+        CHECK(math_s != NULL && strcmp(math_s, "<module 'math' (built-in)>") == 0,
+              "math repr mismatch");
+        Py_DECREF(math_repr);
+        Py_DECREF(math_mod);
+        CHECK(rp_kernel_eval_total_entries() == 0, "pure C module repr must not evaluate");
+        Py_DECREF(globals); Py_DECREF(name); Py_DECREF(code);
+        return 0;
+    }
     else CHECK(0, "unknown import probe mode");
     CHECK(result == NULL, "importlib consumer must fail");
     CHECK(PyErr_ExceptionMatches(PyExc_NotImplementedError), "explicit unsupported importlib API");

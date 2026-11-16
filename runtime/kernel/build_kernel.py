@@ -277,13 +277,173 @@ def build_and_verify(args: argparse.Namespace) -> None:
                     )
                 print(f"[{probe_name}:{mode}] {proc.stdout.strip()}")
 
-        print(f"[kernel] 全部构建、符号核验与 15 项手写 C 探针通过（前缀：{prefix_dir}）")
+        print(f"[kernel] 全部构建、符号核验与 15 项基础探针通过（前缀：{prefix_dir}）")
+
+        ext_dir = workdir / "ext_modules"
+        compile_c4_extensions(cc, include_dir, ext_dir, logs_dir, env)
+        run_c4_import_probes(cc, workdir, prefix_dir, include_dir, lib_dir, ext_dir, logs_dir, env)
+
+        if args.with_stock_diff:
+            run_stock_cpython_diff(
+                cc, workdir, tarball, ext_dir, logs_dir, env, jobs
+            )
+
+        print(f"[kernel] 全部构建、符号核验与 22 项 C 探针通过（前缀：{prefix_dir}）")
     finally:
         if args.keep:
             print(f"[kernel] 已按 --keep 保留仓库外临时目录：{workdir}")
         else:
             shutil.rmtree(workdir, ignore_errors=True)
             print(f"[kernel] 已自动清理仓库外临时目录：{workdir}")
+
+
+C4_EXT_SPECS = (
+    ("ext_sp_basic.so", "probe/ext/ext_basic.c", "ROLE_SP_BASIC"),
+    ("ext_sp_reinit.so", "probe/ext/ext_basic.c", "ROLE_SP_REINIT"),
+    ("ext_sp_state.so", "probe/ext/ext_basic.c", "ROLE_SP_STATE"),
+    ("ext_mp.so", "probe/ext/ext_basic.c", "ROLE_MP"),
+    ("ext_mp_custom.so", "probe/ext/ext_basic.c", "ROLE_MP_CUSTOM"),
+    ("ext_mp_retry.so", "probe/ext/ext_basic.c", "ROLE_MP_RETRY"),
+    ("ext_atexit.so", "probe/ext/ext_basic.c", "ROLE_ATEXIT"),
+    ("bad_nosym.so", "probe/ext/ext_bad_abi.c", "BAD_NOSYM"),
+    ("bad_null.so", "probe/ext/ext_bad_abi.c", "BAD_NULL"),
+    ("bad_unreported.so", "probe/ext/ext_bad_abi.c", "BAD_UNREPORTED"),
+    ("bad_type.so", "probe/ext/ext_bad_abi.c", "BAD_TYPE"),
+    ("bad_uninit_def.so", "probe/ext/ext_bad_abi.c", "BAD_UNINIT_DEF"),
+    ("bad_neg_size.so", "probe/ext/ext_bad_abi.c", "BAD_NEG_SIZE"),
+    ("cpkg/__init__.so", "probe/ext/ext_pkg.c", "ROLE_CPKG"),
+    ("cpkg/csub.so", "probe/ext/ext_pkg.c", "ROLE_CPKG_CSUB"),
+    ("cpkg/subpkg/__init__.so", "probe/ext/ext_pkg.c", "ROLE_CPKG_SUBPKG"),
+    ("cpkg/subpkg/leaf.so", "probe/ext/ext_pkg.c", "ROLE_CPKG_LEAF"),
+    ("cpkg/subpkg/sibling.so", "probe/ext/ext_pkg.c", "ROLE_CPKG_SIBLING"),
+    ("cpkg/broken_dep.so", "probe/ext/ext_pkg.c", "ROLE_CPKG_BROKEN"),
+    ("cil_pkg/c_sub.so", "probe/ext/ext_pkg.c", "ROLE_CIL_CSUB"),
+    ("mp_cycle_a.so", "probe/ext/ext_concurrent.c", "ROLE_CYCLE_A"),
+    ("mp_cycle_b.so", "probe/ext/ext_concurrent.c", "ROLE_CYCLE_B"),
+    ("mp_slow.so", "probe/ext/ext_concurrent.c", "ROLE_SLOW"),
+    ("mp_coord_a.so", "probe/ext/ext_concurrent.c", "ROLE_COORD_A"),
+    ("mp_coord_b.so", "probe/ext/ext_concurrent.c", "ROLE_COORD_B"),
+    ("sp_dl_a.so", "probe/ext/ext_concurrent.c", "ROLE_SP_DL_A"),
+    ("sp_dl_b.so", "probe/ext/ext_concurrent.c", "ROLE_SP_DL_B"),
+    ("mp_dl_a.so", "probe/ext/ext_concurrent.c", "ROLE_MP_DL_A"),
+    ("mp_dl_b.so", "probe/ext/ext_concurrent.c", "ROLE_MP_DL_B"),
+    ("ext_calls_cil.so", "probe/ext/ext_concurrent.c", "ROLE_CALLS_CIL"),
+)
+
+
+def compile_c4_extensions(
+    cc: str, include_dir: Path, ext_dir: Path, logs_dir: Path, env: dict[str, str]
+) -> None:
+    """将 C4-1 手写测试 C 扩展源码编译为真实平台 .so 动态模块。"""
+    shared_flags = (
+        ["-shared", "-undefined", "dynamic_lookup"]
+        if sys.platform == "darwin"
+        else ["-shared", "-fPIC"]
+    )
+    for rel_so, rel_src, role_macro in C4_EXT_SPECS:
+        out_so = ext_dir / rel_so
+        out_so.parent.mkdir(parents=True, exist_ok=True)
+        cmd = [
+            cc, "-Wall", "-Wextra", "-Werror", *shared_flags,
+            f"-I{include_dir}", f"-D{role_macro}",
+            str(KERNEL_DIR / rel_src), "-o", str(out_so),
+        ]
+        run_logged(
+            cmd, cwd=ext_dir, env=env,
+            log_file=logs_dir / f"ext_{role_macro.lower()}.log",
+            step=f"编译测试扩展 {rel_so}",
+        )
+    print(f"[kernel] 已编译 {len(C4_EXT_SPECS)} 个 C4-1 测试 .so 扩展至 {ext_dir}")
+
+
+def run_c4_import_probes(
+    cc: str, workdir: Path, prefix_dir: Path, include_dir: Path,
+    lib_dir: Path, ext_dir: Path, logs_dir: Path, env: dict[str, str]
+) -> None:
+    """编译并运行 ext_import_probe（5 模式）与 cil_import_probe（2 模式）。"""
+    probes = (
+        ("ext_import_probe", "probe/ext_import_probe.c", (
+            "ext-basic-spec", "ext-packages-fromlist", "ext-cycles-threads",
+            "ext-errors-bad-abi", "ext-atexit",
+        )),
+        ("cil_import_probe", "probe/cil_import_probe.c", (
+            "registry-negative", "cil-mixed-callbacks",
+        )),
+    )
+    for name, src_rel, modes in probes:
+        bin_path = workdir / name
+        cmd = [
+            cc, "-Wall", "-Wextra", "-Werror",
+            f"-I{include_dir}", str(KERNEL_DIR / src_rel),
+            f"-L{lib_dir}", "-lpython3.12", f"-Wl,-rpath,{lib_dir}",
+            "-lm", "-lpthread", "-o", str(bin_path),
+        ]
+        run_logged(cmd, cwd=workdir, env=env, log_file=logs_dir / f"{name}_cc.log", step=f"编译 {name}")
+        for mode in modes:
+            proc = subprocess.run(
+                [str(bin_path), str(prefix_dir), str(ext_dir), mode],
+                cwd=workdir, env=env, capture_output=True, text=True, check=False, timeout=30,
+            )
+            if proc.returncode != 0:
+                raise KernelBuildError(
+                    f"C4-1 探针 [{name}:{mode}] 失败（exit={proc.returncode}）：\n"
+                    f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+                )
+            print(f"[{name}:{mode}] {proc.stdout.strip()}")
+
+
+def run_stock_cpython_diff(
+    cc: str, workdir: Path, tarball: Path,
+    ext_dir: Path, logs_dir: Path, env: dict[str, str], jobs: str
+) -> None:
+    """使用同一官方源码包构建未修改 CPython 3.12.13，并运行同一套 stdio/C 扩展差分探针。"""
+    stock_root = workdir / "stock"
+    stock_src_parent = stock_root / "src"
+    stock_src = stock_src_parent / f"Python-{TARGET_VERSION}"
+    stock_build = stock_root / "build"
+    stock_prefix = stock_root / "prefix"
+    stock_src_parent.mkdir(parents=True, exist_ok=True)
+    stock_build.mkdir(parents=True, exist_ok=True)
+    (stock_build / "Modules").mkdir(parents=True, exist_ok=True)
+    # 对照探针不依赖 OpenSSL，禁用 _ssl/_hashlib 避免宿主 OpenSSL 4 头文件破坏 3.12 stock 编译。
+    (stock_build / "Modules" / "Setup.local").write_text(
+        "*disabled*\n_ssl _hashlib\n", encoding="utf-8"
+    )
+    run_logged(["tar", "-xf", str(tarball), "-C", str(stock_src_parent)],
+               cwd=stock_root, env=env, log_file=logs_dir / "stock_extract.log", step="解压未修改对照源码")
+    run_logged([str(stock_src / "configure"), f"--prefix={stock_prefix}", "--enable-shared",
+                "--without-ensurepip", "--disable-test-modules"],
+               cwd=stock_build, env=env, log_file=logs_dir / "stock_configure.log", step="stock configure")
+    run_logged(["make", f"-j{jobs}"], cwd=stock_build, env=env,
+               log_file=logs_dir / "stock_make.log", step="stock make")
+    run_logged(["make", "install"], cwd=stock_build, env=env,
+               log_file=logs_dir / "stock_install.log", step="stock install")
+
+    stock_inc = stock_prefix / "include" / "python3.12"
+    stock_lib = stock_prefix / "lib"
+    base_cmd = [
+        cc, "-Wall", "-Wextra", "-Werror", "-DRYUPY_STOCK_CPYTHON",
+        f"-I{stock_inc}", "", f"-L{stock_lib}", "-lpython3.12",
+        f"-Wl,-rpath,{stock_lib}", "-lm", "-lpthread", "-o", "",
+    ]
+    for pname, pfile, pmodes, need_ext in (
+        ("stock_stdio_codecs", "probe/stdio_codecs_probe.c", ("codecs-utf8", "stdio-streams"), False),
+        ("stock_stdio_edge", "probe/stdio_edge_probe.c", ("stdio-closefd", "stdio-bad-fd", "stdio-bad-config"), False),
+        ("stock_ext_import", "probe/ext_import_probe.c", (
+            "ext-basic-spec", "ext-packages-fromlist", "ext-cycles-threads", "ext-errors-bad-abi", "ext-atexit"
+        ), True),
+    ):
+        bin_path = stock_root / pname
+        cmd = base_cmd.copy()
+        cmd[6] = str(KERNEL_DIR / pfile)
+        cmd[-1] = str(bin_path)
+        run_logged(cmd, cwd=stock_root, env=env, log_file=logs_dir / f"{pname}_cc.log", step=f"编译 {pname}")
+        for mode in pmodes:
+            run_args = [str(bin_path), str(stock_prefix)] + ([str(ext_dir)] if need_ext else []) + [mode]
+            proc = subprocess.run(run_args, cwd=stock_root, env=env, capture_output=True, text=True, check=False, timeout=30)
+            if proc.returncode != 0:
+                raise KernelBuildError(f"stock 对照 [{pname}:{mode}] 失败：{proc.returncode}\n{proc.stdout}\n{proc.stderr}")
+            print(f"[stock:{pname}:{mode}] {proc.stdout.strip()}")
 
 
 def verify_binary_symbols(lib_path: Path) -> None:
@@ -301,6 +461,11 @@ def verify_binary_symbols(lib_path: Path) -> None:
         "rp_kernel_set_phase",
         "rp_kernel_set_strict_reject",
         "rp_kernel_eval_entry_count",
+        "rp_kernel_import_register",
+        "rp_kernel_import_set_cil_callbacks",
+        "rp_kernel_import_freeze",
+        "rp_kernel_import_is_frozen",
+        "rp_kernel_import_entry_count",
         "PyInit_math",
     )
     for sym in required:
@@ -322,6 +487,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--jobs", type=int, help="并行 make 作业数")
     parser.add_argument("--keep", action="store_true", help="保留仓库外构建目录与产物（默认自动清理）")
     parser.add_argument("--transform-only", action="store_true", help="仅获取/解压并执行锚点变换，不运行 configure/make")
+    parser.add_argument("--with-stock-diff", action="store_true", help="同次构建未修改 CPython 3.12.13 并运行全部差分探针")
     return parser.parse_args()
 
 
