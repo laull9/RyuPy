@@ -86,7 +86,22 @@ public sealed partial class PyGenerator : IPyIterator
         PyErrors.ContextNode = _context;
         try
         {
-            depth = PyTraceback.PushGeneratorFrame(_source, _name, _origin, this);
+            depth = _origin is null ? PyTraceback.PushFrame(_source, _name)
+                : PyTraceback.PushFrameWithOrigin(_source, _name, _origin);
+            PyTraceback.BindGeneratorFrame(depth, this);
+            if (!_started && injected is not null)
+            {
+                try
+                {
+                    long line = _origin switch {
+                        PyFunction function => function.DefinitionFirstLine,
+                        PySignature signature => PyFunctionDefinition.GetFirstLine(signature),
+                        _ => 0,
+                    };
+                    if (line > 0 && line <= int.MaxValue) PyTraceback.SetLine((int)line);
+                }
+                catch (PyNotImplementedError) { /* 未登记的宿主来源不猜测Python定义行。 */ }
+            }
             if (PyTraceProduct.Enabled) PyTraceProduct.EnterGenerator(depth);
             object frame = (object?)_state ?? _frame!;
             if (ReadState(frame) == -1) { Finish(); return false; }

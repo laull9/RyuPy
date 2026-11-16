@@ -42,4 +42,28 @@ public sealed class PyGenericFunctionCoreTests
         Assert.Same(value, PyOps.CallValueGeneric(partial, [], [], []));
         Assert.Equal("typed", partial.Invoke([], [], []));
     }
+    [Fact]
+    public void BoundFallbackKeepsMethodContextAndRegisteredTargetKeepsActualOwner()
+    {
+        var owner = new PyClass("Owner"); object receiver = new PyList();
+        var previousOwner = PyMethodContext.CurrentOwner;
+        var previousSelf = PyMethodContext.CurrentSelf;
+        PyFunction ordinary = new("value", Signature(), (_, args, _, _) =>
+        {
+            Assert.Same(owner, PyMethodContext.CurrentOwner);
+            Assert.Same(receiver, PyMethodContext.CurrentSelf);
+            return args[0];
+        }, [null], usesSuper: true);
+        Assert.Same(receiver, PyOps.CallValueGeneric(new PyBoundMethod(owner, receiver, ordinary), [], [], []));
+        Assert.Same(previousOwner, PyMethodContext.CurrentOwner);
+        Assert.Same(previousSelf, PyMethodContext.CurrentSelf);
+        PyFunction registered = new("value", Signature(), (_, _, _, _) => "typed", [null], usesSuper: false);
+        PyOps.RegisterGenericFunction(registered, (actual, args, names, values) =>
+        {
+            Assert.Same(registered, actual);
+            return PyBinder.Bind(actual.Signature, args, names, values, actual.Defaults)[0];
+        });
+        Assert.Same(receiver, PyOps.CallValueGeneric(new PyBoundMethod(owner, receiver, registered), [], [], []));
+    }
+
 }

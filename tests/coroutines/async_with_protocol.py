@@ -1,4 +1,3 @@
-# ryupy: pending
 # 类型槽绑定、错误awaitable、退出结果真值与关闭协议保持真实求值顺序。
 events = []
 class Pause:
@@ -16,6 +15,7 @@ class Manager:
     async def __aexit__(self, kind, value, tb):
         events.append("original-exit")
         return Truth()
+original_exit = Manager.__aexit__
 async def replacement(self, kind, value, tb):
     events.append("replacement-exit")
     return False
@@ -35,7 +35,7 @@ except StopIteration:
     pass
 print(events)
 # 正常退出不测试返回值真值。
-Manager.__aexit__ = replacement
+Manager.__aexit__ = original_exit
 c = operation(Manager(), False)
 print(c.send(None))
 try:

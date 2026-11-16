@@ -169,8 +169,11 @@ impl FunctionBuilder<'_> {
         }
         let class_object = Operand::Local(dest);
         let class_cell = self.begin_class_cell(cls_id, dest);
-        let cleanup = (self.hir.info.foreign_class_construction && !is_exception && enum_members.is_none() && !matches!(base, Some(ClassBase::TypedDict { .. })))
-            .then(|| self.begin_class_cleanup());
+        let cleanup = (self.hir.info.foreign_class_construction
+            && !is_exception
+            && enum_members.is_none()
+            && !matches!(base, Some(ClassBase::TypedDict { .. })))
+        .then(|| self.begin_class_cleanup());
         if let Some(cell) = class_cell {
             self.lexical_cell_stack.push((cls_id, Operand::Local(cell)));
         }
@@ -296,7 +299,9 @@ impl FunctionBuilder<'_> {
                 &MirType::Dynamic,
             );
         }
-        if let Some(cleanup) = cleanup { self.end_class_cleanup(cleanup, Operand::Local(dest)); }
+        if let Some(cleanup) = cleanup {
+            self.end_class_cleanup(cleanup, Operand::Local(dest));
+        }
     }
 
     /// 类体 if 不创建作用域，只把实际分支接入当前方法的普通 CFG。

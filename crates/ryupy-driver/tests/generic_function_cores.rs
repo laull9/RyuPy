@@ -68,7 +68,8 @@ fn dump(program: &LinkedProgram) -> String {
 }
 #[test]
 fn complete_typed_abi_and_thunk_prefix_are_identical_with_generic_companion() {
-    let ordinary = dump(&linked(false));
+    let ordinary_program = linked(false);
+    let ordinary = dump(&ordinary_program);
     let program = linked(true);
     source_provenance::require_linked(&program).unwrap();
     let cil = dump(&program);
@@ -125,7 +126,8 @@ fn complete_typed_abi_and_thunk_prefix_are_identical_with_generic_companion() {
             .next()
             .unwrap()
             .starts_with("private static [System.Runtime]System.Object "),
-        "{}", generic.lines().next().unwrap()
+        "{}",
+        generic.lines().next().unwrap()
     );
     assert!(generic.contains(".CallValueGeneric("));
     assert!(!generic.contains("PyCast.ToInt64"));
@@ -139,4 +141,21 @@ fn complete_typed_abi_and_thunk_prefix_are_identical_with_generic_companion() {
     )
     .unwrap();
     assert!(bytes.len() > 512);
+    let old = ryupy_codegen_cil::emit_source_assembly(
+        &ordinary_program,
+        &ryupy_codegen_cil::EmitOptions {
+            assembly_name: "generic_core_structure".into(),
+            entry_source_path: None,
+        },
+    )
+    .unwrap();
+    eprintln!(
+        "伴生体积样本：MIR核心 {} -> {}，CIL指令 {} -> {}，PE字节 {} -> {}",
+        ordinary_program.functions.len(),
+        program.functions.len(),
+        ordinary.matches("IL_").count(),
+        cil.matches("IL_").count(),
+        old.len(),
+        bytes.len()
+    );
 }

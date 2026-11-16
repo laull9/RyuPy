@@ -16,10 +16,10 @@ mod assembly_refs;
 #[cfg(test)]
 mod assembly_refs_tests;
 mod callables;
-mod generic_callables;
-mod make_function;
 mod emission_report;
 mod entry;
+mod generic_callables;
+mod make_function;
 pub use emission_report::{
     DelegateReference, EmissionArtifact, EmissionReport, FunctionEmission, MethodDescriptor,
     ModuleEmission,

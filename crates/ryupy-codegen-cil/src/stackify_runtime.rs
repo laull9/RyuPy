@@ -8,6 +8,9 @@ use ryupy_mir::RuntimeFn;
 pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
     let system = &ctx.runtime_refs.system;
     match rt_fn {
+        RuntimeFn::ForeignClassPrepare => {
+            ins.push(Instruction::call(ctx.runtime_refs.classes.foreign_prepare))
+        }
         RuntimeFn::LexicalClassPrepare => {
             ins.push(Instruction::call(ctx.runtime_refs.classes.lexical_prepare))
         }
@@ -90,13 +93,27 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         RuntimeFn::AbsF64 => ins.push(Instruction::call(ctx.runtime_refs.abs_f64)),
         RuntimeFn::ShlI64 => ins.push(Instruction::call(ctx.runtime_refs.shl_i64)),
         RuntimeFn::ShrI64 => ins.push(Instruction::call(ctx.runtime_refs.shr_i64)),
-        RuntimeFn::CoroutineEnterAwaitStart => ins.push(Instruction::call(ctx.runtime_refs.generators.coroutine_enter_await_start)),
-        RuntimeFn::CoroutineExitAwaitStart => ins.push(Instruction::call(ctx.runtime_refs.generators.coroutine_exit_await_start)),
-        RuntimeFn::HandlerEnterGuard => ins.push(Instruction::call(ctx.runtime_refs.native_traceback.enter_guard)),
-        RuntimeFn::TracebackHandled => ins.push(Instruction::call(ctx.runtime_refs.native_traceback.handled)),
-        RuntimeFn::RaisePrepareExplicit => ins.push(Instruction::call(ctx.runtime_refs.native_traceback.explicit_raise)),
-        RuntimeFn::TracebackReceive => ins.push(Instruction::call(ctx.runtime_refs.native_traceback.receive)),
-        RuntimeFn::GeneratorTracebackReceive => ins.push(Instruction::call(ctx.runtime_refs.native_traceback.generator_receive)),
+        RuntimeFn::CoroutineEnterAwaitStart => ins.push(Instruction::call(
+            ctx.runtime_refs.generators.coroutine_enter_await_start,
+        )),
+        RuntimeFn::CoroutineExitAwaitStart => ins.push(Instruction::call(
+            ctx.runtime_refs.generators.coroutine_exit_await_start,
+        )),
+        RuntimeFn::HandlerEnterGuard => ins.push(Instruction::call(
+            ctx.runtime_refs.native_traceback.enter_guard,
+        )),
+        RuntimeFn::TracebackHandled => {
+            ins.push(Instruction::call(ctx.runtime_refs.native_traceback.handled))
+        }
+        RuntimeFn::RaisePrepareExplicit => ins.push(Instruction::call(
+            ctx.runtime_refs.native_traceback.explicit_raise,
+        )),
+        RuntimeFn::TracebackReceive => {
+            ins.push(Instruction::call(ctx.runtime_refs.native_traceback.receive))
+        }
+        RuntimeFn::GeneratorTracebackReceive => ins.push(Instruction::call(
+            ctx.runtime_refs.native_traceback.generator_receive,
+        )),
         RuntimeFn::TracebackOf => ins.push(Instruction::call(ctx.runtime_refs.native_traceback.of)),
         RuntimeFn::CoroutineCreate => ins.push(Instruction::call(
             ctx.runtime_refs.generators.coroutine_create,
@@ -169,7 +186,9 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         RuntimeFn::CellGet => ins.push(Instruction::call(ctx.runtime_refs.cell_get)),
         RuntimeFn::CellSet => ins.push(Instruction::call(ctx.runtime_refs.cell_set)),
         RuntimeFn::CellGetFree => ins.push(Instruction::call(ctx.runtime_refs.cell_get_free)),
-        RuntimeFn::CallValueGeneric => ins.push(Instruction::call(ctx.runtime_refs.function_objects.generic_call)),
+        RuntimeFn::CallValueGeneric => ins.push(Instruction::call(
+            ctx.runtime_refs.function_objects.generic_call,
+        )),
         RuntimeFn::CallValue => ins.push(Instruction::call(ctx.runtime_refs.call_value)),
         RuntimeFn::BuiltinFunction => {
             ins.push(Instruction::call(ctx.runtime_refs.function_objects.builtin))

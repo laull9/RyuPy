@@ -3,6 +3,10 @@ use crate::*;
 const SIMPLE: &str = "def make(x):\n    class C:\n        value = x\n        def read(self, initial=x): return initial, x, __class__\n    return C\na = make(1)\nb = make(2)\nprint(a is not b)\n";
 
 fn compile(source: &str, instance: bool) -> Program {
+    compile_mode(source, instance, false)
+}
+
+fn compile_mode(source: &str, instance: bool, foreign: bool) -> Program {
     let mut db = ryupy_base::SourceDb::default();
     let file = db.add("lexical.py", source);
     let (parsed, diagnostics) = ryupy_syntax::parse(file, source);
@@ -11,6 +15,7 @@ fn compile(source: &str, instance: bool) -> Program {
         &parsed,
         &ryupy_hir::ModuleInfo {
             instance_globals: instance,
+            foreign_class_construction: foreign,
             ..Default::default()
         },
         source,
@@ -328,4 +333,22 @@ fn lexical_mi_freezes_all_bases_before_frame_and_preserves_finish_cell_publicati
     assert!(fills.iter().any(|(i, _)| *i > guards[0].0));
     crate::passes::run_pipeline(&mut program, &crate::passes::default_pipeline()).unwrap();
     validate::validate(&program).unwrap();
+}
+
+#[test]
+fn provider_prepare_prelude_keeps_class_cell_proof_through_optimization() {
+    for instance in [false, true] {
+        let mut program = compile_mode(SIMPLE, instance, true);
+        let (_, cell) = plan(&program);
+        assert!(crate::lexical_class_cells::valid_source(
+            &program.functions[cell.owner],
+            &cell
+        ));
+        let dump = pretty::dump(&program);
+        assert!(dump.contains("ForeignClassPrepare"), "{dump}");
+        assert!(dump.contains("ClassDefinitionAbort"), "{dump}");
+        assert!(!dump.contains("LexicalClassPrepare"), "{dump}");
+        passes::run_pipeline(&mut program, &passes::default_pipeline()).unwrap();
+        validate::validate(&program).unwrap();
+    }
 }

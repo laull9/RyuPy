@@ -80,30 +80,50 @@ impl FunctionBuilder<'_> {
             );
             return;
         };
-        let module = self.expr_builder().build_module_name(module_name);
-        let module_type =
-            if self.module_state.is_some() || self.types.is_dynamic(self.current_hir_fn) {
-                MirType::Dynamic
-            } else {
-                self.globals[self.module_vars[&module_name]].ty.clone()
-            };
-        let module = self.coerce_mir(module, &module_type, &MirType::Dynamic);
+        let foreign = self.hir.info.foreign_class_construction;
+        let (prepare, args) = if foreign {
+            (
+                RuntimeFn::ForeignClassPrepare,
+                vec![
+                    Operand::Const(Constant::Str(name)),
+                    Operand::Const(Constant::Str(qualname.clone())),
+                    Operand::Array(bases),
+                ],
+            )
+        } else {
+            let module = self.expr_builder().build_module_name(module_name);
+            let module_type =
+                if self.module_state.is_some() || self.types.is_dynamic(self.current_hir_fn) {
+                    MirType::Dynamic
+                } else {
+                    self.globals[self.module_vars[&module_name]].ty.clone()
+                };
+            let module = self.coerce_mir(module, &module_type, &MirType::Dynamic);
+            (
+                RuntimeFn::LexicalClassPrepare,
+                vec![
+                    Operand::Const(Constant::Str(name)),
+                    Operand::Const(Constant::Str(qualname.clone())),
+                    module,
+                    Operand::Array(bases),
+                ],
+            )
+        };
         let namespace = self.alloc_temp(MirType::Dynamic);
         self.push_stmt(Statement::Assign {
             dest: namespace,
             value: Rvalue::Call {
-                callee: Callee::Runtime(RuntimeFn::LexicalClassPrepare),
-                args: vec![
-                    Operand::Const(Constant::Str(name)),
-                    Operand::Const(Constant::Str(qualname)),
-                    module,
-                    Operand::Array(bases),
-                ],
+                callee: Callee::Runtime(prepare),
+                args,
             },
         });
         let original = self.alloc_temp(MirType::Dynamic);
         let cell = self.begin_class_cell(id, original);
-        let cleanup = self.hir.info.foreign_class_construction.then(|| self.begin_class_cleanup());
+        let cleanup = self
+            .hir
+            .info
+            .foreign_class_construction
+            .then(|| self.begin_class_cleanup());
         if let Some(cell) = cell {
             self.lexical_cell_stack.push((id, Operand::Local(cell)));
         }
@@ -113,6 +133,13 @@ impl FunctionBuilder<'_> {
             &mut self.class_cell,
             cell.map(|cell| (id, Operand::Local(cell))),
         );
+        if foreign {
+            self.initialize_foreign_class_metadata(
+                Operand::Local(namespace),
+                module_name,
+                qualname,
+            );
+        }
         if annotations {
             let values =
                 self.expr_builder()
@@ -155,6 +182,8 @@ impl FunctionBuilder<'_> {
             plan.published_class = *published;
         }
         self.publish_lexical_class(target, value, namespace, cell);
-        if let Some(cleanup) = cleanup { self.end_class_cleanup(cleanup, Operand::Local(namespace)); }
+        if let Some(cleanup) = cleanup {
+            self.end_class_cleanup(cleanup, Operand::Local(namespace));
+        }
     }
 }

@@ -1,4 +1,3 @@
-# ryupy: pending
 # 实际catch传播构建traceback链，链头/帧身份跨退出await稳定。
 class Pause:
     def __await__(self):

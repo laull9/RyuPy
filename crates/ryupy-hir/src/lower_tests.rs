@@ -27,6 +27,7 @@ print(p.x)
     let (hir, diags) = lower_module(
         &parsed,
         &ModuleInfo {
+            foreign_class_construction: false,
             instance_capabilities: Default::default(),
             instance_globals: false,
             resolve_file_at_runtime: false,
@@ -66,6 +67,7 @@ print(f(10))
     let (hir, diags) = lower_module(
         &parsed,
         &ModuleInfo {
+            foreign_class_construction: false,
             instance_capabilities: Default::default(),
             instance_globals: false,
             resolve_file_at_runtime: false,
@@ -98,6 +100,7 @@ def classify(n: int) -> int:
     let (hir, diags) = lower_module(
         &parsed,
         &ModuleInfo {
+            foreign_class_construction: false,
             instance_capabilities: Default::default(),
             instance_globals: false,
             resolve_file_at_runtime: false,
@@ -126,6 +129,7 @@ for i in range(10):
     let (hir, diags) = lower_module(
         &parsed,
         &ModuleInfo {
+            foreign_class_construction: false,
             instance_capabilities: Default::default(),
             instance_globals: false,
             resolve_file_at_runtime: false,
@@ -158,6 +162,7 @@ fn integer_literals_above_u64_use_exact_big_integer_hir() {
         let (hir, diagnostics) = lower_module(
             &parsed,
             &ModuleInfo {
+                foreign_class_construction: false,
                 instance_capabilities: Default::default(),
                 instance_globals: false,
                 resolve_file_at_runtime: false,

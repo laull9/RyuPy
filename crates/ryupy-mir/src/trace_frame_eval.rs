@@ -14,8 +14,10 @@ pub(super) fn may_throw(value: &Rvalue) -> bool {
             | Rvalue::CatchException
             | Rvalue::Call {
                 callee: Callee::Runtime(
-                    RuntimeFn::ArrayGet | RuntimeFn::ArraySet | RuntimeFn::GeneratorRetry
-                    | RuntimeFn::GeneratorTracebackReceive
+                    RuntimeFn::ArrayGet
+                        | RuntimeFn::ArraySet
+                        | RuntimeFn::GeneratorRetry
+                        | RuntimeFn::GeneratorTracebackReceive
                 ),
                 ..
             }

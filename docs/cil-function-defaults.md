@@ -58,10 +58,16 @@ Binder 仅在真正省略的参数槽查当前 tuple/dict，不缓存字典值�
 新增定向类型结构测试确认：带默认值 typed 函数 Dynamic，无反射且只直接调用的
 无默认值数值 helper 仍为 Static/Int。既有 ty 和 codegen 结构保护均保持原断言。
 
-跨模块的原无默认值 typed 函数仍有已复现缺口：其它模块通过模块属性取得它、设置
-字符串默认值后，typed thunk 会抛类型错误。原始用例保留在
-`tests/e2e/phase3/c2_function_defaults_cross_module_pending.py`，辅助模块为
-`c2_function_defaults_exported_helper.py`。单模块模式分析尚未证明所有跨模块暴露路径。
+跨模块原无默认值typed函数新增异型默认值的原始缺口由[ADR-0214](adr/0214-generic-default-function-companions.md)
+闭合：冻结多源码图中的可发布无env/状态机Static参数函数拥有一份通用伴生体。
+canonical继续持唯一函数对象/签名/defaults，Binder成功且实际补齐缺省参数时才使用通用体；
+完整供参typed方法和完整位置thunk保留原ABI/CIL。通用体内对兄弟/递归函数按真实函数
+弱键显式分派，无签名/名字猜测、共享签名变异或环境开关。原用例转正为
+`tests/e2e/phase3/c2_function_defaults_cross_module_pending.py`。
+
+该首切不扩大公开完整供参的typed边界；单源码图经未知外部扩展反射取得函数的完整边界、
+恢复已有Dynamic函数的typed特化另切。通用体只复制准入的函数CFG，模块槽、类和def
+求值仍共享，未用伴生的单模块产品不初始化冷CWT。
 
 `inspect.signature`、`__signature__` 的真实 Signature/Parameter 消费、装饰器解包、
 code/frame/traceback 和 FastAPI/Pydantic 消费者待后续切片。Runtime 当前没有原生
@@ -112,3 +118,21 @@ alias和MakeFunction发布断言保留。宽/kwonly/variadic/Env/实例形状明
 3.9.25/3.12.13/3.13.3并在macOS arm64 NativeAOT执行。MIR全套425通过/4既有跳过，
 codegen全套70通过/3既有跳过，Runtime全套3366通过/3既有跳过，driver来源/普通动态/
 资源保护三套11项通过。最终产品、性能和完整门由主集成重新冻结验收。
+
+## ADR-0214伴生核心验证
+
+新增跨模块正例覆盖None/bool/float/str/dict/tuple/大整数原对象返回、可变默认多次返回与
+容器别名、元数据读写身份、兄弟/递归转调、同名不同函数体重定位、实参期间默认变更与
+callee重绑、体副作用一次、重复绑定和删除后缺参错误。固定CPython 3.9.25、3.12.13、
+3.13.3同次oracle均与JIT一致；macOS arm64 NativeAOT搬迁后删除输入和build仍逐字一致。
+新增MIR配对/来源/独立发布负门3项、Runtime冷注册/默认值合并保护7项通过；真实CIL门
+逐段对照typed方法和完整实参thunk前缀相同，私有通用核心及唯一PyFunction构造正向存在。
+codegen全库70通过、3个旧忽略；最终全门和配对性能由主代理在集成冻结后验收。
+
+最后冷包装审计补回未登记`PyBoundMethod`的原`InvokeBound`上下文；仅实际已登记的
+plain函数目标使用通用入口，注册函数仍接收同一owner。新增独立Runtime正例验证普通
+UsesSuper方法上下文及接收者不变、注册目标身份不变，3项通用核心门通过。
+
+普通`@dataclass`构造的反射回归另有两模块正例：其make_box收敛Dynamic、无typed伴生体，
+结构门锁运行时类调用与单一核心。固定CP3.12.13、JIT、删除输入/build后的搬迁NativeAOT
+均通过，保可变默认别名及原类身份；见ADR-0214异构审查反证记录。

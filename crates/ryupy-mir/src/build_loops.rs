@@ -34,6 +34,17 @@ impl FunctionBuilder<'_> {
         let source = self
             .expr_builder()
             .coerce(iter_op, &iter_ty, &MirType::Dynamic);
+        self.build_for_each_value(var, source, body, orelse);
+    }
+
+    /// 已求值的可迭代对象共用同一循环CFG；通用range也通过此处，不重放边界表达式。
+    pub(crate) fn build_for_each_value(
+        &mut self,
+        var: Binding,
+        source: Operand,
+        body: &[StmtId],
+        orelse: &[StmtId],
+    ) {
         let iterator = self.alloc_temp(MirType::Dynamic);
         self.push_stmt(Statement::Assign {
             dest: iterator,
@@ -294,6 +305,10 @@ impl FunctionBuilder<'_> {
         body: &[StmtId],
         orelse: &[StmtId],
     ) {
+        if self.types.generic.is_some() {
+            self.build_for_range_generic(var, start, stop, step, body, orelse);
+            return;
+        }
         if self.types.is_dynamic(self.current_hir_fn) {
             self.build_for_range_dynamic(var, start, stop, step, body, orelse);
             return;

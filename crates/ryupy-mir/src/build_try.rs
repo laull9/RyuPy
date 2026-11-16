@@ -203,7 +203,13 @@ impl FunctionBuilder<'_> {
             self.push_stmt(Statement::Assign {
                 dest: prev_current,
                 value: Rvalue::Call {
-                    callee: Callee::Runtime(if self.trace_product || cfg!(feature = "trace-adapter-test") { RuntimeFn::HandlerEnter } else { RuntimeFn::HandlerEnterGuard }),
+                    callee: Callee::Runtime(
+                        if self.trace_product || cfg!(feature = "trace-adapter-test") {
+                            RuntimeFn::HandlerEnter
+                        } else {
+                            RuntimeFn::HandlerEnterGuard
+                        },
+                    ),
                     args: vec![Operand::Local(guard_exc.expect("已检查"))],
                 },
             });

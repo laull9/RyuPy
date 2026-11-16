@@ -4,8 +4,10 @@ use crate::mir::{Callee, LocalId, Operand, RuntimeFn, Rvalue, Statement};
 
 impl FunctionBuilder<'_> {
     pub(crate) fn receive_native_traceback(&mut self, exception: LocalId) {
-        if self.trace_product || cfg!(feature = "trace-adapter-test")
-            || self.hir.functions[self.current_hir_fn].is_generator {
+        if self.trace_product
+            || cfg!(feature = "trace-adapter-test")
+            || self.hir.functions[self.current_hir_fn].is_generator
+        {
             return;
         }
         if let Some(depth) = self.frame_depth {

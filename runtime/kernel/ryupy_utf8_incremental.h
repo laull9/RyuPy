@@ -386,12 +386,18 @@ rp_utf8_incdec_setstate(RpUtf8IncDecoder *self, PyObject *state)
         PyErr_SetString(PyExc_TypeError, "state must be a 2-tuple (buffered_input, info)");
         return NULL;
     }
-    Py_buffer view;
-    if (PyObject_GetBuffer(PyTuple_GET_ITEM(state, 0), &view, PyBUF_SIMPLE) < 0) {
-        return NULL;
+    PyObject *buffer = PyTuple_GET_ITEM(state, 0);
+    PyObject *new_buf;
+    if (PyBytes_Check(buffer)) {
+        /* 标准 getstate/setstate 的不可变 bytes 保留身份，不复制已保存的状态。 */
+        new_buf = Py_NewRef(buffer);
     }
-    PyObject *new_buf = PyBytes_FromStringAndSize((const char *)view.buf, view.len);
-    PyBuffer_Release(&view);
+    else {
+        Py_buffer view;
+        if (PyObject_GetBuffer(buffer, &view, PyBUF_SIMPLE) < 0) return NULL;
+        new_buf = PyBytes_FromStringAndSize((const char *)view.buf, view.len);
+        PyBuffer_Release(&view);
+    }
     if (new_buf == NULL) {
         return NULL;
     }

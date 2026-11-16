@@ -10,5 +10,11 @@ except ValueError as exc:
         print("traceback-unavailable")
     while tb is not None:
         if tb.tb_frame.f_code.co_name == "fold":
-            print("total", tb.tb_frame.f_locals["total"])
+            try:
+                print("total", tb.tb_frame.f_locals["total"])
+            except NotImplementedError as boundary:
+                # 已找到真实fold帧；只登记尚未开放的locals，退回None不满足新边界。
+                if str(boundary) != "native frame field f_locals is not supported":
+                    raise
+                print("traceback-locals-unavailable")
         tb = tb.tb_next

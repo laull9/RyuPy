@@ -40,7 +40,7 @@ public sealed class PyNativeTraceback : PyNativeObject
 /// <summary>同一逻辑激活共享一个frame视图；普通调用仅在实际观察时分配。</summary>
 internal sealed class PyNativeFrame : PyNativeObject
 {
-    private readonly PyNativeCode _code;
+    private readonly PyNativeCode? _code;
     internal int Line;
     internal PyNativeFrame(string file, string function, int line, object? origin)
     { Line = line; _code = PyNativeCode.For(file, function, origin); }
@@ -49,8 +49,8 @@ internal sealed class PyNativeFrame : PyNativeObject
     /// <inheritdoc/>
     public override object? GetAttr(string name) => name switch
     {
-        "f_code" => _code,
-        "f_lineno" => (long)Line,
+        "f_code" => _code ?? throw new PyNotImplementedError("native frame code origin is not registered"),
+        "f_lineno" => (long)PyTraceback.NativeFrameLine(this),
         "__class__" => PyType.Get("frame"),
         "f_lasti" or "f_locals" or "f_globals" or "f_builtins" or "f_back" or "f_trace"
             => throw new PyNotImplementedError($"native frame field {name} is not supported"),
@@ -62,11 +62,20 @@ internal sealed class PyNativeFrame : PyNativeObject
 internal sealed class PyNativeCode(string file, string function) : PyNativeObject
 {
     private static readonly ConditionalWeakTable<object, PyNativeCode> Codes = new();
-    internal static PyNativeCode For(string file, string function, object? origin)
+    internal static PyNativeCode? For(string file, string function, object? origin)
     {
-        // 真实signature是编译函数体身份；模块入口保自身真实来源，不按名字合并代码。
+        // 只有受信编译登记保证signature唯一映射函数体；宿主手造共享signature不构成证明。
         object? key = origin is PyFunction callable ? callable.Signature : origin;
-        return key is null ? new(file, function) : Codes.GetValue(key, _ => new(file, function));
+        CompiledCodeSource? source = key switch
+        {
+            PySignature signature => PyFunctionDefinition.Source(signature),
+            ModuleExecutionSource module => module.Source,
+            _ => null,
+        };
+        if (source is null) return null;
+        if (!String.Equals(source.File, file, StringComparison.Ordinal))
+            throw new PyRuntimeError("traceback frame and compiled origin disagree");
+        return Codes.GetValue(key!, _ => new(file, function));
     }
     /// <inheritdoc/>
     public override string TypeName => "code";

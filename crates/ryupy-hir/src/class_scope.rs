@@ -7,6 +7,8 @@ pub struct ClassScope {
     pub(crate) lexical_class: Option<crate::ClassId>,
     pub(crate) outer_class_cell: Option<crate::ClassId>,
     pub(crate) legacy_class_body: bool,
+    /// 真正的 provider 普通类体，任意 LOAD_NAME 均可命中 prepared mapping。
+    pub(crate) prepared_namespace: bool,
     pub(crate) unsupported_outer_cell: bool,
     /// 新工厂按整个suite判定局部绑定；None保持旧源序模型。
     pub(crate) lexical_bindings: Option<FxHashSet<Name>>,
@@ -29,6 +31,7 @@ impl ClassScope {
         self.lexical_class = left.lexical_class;
         self.outer_class_cell = left.outer_class_cell;
         self.legacy_class_body = left.legacy_class_body;
+        self.prepared_namespace = left.prepared_namespace;
         self.unsupported_outer_cell = left.unsupported_outer_cell;
         self.lexical_bindings = left.lexical_bindings.clone();
         self.possible = left.possible.union(&right.possible).cloned().collect();

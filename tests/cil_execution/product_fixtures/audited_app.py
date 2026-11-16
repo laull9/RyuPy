@@ -1,7 +1,7 @@
 """C0/C1 产品真实验证手写探针输入。
 
 本程序作为 RyuPy 编译产物真实验证用例：
-1. 继承自 CPython collections.UserDict，触发类桥 _rp_make_class、_rp_calculate_meta 与 _rp_wrap_method；
+1. 继承自 CPython collections.UserDict，覆盖原生两阶段类构造与保留的 _rp_wrap_method；
 2. 基础对象槽（__new__、__init__、__setattr__、__delattr__）在 C1 候选已由原生描述符接管，
    验证其不再调用已移除的 _rp_object_new、_rp_object_init、_rp_object_setattr、_rp_object_delattr；
 3. 导入 logging 并在 Python 侧维持标准 atexit 清理链，确保进程关闭阶段存在真实 Python 执行帧；
@@ -25,7 +25,7 @@ atexit.register(audit_atexit_hook)
 
 
 class AuditedRecord(UserDict):
-    """跨域继承 UserDict，触发类构建与方法包装 helper。"""
+    """跨域继承 UserDict，覆盖原生类构建与方法包装 helper。"""
 
     def __init__(self, initial=None):
         super().__init__(initial)

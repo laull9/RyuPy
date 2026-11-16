@@ -16,11 +16,20 @@ impl NativeTracebackRefs {
         let errors = res.push_type_reference(type_ref! { RyuPy.Runtime.PyErrors in #runtime });
         let errors: MethodType = BaseType::class(errors).into();
         Self {
-            handled: res.push_method_reference(method_ref! { static void @ops::TracebackHandled(object) }),
-            enter_guard: res.push_method_reference(method_ref! { static object @errors::EnterHandlerGuard(object) }),
-            explicit_raise: res.push_method_reference(method_ref! { static object @errors::PrepareExplicitRaise(object) }),
-            receive: res.push_method_reference(method_ref! { static void @ops::TracebackReceive(object, long) }),
-            generator_receive: res.push_method_reference(method_ref! { static void @ops::GeneratorTracebackReceive(object, object) }),
+            handled: res
+                .push_method_reference(method_ref! { static void @ops::TracebackHandled(object) }),
+            enter_guard: res.push_method_reference(
+                method_ref! { static object @errors::EnterHandlerGuard(object) },
+            ),
+            explicit_raise: res.push_method_reference(
+                method_ref! { static object @errors::PrepareExplicitRaise(object) },
+            ),
+            receive: res.push_method_reference(
+                method_ref! { static void @ops::TracebackReceive(object, long) },
+            ),
+            generator_receive: res.push_method_reference(
+                method_ref! { static void @ops::GeneratorTracebackReceive(object, object) },
+            ),
             of: res.push_method_reference(method_ref! { static object @ops::TracebackOf(object) }),
         }
     }

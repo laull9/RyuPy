@@ -221,7 +221,10 @@ fn expr_children(kind: &ExprKind) -> Vec<ExprId> {
         ExprKind::Slice { start, stop, step } => {
             [*start, *stop, *step].into_iter().flatten().collect()
         }
-        ExprKind::Starred(inner) | ExprKind::ExceptionTraceback(inner) | ExprKind::YieldFrom(inner) | ExprKind::Await { value: inner, .. } => {
+        ExprKind::Starred(inner)
+        | ExprKind::ExceptionTraceback(inner)
+        | ExprKind::YieldFrom(inner)
+        | ExprKind::Await { value: inner, .. } => {
             vec![*inner]
         }
         ExprKind::Yield(value) => value.iter().copied().collect(),

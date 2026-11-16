@@ -45,9 +45,10 @@ impl<'a> ExprLowerCtx<'a> {
     pub fn lower_expr(&mut self, expr: &ast::Expr) -> ExprId {
         let range = expr.range();
         let kind = match expr {
-            ast::Expr::Await(value) if cfg!(feature = "native-coroutines") => {
-                ExprKind::Await { value: self.lower_expr(&value.value), context: crate::AwaitContext::Expression }
-            }
+            ast::Expr::Await(value) if cfg!(feature = "native-coroutines") => ExprKind::Await {
+                value: self.lower_expr(&value.value),
+                context: crate::AwaitContext::Expression,
+            },
             ast::Expr::Yield(value) => {
                 if self.allow_yield {
                     ExprKind::Yield(value.value.as_deref().map(|value| self.lower_expr(value)))
@@ -310,9 +311,9 @@ impl<'a> ExprLowerCtx<'a> {
             return kind;
         }
         if let Some(scope) = self.class_names
-            && scope.contains(&name)
+            && (scope.contains(&name) || scope.prepared_namespace)
         {
-            if scope.definite(&name) {
+            if scope.definite(&name) && !scope.prepared_namespace {
                 return ExprKind::ClassLocal(name);
             }
             let saved = self.class_names.take();

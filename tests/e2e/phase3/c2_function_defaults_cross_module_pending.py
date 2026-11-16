@@ -1,4 +1,4 @@
-# 跨模块给原typed函数新增异型默认值；缺省补齐后使用同一身份的通用伴生核心。
+# 单模块类型检查无法看见其它模块对原无默认值函数的变更；保留跨模块真实阻断用例。
 import c2_function_defaults_exported_helper as exported
 
 exported.required.__defaults__ = ("cross-module",)

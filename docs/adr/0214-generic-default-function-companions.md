@@ -1,7 +1,7 @@
 # ADR-0214：typed 函数缺省实参的通用伴生核心
 
 - 日期：2026-11-16
-- 状态：实现中；语义、产品与性能门待验
+- 状态：首切定向语义/JIT/NativeAOT通过；最终集成与性能门待验
 - 接续：[ADR-0208](0208-cil-execution-libpython-kernel.md)、[ADR-0212](0212-live-function-defaults.md)
 
 ## 问题与决定
@@ -51,3 +51,30 @@
 通用体的partial/staticmethod/classmethod/绑定方法包装显式透传通用调用域；无TLS、
 动态环境变量或二次解释执行。外部用户回调进入自己的普通函数入口时继续遵循其既有模式，
 本切没有宣称全生态动态调用闭包证明。`inspect.signature`原生类与真实消费者仍待后续完整竖切。
+
+## 验收记录
+
+固定CPython 3.9.25/3.12.13/3.13.3同次生成oracle，JIT及macOS arm64 NativeAOT逐字一致。
+NativeAOT搬迁后删除原输入与build再运行通过。原跨模块pending已转正；新增MIR三项、
+Runtime七项、真实源码CIL/PE结构门通过。typed方法体及完整位置thunk前缀逐段一致；
+codegen全库70通过、3个旧忽略。构建期类型模式不变，伴生体另在MIR显式计数。
+最终全门及Release调用/分配配对仍由主代理冻结后完成。
+
+同编译器显式启用/关闭的两typed定义结构样本：MIR核心3→5、实际CIL指令467→580、
+PE字节10752→11264（+512B）；这是代码体积样本，运行性能另由冻结Release配对。
+最终审计将未登记绑定方法的冷fallback归还原InvokeBound，保原super上下文；新增Runtime
+方法上下文/真实owner正例通过。该修正在产品差分完成后发生，最终产品重验由集成门承接。
+
+## 异构审查的普通dataclass场景反证
+
+审查提出`@dataclass class Box: x:int`及`make_box(x:int)->Box:return Box(x)`可能
+被误准入typed伴生体。真实源码的`class.rs`将普通dataclass固定为`runtime_dataclass=true`，
+类型检查对该类构造收敛Dynamic；结构门进一步检查make_box只有Ordinary核心、Dynamic参数/
+owner、无Unbox/NewObject且运行时类调用正向存在。因此本场景不进入typed布局分支，
+严格Unbox门及当前准入实现保持。
+
+两模块源码`c2_function_companion_dataclass.py`及helper保留原`make_box(1).x`输出1，
+并追加可变默认对象、跨调用别名及同一类身份正例。固定CPython3.12.13与最新源码CLI的
+JIT、macOS arm64 NativeAOT搬迁结果一致；NativeAOT搬迁后删除原输入/build再运行通过。
+新增MIR定向结构门通过。原`c2_function_defaults_cross_module_pending.py`文件名及源码
+保留，仅移除pending标记，以延续原用例ID。

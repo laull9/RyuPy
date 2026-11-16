@@ -12,9 +12,10 @@ public sealed partial class CPythonHost
     {
         EnsureClassBridgeHelpers();
         if (classDefinitions.ContainsKey(owner)) throw new PyRuntimeError("class definition is already active");
-        nint name = ToPython(owner.Name), tuple = Check(Native.rp_op(14, n: bases.Length));
+        nint name = ToPython(owner.Name), tuple = 0;
         try
         {
+            tuple = Check(Native.rp_op(14, n: bases.Length));
             for (int i = 0; i < bases.Length; i++)
             {
                 nint parent = ResolveBasePointer(bases[i]);
@@ -43,8 +44,23 @@ public sealed partial class CPythonHost
 
     private void PrepareConstructionCallback(object target, nint arguments)
     {
-        if (target is not ForeignMethodTarget method || !classDefinitions.TryGetValue(method.Owner, out ClassDefinition? definition)) return;
-        definition.AssociateReceiver(method.Function, arguments);
+        if (Native.rp_length(arguments) == 0) return;
+        nint receiver = Check(Native.rp_op(18, arguments, n: 0));
+        nint matchedType = 0;
+        ClassDefinition? matched = null;
+        try
+        {
+            foreach (ClassDefinition definition in classDefinitions.Values)
+            {
+                nint type = definition.MatchReceiver(target, receiver);
+                if (type == 0) { ThrowIfError(); continue; }
+                if (matched is not null)
+                { Native.rp_decref(type); throw new PyNotImplementedError("construction callback matches multiple active class identities"); }
+                matched = definition; matchedType = type;
+            }
+            matched?.AssociateReceiver(matchedType);
+        }
+        finally { Native.rp_decref(matchedType); Native.rp_decref(receiver); }
     }
 
     private sealed class ClassDefinition(CPythonHost host, PyClass owner, PythonObject session) : IPyForeignClassDefinition
@@ -107,33 +123,58 @@ public sealed partial class CPythonHost
             reads.Remove(name); return true;
         });
 
-        internal void AssociateReceiver(PyFunction function, nint arguments)
+        // 只在构造中的真实 MRO 成员里匹配；多个事务命中由入口拒绝，尚不发布任何身份。
+        internal nint MatchReceiver(object target, nint receiver)
         {
-            if (!building || provisional is not null || Native.rp_length(arguments) == 0) return;
-            nint receiver = host.Check(Native.rp_op(18, arguments, n: 0));
-            try
+            if (!building || provisional is not null) return 0;
+            if (target is ForeignMethodTarget method && method.CallableReference is { } reference)
+            {
+                nint declaring = 0;
+                if (!ReferenceEquals(method.Owner, owner))
+                {
+                    PythonObject? source = PyForeignClassBridge.GetForeignClass(method.Owner) as PythonObject;
+                    if (source is null) host._mixinMirrors.TryGetValue(method.Owner, out source);
+                    if (source is null || source.IsDisposed) return 0;
+                    declaring = source.Pointer;
+                }
+                foreach (var pair in method.Owner.Attributes)
+                {
+                    if (!Calls(pair.Value, method.Function)) continue;
+                    nint type = Native.rp_class_receiver(session.Pointer, receiver, pair.Key, reference.Pointer, declaring, 0);
+                    if (type != 0 || Native.rp_error() != 0) return type;
+                }
+            }
+            else if (target is PyBoundMethod bound && bound.Target is PyFunction
+                && bound.Owner.Attributes.TryGetValue("__set_name__", out object? hook)
+                && ReferenceEquals(hook, bound.Target))
             {
                 foreach (var pair in written)
                 {
-                    object? callable = pair.Value.Value switch
-                    {
-                        PyClassMethod method => method.Value,
-                        PyStaticMethod method => method.Value,
-                        PyProperty property => property.Getter,
-                        var value => value,
-                    };
-                    if (!ReferenceEquals(callable, function)) continue;
-                    nint type = Native.rp_class_receiver(session.Pointer, receiver, pair.Key, pair.Value.Native.Pointer);
-                    if (type == 0) { host.ThrowIfError(); continue; }
-                    if (host.objects.TryGetValue(type, out WeakReference<object>? weak) && weak.TryGetTarget(out object? current) && !ReferenceEquals(current, owner))
-                    { Native.rp_decref(type); throw new PyNotImplementedError("construction callback receiver already has another type identity"); }
-                    provisional = new PythonObject(host, type);
-                    PyForeignClassBridge.SetConstructingClass(owner, provisional);
-                    host.objects[type] = new(owner);
-                    return;
+                    if (!ReferenceEquals(pair.Value.Value, bound.Self)) continue;
+                    nint type = Native.rp_class_receiver(session.Pointer, receiver, pair.Key, pair.Value.Native.Pointer, 0, 1);
+                    if (type != 0 || Native.rp_error() != 0) return type;
                 }
             }
-            finally { Native.rp_decref(receiver); }
+            return 0;
+        }
+
+        private static bool Calls(object? member, PyFunction function) => member switch
+        {
+            PyClassMethod method => ReferenceEquals(method.Value, function),
+            PyStaticMethod method => ReferenceEquals(method.Value, function),
+            PyProperty property => ReferenceEquals(property.Getter, function)
+                || ReferenceEquals(property.Setter, function) || ReferenceEquals(property.Deleter, function),
+            _ => ReferenceEquals(member, function),
+        };
+
+        internal void AssociateReceiver(nint type)
+        {
+            if (host.objects.TryGetValue(type, out WeakReference<object>? weak)
+                && weak.TryGetTarget(out object? current) && !ReferenceEquals(current, owner))
+                throw new PyNotImplementedError("construction callback receiver already has another type identity");
+            provisional = new PythonObject(host, Native.rp_incref(type));
+            PyForeignClassBridge.SetConstructingClass(owner, provisional);
+            host.objects[type] = new(owner);
         }
 
         internal IPyForeignObject Finish() => host.PythonCall(() =>

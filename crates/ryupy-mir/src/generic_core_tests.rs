@@ -3,9 +3,12 @@ use crate::*;
 
 const SOURCE: &str = "def leaf(value: int) -> int:\n    return value\ndef forward(value: int) -> int:\n    return leaf(value)\nprint(forward(3))\n";
 fn compile(name: &str, enabled: bool) -> (Program, Vec<ModuleExport>) {
+    compile_source(name, enabled, SOURCE)
+}
+fn compile_source(name: &str, enabled: bool, source: &str) -> (Program, Vec<ModuleExport>) {
     let mut db = ryupy_base::SourceDb::default();
-    let file = db.add(format!("{name}.py"), SOURCE);
-    let (parsed, diagnostics) = ryupy_syntax::parse(file, SOURCE);
+    let file = db.add(format!("{name}.py"), source);
+    let (parsed, diagnostics) = ryupy_syntax::parse(file, source);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let (hir, diagnostics) = ryupy_hir::lower_module(
         &parsed,
@@ -14,7 +17,7 @@ fn compile(name: &str, enabled: bool) -> (Program, Vec<ModuleExport>) {
             file: format!("{name}.py"),
             ..Default::default()
         },
-        SOURCE,
+        source,
     );
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let (types, diagnostics) = ryupy_ty::check_module(&hir);
@@ -188,4 +191,131 @@ fn generic_core_rejects_metadata_duplication_and_independent_publication() {
             .iter()
             .any(|e| e.contains("不能独立创建"))
     );
+}
+
+#[test]
+fn source_runtime_dataclass_construction_stays_dynamic_and_has_no_companion() {
+    let source =
+        include_str!("../../../tests/e2e/phase3/c2_function_companion_dataclass_helper.py");
+    let mut db = ryupy_base::SourceDb::default();
+    let file = db.add("dataclass_helper.py", source);
+    let (parsed, diagnostics) = ryupy_syntax::parse(file, source);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (hir, diagnostics) = ryupy_hir::lower_module(
+        &parsed,
+        &ryupy_hir::ModuleInfo {
+            name: "dataclass_helper".into(),
+            file: "dataclass_helper.py".into(),
+            ..Default::default()
+        },
+        source,
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (_, class) = hir
+        .classes
+        .iter()
+        .find(|(_, c)| c.name.as_str() == "Box")
+        .unwrap();
+    assert!(class.is_dataclass && class.runtime_dataclass);
+    let function = hir
+        .functions
+        .iter()
+        .find(|(_, f)| f.name.as_str() == "make_box")
+        .unwrap()
+        .0;
+    let (types, diagnostics) = ryupy_ty::check_module(&hir);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert_eq!(types.mode(function), ryupy_ty::FuncMode::Dynamic);
+    let (mut program, _, diagnostics) = build::build_program_with_generic(&hir, &types);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    passes::run_pipeline(&mut program, &passes::default_pipeline()).unwrap();
+    let functions: Vec<_> = program
+        .functions
+        .iter()
+        .filter(|(_, f)| f.name == "make_box")
+        .collect();
+    assert_eq!(functions.len(), 1);
+    let (_, function) = functions[0];
+    assert_eq!(function.core, FunctionCore::Ordinary);
+    assert_eq!(function.param_meta[0].ty, MirType::Dynamic);
+    assert!(function.dynamic_origin.is_some());
+    assert!(
+        !rvalues(function).any(|v| matches!(v, Rvalue::Unbox { .. } | Rvalue::NewObject { .. }))
+    );
+    assert!(rvalues(function).any(|v| matches!(
+        v,
+        Rvalue::DynCallValue { .. }
+            | Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::CallValue),
+                ..
+            }
+    )));
+}
+
+#[test]
+fn generic_range_uses_object_iteration_and_preserves_original_counted_paths() {
+    let source = "def fold(seed: int, n: int) -> int:\n    total = seed\n    for value in range(n):\n        total += value\n    return total\n";
+    let (program, _) = compile_source("range_helper", true, source);
+    let (_, typed) = program
+        .functions
+        .iter()
+        .find(|(_, f)| f.name == "fold" && f.signature_global.is_some())
+        .unwrap();
+    let FunctionCore::TypedWithGeneric { generic } = typed.core else {
+        panic!("需保typed及通用两个核心")
+    };
+    assert_eq!(typed.ret, MirType::I64);
+    assert_eq!(typed.params.len(), 2);
+    assert!(
+        typed
+            .params
+            .iter()
+            .all(|id| typed.body.locals[*id].ty == MirType::I64)
+    );
+    assert!(rvalues(typed).any(|v| matches!(v, Rvalue::Binary { op: BinOp::Add, .. })));
+    assert!(!rvalues(typed).any(|v| matches!(
+        v,
+        Rvalue::Unbox { .. }
+            | Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::IterStart),
+                ..
+            }
+    )));
+    let generic = &program.functions[generic];
+    assert!(!rvalues(generic).any(|v| matches!(
+        v,
+        Rvalue::Unbox { .. }
+            | Rvalue::Call {
+                callee: Callee::Fn(_),
+                ..
+            }
+    )));
+    for runtime in [
+        RuntimeFn::IterStart,
+        RuntimeFn::IterNextOk,
+        RuntimeFn::IterValue,
+    ] {
+        assert_eq!(rvalues(generic).filter(|v| matches!(v, Rvalue::Call { callee: Callee::Runtime(actual), .. } if *actual == runtime)).count(), 1);
+    }
+    assert_eq!(rvalues(generic).filter(|v| matches!(v, Rvalue::Call { callee: Callee::Runtime(RuntimeFn::DynBuiltin), args } if matches!(args.first(), Some(Operand::Const(Constant::Str(name))) if name == "range"))).count(), 1);
+    // 普通Dynamic的既有计数优化没有因伴生体修复迁移到迭代对象路径。
+    let dynamic_source = source
+        .replace("seed: int, n: int", "seed, n")
+        .replace(" -> int", "");
+    let (dynamic, _) = compile_source("dynamic_range", true, &dynamic_source);
+    let function = dynamic
+        .functions
+        .iter()
+        .find(|(_, f)| f.name == "fold")
+        .unwrap()
+        .1;
+    assert_eq!(function.core, FunctionCore::Ordinary);
+    assert!(rvalues(function).any(|v| matches!(v, Rvalue::Unbox { .. })));
+    assert!(!rvalues(function).any(|v| matches!(
+        v,
+        Rvalue::Call {
+            callee: Callee::Runtime(RuntimeFn::IterStart),
+            ..
+        }
+    )));
 }

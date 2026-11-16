@@ -132,7 +132,8 @@ public static partial class PyOps
         {
             if (value is not PyClass cls)
                 throw new PyTypeError("ordinary class finalization requires a class");
-            cls.FinalizeOrdinaryConstruction();
+        try { cls.FinalizeOrdinaryConstruction(); }
+        catch { PyForeignClassConstruction.Abort(cls); throw; }
         }
         catch (PyBaseException error)
         {

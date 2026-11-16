@@ -231,6 +231,10 @@ verify_incremental_encoder_decoder(PyObject *ci)
     PyObject *set_rc = PyObject_CallMethod(dec2, "setstate", "(O)", saved_st);
     PROBE_CHECK(set_rc == Py_None, "dec2.setstate()");
     Py_DECREF(set_rc);
+    PyObject *restored_state = PyObject_CallMethod(dec2, "getstate", NULL);
+    PROBE_CHECK(restored_state && PyTuple_GetItem(restored_state, 0) == PyTuple_GetItem(saved_st, 0),
+                "restored immutable bytes state must preserve identity");
+    Py_DECREF(restored_state);
     PyObject *re2 = PyObject_CallMethod(dec2, "decode", "OO", mv_tail, Py_True);
     PROBE_CHECK(re2 != NULL && strcmp(PyUnicode_AsUTF8(re2), "\xf0\x9f\x98\x80Z") == 0,
                 "emoji restored decode mismatch");

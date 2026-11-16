@@ -8,6 +8,41 @@ public partial class CPythonClassBridgeTests
     private static string[] ClassStrings(object? value) => PyOps.ToSequence(value).Select(PyRepr.Str).ToArray();
 
     [Fact]
+    public void NativeConstruction_BeginKeepsPreparedNameUntilCompiledPreludeConsumesItOnce()
+    {
+        RequireHost();
+        PyModule module = Bootstrap.Host.Import("bridge_fixture.class_construction");
+        SuperCall(module.GetAttr("reset"));
+        object frame = PyLexicalClassFactory.Begin("Shadow", "scope.Shadow", [module.GetAttr("ShadowBase")]);
+        Assert.True(PyLexicalClassFactory.NamespaceContains(frame, "__name__"));
+        object? moduleName = PyLexicalClassFactory.NamespaceGet(frame, "__name__");
+        PyLexicalClassFactory.NamespaceSet(frame, "__module__", moduleName);
+        PyLexicalClassFactory.NamespaceSet(frame, "__qualname__", "scope.Shadow");
+        var created = Assert.IsType<PyClass>(PyLexicalClassFactory.Finish(frame));
+        Assert.Equal("namespace_name", PyRepr.Str(PyObject.GetAttr(created, "__module__")));
+        Assert.Equal("scope.Shadow", PyRepr.Str(PyObject.GetAttr(created, "__qualname__")));
+        Assert.Equal(new[] { "namespace:__name__" }, ClassStrings(PyOps.GetItem(SuperCall(module.GetAttr("snapshot")), 1L)));
+    }
+
+    [Fact]
+    public void NativeConstruction_RealTypeOwnsTransformedMetadataAndFunctionModuleStaysIndependent()
+    {
+        RequireHost();
+        PyModule module = Bootstrap.Host.Import("bridge_fixture.class_construction");
+        object frame = PyLexicalClassFactory.Prepare("MetadataClass", "MetadataClass", "test_mod", [module.GetAttr("TransformBase")]);
+        var function = new PyFunction("method", PySignature.Create("method", ["self"], ["pos"], ["0"]), (_, _, _, _) => PyNone.Instance, [], usesSuper: false);
+        PyObject.SetAttr(function, "__module__", "function_module");
+        PyLexicalClassFactory.NamespaceSet(frame, "method", function);
+        Assert.True(PyLexicalClassFactory.NamespaceContains(frame, "method"));
+        Assert.Same(function, PyLexicalClassFactory.NamespaceGet(frame, "method"));
+        var created = Assert.IsType<PyClass>(PyLexicalClassFactory.Finish(frame));
+        Assert.Equal("mapped.test_mod", PyRepr.Str(PyObject.GetAttr(created, "__module__")));
+        Assert.Equal("rebuilt.MetadataClass", PyRepr.Str(PyObject.GetAttr(created, "__qualname__")));
+        Assert.Equal("renamed_MetadataClass", PyRepr.Str(PyObject.GetAttr(created, "__name__")));
+        Assert.Equal("function_module", PyObject.GetAttr(function, "__module__"));
+    }
+
+    [Fact]
     public void NativeConstruction_PreparesBeforeBodyAndReadsMappingOnce()
     {
         RequireHost();
@@ -69,6 +104,7 @@ public partial class CPythonClassBridgeTests
         Assert.Equal("meta init marker", error.Message);
         Assert.NotNull(temporary);
         Assert.Null(PyForeignClassBridge.GetForeignClass(temporary));
+        SuperCall(module.GetAttr("clear_traceback"), error);
         Assert.Equal(2L, SuperCall(module.GetAttr("disposed")));
     }
 }

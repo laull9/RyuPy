@@ -11,13 +11,13 @@
 //! enter = context_method(mgr, "__enter__")
 //! exit = context_method(mgr, "__exit__")
 //! value = enter()
-//! x = value
 //! handled = False
 //! try:
+//!     x = value
 //!     body
 //! except BaseException as exc:
 //!     handled = True
-//!     if not exit(type(exc), exc, None):
+//!     if not exit(type(exc), exc, traceback_of(exc)):
 //!         raise
 //! finally:
 //!     if not handled:
@@ -79,7 +79,12 @@ impl StmtLowerCtx<'_> {
     }
 
     /// 递归展开多个上下文项：第一个包住其余项，形成「先进入、后退出」的嵌套。
-    fn lower_with_items(&mut self, items: &[ast::WithItem], body: Vec<StmtId>, is_async: bool) -> Vec<StmtId> {
+    fn lower_with_items(
+        &mut self,
+        items: &[ast::WithItem],
+        body: Vec<StmtId>,
+        is_async: bool,
+    ) -> Vec<StmtId> {
         let Some(first) = items.first() else {
             return body;
         };
@@ -121,7 +126,8 @@ impl StmtLowerCtx<'_> {
             },
             range,
         );
-        let enter_call = self.with_await(enter_call, is_async, crate::AwaitContext::AsyncEnter, range);
+        let enter_call =
+            self.with_await(enter_call, is_async, crate::AwaitContext::AsyncEnter, range);
         out.push(self.push_assign_local(value, enter_call, range));
 
         // 3) `handled` 标记：区分「异常路径已经调用过 __exit__」与「正常退出」。
@@ -262,10 +268,18 @@ impl StmtLowerCtx<'_> {
     }
 
     /// 同步清理保持普通调用；异步 enter/exit 保留专用 await 错误上下文。
-    fn with_await(&mut self, value: crate::hir::ExprId, is_async: bool,
-        context: crate::AwaitContext, range: ryupy_base::TextRange) -> crate::hir::ExprId {
-        if is_async { self.alloc_with_expr(ExprKind::Await { value, context }, range) }
-        else { value }
+    fn with_await(
+        &mut self,
+        value: crate::hir::ExprId,
+        is_async: bool,
+        context: crate::AwaitContext,
+        range: ryupy_base::TextRange,
+    ) -> crate::hir::ExprId {
+        if is_async {
+            self.alloc_with_expr(ExprKind::Await { value, context }, range)
+        } else {
+            value
+        }
     }
 
     /// 把 `as` 目标绑定到 `__enter__` 的返回值。
@@ -328,14 +342,18 @@ impl StmtLowerCtx<'_> {
                 }
             }
             ast::Expr::Attribute(attribute) => {
-                let target = AssignTarget::Attribute { base: self.lower_expr(&attribute.value),
-                    name: Name::from(attribute.attr.as_str()) };
+                let target = AssignTarget::Attribute {
+                    base: self.lower_expr(&attribute.value),
+                    name: Name::from(attribute.attr.as_str()),
+                };
                 let value = self.local_expr(value, range);
                 out.push(self.push_assign_target(target, value, range));
             }
             ast::Expr::Subscript(subscript) => {
-                let target = AssignTarget::Subscript { base: self.lower_expr(&subscript.value),
-                    index: self.lower_subscript_index(&subscript.slice) };
+                let target = AssignTarget::Subscript {
+                    base: self.lower_expr(&subscript.value),
+                    index: self.lower_subscript_index(&subscript.slice),
+                };
                 let value = self.local_expr(value, range);
                 out.push(self.push_assign_target(target, value, range));
             }
@@ -421,5 +439,95 @@ impl StmtLowerCtx<'_> {
         range: ryupy_base::TextRange,
     ) -> StmtId {
         self.push_assign_target(AssignTarget::Local(local), value, range)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::*;
+
+    fn lower(source: &str) -> Module {
+        let mut db = ryupy_base::SourceDb::default();
+        let file = db.add("with_protection.py", source);
+        let (parsed, errors) = ryupy_syntax::parse(file, source);
+        assert!(errors.is_empty(), "{errors:?}");
+        let (module, errors) = lower_module(&parsed, &ModuleInfo::default(), source);
+        assert!(errors.is_empty(), "{errors:?}");
+        module
+    }
+    fn assert_target_protected(module: &Module) {
+        let function = module
+            .functions
+            .iter()
+            .find(|(_, function)| function.name.as_str() == "f")
+            .unwrap()
+            .1;
+        assert!(function.body.stmts.iter().any(|(_, statement)| {
+            let StmtKind::Try { body, handlers, .. } = &statement.kind else {
+                return false;
+            };
+            !handlers.is_empty()
+                && body.first().is_some_and(|first| {
+                    matches!(
+                        function.body.stmts[*first].kind,
+                        StmtKind::Assign {
+                            target: AssignTarget::Sequence(_),
+                            ..
+                        }
+                    )
+                })
+        }));
+    }
+    #[test]
+    fn synchronous_with_target_binding_is_inside_cleanup_protection() {
+        assert_target_protected(&lower(
+            "def f(cm):\n    with cm as (left, right):\n        pass\n",
+        ));
+        lower("def f(cm, obj):\n    with cm as obj.value:\n        pass\n");
+    }
+    #[cfg(feature = "native-coroutines")]
+    #[test]
+    fn asynchronous_with_has_contextual_awaits_and_protected_target() {
+        let module = lower("async def f(cm):\n    async with cm as (left, right):\n        pass\n");
+        assert_target_protected(&module);
+        let function = module
+            .functions
+            .iter()
+            .find(|(_, function)| function.is_coroutine)
+            .unwrap()
+            .1;
+        let contexts: Vec<_> = function
+            .body
+            .exprs
+            .iter()
+            .filter_map(|(_, expression)| {
+                if let ExprKind::Await { context, .. } = expression.kind {
+                    Some(context)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(
+            contexts
+                .iter()
+                .filter(|context| **context == AwaitContext::AsyncEnter)
+                .count(),
+            1
+        );
+        assert_eq!(
+            contexts
+                .iter()
+                .filter(|context| **context == AwaitContext::AsyncExit)
+                .count(),
+            2
+        );
+        assert!(
+            function
+                .body
+                .exprs
+                .iter()
+                .any(|(_, expression)| matches!(expression.kind, ExprKind::ExceptionTraceback(_)))
+        );
     }
 }

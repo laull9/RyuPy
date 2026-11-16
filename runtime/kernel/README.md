@@ -1,110 +1,98 @@
-# RyuPy 严格零字节码内核原型（`runtime/kernel/`）
+# 可重建严格 libpython 内核原型
 
-本目录承接 [ADR-0208](../../docs/adr/0208-cil-execution-libpython-kernel.md) 与 [C0 盘点 §8](../../docs/cil-execution-inventory.md) 选定的 **C4 前置最小可重建 `libpython` 内核原型**，完全独立于现有 `RyuPy.CPython` / `driver` / `RyuPy.Runtime` 路径之外。
+本目录实施 [ADR-0208](../../docs/adr/0208-cil-execution-libpython-kernel.md) 的 C4 前置内核。
+由官方 CPython 3.12.13 源码构建，移除 frozen/deepfreeze 执行载荷，以纯 C 导入与 `_io`
+完成启动和标准流。现有 auto provider 的 Python 3.9–3.15 产品合同继续保留。
 
----
+| 维度 | 本目录严格内核 | 现有兼容产品 |
+| --- | --- | --- |
+| 版本 | 首切 CPython 3.12.13 release/GIL | Python 3.9–3.15 release/GIL |
+| 来源 | 官方源码与版本专属精确锚点 | 已有自动探测、PBS 分发与许可闭包 |
+| 平台 | macOS arm64 已实测；Linux/macOS x64 待验；Windows 构建待实现 | 保持已有三平台回归 |
+| 产品接入 | 独立 C 探针，尚未接入 RyuPy.CPython/CLI | 既有 JIT/standalone/onefile |
 
-## 1. 支持矩阵严格分列（严禁混淆）
+## 源码变换与构建
 
-本目录首切固定 3.12.13，作为显式独立的 C4 前置内核原型。默认 auto provider 继续支持 Python 3.9–3.15；完整 Python 闭包、CIL 导入及产品集成由后续 C4 切片验收。
+`build_kernel.py` 从 python.org 获取源码，或使用显式 `--source-tarball` 外部副本。
+`transform.py` 对全部版本与结构锚点先做唯一匹配预检，失配时在写入前失败。
+没有普通文件摘要校验，也不生成 patch/diff 文件。
 
-| 维度 | 严格零字节码内核原型（本目录） | RyuPy 既有产品兼容路径（`auto` provider） |
-| :--- | :--- | :--- |
-| **Python 版本范围** | **首切固定 `CPython 3.12.13`（常规 GIL）** | **保持 `Python 3.9–3.15`（常规 GIL）不变** |
-| **构建来源** | 官方主源 `python.org` 源码实时获取 + 锚点变换构建（不以 PBS 代替） | `python-build-standalone`（`auto` 探测及已冻结分发链） |
-| **多版本策略** | 后续扩展多版本须做**显式参数化配置与独立锚点集**；锚点或版本失配**直接硬失败** | 既有兼容性与回归合同继续保留，本目录不改动其任何代码 |
-| **宿主平台状态** | **macOS arm64**：源码构建与四项 C 探针通过。Linux、macOS x64 构建路径待实测；Windows MSVC/DLL 待实现 | 保持既有三平台验收矩阵 |
+- `anchors_eval_import.py`：固定发布版本、默认求值器计数与拒绝、内建导入。
+- `anchors_frozen_build.py`：清空 frozen/deepfreeze 表及其构建依赖，跳过 getpath 字节码。
+- `anchors_guards.py`：无 importlib 的明确失败边界、PEP 523 严格分派保护。
+- `anchors_stdio_codecs.py`：纯 C UTF-8 codec 与 `_io` 标准流启动链。
+- `ryupy_utf8_codec.h` / `ryupy_utf8_incremental.h`：C codec 注册、增量编码与解码类型。
 
----
-
-## 2. 首切交付目标与已实现能力
-
-1. **可复现官方源码获取与精确结构变换**
-   - [build_kernel.py](build_kernel.py) 从官方主源 `https://www.python.org/ftp/python/3.12.13/Python-3.12.13.tar.xz` 获取源码，随后以版本与精确结构锚点确认支持范围。
-   - [transform.py](transform.py)（联合 [anchors_eval_import.py](anchors_eval_import.py) 与 [anchors_frozen_build.py](anchors_frozen_build.py)）不使用 `.patch` / `.diff` 文件，而是对 `Include/patchlevel.h`、`Python/ceval.c`、`Python/import.c`、`Python/frozen.c`、`Modules/getpath.c`、`Makefile.pre.in` 执行**精确原段唯一匹配（`count == 1`）**的锚点变换；任何版本或上下文失配在写入磁盘前直接硬失败。
-   - 所有上游源码、构建、日志与探针产物均位于仓库外临时目录，默认结束后自动清理；仅显式传入 `--keep` 时保留。绝不读取或修改用户缓存（`~/.cache/ryupy`、`uv` 缓存等）或系统 Python。
-
-2. **三阶段默认求值器入口计数与严格拒绝执行开关**
-   - 在 `Python/ceval.c` 的 `_PyEval_EvalFrameDefault` 入口处注入原子三阶段计数器（`0=startup`、`1=runtime`、`2=shutdown`）与 `strict_reject` 开关，并导出头文件 `Include/ryupy_kernel.h`：
-     - `rp_kernel_version()` → `"ryupy-cpython-3.12.13-kernel-proto-v1"`
-     - `rp_kernel_set_phase(int phase)` / `rp_kernel_get_phase()`
-     - `rp_kernel_set_strict_reject(int enabled)` / `rp_kernel_get_strict_reject()`
-     - `rp_kernel_reset_eval_stats()`
-     - `rp_kernel_eval_entry_count(int phase)` / `rp_kernel_eval_executed_count(int phase)` / `rp_kernel_eval_rejected_count(int phase)`
-     - `rp_kernel_eval_total_entries()` / `rp_kernel_eval_total_rejected()`
-   - 开启 `strict_reject=1` 后，任何进入 `_PyEval_EvalFrameDefault` 的调用会在执行任何字节码之前记录拒绝计数、设置 `RuntimeError("CPython default bytecode evaluator is disabled in strict RyuPy kernel mode")` 并安全退栈返回 `NULL`。
-
-3. **无 Frozen 载荷与 `_install_importlib=0` 启动 / 关闭 / 内建 `math` 运算**
-   - `Python/frozen.c`、`Modules/getpath.c` 与 `Makefile.pre.in` 清空全部 frozen 与 deepfreeze 字节码载荷（保留 ABI 符号空哨兵），且构建时通过 `Modules/Setup.local` 将 `math` 静态编入 `PyImport_Inittab`。
-   - `Python/import.c` 在 `IMPORTLIB(interp) == NULL`（即 `_install_importlib=0`）时启用 C 内建模块路由 `rp_kernel_import_builtin_only`：覆盖 `PyImport_ImportModule` 与 `PyImport_ImportModuleLevelObject`，支持单阶段及多阶段初始化（如 `math`）。
-
-4. **手写 C 探针（[probe/kernel_probe.c](probe/kernel_probe.c)）**
-   - 直接链接源码构建出的 `libpython3.12` 验证四项场景：
-     - `strict-clean`：`_install_importlib=0` + `strict_reject=1` 启动、运行 `math.sqrt` / `factorial` / `fabs` / `sin` / `gcd`、拒绝未支持消费者并关闭，三阶段计数全为 `(0, 0, 0)`；
-     - `strict-reject`：尝试 `PyEval_EvalCode` 被硬拒绝并记录 `entry=1, rejected=1, executed=0`；
-     - `phase-counters`：关闭 `strict_reject=0` 验证三阶段真实计数 `(1, 2, 1)`；
-     - `reject-importlib`：强制尝试 `_install_importlib=1` 必须明确失败（不可回落 frozen 字节码）。
-
----
-
-## 3. 保留为后续切片的边界与显式拒绝策略
-
-以下能力明确超出本首切边界，当前**不做静默兼容，而是显式拒绝**：
-
-1. **完整 C 导入路由（`.so`/`.pyd` 扩展加载、包 `fromlist`、相对导入、回调 CIL `PyModules.Import`）**：
-   - 当前 `_install_importlib=0` 仅放行已在 `sys.modules` 或 `PyImport_Inittab` 中的内建 C 模块（如 `math`）。
-   - 对非内建模块（`json`、`encodings`、磁盘 `.py`/`.pyc`、未接入的动态扩展）统一抛出 `ModuleNotFoundError`；对 `PyImport_ReloadModule` 或带 `__path__` 的 `fromlist` 抛出 `NotImplementedError`；彻底消除原生的 `SystemError: null argument to internal routine`，绝不静默执行字节码。
-2. **进程 UTF-8 C Stdio 桥接（`sys.stdin` / `sys.stdout`）**：
-   - 当前仅保留 C `stdprinter` 的初步 `sys.stderr`，`sys.stdin` / `sys.stdout` 留待后续切片接入；调用 `builtins.print` 等依赖 `sys.stdout` 的消费者将显式抛出 `RuntimeError: lost sys.stdout`。
-3. **Windows 宿主构建与 NativeAOT/RyuPy.CPython 集成**：
-   - Windows MSVC/DLL 构建路径当前明确为待验；与 `runtime/RyuPy.CPython` 及 `crates/ryupy-driver` 的集成由主代理统筹，本目录不改动任何现有驱动或桥代码。
-
----
-
-## 4. 使用方法
+上游源码、构建树、前缀和日志全部位于仓库外；默认结束后清理，显式 `--keep` 才保留。
+交付前缀包含动态库、头文件与 Python LICENSE，不包含 `.py/.pyc`。
+内建 `math` 经 Setup.local 静态编入；浮点和整数运算均调用真实 C 模块。
 
 ```bash
-# 运行锚点与路径安全单元测试（轻量，不编译 CPython）
 python3 -B runtime/kernel/test_transform.py
-
-# 仅验证官方 3.12.13 源码获取与锚点变换（不运行 configure/make）
 python3 -B runtime/kernel/build_kernel.py --transform-only
-
-# 在 Linux/macOS 上执行完整源码构建 + 符号核验 + 4 项 C 探针（默认自动清理外部临时目录）
 python3 -B runtime/kernel/build_kernel.py
-
-# 如需保留仓库外构建目录与产物供进一步检查，显式传入 --keep
-python3 -B runtime/kernel/build_kernel.py --keep
+# 使用仓库外已有官方源码包；调试保留需显式 --keep
+python3 -B runtime/kernel/build_kernel.py --source-tarball /外部路径/Python-3.12.13.tar.xz
 ```
 
-## 4. 当前实测
+## 严格求值与三阶段统计
 
-2026-11-16，macOS arm64：由官方 3.12.13 源码完整构建动态库，四项探针通过。
-`strict-clean` 启动/运行/关闭入口与执行次数均为 `(0,0,0)`，真实内建 math 运算通过；
-`strict-reject` 的运行阶段记录一次拒绝、零执行；`phase-counters` 记录 `(1,2,1)`；
-启用 importlib 的负例明确初始化失败。交付前缀保留 Python 许可，包含动态库与头文件，
-无 `.py/.pyc`。所有构建日志与源码树位于仓库外。
+`Include/ryupy_kernel.h` 导出：
 
-首轮实编发现并修复空 deepfreeze stub 缺少上游 `_Py_next_func_version` 状态，
-以及 C ModuleSpec 属性字典构造的格式串错误；修订后的完整源码重建与探针均已重跑。
+- `rp_kernel_version()`：静态版本字符串 `ryupy-cpython-3.12.13-kernel-proto-v1`。
+- `rp_kernel_set_phase(int)` / `rp_kernel_get_phase()`：startup=0、runtime=1、shutdown=2。
+- `rp_kernel_set_strict_reject(int)` / `rp_kernel_get_strict_reject()`。
+- `rp_kernel_reset_eval_stats()`。
+- `rp_kernel_eval_entry_count(phase)`、`rp_kernel_eval_executed_count(phase)`、
+  `rp_kernel_eval_rejected_count(phase)`、`rp_kernel_eval_total_entries()`、
+  `rp_kernel_eval_total_rejected()`。
 
-## 5. 无 importlib 拒绝边界与自定义求值器保护
+严格模式在默认求值器执行字节码前记录拒绝并抛 RuntimeError，沿 CPython 原帧清理路径
+安全退栈。分派优先送入该门，预先安装的 PEP 523 求值器也无法绕过；真实生成器 throw
+被拒绝时，其注入异常保留为拒绝异常的 `__context__`。
 
-2026-11-16 通过直接链接原型的 C 探针复现：原版 `PyImport_GetMagicNumber`、
-`PyImport_ExecCodeModuleWithPathnames`、`PyImport_ExecCodeModuleObject` 在无 importlib 时
-会崩溃；新增 `anchors_guards.py` 在公开及内部消费者入口返回明确的
-`NotImplementedError`，且代码模块执行接口在发布 `sys.modules` 前拒绝。模块 repr
-同样返回明确能力错误，后续完整原生模块元数据切片再扩展。
+嵌入宿主须在开始求值前设置严格模式。诊断关闭模式统计默认求值器入口；CPython 内联
+子帧不会逐帧重入该入口。阶段切换和计数清零在无活动求值的边界执行。
+零字节码准入要求严格模式覆盖整个启动/运行/关闭链。
 
-严格模式在 `_PyEval_EvalFrame` 分派优先进入默认拒绝门，即使已安装 PEP 523 自定义
-求值器也不能绕过。生成器 throw 进入拒绝门时，原注入异常保留为 RuntimeError 的
-`__context__`。未开启严格模式时保留原求值器分派。
+## 纯 C UTF-8 标准流
 
-`probe/import_guard_probe.c` 六个独立进程验证公开导入负例、模块 repr、自定义求值器
-不被调用、真实生成器 throw 上下文与关闭阶段零入口；原四项探针继续通过。
-完整源码重建后的十项探针已在 macOS arm64 通过。内部 loader 三个非导出入口完成
-精确源码守卫，尚未单独通过真实原生消费者运行。Linux/Windows 本切仍待验。
+在 `_install_importlib=0` 下注册 C UTF-8 CodecInfo 和增量编解码器，复用 C 错误处理器；
+不导入 `encodings` Python 包。仅支持 UTF-8 及上游同义名，其它编码明确失败。
+标准流直接使用 `_io.FileIO`、BufferedReader/Writer 和 TextIOWrapper，保留：
 
-严格开关在嵌入宿主开始求值前设置；诊断关闭模式的计数是默认求值器入口次数，
-CPython 的内联子帧不会逐帧重入该入口。阶段切换和计数清零须在无活动求值的边界
-执行，不能用清零来替代完整生命周期覆盖。
+- `sys.std*` 与 `sys.__std*__` 的真实身份、编码、errors、buffer、mode/name 等字段。
+- 中文 print/input、提示刷新、EOF、文本/字节缓冲、增量字符跨 chunk、换行处理。
+- strict/replace/surrogateescape/backslashreplace 与自定义 C 错误处理器。
+- fileno/isatty/readable/writable、flush、close、关闭后错误及 finalize 自动刷新。
+- `closefd=False`：关闭 Python 流或解释器后，宿主 0/1/2 描述符继续可用。
+- 坏 fd 对应流为 None；非 UTF-8 配置、目录 stdin 与错误处理配置按真实阶段失败。
+
+增量编码器的 final 参数不求真值；解码器支持标准二元状态、reset，以及不可变 bytes
+状态的身份保留。CodecInfo 的 streamreader/streamwriter 为 None；完整 `codecs` Python
+模块、流编解码器类及任意自定义状态/反射属性属于后续闭包编译合同。
+
+## 已运行的验证
+
+2026-11-16 macOS arm64 完整源码构建与十五个独立探针模式通过：
+
+| 探针 | 覆盖 |
+| --- | --- |
+| kernel_probe 四模式 | 零帧启动/内建 math/关闭；EvalCode 拒绝；诊断阶段计数 (1,2,1)；importlib 初始化拒绝 |
+| import_guard_probe 六模式 | GetMagicNumber、ExecCode 两入口、模块 repr、自定义 evaluator、生成器 throw 上下文 |
+| stdio_codecs_probe 两模式 | UTF-8/增量/错误处理/状态；标准流、输入输出、缓冲与 finalize |
+| stdio_edge_probe 三模式 | closefd、坏 fd、无缓冲与错误初始化 |
+
+五个 stdio/codecs 模式在同次未修改 CPython 3.12.13 上编译运行同一 C 输入并通过。
+标准流和 codec 成功路径的严格内核 startup/runtime/shutdown entries/executed/rejected
+均为零；拒绝探针按预期记录入口和拒绝，执行数为零。
+
+原公开 importlib API 的三个空指针崩溃已实测复现并修复；内部 loader 三个非导出入口
+完成精确源码守卫，尚待后续真实消费者验证。所有未测平台继续列为待验。
+
+## 后续
+
+当前导入只支持 sys.modules 与 PyImport_Inittab 内建模块。动态 `.so/.pyd`、包 fromlist、
+相对导入、CIL 反向导入和 reload 尚未接入；缺口返回明确异常。模块 repr 当前明确拒绝，
+完整原生元数据后续另切。Windows 探针需替换 POSIX pipe/fork 层并实现 MSVC/DLL 构建。
+完整 Python 依赖闭包、全部受支持 ABI、产品接入及三平台验收仍由 C4/C5 推进。

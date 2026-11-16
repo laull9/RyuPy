@@ -77,8 +77,13 @@ impl FunctionBuilder<'_> {
         self.push_stmt(Statement::Assign {
             dest: ambient,
             value: Rvalue::Call {
-                callee: Callee::Runtime(if self.trace_product || cfg!(feature = "trace-adapter-test")
-                    { RuntimeFn::HandlerEnter } else { RuntimeFn::HandlerEnterGuard }),
+                callee: Callee::Runtime(
+                    if self.trace_product || cfg!(feature = "trace-adapter-test") {
+                        RuntimeFn::HandlerEnter
+                    } else {
+                        RuntimeFn::HandlerEnterGuard
+                    },
+                ),
                 args: vec![Operand::Local(original)],
             },
         });

@@ -399,13 +399,30 @@ fn native_traceback_receiver_requires_exact_physical_catch_input() {
     for replace_input in [false, true] {
         let (mut program, origins) = build(SOURCE);
         let resume = origins.generators[0].resume;
-        let block = program.functions[resume].body.blocks.iter_mut().find_map(|(_, block)| {
-            block.stmts.iter().any(|statement| matches!(statement,
-                Statement::Eval(Rvalue::Call { callee: Callee::Runtime(RuntimeFn::GeneratorTracebackReceive), .. })))
-                .then_some(block)
-        }).expect("普通真实catch必须登记冷traceback接收");
+        let block = program.functions[resume]
+            .body
+            .blocks
+            .iter_mut()
+            .find_map(|(_, block)| {
+                block
+                    .stmts
+                    .iter()
+                    .any(|statement| {
+                        matches!(
+                            statement,
+                            Statement::Eval(Rvalue::Call {
+                                callee: Callee::Runtime(RuntimeFn::GeneratorTracebackReceive),
+                                ..
+                            })
+                        )
+                    })
+                    .then_some(block)
+            })
+            .expect("普通真实catch必须登记冷traceback接收");
         if replace_input {
-            let Statement::Eval(Rvalue::Call { args, .. }) = &mut block.stmts[1] else { unreachable!() };
+            let Statement::Eval(Rvalue::Call { args, .. }) = &mut block.stmts[1] else {
+                unreachable!()
+            };
             args[1] = Operand::Const(Constant::None);
         } else {
             // 即使输入仍是同一个异常，也不能把白名单接点移到任意恢复操作之后。

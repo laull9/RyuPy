@@ -1,4 +1,3 @@
-# ryupy: pending
 # 显式/裸重抛、同深度新调用和同一协程恢复的traceback激活身份。
 def names(tb):
     result = []
@@ -120,3 +119,18 @@ try:
     c.throw(same)
 except StopIteration:
     pass
+
+def untouched_gen():
+    yield 1
+async def untouched_coro():
+    return 1
+for unstarted in [untouched_gen(), untouched_coro()]:
+    try:
+        unstarted.throw(ValueError("unstarted"))
+    except ValueError as error:
+        tb = error.__traceback__
+        observed = []
+        while tb is not None:
+            observed.append((tb.tb_frame.f_code.co_name, tb.tb_lineno))
+            tb = tb.tb_next
+        print(observed)

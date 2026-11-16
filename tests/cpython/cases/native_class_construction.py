@@ -1,4 +1,3 @@
-# ryupy: pending
 """C1 两阶段原生类构造：prepare 在类体前、mapping 单读、元类普通属性与重入。"""
 from bridge_fixture.class_construction import Base, body, reset, snapshot
 

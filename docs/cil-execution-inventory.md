@@ -216,7 +216,7 @@
 | 成本项 | 具体内容与工程影响 | 控制策略 |
 | :--- | :--- | :--- |
 | **三平台可重复构建与产物校验** | 需维护 macOS arm64（`pgo+lto`）、Linux x64（`pgo+lto`，关联 glibc/OpenSSL/`libcrypt`）、Windows x64（MSVC `pgo` + DLL）三平台内核构建流水线（可基于 `python-build-standalone` 构建配方精简补丁集） | 首切锁定 **CPython 3.12.13** 单一内核，与现成 auto 3.9–3.15 兼容路径隔离，待 C4 闭环后再评估滚动升级 |
-| **上游补丁维护面** | 仅维护 3–4 个局部补丁：`Python/import.c`（原生导入路由）、`Python/frozen.c`（置空字节码表）、`Python/ceval.c`（全局求值审计/拒绝门）及 `Python/pylifecycle.c`（`_install_importlib=0` 下 C stdio） | 不改动对象模型、GC、字典/列表/数字布局，补丁面控制在百行级 |
+| **上游补丁维护面** | 首轮实际覆盖 `import.c`、`frozen.c`、`ceval.c`、`pylifecycle.c`、`codecs.c`、`getpath.c`、`pycore_ceval.h` 与 `Makefile.pre.in`；另注入纯 C UTF-8 codec/增量类型头 | 不改动对象模型、GC、字典/列表/数字布局，codec 与增量类型约六百余行 C，求值器/导入/启动锚点另列；版本扩展需逐处复验 |
 | **C 扩展 ABI 布局兼容性** | 第三方 wheel（`numpy/random/*.so`、`pydantic-core`、`greenlet`）对 `PyTypeObject`、`_PyInterpreterFrame`、`PyThreadState` 有强结构假设 | 严格保持与上游 3.12.13 完全一致的编译宏（常规 GIL、release 非 `Py_DEBUG`）与头文件路径，每版按真实 wheel 门禁验收 |
 | **开源许可与随包元数据** | 即使剥离 Python 标准库源码，内建 C 扩展（OpenSSL、SQLite、zlib-ng、expat、libffi、mpdecimal 等）仍留在 `libpython` 中；本机 `PYTHON.json` 显示需保留 **21** 份组件许可证 | 继续沿用 [cpython_deployment.rs](../crates/ryupy-driver/src/cpython_deployment.rs) 与 `PYTHON.json` + `licenses/` 校验链，无新增合规黑洞 |
 
@@ -262,7 +262,7 @@
   [首轮集成验收](cil-execution-first-slices-validation.md)，记录于 ADR-0212 / ADR-0211。
 - FastAPI 的真实 CPython 3.13.3 wheel 静态 ABI 扫描已补齐，见 §7；两个真实项目
   的 JIT/standalone/onefile 删除输入搬迁在本轮候选通过，SanBudget 保留原业务 CIL 路径。
-- `runtime/kernel` 已按 §8 路线源码重建并通过四项探针；现成 provider 的帧审计继续
+- `runtime/kernel` 已按 §8 路线源码重建，纯 C UTF-8 / `_io` 标准流及严格拒绝保护共十五模式通过；现成 provider 的帧审计继续
   保持 `complete=false`，严格内核产品接入及完整执行覆盖归 C4。
 
 ### 10.2 C1–C5 后续阶段剩余实现项

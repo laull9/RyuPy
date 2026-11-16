@@ -15,16 +15,21 @@ public sealed class PyNativeTracebackTests : IDisposable
         Assert.IsType<PyNativeTraceback>(PyObject.GetAttr(error, "__traceback__"));
     private static object Frame(PyNativeTraceback traceback) => PyObject.GetAttr(traceback, "tb_frame")!;
     private static object Code(object frame) => PyObject.GetAttr(frame, "f_code")!;
-    private static PyFunction Origin() => new("source", PySignature.Create("source", [], [], []),
-        (_, _, _, _) => PyNone.Instance, []);
+    private static PyFunction Origin(string name = "source")
+    {
+        var signature = PySignature.Create(name, [], [], []);
+        var source = PyTraceback.CreateCodeSource("trace", "trace.py", _ => PyNone.Instance);
+        PyOps.FunctionDefinitionWithSource(signature, name, 1, source);
+        return new(name, signature, (_, _, _, _) => PyNone.Instance, []);
+    }
 
     [Fact]
     public void RealReceiverExcludesUnwoundDriversAndKeepsHeadIdentity()
     {
         PyTraceback.PushFrame("trace.py", "driver");
-        long receiver = PyTraceback.PushFrame("trace.py", "operation");
+        long receiver = PyTraceback.PushFrameWithOrigin("trace.py", "operation", Origin("operation"));
         PyTraceback.SetLine(10);
-        PyTraceback.PushFrame("trace.py", "failure");
+        PyTraceback.PushFrameWithOrigin("trace.py", "failure", Origin("failure"));
         PyTraceback.SetLine(20);
         var error = new PyValueError("failure");
         PyErrors.PrepareExplicitRaise(error);
@@ -84,7 +89,7 @@ public sealed class PyNativeTracebackTests : IDisposable
     [Fact]
     public void TailAssignmentRejectsCyclesAndUnsupportedBytecodeIsExplicit()
     {
-        PyTraceback.PushFrame("trace.py", "source");
+        PyTraceback.PushFrameWithOrigin("trace.py", "source", Origin());
         PyTraceback.SetLine(10);
         var error = new PyValueError("failure");
         PyErrors.PrepareExplicitRaise(error);
@@ -97,6 +102,41 @@ public sealed class PyNativeTracebackTests : IDisposable
         Assert.Throws<PyNotImplementedError>(() => PyObject.GetAttr(trace, "tb_lasti"));
         Assert.Throws<PyNotImplementedError>(() => PyObject.GetAttr(Code(Frame(trace)), "co_code"));
         Assert.Throws<PyNotImplementedError>(() => PyObject.GetAttr(Frame(trace), "f_locals"));
+    }
+
+    [Fact]
+    public void HostSharedSignatureDoesNotForgeCompiledCodeIdentity()
+    {
+        var signature = PySignature.Create("host", [], [], []);
+        var first = new PyFunction("first", signature, (_, _, _, _) => 1L, []);
+        var second = new PyFunction("second", signature, (_, _, _, _) => 2L, []);
+        foreach (var function in new[] { first, second })
+        {
+            long depth = PyTraceback.PushFrameWithOrigin("host.cs", function.Name, function);
+            PyTraceback.SetLine(10);
+            var error = new PyValueError("host");
+            PyErrors.PrepareExplicitRaise(error);
+            Assert.Throws<PyNotImplementedError>(() => Code(Frame(Trace(error))));
+            PyTraceback.PopTo(depth);
+        }
+    }
+
+    [Fact]
+    public void TracebackDataReadCannotBeShadowedAndNativeHeadWritesAreExplicitlyRejected()
+    {
+        var error = new PyValueError("subclass");
+        error.BindPythonClass((PyClass)PyOps.MakeClass("Derived", [], null));
+        PyTraceback.PushFrameWithOrigin("trace.py", "source", Origin());
+        PyTraceback.SetLine(11);
+        PyErrors.PrepareExplicitRaise(error);
+        var head = Trace(error);
+        error.UserAttributes["__traceback__"] = "shadow";
+        Assert.Same(head, Trace(error));
+        Assert.Throws<PyNotImplementedError>(() => PyObject.SetAttr(error, "__traceback__", PyNone.Instance));
+        Assert.Throws<PyNotImplementedError>(() => PyObject.DelAttr(error, "__traceback__"));
+        Assert.Same(head, Trace(error));
+        error.PythonClass!.SetAttr("__traceback__", "class-shadow");
+        Assert.Throws<PyNotImplementedError>(() => PyObject.GetAttr(error, "__traceback__"));
     }
 
     [Fact]

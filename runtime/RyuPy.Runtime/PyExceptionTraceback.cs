@@ -40,7 +40,6 @@ public static partial class PyErrors
     public static object PrepareExplicitRaise(object exception)
     {
         var error = (PyBaseException)PrepareRaise(exception);
-        if (error.TraceProductBinding is not null) return error;
         var state = error.NativeTraceback ??= new NativeTracebackState();
         state.Seen.Clear();
         state.Active = true;

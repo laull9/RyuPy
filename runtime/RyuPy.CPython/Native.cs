@@ -10,7 +10,8 @@ internal static unsafe class Native
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_class_set(nint session, [MarshalAs(UnmanagedType.LPUTF8Str)] string name, nint value);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_class_delete(nint session, [MarshalAs(UnmanagedType.LPUTF8Str)] string name);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_class_finish(nint session);
-    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_class_receiver(nint session, nint receiver, [MarshalAs(UnmanagedType.LPUTF8Str)] string name, nint definition);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_class_receiver(nint session, nint receiver, [MarshalAs(UnmanagedType.LPUTF8Str)] string name, nint expected, nint declaring, int kind);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_callable_reference(nint callable);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_super_kind(nint value);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_super_type();
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_native_method(nint target, nint name, nint qualname);

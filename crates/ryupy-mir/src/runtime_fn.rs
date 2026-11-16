@@ -358,6 +358,8 @@ pub enum RuntimeFn {
     FunctionMetadata,
     /// 新词法类事务的固定ABI；Prepare只建namespace，Finish才得到类。
     LexicalClassPrepare,
+    /// provider 三参数前言：先完成真实 prepare，再由 CIL 查询并初始化元数据。
+    ForeignClassPrepare,
     LexicalClassFinish,
     /// 类体或终结失败后清理外部构造事务；固定(object)->void，幂等且保留原异常。
     ClassDefinitionAbort,

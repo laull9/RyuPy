@@ -18,8 +18,8 @@ public static partial class PyOps
     {
         var cls = new PyClass(name);
         cls.PrepareMultipleBases(bases);
-        PyClassNamespaceMetadata.Capture(cls);
         PyForeignClassConstruction.Begin(cls);
+        PyClassNamespaceMetadata.Capture(cls);
         return cls;
     }
 
@@ -121,8 +121,8 @@ public static partial class PyOps
         // 不能创建看似异常、实际只是 PyInstance 的对象，必须在类定义处明确拒绝。
         if (cls.IsSubclassOfBuiltin("BaseException") && cls.ExceptionFactory is null)
             throw new PyTypeError("dynamic exception inheritance requires a compiled exception factory");
-        if (captureAmbientMetadata) PyClassNamespaceMetadata.Capture(cls);
         PyForeignClassConstruction.Begin(cls);
+        if (captureAmbientMetadata) PyClassNamespaceMetadata.Capture(cls);
         return cls;
     }
 

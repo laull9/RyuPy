@@ -148,7 +148,8 @@ fn real_dynamic_temporaries_and_second_selection_survive_suspend() {
     assert!(resume.module_state.is_none());
     assert_eq!(resume.body.regions.len(), 1);
     assert!(matches!(resume.body.regions[0].kind, RegionKind::CatchAll));
-    let enters = runtime_values(resume, RuntimeFn::HandlerEnter);
+    // 目标匹配ambient保存原异常token，不能提前结束正在跨帧传播的traceback。
+    let enters = runtime_values(resume, RuntimeFn::HandlerEnterGuard);
     let (ambient, args) = enters
         .iter()
         .find(|(_, args)| matches!(args, [Operand::Local(_)]))

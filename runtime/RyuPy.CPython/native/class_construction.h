@@ -83,16 +83,52 @@ API PyObject *rp_class_finish(PyObject *session) {
     }
     return result;
 }
-/* 通过真实字典中同一已导出描述符及直接 bases 识别构造回调的接收类型，不按名称猜测。
- * 返回 owned type；不匹配返回 NULL 且不设置异常。 */
-API PyObject *rp_class_receiver(PyObject *session, PyObject *receiver, const char *name, PyObject *definition) {
+/* 只解析活弱引用；target 不反向强持 wrapper，避免跨堆环和地址复用。 */
+API PyObject *rp_callable_reference(PyObject *callable) { return PyWeakref_NewRef(callable, NULL); }
+static PyObject *class_callable(PyObject *reference) {
+#if PY_VERSION_HEX >= 0x030d0000
+    PyObject *value = NULL;
+    return PyWeakref_GetRef(reference, &value) > 0 ? value : NULL;
+#else
+    PyObject *value = PyWeakref_GetObject(reference);
+    return value && value != Py_None ? Py_NewRef(value) : NULL;
+#endif
+}
+static int class_member_calls(PyObject *member, PyObject *callable) {
+    if (member == callable) return 1;
+    const char *fields[4] = {NULL, NULL, NULL, NULL};
+    if (Py_IS_TYPE(member, &PyStaticMethod_Type) || Py_IS_TYPE(member, &PyClassMethod_Type)) fields[0] = "__func__";
+    else if (Py_IS_TYPE(member, &PyProperty_Type)) { fields[0] = "fget"; fields[1] = "fset"; fields[2] = "fdel"; }
+    /* 只读精确内建描述符字段，不执行用户自定义 __get__ 或元类属性协议。 */
+    for (int i = 0; fields[i]; i++) {
+        PyObject *inner = PyObject_GetAttrString(member, fields[i]);
+        if (!inner) return -1;
+        int same = inner == callable; Py_DECREF(inner);
+        if (same) return 1;
+    }
+    return 0;
+}
+/* 真实首个 MRO 字典成员必须持有同一 frozen callable/descriptor，再核冻结直接 bases。
+ * declaring 非空时必须恰为真实 MRO 命中的声明类型；kind=1 为 set_name 的 descriptor self。 */
+API PyObject *rp_class_receiver(PyObject *session, PyObject *receiver, const char *name,
+                               PyObject *expected, PyObject *declaring, int kind) {
     ClassConstruction *state = class_state(session);
     if (!state || state->phase != 1) return NULL;
     PyTypeObject *type = PyType_Check(receiver) ? (PyTypeObject *)receiver : Py_TYPE(receiver);
-    if (!type->tp_dict || PyDict_GetItemString(type->tp_dict, name) != definition || !type->tp_bases) return NULL;
-    if (PyTuple_GET_SIZE(type->tp_bases) != PyTuple_GET_SIZE(state->bases)) return NULL;
+    if (!type->tp_mro || !type->tp_bases || PyTuple_GET_SIZE(type->tp_bases) != PyTuple_GET_SIZE(state->bases)) return NULL;
     for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(state->bases); i++)
         if (PyTuple_GET_ITEM(type->tp_bases, i) != PyTuple_GET_ITEM(state->bases, i)) return NULL;
-    return Py_NewRef((PyObject *)type);
+    for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(type->tp_mro); i++) {
+        PyTypeObject *source = (PyTypeObject *)PyTuple_GET_ITEM(type->tp_mro, i);
+        PyObject *member = source->tp_dict ? PyDict_GetItemString(source->tp_dict, name) : NULL;
+        if (!member) continue;
+        if (declaring && declaring != (PyObject *)source) return NULL;
+        if (kind == 1) return member == expected && source == type ? Py_NewRef((PyObject *)type) : NULL;
+        PyObject *callable = class_callable(expected);
+        if (!callable) return NULL;
+        int matches = class_member_calls(member, callable); Py_DECREF(callable);
+        return matches > 0 ? Py_NewRef((PyObject *)type) : NULL;
+    }
+    return NULL;
 }
 #undef CLASS_CAPSULE

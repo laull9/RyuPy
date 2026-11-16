@@ -38,12 +38,14 @@ public static partial class PyOps
         if (callable is PyPartial partial) return partial.InvokeGeneric(args, names, values);
         if (callable is PyStaticMethod sm) return InvokeGenericFunction(sm.Value, args, names, values);
         if (callable is PyClassMethod cm) return InvokeGenericFunction(cm.Value, args, names, values);
-        if (callable is PyBoundMethod method)
+        if (callable is PyBoundMethod method && method.Target is PyFunction boundFunction
+            && GenericFunctionRegistry.Cores.TryGetValue(boundFunction, out var boundCore))
         {
+            PyLexicalClassGuard.Receiver(method.Self);
             var bound = new object?[args.Length + 1];
             bound[0] = method.Self;
             Array.Copy(args, 0, bound, 1, args.Length);
-            return InvokeGenericFunction(method.Target, bound, names, values);
+            return boundCore.Body(boundFunction, bound, names, values);
         }
         return CallValue(callable, args, names, values);
     }

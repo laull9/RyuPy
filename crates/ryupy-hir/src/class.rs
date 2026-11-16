@@ -308,6 +308,8 @@ pub fn parse_class_def(
     // 仅实际MakeClass路径由runtime冷初始化；Enum/TypedDict仍用各自协议。
     let runtime_namespace =
         enum_members.is_none() && !matches!(base, Some(ClassBase::TypedDict { .. }));
+    class_names.prepared_namespace =
+        globals.foreign_class_construction && runtime_namespace && !is_exception;
     if runtime_namespace {
         class_names.insert(Name::from("__module__"));
         class_names.insert(Name::from("__qualname__"));

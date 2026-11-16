@@ -1,4 +1,3 @@
-# ryupy: pending
 # enter/body/exit 都真实挂起；return、解包失败与多上下文保持清理顺序。
 events = []
 class Pause:

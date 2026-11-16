@@ -207,23 +207,6 @@ public sealed partial class CPythonHost
         return Native.rp_incref(mirror.Pointer);
     }
 
-    private void PopulateClassDict(PyClass ownerClass, nint nsDict, IReadOnlyDictionary<string, object?> attributes)
-    {
-        foreach (KeyValuePair<string, object?> entry in attributes)
-        {
-            if (string.Equals(entry.Key, "__dict__", StringComparison.Ordinal)) continue;
-            nint valuePtr = ConvertClassMemberOwned(ownerClass, entry.Key, entry.Value);
-            try
-            {
-                Native.rp_decref(Check(Native.rp_op(17, nsDict, valuePtr, s: entry.Key)));
-            }
-            finally
-            {
-                Native.rp_decref(valuePtr);
-            }
-        }
-    }
-
     private nint ConvertClassMemberOwned(PyClass ownerClass, string name, object? value)
     {
         switch (value)
@@ -284,8 +267,10 @@ public sealed partial class CPythonHost
         {
             string qualname = TryGetQualname(fn, $"{ownerClass.Name}.{fn.Name}");
             var target = new ForeignMethodTarget(ownerClass, fn, bindContext);
-            return nativeMethodsEnabled ? CreateNativeMethodOwned(target, fn.Name, qualname)
+            nint callable = nativeMethodsEnabled ? CreateNativeMethodOwned(target, fn.Name, qualname)
                 : CallHelperRaw(_wrapMethodFn, [target, fn.Name, qualname], null, null);
+            try { target.CallableReference = new PythonObject(this, Check(Native.rp_callable_reference(callable))); return callable; }
+            catch { Native.rp_decref(callable); throw; }
         }
         return ToPython(value);
     }
@@ -449,6 +434,8 @@ public sealed partial class CPythonHost
     {
         internal PyClass Owner => owner;
         internal PyFunction Function => function;
+        // owned weakref：调用活跃时解析真实 wrapper，不强持其 referent。
+        internal PythonObject? CallableReference { get; set; }
         public object? Invoke(object?[] args, string[] names, object?[] values)
         {
             if (bindContext && args.Length > 0)

@@ -214,7 +214,7 @@
       "selection": "candidate",
       "ledger": "known-existing-boundary",
       "known_expectation": {
-        "native_stdout": "traceback-unavailable\n"
+        "native_stdout": "traceback-locals-unavailable\n"
       }
     },
     {

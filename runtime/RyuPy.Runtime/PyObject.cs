@@ -125,6 +125,8 @@ public static partial class PyObject
         {
             case PyBaseException { ForeignObject: PyNativeObject origin } error:
                 origin.SetAttr(name, value); error.ForeignObject.SynchronizeException(error, false); return;
+            case PyBaseException when name == "__traceback__":
+                throw new PyNotImplementedError("native exception traceback assignment is not supported");
             case PySlice:
                 PySliceMembers.RejectMutation(name, value, deleting: false);
                 return;

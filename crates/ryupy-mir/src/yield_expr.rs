@@ -37,7 +37,11 @@ impl ExprBuilder<'_> {
     }
 
     /// await 复用显式暂停CFG，但入口只接受 awaitable 协议。
-    pub(crate) fn build_await(&mut self, expression: ExprId, context: ryupy_hir::AwaitContext) -> Operand {
+    pub(crate) fn build_await(
+        &mut self,
+        expression: ExprId,
+        context: ryupy_hir::AwaitContext,
+    ) -> Operand {
         let start = match context {
             ryupy_hir::AwaitContext::Expression => RuntimeFn::CoroutineAwaitStart,
             ryupy_hir::AwaitContext::AsyncEnter => RuntimeFn::CoroutineEnterAwaitStart,

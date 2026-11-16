@@ -3,6 +3,7 @@ use dotnetdll::prelude::*;
 pub(crate) struct ClassRefs {
     pub prepare_ordinary_mi: MethodRefIndex,
     pub prepare_runtime_derived: MethodRefIndex,
+    pub foreign_prepare: MethodRefIndex,
     pub lexical_prepare: MethodRefIndex,
     pub lexical_finish: MethodRefIndex,
     pub definition_abort: MethodRefIndex,
@@ -27,6 +28,9 @@ impl ClassRefs {
             ),
             prepare_runtime_derived: res.push_method_reference(
                 method_ref! { static object @ops::PrepareRuntimeDerivedClass(string, object[]) },
+            ),
+            foreign_prepare: res.push_method_reference(
+                method_ref! { static object @factory::Begin(string, string, object[]) },
             ),
             lexical_prepare: res.push_method_reference(
                 method_ref! { static object @factory::Prepare(string, string, object, object[]) },

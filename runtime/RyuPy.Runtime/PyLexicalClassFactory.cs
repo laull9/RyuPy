@@ -25,17 +25,26 @@ public static class PyLexicalClassFactory
         internal readonly PyClass Owner = owner;
     }
 
-    private static Frame CreateFrame(string name, PyClass? parent, object? module, string qualname, object?[]? bases = null, IPyForeignObject? foreignBase = null)
+    private static Frame CreateFrame(string name, PyClass? parent, object? module, string qualname, object?[]? bases = null, IPyForeignObject? foreignBase = null, bool initializeMetadata = true)
     {
         bool foreign = foreignBase is not null || parent?.HasForeignHierarchy == true
             || bases is not null && Array.Exists(bases, static value => value is IPyForeignObject || value is PyClass { HasForeignHierarchy: true });
-        if (!foreign) return new Frame(name, parent, module, qualname, bases, foreignBase);
+        if (!foreign) return new Frame(name, parent, module, qualname, bases, foreignBase,
+            initializeMetadata ? null : new(StringComparer.Ordinal));
         var owner = new PyClass(name) { BaseClass = parent, ForeignBase = foreignBase };
         if (bases is not null) owner.PrepareMultipleBases(bases);
-        owner.Attributes["__module__"] = module ?? PyNone.Instance;
-        owner.Attributes["__qualname__"] = qualname;
+
         var result = new ForeignFrame(name, owner);
         PyForeignClassConstruction.Begin(owner);
+        if (initializeMetadata)
+        {
+            try
+            {
+                NamespaceSet(result, "__module__", module ?? PyNone.Instance);
+                NamespaceSet(result, "__qualname__", qualname);
+            }
+            catch { PyForeignClassConstruction.Abort(owner); throw; }
+        }
         return result;
     }
 
@@ -43,7 +52,14 @@ public static class PyLexicalClassFactory
     public static object Prepare(string name, string qualname, object? module, object?[] bases) =>
         PrepareForMode(name, qualname, module, bases, RuntimeFeature.IsDynamicCodeSupported);
 
-    internal static object PrepareForMode(string name, string qualname, object? module, object?[] bases, bool supportsDynamicCode)
+    /// <summary>provider 类体先 prepare；元数据由编译前言按 namespace/globals/builtins 顺序初始化。</summary>
+    public static object Begin(string name, string qualname, object?[] bases) =>
+        PrepareCore(name, qualname, null, bases, RuntimeFeature.IsDynamicCodeSupported, false);
+
+    internal static object PrepareForMode(string name, string qualname, object? module, object?[] bases, bool supportsDynamicCode) =>
+        PrepareCore(name, qualname, module, bases, supportsDynamicCode, true);
+
+    private static object PrepareCore(string name, string qualname, object? module, object?[] bases, bool supportsDynamicCode, bool initializeMetadata)
     {
         try
         {
@@ -69,12 +85,12 @@ public static class PyLexicalClassFactory
                     else if (dict) PyClass.ValidateDictC3Base(value);
                     else if (!ReferenceEquals(value, PyBaseObject.Type))
                         ValidateAncestors(value as PyClass ?? throw Unsupported("non-ordinary base"));
-                return CreateFrame(name, null, module, qualname, (object?[])bases.Clone());
+                return CreateFrame(name, null, module, qualname, (object?[])bases.Clone(), initializeMetadata: initializeMetadata);
             }
             if (bases.Length == 1 && bases[0] is IPyForeignObject foreignBase)
             {
                 if (!PyForeignClassBridge.IsType(foreignBase)) throw Unsupported("non-ordinary base or metaclass protocol");
-                return CreateFrame(name, null, module, qualname, foreignBase: foreignBase);
+                return CreateFrame(name, null, module, qualname, foreignBase: foreignBase, initializeMetadata: initializeMetadata);
             }
             PyClass? parent = null;
             if (bases.Length == 1 && !ReferenceEquals(bases[0], PyBaseObject.Type))
@@ -83,7 +99,7 @@ public static class PyLexicalClassFactory
                 if (parent.HasMultipleInheritance) throw Unsupported("MI at lexical definition positions");
                 ValidateAncestors(parent);
             }
-            return CreateFrame(name, parent, module, qualname);
+            return CreateFrame(name, parent, module, qualname, initializeMetadata: initializeMetadata);
         }
         catch (PyBaseException error) { throw (PyBaseException)PyErrors.PrepareRaise(error); }
     }

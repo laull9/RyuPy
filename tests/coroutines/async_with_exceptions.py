@@ -1,4 +1,3 @@
-# ryupy: pending
 # BaseException取消注入、退出抑制、退出再次取消与原异常链跨暂停保留。
 events = []
 class Cancelled(BaseException):

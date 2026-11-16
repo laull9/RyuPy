@@ -263,7 +263,10 @@ pub enum ExprKind {
     Yield(Option<ExprId>),
     YieldFrom(ExprId),
     /// await 明确保留，不能按普通调用或 yield-from 源码语义处理。
-    Await { value: ExprId, context: crate::AwaitContext },
+    Await {
+        value: ExprId,
+        context: crate::AwaitContext,
+    },
     /// 合成上下文退出参数读取真实异常传播链，跳过用户属性覆盖。
     ExceptionTraceback(ExprId),
     /// 错误恢复占位：对应的错误已经报过，下游静默跳过。

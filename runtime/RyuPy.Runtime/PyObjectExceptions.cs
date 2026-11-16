@@ -40,6 +40,12 @@ public static partial class PyObject
 
     private static object? GetExceptionAttr(PyBaseException exception, string name)
     {
+        if (name == "__traceback__")
+        {
+            if (exception.PythonClass is { } tracebackOwner && tracebackOwner.TryLookup(name, out _, out _))
+                throw new PyNotImplementedError("native exception traceback overrides are not supported");
+            return PyErrors.ExceptionTraceback(exception);
+        }
         if (name == "__suppress_context__") return exception.SuppressContextFlag;
         if (name == "name" && exception is PyImportError importError) return ReadImportErrorName(importError);
         // 用户异常类上定义的方法 / 属性优先（`e.describe()` 之类）。
@@ -73,7 +79,6 @@ public static partial class PyObject
             "__cause__" => (object?)exception.Cause ?? PyNone.Instance,
             "__context__" => (object?)exception.Context ?? PyNone.Instance,
             "__class__" => (object?)exception.PythonClass ?? PyType.Get(exception.PyTypeName),
-            "__traceback__" => PyErrors.ExceptionTraceback(exception),
             _ when exception is PySyntaxError syntax => syntax.Field(name),
             _ when exception is PyGetoptError getopt => getopt.Field(name),
             _ when exception is PyOptParseError error => error.Field(name),

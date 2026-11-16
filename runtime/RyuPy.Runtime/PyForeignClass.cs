@@ -149,18 +149,10 @@ public sealed partial class PyClass
                 value = PyForeignClassBridge.IsPlainType(meta) ? PyType.Get("type") : meta;
                 return true;
             case "__name__":
-                value = Name;
-                return true;
             case "__qualname__":
-                value = Attributes.TryGetValue(name, out object? qualname) ? qualname : Name;
-                return true;
             case "__module__":
-                if (Attributes.TryGetValue(name, out object? module))
-                {
-                    value = module;
-                    return true;
-                }
-                value = PyObject.GetAttr(foreignClass, "__module__");
+                // prepared mapping 与元类可改写真实元数据；类镜像不覆盖外部类型的当前值。
+                value = PyObject.GetAttr(foreignClass, name);
                 return true;
             default:
                 value = PyObject.GetAttr(foreignClass, name);

@@ -12,13 +12,13 @@ pub mod build;
 mod build_assign;
 mod build_class;
 mod build_context;
-mod core_types;
-mod validate_generic_cores;
-mod generic_cores;
-#[cfg(test)]
-mod generic_core_tests;
 mod class_cells;
 mod class_cleanup;
+mod core_types;
+#[cfg(test)]
+mod generic_core_tests;
+mod generic_cores;
+mod validate_generic_cores;
 pub use class_cells::{ClassCellCapture, ClassCellDefinition, ClassCellEnvSource};
 mod lexical_super;
 #[cfg(test)]
@@ -29,6 +29,7 @@ mod build_dynamic_try;
 mod build_expr_context;
 mod build_flow;
 mod build_loops;
+mod build_generic_range;
 mod build_params;
 mod build_print;
 mod build_product_trace;
