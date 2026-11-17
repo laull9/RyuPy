@@ -118,6 +118,32 @@ internal static class PyUnicodePoints
     private static bool Edge(string text) => text.Length != 0
         && (char.IsLowSurrogate(text[0]) || char.IsHighSurrogate(text[^1]));
 
+    internal static bool Contains(string text, string part)
+    {
+        if (Has(text) || Has(part))
+        {
+            string source = Points(text), needle = Points(part);
+            for (int start = 0; start <= source.Length - needle.Length;)
+            {
+                int found = source.IndexOf(needle, start, StringComparison.Ordinal);
+                if (found < 0) return false;
+                if ((found & 1) == 0) return true;
+                start = found + 1;
+            }
+            return false;
+        }
+        for (int start = 0; start <= text.Length - part.Length;)
+        {
+            int found = text.IndexOf(part, start, StringComparison.Ordinal);
+            if (found < 0) return false;
+            if (Boundary(text, found) && Boundary(text, found + part.Length)) return true;
+            start = found + 1;
+        }
+        return false;
+    }
+    private static bool Boundary(string text, int offset) => offset == 0 || offset == text.Length
+        || !char.IsHighSurrogate(text[offset - 1]) || !char.IsLowSurrogate(text[offset]);
+
     internal static bool Equal(string left, string right) => string.Equals(left, right, StringComparison.Ordinal)
         && (!(Has(left) || Has(right)) || string.Equals(Points(left), Points(right), StringComparison.Ordinal));
 

@@ -181,6 +181,8 @@ def main():
                 reports = list(output.rglob('cpython-provider.json'))
                 report_path = next((p for p in reports if p.parent.name.endswith('.dist')), reports[0])
                 report = json.loads(report_path.read_text())
+                assert report['entry_provider'] == 'ryupy_compiled_source'
+                assert report['delegated_local_modules'] == []
                 collection = report['dependency_collection']
                 assert collection['native_components'][0]['licenses']
                 selection = collection['payload_selection'][0]
@@ -213,7 +215,7 @@ def main():
             actual = run(command, empty, dict(env, PATH=str(empty), PYTHONHOME='/missing-python', PYTHONPATH='/missing-site'),
                          evidence / (name + '-run.log'))
             assert (actual.returncode, actual.stdout, actual.stderr) == (oracle.returncode, oracle.stdout, oracle.stderr)
-            rows.append({'case': name, 'status': 'deleted_inputs_relocated_pass', 'execution': 'cil_foreign_mapping_native_dependency'})
+            rows.append({'case': name, 'status': 'deleted_inputs_relocated_pass', 'execution': 'cil_foreign_mapping_native_dependency', 'business_delegations': []})
             print('PASS', name, flush=True)
     (evidence / 'results.json').write_text(json.dumps(rows, ensure_ascii=False, indent=2) + '\n')
     (evidence / 'cleanup.json').write_text(json.dumps({'temporary_tree_removed': not work.exists()}))

@@ -202,7 +202,8 @@ CPython 一致的消息。
   类 `__name__/__qualname__` 修改、类/实例 `__dict__` 与实例 `__class__` 修改仍明确拒绝。
 - `encoding/errors` 解码构造尚未实现；合法解码域明确 `NotImplementedError`，不假作普通
   `str(object)`。路径、正则、JSON 等其它 consumer 没有随本切统一接入，不宣称接受子类载体。
-- 排序统一沿现精确字符串的 UTF-16 ordinal；非 BMP 与 BMP 混合排序不等于 CPython 码点序。
+- 排序在2026-11-17接入中央码点比较，精确字符串与str子类根slot共用规则；真实补充平面
+  字符与独立代理码点保留区别，方法新建结果的剩余传播范围见ADR-0235。
   `tests/fixtures/str_subclass/unicode_order.py.pending` 与 `custom_new.py.pending` 保完整合法
   CP 期待，不计通过；不把旧排序差异改写成错误的 CP 期待。
 
@@ -561,9 +562,10 @@ v3 声明的 utf8 参数严格编码实际字符串，嵌入 NUL 原样保留，
 输入包含孤立 UTF16 代理项时抛 UnicodeEncodeError。`"a" + chr(0xd800) + "b"`
 在真实 JIT/NativeAOT ABI 测试中均走到该错误路径。
 
-本轮发现源码字面量 `"a\ud800b"` 经过现有字符串常量生成链后成为替代字符，
-与 CPython 保留孤立代理项的行为有差异。该缺口属于源码常量链，后续需单独保真修复并追加
-普通 Python 字符串差分，ABI 封送层继续拒绝实际非法代理项，禁止替换编码回退。
+2026-11-17真实ABI产品发现源码字面量 `"a\ud800b"` 经Ruff常量链后成为替代字符。
+现由[ADR-0235](adr/0235-unicode-codepoint-constants.md)的源码码点旁表与专用常量工厂修复，
+普通串、隐式拼接、f-string片段/规格和对象桥保留原码点。原始字面量已在两份独立C ABI
+声明的JIT/NativeAOT四产品重验，严格编码继续报UnicodeEncodeError，早期失败日志保留。
 
 ### 4.11 zlib/gzip 原生容器与有界解压（ADR0176）
 
@@ -806,9 +808,11 @@ ADR0072 候选严格区分：用户 __hash__ 返回实际整数，fits-i64保原
 
 ### Unicode内建的表示边界
 
-ord/chr支持普通码点、补充平面和单独代理项；但两个独立代理项拼接后当前UTF-16表示会合并为代理对，
-`ord(chr(0xD800)+chr(0xDC00))`与CPython不一致。D009及`m3_builtins_surrogate_pair.py`记录为待修，
-不将它算作完整代理字符串兼容，也不作为已接受性能取舍。
+2026-11-17核心表示已修复D009的独立代理拼接：`ord(chr(0xD800)+chr(0xDC00))`
+按两个码点报TypeError，旧最小输入`m3_builtins_surrogate_pair.py`已差分通过并转正。
+字面量、核心索引/切片/迭代、比较/键、拼接/重复和对象桥共同保留码点边界；方法新建
+结果逐项迁移，`m3_8_surrogate_replace_pending.py`记录replace结果传播的剩余差异。
+历史D009专项的原验收范围继续保留，完整方法生态见ADR-0235。
 
 ### 4.9 装饰器与元数据（M3.3）
 

@@ -20,6 +20,6 @@ PYTHONDONTWRITEBYTECODE=1 /absolute/cpython3.12 run.py \
 
 Runner 每次即时用固定 CPython 与严格 ctypes 适配器运行原样应用，比较实际 JIT/NativeAOT 的退出码、stdout、stderr。四个产品全部搬迁，并先删除声明、C 源码、原始动态库/静态库和构建树；NativeAOT 使用空工具 PATH 和失效 PYTHONHOME。生成 `.pyi` 以目标 Python 3.12 语法解析；每个导出的机器签名、原参数名、别名关系与同次产物清单交叉核对，错误调用覆盖 kwargs、数量、类型、范围、UTF-8 和非法 bool8 返回。
 
-2026-11-17 在 macOS arm64、固定 CPython 3.12.13 上，以上两声明 × JIT/NativeAOT 四格通过。UTF-8 非法码元使用既有 ABI 专项相同的 `chr(0xd800)` 构造；源码孤立代理码元字面量的前端转换另有已观察差异，首轮失败日志保留在仓库外。
+2026-11-17 在 macOS arm64、固定 CPython 3.12.13 上，以上两声明 × JIT/NativeAOT 四格通过。UTF-8 非法输入直接使用原源码孤立代理字面量 `'\ud800x'`；首轮字面量失败日志保留，修复后的普通CIL与provider桥另由 `tests/aot/unicode_literals` 四产品差分门验证。
 
 发布记录通过 `binding_interfaces` 的精确路径及 `artifacts` 的 `native_binding_python_stub` / `native_binding_machine_contract` 角色关联；同次发布树若已有目标文件，生成器拒绝覆盖并由既有发布事务回滚。无新增文件 hash。生成接口、二进制及日志只留在仓库外测试产品目录，仓库只保留手写输入与 runner。

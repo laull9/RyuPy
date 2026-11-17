@@ -1,4 +1,3 @@
-# ryupy: pending
 # 通用外部调用与回读：源码码点、显式参数和本地/foreign混合键共享精确Unicode合同。
 import operator
 import json
@@ -13,8 +12,8 @@ for text in [pair, emoji, lone]:
     print(repr(returned), len(returned), [ord(part) for part in returned])
     print(json.dumps(text, ensure_ascii=True))
 # 外部返回的真实str作为本地key；对照原literal和另一个相同UTF16的码点序列。
-foreign_pair = operator.add(pair, '')
-foreign_emoji = operator.add(emoji, '')
+foreign_pair = operator.getitem(operator.add(pair, '!'), slice(0, -1))
+foreign_emoji = operator.getitem(operator.add(emoji, '!'), slice(0, -1))
 local = {pair: 'pair', emoji: 'emoji'}
 print(local[foreign_pair], local[foreign_emoji], len(local))
 print('unicode-bridge-ok')

@@ -24,7 +24,7 @@ for kind in ['arity', 'kwargs', 'range', 'bool', 'float', 'float-range', 'str', 
         elif kind == 'bytes':
             native.bytes('x')
         elif kind == 'utf8':
-            getattr(native, 'class')(chr(0xd800))
+            getattr(native, 'class')('\ud800x')
         else:
             native.bad_bool()
     except Exception as error:

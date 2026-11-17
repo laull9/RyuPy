@@ -80,11 +80,14 @@ pub(crate) fn read(path: &Path) -> Result<Image> {
 }
 
 fn parse(dependencies: &str, identity: &str) -> Result<Image> {
-    let identity_name = identity
+    let identity_names = identity
         .lines()
         .skip(1)
         .map(str::trim)
-        .find(|line| !line.is_empty());
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>();
+    ensure!(identity_names.len() <= 1, "Mach-O包含多个LC_ID_DYLIB");
+    let identity_name = identity_names.first().copied();
     let mut image = Image {
         identity: None,
         dependencies: Vec::new(),
@@ -108,8 +111,8 @@ fn parse(dependencies: &str, identity: &str) -> Result<Image> {
             compatibility: Version::parse(compatibility)?,
             current: Version::parse(current)?,
         };
-        if Some(name) == identity_name {
-            ensure!(image.identity.is_none(), "Mach-O包含重复LC_ID_DYLIB");
+        // -L先列出-D确认的唯一ID；后续相同名称仍可能是真实self-load边，不能当重复ID丢弃。
+        if Some(name) == identity_name && image.identity.is_none() {
             image.identity = Some(library);
         } else {
             image.dependencies.push(library);
@@ -265,6 +268,21 @@ mod tests {
         assert!(image.identity.is_none());
         let weak = parse("app:\n\t@rpath/libweak.dylib (compatibility version 1.0.0, current version 1.2.0, weak)\n", "app:\n").unwrap();
         assert_eq!(weak.dependencies[0].current, Version([1, 2, 0]));
+    }
+    #[test]
+    fn self_load_is_a_dependency_while_multiple_actual_ids_are_rejected() {
+        let report = "image:\n@rpath/libself.2.dylib (compatibility version 2.0.0, current version 2.3.0)\n@rpath/libself.2.dylib (compatibility version 2.0.0, current version 2.1.0)\n";
+        let image = parse(report, "image:\n@rpath/libself.2.dylib\n").unwrap();
+        assert_eq!(image.identity.as_ref().unwrap().current, Version([2, 3, 0]));
+        assert_eq!(image.dependencies.len(), 1);
+        assert_eq!(image.dependencies[0].current, Version([2, 1, 0]));
+        assert!(
+            parse(
+                report,
+                "image:\n@rpath/libself.2.dylib\n@rpath/libanother.2.dylib\n"
+            )
+            .is_err()
+        );
     }
     #[test]
     fn identity_architecture_hint_cannot_replace_version_validation() {

@@ -1,4 +1,3 @@
-# ryupy: pending
 # 源码原始码点：孤立代理、连续代理与真正补充平面字符必须保持区别。
 values = ['\ud800x', '\udc00', '\ud83d\ude00', '😀', '\U0001f600', '\ud83d' '\ude00', r'\ud800', '\\ud800', '\ufffd', '\U0000d800']
 for value in values:
@@ -39,3 +38,17 @@ print(original is same_literal(), original[:] is original, original + '' is orig
 print(''.join([original]) is original, original * 1 is original)
 for left, right in [('abc', 'abd'), ('中文', '中甲'), ('😀', '\ue000'), ('😀x', '\ud83dy'), ('\ud83d\ude00', '😀')]:
     print(left < right, left == right, left > right)
+print('😀' in original, original in '😀', '\ud83d' in original, '\ud83d' in '😀')
+print(len({original, '😀', '\ud83d\ude00'}))
+pair = '\ud83d\ude00'
+emoji = '😀'
+print(pair == emoji, pair < emoji, '\ud83d\ude00' == '😀')
+def typed_equal(left: str, right: str) -> bool:
+    return left == right
+def typed_less(left: str, right: str) -> bool:
+    return left < right
+print(typed_equal(pair, emoji), typed_less(pair, emoji))
+print(typed_equal('x' + pair, 'x\ud83d\ude00'), typed_less('\ue000', emoji))
+class Text(str):
+    pass
+print(Text(pair) == emoji, Text(pair) < Text(emoji), str.__lt__(Text('\ue000'), emoji))

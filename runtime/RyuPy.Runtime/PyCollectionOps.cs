@@ -142,8 +142,8 @@ public static partial class PyOps
         PyDictView view => view.Contains(value),
         PySet set => set.Contains(value),
         PyFrozenSet frozen => frozen.Contains(value),
-        string text => value is string needle ? text.Contains(needle, StringComparison.Ordinal)
-            : value is PyStringInstance sub && text.Contains(sub.Value, StringComparison.Ordinal),
+        string text => value is string needle ? PyUnicodePoints.Contains(text, needle)
+            : value is PyStringInstance sub && PyUnicodePoints.Contains(text, sub.Value),
         PyListInstance list => PyListProtocols.Contains(list, value),
         PyDictInstance dict => PyDictProtocols.Contains(dict, value),
         PyStringInstance text => PyStringProtocols.Contains(text, value),
