@@ -1,7 +1,7 @@
 # ADR-0228：stock 编译程序的一次性正常结束合同
 
 - 日期：2026-11-17。
-- 状态：固定 `1489dd2a` 的真实 Host 独立源码实验，两版 macOS arm64 JIT 已验证；产品接线待实施。
+- 状态：首阶段冻结源码实验已验；专用程序终态已产品接线，两版实际程序集 macOS arm64 JIT 专项通过；实际 CLI/NativeAOT/onefile 由统一产品门继续验收。
 - 范围：单 `__main__`、同步静态 CIL 函数体、真实模块字典；普通嵌入 Host 的 Dispose 合同保持严格。
 - 关联：[ADR-0223](0223-stock-libpython-bounded-glue.md)、[ADR-0227](0227-stock-thin-function-metadata-probe.md)。
 - 手写探针：[StockThinProgramLifecycle](../../runtime/RyuPy.CPython.Tests/StockThinProgramLifecycle/README.md)。
@@ -96,9 +96,9 @@ CLR H 自己另有 owned F。运行期只有外部根消失以后，跨堆回收
 因此程序权限只向封闭编译入口授予；开放嵌入仍使用严格 Dispose。
 未来任意 managed 逃逸必须具有显式 ownership transfer/外部租约，不能扩展内部登记范围来掩盖它。
 
-## 5. 实验实现与必要接线
+## 5. 首阶段实验实现与后续接线清单
 
-本轮仓库只新增本 ADR 和探针目录。驱动从 Git 对象读取 `1489dd2a`，Runtime/provider 都在仓外构建；
+第一阶段仓库只新增本 ADR 和探针目录。驱动从 Git 对象读取 `1489dd2a`，Runtime/provider 都在仓外构建；
 工作树中并行的中性 ABI、Bootstrap 与 Rust 编译器改动不会渗入本实验。
 仓外 provider 副本有三处明确源码接线：PythonObject constructor 强 owner 登记、
 StockThinFunctionOwner constructor holder 登记、Host.Enter 的终态外线程门。
@@ -143,9 +143,9 @@ Python 控制胶水只构造对象、注册 atexit/__del__/unraisable、执行�
 - `crates/ryupy-codegen-cil/src/entry.rs` 与 stock thin 冷调用引用表：入口作用域 try/finally，所有成功/异常
   退出均进入授权 finish；嵌套 Python 回调只使用其 owned scope。Rust 仅发射 Runtime 中性合同。
 
-这些是下一产品切片的实施清单。本轮没有修改其任何既有文件，也没有把专用实验方法接进默认 Finish。
+以上为第一阶段提出的产品清单；第二阶段实际接线与验证见§8。
 
-## 6. 两版实测与失败保留
+## 6. 第一阶段两版实测与失败保留
 
 固定 stock 3.12.13 / 3.13.3 常规 GIL，各用自身头文件与原版 libpython。
 每版九个独立 JIT 进程：两个故意失败的释放对照、普通终态、外部 H、外部 D、P、self、cell、
@@ -172,7 +172,7 @@ CLR module/D/context 在最终断言后 KeepAlive；完整 Runtime Cache 仍保�
 synchronized 失效弱观察项的错误日志都保留，最终成绩以 README 列出的最终两次完整运行标识为准。
 驱动清理仓外 Runtime/provider/shim/配置/可执行产物，不提交报告、摘要、golden 或生成 fixture。
 
-## 7. 验收边界
+## 7. 第一阶段验收边界
 
 2026-11-17 产品接线审查补充：独立实验暴露三项具体缺口，接线必须覆盖。
 scope 交还标量 owned 时要同步撤销 reverse/objects 关联，导出前也必须验证缓存 owner 仍有效，
@@ -189,3 +189,54 @@ scope 交还标量 owned 时要同步撤销 reverse/objects 关联，导出前�
 本轮只运行独立 macOS arm64 JIT 门；NativeAOT、产品实际 CLI exit=0、搬迁、三平台、全量门禁、
 异常进程强杀、任意第三方扩展的故意 native 泄漏及无界线程/managed 逃逸分别保留后续验收。
 用户报告的首个实际 CLI identity 运行已经业务成功、旧 Finish exit=1；该产品结果由主代理持久日志保留。
+
+
+## 8. 专用程序终态已进入产品
+
+新增 `CPythonStockProgram.cs` 承担程序权限、入口 owned 登记、精确 token 集合预检、专用状态5、
+callback owned 作用域与终态快照。Bootstrap 增加与 codegen 精确对应的无参 void RunStockThinMain、
+int FinishStockThin(int)；StartStockThin 只启用薄函数能力，Run 才授予程序权限。
+入口前失败、启动回滚后无 Host 时，专用 finish 回到原普通 Finish，保留错误码；有活 owner 仍严格拒绝。
+
+实际程序入口 finally 交还内部临时 H，真实 F 保留于原 D。callback 的参数转换、结果导出及异常处理
+在明确的静态业务能力内创建 owned scope，正常运行与终态均确定交还临时引用。
+所有 scoped PythonObject 在 GIL 内调用 RetireScoped，先由 CPythonValues.RetireOwnedIdentity 撤销所属身份，
+再 Dispose/Release/Drain；同一 CLR 常量重新导出时不会从 reverse 命中已释放地址。
+FromOwned/ToPython 对已 Dispose identity 的防护同时保留。
+
+第三方 CPythonCallbacks.Dispatch 业务边界暂停入口及 callback 登记权限，涵盖参数/handled 异常导入、
+业务调用、结果导出与异常映射；原生编译导入组合根保留专门权限。
+已准入的静态薄函数另建独立 owned scope，不能借第三方回调的时间窗口收编新外根。
+入口内第三方 getter 保存新 opaque 的实测，在 CP 代理已经析构、Roots=0、H=0 后仍拒绝终态，
+原 opaque 可正常读取，显式交还后重试成功。共享已有 wrapper 的外部别名仍受§4封闭入口合同约束。
+
+native 新增无副作用 rp_thin_program_check，与不可失败的引用移交 prepare 分开，允许零实例。
+prepare 交还 shim template/type owned，拒绝新 make 并消费失败 core token；finalize 后只撤销借用别名。
+post-finalize DECREF 尝试由产品 shim 纯 C 计数；不卸载 libpython、不清 handles ledger。
+状态5从预检开始就禁止外线程新租约，拒绝恢复 state=1；普通 Dispose 的检查和等待合同保留。
+
+原 native 四个 builtins 消费点先验证 NULL/非 dict，使用静态 RuntimeError/TypeError 或 BaseException
+分类回退，避免晚期映射异常时 NULL 解引用；正常字典路径保持原查找。
+两处安装当前 builtins 的冷路径只拒绝 NULL，保留已有 mapping 的安装行为；没有晚期重建或源码求值。
+Unregister 同步移除实际已 Dispose transfer owner 的弱观察项，下一次同步不再访问旧 owner。
+
+CaptureModulePaths 在解释器终止前执行；WriteReport/WriteExecutionAudit 在终止后按原次序输出。
+只对授权程序新增 stock_compiled_program 块：permission、terminal、finalize_result、native_live、
+destroyed、native_calls、core_roots、owned_h、ledger、queue、late_releases、post_finalize_decrefs。
+closed 阶段读取在 rp_stop 返回后由纯 C 计数和托管 ledger 生成的快照，没有 PythonCall 或 CP 对象访问。
+普通兼容报告保持原结构。
+
+专项驱动已移除冻结源码与三处注入，直接使用实际产品 DLL、正式 native/build.sh、真实 Bootstrap 三 ABI。
+业务体改用 public IPyStockThinEnvironment/PyStockThinBody；观察库只登记只读低层退出回调。
+两版 11 项实际产品 JIT 门通过：原七个成功臂、zero、entry-fail、scalar、external-callback；
+后补 no-host/pre-entry-fail 两门验证入口前/回滚后 finish。报告字段逐项验零，普通 Dispose 拒绝仍可恢复。
+同一 CLR 字符串和非 small 整数在入口及 atexit 各反复导出1000轮；每轮 CP 释放结果再调用。
+另在公开构造的 builtins=None CP frame 中调用四个实际产品 native API，验证受控失败。
+典型正常臂 destroyed=9、native/core/H/ledger/queue/late/post-finalize 全零；空入口与入口前抛错 destroyed=0，
+入口错误码7和无权限错误码17保留。实际 CLI 与多发布模式的统一门使用同一产品报告，另行登记结果。
+
+原兼容薄函数两版 ordinary/blocked/watcher-full/resurrect 与各7项内部协议测试继续定向回归。
+未运行全量 make check、固定二十项目矩阵或性能窗口；本次实现与其它窗口的产品成绩分开登记。
+
+最终产品专项日志为 `adr0228/20261117T061115.127269Z.log` 与
+`adr0228/20261117T061116.255702Z.log`，两版各十三进程均通过；全部构建/测试产物清理，原三流日志保留。
