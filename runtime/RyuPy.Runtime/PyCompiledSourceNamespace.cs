@@ -9,3 +9,10 @@ public interface IPyCompiledSourceNamespaceProvider
     /// <summary>发布同一模块的双向弱身份；真实字典的所有修改立即进入同一后端。</summary>
     void PublishModuleNamespace(PyModule module, PyCompiledModuleNamespace storage);
 }
+
+/// <summary>真实编译类的语言默认基类；独立于可改写builtins.object及导入hook。</summary>
+public interface IPyCompiledClassProvider
+{
+    /// <summary>返回所属执行域的规范object类型，不读取或调用用户名字协议。</summary>
+    object GetDefaultClassBase();
+}

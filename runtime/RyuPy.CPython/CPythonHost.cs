@@ -213,8 +213,16 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
             while (active != 0) Monitor.Wait(gate);
         }
         Exception? observationError = null;
-        // 显式薄函数 profile 在所有候选引用回收前拒绝 finalize；失败恢复可操作状态。
-        try { CheckStockThinShutdown(); }
+        try
+        {
+            // carrier异常可让不可达CLR owner暂持CP traceback/frame；无gate/GIL等待纯托管finalizer。
+            // 活alias仍由CLR根保活，绝不主动撤销；旧未用carrier路径没有额外完整GC。
+            if (callCarrierUsed)
+            {
+                GC.Collect(); GC.WaitForPendingFinalizers(); callCarrierPreShutdownGc = true;
+            }
+            CheckStockThinShutdown();
+        }
         catch { lock (gate) state = 1; throw; }
         try
         {

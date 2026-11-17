@@ -3,4 +3,4 @@
 import notes
 
 def observe():
-    return notes.committed, notes.target.attribute, notes.mapping, notes.parenthesized, notes.late
+    return notes.committed, notes.target.attribute, notes.mapping, notes.parenthesized, notes.late, notes.switched

@@ -315,3 +315,5 @@ mod unicode_literal_tests;
 
 #[cfg(test)]
 mod provider_namespace_tests;
+#[cfg(test)]
+mod provider_generator_tests;

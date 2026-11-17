@@ -366,31 +366,21 @@ public sealed partial class CPythonHost
     private void EnsureClassBridgeHelpers()
     {
         if (classBridgeHelpersReady) return;
-        nint module = Check(Native.rp_op(1, s: "_ryupy_imports"));
+        _staticMethodFn = Check(Native.rp_descriptor_type(2));
+        _classMethodFn = Check(Native.rp_descriptor_type(3));
+        _propertyFn = Check(Native.rp_descriptor_type(1));
+        // 描述符保持首次类使用时初始化；规范object来自静态类型，既不读可变builtins也不导入。
+        nint objectType = Check(ModuleNamespaceNative.rp_default_object_type());
         try
         {
-            _wrapMethodFn = nativeMethodsEnabled ? 0 : Check(Native.rp_op(2, module, s: "_rp_wrap_method"));
-            _staticMethodFn = Check(Native.rp_descriptor_type(2));
-            _classMethodFn = Check(Native.rp_descriptor_type(3));
-            _propertyFn = Check(Native.rp_descriptor_type(1));
-            // 缓存真实 object 原生描述符；参数绑定和错误仍由 CPython 槽位处理，
-            // 四条基础操作不再建立转发用 Python 函数帧。
-            nint objectType = Check(Native.rp_builtin("object"));
-            try
-            {
-                _objectNewFn = Check(Native.rp_op(2, objectType, s: "__new__"));
-                _objectInitFn = Check(Native.rp_op(2, objectType, s: "__init__"));
-                _objectSetAttrFn = Check(Native.rp_op(2, objectType, s: "__setattr__"));
-                _objectDelAttrFn = Check(Native.rp_op(2, objectType, s: "__delattr__"));
-            }
-            finally { Native.rp_decref(objectType); }
-            _superCreateFn = Check(Native.rp_super_type());
-            classBridgeHelpersReady = true;
+            _objectNewFn = Check(Native.rp_op(2, objectType, s: "__new__"));
+            _objectInitFn = Check(Native.rp_op(2, objectType, s: "__init__"));
+            _objectSetAttrFn = Check(Native.rp_op(2, objectType, s: "__setattr__"));
+            _objectDelAttrFn = Check(Native.rp_op(2, objectType, s: "__delattr__"));
         }
-        finally
-        {
-            Native.rp_decref(module);
-        }
+        finally { Native.rp_decref(objectType); }
+        _superCreateFn = Check(Native.rp_super_type());
+        classBridgeHelpersReady = true;
     }
 
     private void ReleaseClassBridgeResources()

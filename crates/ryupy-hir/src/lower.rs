@@ -47,6 +47,8 @@ pub fn lower_module_with_native_exceptions(
     if info.instance_globals {
         let diagnostics = if info.stock_thin_functions {
             crate::stock_thin::validate(parsed)
+        } else if info.instance_capabilities.provider_namespace {
+            crate::provider_namespace::validate_provider_namespace_aot(parsed)
         } else {
             crate::instance_globals::validate(
                 &parsed.module.body,

@@ -66,6 +66,7 @@ impl Check {
     }
 
     fn name(&mut self, name: &str, range: TextRange) {
+        if self.provider_namespace && name == "__import__" { return; }
         if matches!(
             name,
             "__classcell__"
@@ -121,6 +122,9 @@ impl<'a> Visitor<'a> for Check {
                     }
                 }
             }
+            ast::Stmt::Import(_) | ast::Stmt::ImportFrom(_)
+                if self.provider_namespace && matches!(self.scope, crate::module_deletions::DeleteScope::Class) =>
+            { self.reject(statement.range(), "class import需要真实prepared namespace"); }
             ast::Stmt::ImportFrom(import) if import.level != 0 => self
                 .requirements
                 .push((statement.range(), Requirement::RelativeFrom)),
@@ -160,7 +164,7 @@ impl<'a> Visitor<'a> for Check {
         match expression {
             ast::Expr::Call(call)
                 if self.direct_globals
-                    && !self.generator
+                    && (!self.generator || self.provider_namespace)
                     && !matches!(self.scope, crate::module_deletions::DeleteScope::Class)
                     && call.arguments.args.is_empty()
                     && call.arguments.keywords.is_empty()
@@ -180,7 +184,7 @@ impl<'a> Visitor<'a> for Check {
                 self.reject(expression.range(), "急切推导式的frame环境继承")
             }
             // A1明确不迁移惰性推导式；仅新能力域拒绝，保留旧实例/Legacy资格。
-            ast::Expr::Generator(_) if self.direct_globals => {
+            ast::Expr::Generator(_) if self.direct_globals && !self.provider_namespace => {
                 self.reject(expression.range(), "直接globals能力域的生成器表达式")
             }
             ast::Expr::Name(name) if name.id.as_str() == "__debug__" => {
@@ -198,7 +202,8 @@ impl<'a> Visitor<'a> for Check {
                 );
             }
             ast::Expr::Attribute(attribute)
-                if !matches!(attribute.attr.as_str(), "compile" | "exec" | "eval") =>
+                if !matches!(attribute.attr.as_str(), "compile" | "exec" | "eval")
+                    && !(self.provider_namespace && attribute.attr.as_str() == "__import__") =>
             {
                 self.name(attribute.attr.as_str(), attribute.attr.range());
             }

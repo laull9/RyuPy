@@ -5,10 +5,18 @@ using RyuPy.Runtime;
 
 namespace RyuPy.CPython;
 
-public sealed partial class CPythonHost : IPyCompiledModuleNamespaceProvider, IPyCompiledSourceNamespaceProvider
+public sealed partial class CPythonHost : IPyCompiledModuleNamespaceProvider, IPyCompiledSourceNamespaceProvider,
+    IPyCompiledClassProvider
 {
     private readonly ConditionalWeakTable<PythonObject, StockNamespace> stockNamespaces = new();
     private bool stockEntryCreated;
+    // 真实namespace已创建才授予canonical builtins能力，与薄函数业务形状/专用关闭权限独立。
+    private bool stockNamespaceCreated;
+
+    /// <inheritdoc />
+    public object GetDefaultClassBase() => PythonCall(() =>
+        FromOwned(Check(ModuleNamespaceNative.rp_default_object_type()))
+            ?? throw new PyRuntimeError("default class base returned null"));
 
     /// <inheritdoc />
     public PyCompiledModuleNamespace CreateEntryNamespace(string name) => PythonCall(() =>
@@ -20,6 +28,7 @@ public sealed partial class CPythonHost : IPyCompiledModuleNamespaceProvider, IP
         {
             var storage = new PyCompiledModuleNamespace(StockModuleNamespace(module), module);
             stockEntryCreated = true;
+            stockNamespaceCreated = true;
             return storage;
         }
         catch { module.Dispose(); throw; }
@@ -36,7 +45,12 @@ public sealed partial class CPythonHost : IPyCompiledModuleNamespaceProvider, IP
             try
             {
                 var module = new PythonObject(this, Check(ModuleNamespaceNative.rp_compiled_module(key)));
-                try { return new PyCompiledModuleNamespace(StockModuleNamespace(module), module); }
+                try
+                {
+                    var storage = new PyCompiledModuleNamespace(StockModuleNamespace(module), module);
+                    stockNamespaceCreated = true;
+                    return storage;
+                }
                 catch { module.Dispose(); throw; }
             }
             finally { Native.rp_decref(key); }

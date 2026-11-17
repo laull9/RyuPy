@@ -251,6 +251,8 @@ pub(super) fn aliases(
     let Some(components) = report.get("native_components") else {
         return Ok(Vec::new());
     };
+    // CLI允许相对输出目录；必须与relocator冻结的canonical映像表使用同一根身份。
+    let output = output.canonicalize().context("原生组件部署根不存在")?;
     let reports: Vec<Report> = serde_json::from_value(components.clone())?;
     let mut result = Vec::new();
     for component in reports {
@@ -276,6 +278,27 @@ mod tests {
         let mut session = Session::default();
         extend(&mut session).unwrap();
         assert!(session.cpython_provider_state.plan.is_none());
+    }
+    #[test]
+    fn relative_output_aliases_use_the_same_canonical_root_as_images() {
+        let report = serde_json::json!({"native_components": [{
+            "name":"relative-layout", "version":"1", "source_url":"handwritten-fixture", "root":"unused",
+            "licenses":["LICENSE"], "libraries":[{
+                "source":"unused", "destination":"native/libsample.2.dylib",
+                "install_name":"/original/libsample.2.dylib", "compatibility_version":"2.0.0",
+                "current_version":"2.1.0", "architecture":"osx-arm64", "load_names":["/original/libsample.2.dylib"]
+            }]
+        }]});
+        // 不在仓库创建任何产物；只检验用户常见-o relative路径对应的纯计划值。
+        let aliases = aliases(&report, Path::new("python/site"), Path::new(".")).unwrap();
+        assert_eq!(
+            aliases[0].target,
+            std::env::current_dir()
+                .unwrap()
+                .canonicalize()
+                .unwrap()
+                .join("python/site/native/libsample.2.dylib")
+        );
     }
     #[test]
     fn component_paths_keep_boundary_and_normalize_target_aliases() {

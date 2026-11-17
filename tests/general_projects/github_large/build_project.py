@@ -71,11 +71,16 @@ def main():
                     code = result.returncode
                 except subprocess.TimeoutExpired:
                     code = 124
+            if code == 0:
+                reports = list((work / mode).rglob('cpython-provider.json'))
+                selected_report = next((p for p in reports if p.parent.name.endswith('.dist')), reports[0] if reports else None)
+                if selected_report is not None:
+                    shutil.copy2(selected_report, evidence / (mode + '-provider.json'))
             rows = (evidence / (mode + '-build.log')).read_text(errors='replace').splitlines()
             first = next((line for line in rows if '[E' in line or line.startswith('error:')), '')
             item = {'project': args.project, 'mode': mode, 'build_exit': code,
                     'first_diagnostic': first, 'runtime': 'not-run', 'relocation': 'not-run',
-                    'business_delegations': [], 'requested_cil_roots': project['ownership']['cil_target']}
+                    'business_delegations': [], 'stock_module_namespaces': args.stock_module_namespaces, 'requested_cil_roots': project['ownership']['cil_target']}
             results.append(item)
             print(json.dumps(item, ensure_ascii=False), flush=True)
     (evidence / 'results.json').write_text(json.dumps(results, ensure_ascii=False, indent=2) + '\n')

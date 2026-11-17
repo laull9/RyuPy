@@ -128,6 +128,9 @@ def product(args, project, evidence):
         report = json.loads(report_path.read_text())
         assert report['delegated_local_modules'] == [], report['delegated_local_modules']
         assert report['entry_provider'] == 'ryupy_compiled_source', report['entry_provider']
+        if args.stock_module_namespaces:
+            decisions = report['dependency_collection']['module_namespaces']['modules']
+            assert decisions and all(d['compiled'] and d['provider_namespace'] and d['execution'] == 'InstanceGlobals' for d in decisions), decisions
         shutil.copy2(report_path, evidence / 'cpython-provider.json')
         relocated = work / ('搬迁 空格 ' + args.mode)
         if args.mode == 'onefile':

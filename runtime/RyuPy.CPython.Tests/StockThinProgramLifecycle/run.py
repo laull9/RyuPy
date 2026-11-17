@@ -16,7 +16,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--python', type=Path, required=True)
     parser.add_argument('--aot', action='store_true', help='发布并直接运行真实NativeAOT runner')
-    parser.add_argument('--case', action='append', choices=['scoped', 'external', 'external-d', 'external-p', 'external-self', 'external-cell', 'external-container', 'zero', 'entry-fail', 'no-host', 'pre-entry-fail', 'scalar', 'external-callback', 'borrowed-receiver', 'callback-result', 'terminal-proxy', 'external-proxy', 'terminal-cycle', 'terminal-alias', 'frame-builtins'])
+    parser.add_argument('--case', action='append', choices=['scoped', 'external', 'external-d', 'external-p', 'external-self', 'external-cell', 'external-container', 'zero', 'entry-fail', 'no-host', 'pre-entry-fail', 'scalar', 'external-callback', 'borrowed-receiver', 'callback-result', 'terminal-proxy', 'external-proxy', 'terminal-cycle', 'terminal-alias', 'frame-builtins', 'call-carrier', 'namespace-builtins', 'entry-builtins', 'ordinary-error', 'ordinary-error-gc'])
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[3]
     source = Path(__file__).resolve().parent
@@ -67,6 +67,9 @@ def main():
         runner = work/'runner'; runner.mkdir()
         shutil.copy2(source/'Program.cs.in', runner/'Program.cs')
         shutil.copy2(source/'HostProbe.cs.in', runner/'Observer.cs')
+        shutil.copy2(source/'CarrierCases.cs.in', runner/'CarrierCases.cs')
+        shutil.copy2(source/'NamespaceCases.cs.in', runner/'NamespaceCases.cs')
+        shutil.copy2(source/'OrdinaryErrorCases.cs.in', runner/'OrdinaryErrorCases.cs')
         (runner/'Runner.csproj').write_text('''<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup>
 <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><AssemblyName>RyuPy.CPython.Tests</AssemblyName>
 <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><TreatWarningsAsErrors>true</TreatWarningsAsErrors>
@@ -85,13 +88,18 @@ def main():
              '-I'+str(Path(cfg['home'])/'include'/f'python{series}'),
              str(source/'NativeProbe.c'), str(shim), str(Path(cfg['lib'])/cfg['library']),
              '-o', str(output/'libstock_program_observer.dylib')])
+        native_probes = root/'tests/general_projects/capi_frames'
+        for module_name in ('native_scope_probe', 'native_callback_probe'):
+            run(['clang','-bundle','-undefined','dynamic_lookup','-O2','-Wall','-Wextra','-Werror',
+                 '-I'+str(Path(cfg['home'])/'include'/f'python{series}'),
+                 str(native_probes/(module_name+'.c')),'-o',str(output/(module_name+'.so'))])
         config = work/'host.json'
         config_data = dict(schema=1, python_version=cfg['version'], development=True,
             home=cfg['home'], library=str(Path(cfg['lib'])/cfg['library']), shim=str(shim),
-            search_paths=[str(Path(cfg['home'])/'lib'/f'python{series}'), str(Path(cfg['home'])/'lib'/f'python{series}'/'lib-dynload')],
-            modules=['builtins', 'gc', 'sys', 'atexit'], container_transfer='proxy')
+            search_paths=[str(Path(cfg['home'])/'lib'/f'python{series}'), str(Path(cfg['home'])/'lib'/f'python{series}'/'lib-dynload'), str(output)],
+            modules=['builtins', 'gc', 'sys', 'atexit', 'native_scope_probe', 'native_callback_probe'], container_transfer='proxy')
         failed = False
-        for case in args.case or ['scoped', 'external', 'external-d', 'external-p', 'external-self', 'external-cell', 'external-container', 'zero', 'entry-fail', 'no-host', 'pre-entry-fail', 'scalar', 'external-callback', 'borrowed-receiver', 'callback-result', 'terminal-proxy', 'external-proxy', 'terminal-cycle', 'terminal-alias', 'frame-builtins']:
+        for case in args.case or ['scoped', 'external', 'external-d', 'external-p', 'external-self', 'external-cell', 'external-container', 'zero', 'entry-fail', 'no-host', 'pre-entry-fail', 'scalar', 'external-callback', 'borrowed-receiver', 'callback-result', 'terminal-proxy', 'external-proxy', 'terminal-cycle', 'terminal-alias', 'frame-builtins', 'call-carrier', 'namespace-builtins', 'entry-builtins']:
             config_data['container_transfer'] = 'synchronized' if case in ('external-container', 'callback-result') else 'proxy'
             config.write_text(json.dumps(config_data))
             env['RYUPY_CPYTHON_REPORT'] = str(work/f'{case}-report.json')
@@ -101,7 +109,15 @@ def main():
             # 失败对照同样保留，SIGSEGV/异常退出永远不能作为预期泄漏通过。
             expected = 0
             env['RYUPY_CPYTHON_REPORT'] = str(work/f'{case}-report.json')
-            if case in ('no-host', 'pre-entry-fail'):
+            if case in ('ordinary-error', 'ordinary-error-gc'):
+                raw = json.loads(Path(env['RYUPY_CPYTHON_REPORT']).read_text())
+                log.write('ORDINARY_ERROR_REPORT '+json.dumps(raw)+'\n'); log.flush()
+                passed = result.returncode == 0 and 'ORDINARY_EXIT result=1 ' in result.stdout
+                passed &= 'RuntimeError: ordinary-uncaught' in result.stderr and 'Exception ignored' not in result.stderr
+                failed |= not passed
+                print('ORDINARY_ERROR '+case+' accepted='+str(passed), flush=True)
+                continue
+            if case in ('no-host', 'pre-entry-fail', 'namespace-builtins', 'entry-builtins'):
                 report_path = Path(env['RYUPY_CPYTHON_REPORT'])
                 if report_path.exists():
                     assert 'stock_compiled_program' not in json.loads(report_path.read_text())
@@ -126,6 +142,8 @@ def main():
             report = json.loads(report_path.read_text())
             terminal = report['stock_compiled_program']
             log.write('REPORT '+json.dumps(report)+'\n')
+            carriers = report['call_carriers']
+            diagnostic &= all(carriers[key] == 0 for key in ('native_live','managed_handles','code_origin_records','code_origin_active'))
             diagnostic &= terminal['permission'] and terminal['terminal'] and all(terminal[key] == 0 for key in
                 ('finalize_result','native_live','core_roots','owned_h','ledger','queue','late_releases','post_finalize_decrefs','entry_final_records','internal_proxy_roots','terminal_proxy_owner_records'))
             if case == 'terminal-proxy':

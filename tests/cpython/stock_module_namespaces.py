@@ -10,11 +10,12 @@ import tempfile
 
 from support import ROOT, environment, audit_native_paths, inspect_host_report, standalone_layout, rid
 
-CASES = ('eager', 'annotations', 'harbor_pair', 'frost_pair')
+CASES = ('eager', 'annotations', 'harbor_pair', 'frost_pair', 'generators')
 
 
-def audit_sources(bundle, count):
+def audit_sources(bundle, count, version):
     report = json.loads((bundle / 'cpython-provider.json').read_text())
+    assert report['python_version'] == version
     assert report['execution'] == 'ryupy_compiled_entry'
     assert report['entry_provider'] == 'ryupy_compiled_source'
     assert not report['delegated_local_modules']
@@ -45,7 +46,7 @@ def main():
     print(logfile, flush=True)
     with tempfile.TemporaryDirectory(prefix='ryupy-module-namespaces-') as temporary:
         root = Path(temporary)
-        def run(label, command, cwd, process_env=env, timeout=180):
+        def run(label, command, cwd, process_env=env, timeout=180, check=True):
             process = subprocess.run(list(map(str, command)), cwd=cwd, env=process_env,
                                      capture_output=True, timeout=timeout)
             row = {'label': label, 'argv': list(map(str, command)), 'exit': process.returncode,
@@ -54,7 +55,7 @@ def main():
             result['steps'].append(row)
             logfile.write_text(json.dumps(result, ensure_ascii=True, indent=2))
             print(label, process.returncode, flush=True)
-            assert process.returncode == 0, row
+            if check: assert process.returncode == 0, row
             return process
         try:
             version = run('fixed-cpython', [args.python, '-I', '-c', 'import platform; print(platform.python_version())'], root).stdout.decode().strip()
@@ -79,7 +80,7 @@ def main():
                         bundle, filename = layout.dist, layout.native.name
                     else:
                         bundle, filename = output, 'entry.dll'
-                    source_record = audit_sources(bundle, len(list(fixture.glob('*.py'))))
+                    source_record = audit_sources(bundle, len(list(fixture.glob('*.py'))), version)
                     moved = work / '已搬迁 产品'
                     shutil.move(bundle, moved)
                     shutil.rmtree(inputs)
@@ -90,12 +91,16 @@ def main():
                     process_env.update(PATH='', PYTHONHOME='/missing-home', PYTHONPATH='/missing-path',
                                        RYUPY_CPYTHON_REPORT=str(report))
                     actual = run(label + '-relocated', [dotnet, moved / filename] if mode == 'jit' else [moved / filename],
-                                 work, process_env)
+                                 work, process_env, check=False)
                     if report.exists():
                         observed = json.loads(report.read_text())
                         result['products'].append({'label': label, 'source': source_record, 'host': observed})
                     assert (actual.returncode, actual.stdout, actual.stderr) == (oracle.returncode, oracle.stdout, oracle.stderr), label
-                    inspect_host_report(report, moved)
+                    observed = inspect_host_report(report, moved)
+                    carriers = observed['call_carriers']
+                    assert carriers['native_calls'] > 0, carriers
+                    for key in ('native_live', 'managed_handles', 'code_origin_records', 'code_origin_active'):
+                        assert carriers[key] == 0, (key, carriers)
                     print('PASS', version, case, mode, flush=True)
                     shutil.rmtree(moved)
             result['status'] = 'passed'

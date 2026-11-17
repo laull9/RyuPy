@@ -9,6 +9,7 @@ namespace RyuPy.CPython;
 public sealed partial class CPythonHost : IPyCompiledExecutionProvider
 {
     private int callCarrierHandles;
+    private bool callCarrierUsed, callCarrierPreShutdownGc;
     private sealed class CompiledExecution(CPythonHost host, Action body)
     {
         internal readonly CPythonHost Host = host;
@@ -63,6 +64,7 @@ public sealed partial class CPythonHost : IPyCompiledExecutionProvider
         using var handled = new PythonHandledScope(this);
         if (globals is not null && (!ReferenceEquals(globals.Host, this) || Native.rp_container_kind(globals.Pointer) != 2))
             throw new PyTypeError("compiled execution requires exact globals dict");
+        callCarrierUsed = true;
         var execution = new CompiledExecution(this, body);
         GCHandle handle = GCHandle.Alloc(execution);
         Interlocked.Increment(ref callCarrierHandles);
@@ -120,6 +122,19 @@ public sealed partial class CPythonHost : IPyCompiledExecutionProvider
             return 0;
         }
     }
+    private void WriteCallCarrierReport(System.Text.Json.Utf8JsonWriter writer)
+    {
+        // 固定native纯计数；关闭后不取GIL，不读取任何CP对象或weakref。
+        Native.rp_carrier_stats(out long live, out long calls);
+        Native.rp_code_origin_stats(out long origins, out long active);
+        writer.WriteStartObject("call_carriers");
+        writer.WriteNumber("native_live", live); writer.WriteNumber("native_calls", calls);
+        writer.WriteNumber("managed_handles", Volatile.Read(ref callCarrierHandles));
+        writer.WriteBoolean("pre_shutdown_gc", callCarrierPreShutdownGc);
+        writer.WriteNumber("code_origin_records", origins); writer.WriteNumber("code_origin_active", active);
+        writer.WriteEndObject();
+    }
+
 }
 
 internal static unsafe partial class Native
@@ -129,6 +144,8 @@ internal static unsafe partial class Native
         delegate* unmanaged[Cdecl]<nint, nint> invoke, delegate* unmanaged[Cdecl]<nint, void> release);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern void rp_carrier_stats(out long live, out long calls);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void rp_code_origin_stats(out long records, out long active);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int rp_carrier_frame_context(out nint globals);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]

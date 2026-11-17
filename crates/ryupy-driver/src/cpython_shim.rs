@@ -37,6 +37,10 @@ pub(super) fn build(
     let result = (|| {
         for (name, source) in [
             (
+                "import_protocol.h",
+                include_str!("../../../runtime/RyuPy.CPython/native/import_protocol.h"),
+            ),
+            (
                 "unicode_codepoints.h",
                 include_str!("../../../runtime/RyuPy.CPython/native/unicode_codepoints.h"),
             ),

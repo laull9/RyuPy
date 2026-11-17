@@ -44,7 +44,7 @@ fn whole_graph_uses_existing_instance_abi_and_stock_module_registration() {
     let root = tree();
     for aot in [false, true] {
         let mut sess = session(&root);
-        let (linked, _, _) =
+        let (mut linked, _, _) =
             compile_linked_locations(&mut sess, &root.join("entry.py"), &[], false, None, aot)
                 .unwrap_or_else(|error| panic!("{error}: {}", sess.render_diagnostics(false)));
         assert_eq!(linked.modules.len(), 4);
@@ -69,6 +69,8 @@ fn whole_graph_uses_existing_instance_abi_and_stock_module_registration() {
                 .iter()
                 .all(|(_, f)| f.core != ryupy_mir::FunctionCore::StockThinStatic)
         );
+        // 发现候选与执行资格分别记录；显式profile仍必须调用权威字典factory。
+        linked.candidate_modules.extend(["harbor.calls".to_owned()]);
         let cil = ryupy_codegen_cil::dump_source_cil(
             &linked,
             &ryupy_codegen_cil::EmitOptions {
@@ -128,7 +130,7 @@ fn profile_rejects_mixed_authority_and_unproven_source_before_hir() {
         );
     }
     for source in [
-        "def read():\n    return (v for v in [1])\n",
+        "async def read():\n    yield 1\n",
         "try:\n    pass\nexcept make_target():\n    pass\n",
         "type Alias = int\n",
     ] {

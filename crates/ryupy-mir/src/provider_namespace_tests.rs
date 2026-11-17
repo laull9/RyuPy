@@ -164,3 +164,33 @@ fn inherited_context_is_exclusive_to_trusted_eager_functions() {
         );
     }
 }
+
+#[test]
+fn import_attributes_use_the_existing_value_protocol_only_in_the_new_profile() {
+    let source = "import builtins\nsaved=builtins.__import__\nbuiltins.__import__=saved\n";
+    assert!(compile(source, false).is_err());
+    let program = compile(source, true).unwrap();
+    let statements: Vec<_> = program.functions[program.entry]
+        .body
+        .blocks
+        .iter()
+        .flat_map(|(_, block)| &block.stmts)
+        .collect();
+    assert!(statements.iter().any(|stmt| matches!(
+        stmt,
+        Statement::Assign {
+            value: Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::DynGetAttr),
+                ..
+            },
+            ..
+        }
+    )));
+    assert!(statements.iter().any(|stmt| matches!(
+        stmt,
+        Statement::Eval(Rvalue::Call {
+            callee: Callee::Runtime(RuntimeFn::SetAttr),
+            ..
+        })
+    )));
+}

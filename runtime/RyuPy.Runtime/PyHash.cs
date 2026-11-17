@@ -454,13 +454,21 @@ public sealed partial class PyKeyComparer : IEqualityComparer<object>
     /// <param name="x">左值。</param>
     /// <param name="y">右值。</param>
     bool IEqualityComparer<object>.Equals(object? x, object? y) =>
-        ReferenceEquals(x, y) || PyForeignScalarKey.Equal(x, y);
+        ReferenceEquals(x, y) || (IsNativeKey(x) && IsNativeKey(y)
+            ? PyHash.Equal(x, y) : PyForeignScalarKey.Equal(x, y));
+
+    // 精确CLR键直接采用本域hash/eq，避免进入foreign事实识别分派；NativeAOT整体对照验证此快路。
+    // tuple只承认证据明确的原生根布局，用户派生类型仍沿完整协议与foreign事实检查。
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    private static bool IsNativeKey(object? key) =>
+        key is long or string or int or bool or double or System.Numerics.BigInteger or PyNone
+        || key?.GetType() == typeof(PyTuple);
 
     /// <summary>按 Python 规则计算哈希。</summary>
     /// <param name="obj">键。</param>
     public int GetHashCode(object obj)
     {
-        long hash = PyHash.Of(PyForeignScalarKey.Canonical(obj));
+        long hash = PyHash.Of(IsNativeKey(obj) ? obj : PyForeignScalarKey.Canonical(obj));
         return unchecked((int)(hash ^ (hash >> 32)));
     }
 }

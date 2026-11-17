@@ -5,7 +5,7 @@ using RyuPy.Runtime;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 namespace RyuPy.CPython.Tests;
-internal static class ProgramLifecycle
+internal static partial class ProgramLifecycle
 {
     private static int exits, dels, errors, unraisables;
     private static CPythonHost host = null!;
@@ -185,6 +185,7 @@ internal static class ProgramLifecycle
         module = current!; d = (PythonObject)module.GetAttr("__dict__")!;
         using (host.Enter())
             if (ProgramObserver.program_check_missing_builtins() < 0) host.ThrowError();
+        if (mode == "call-carrier") CarrierEntry();
         if (mode == "zero") return;
         if (mode == "entry-fail") throw new PyValueError("entry-before-F");
         if (mode == "borrowed-receiver")
@@ -351,6 +352,8 @@ atexit.register(check_frames)
     {
         Require(RuntimeFeature.IsDynamicCodeSupported == (args[2] == "jit"), "实际JIT/NativeAOT模式与命令一致");
         mode = args[1];
+        if (mode is "ordinary-error" or "ordinary-error-gc") return OrdinaryErrorCase(args[0], mode == "ordinary-error-gc");
+        if (mode is "namespace-builtins" or "entry-builtins") return NamespaceBuiltins(args[0], mode == "entry-builtins");
         if (mode == "no-host")
         {
             Require(Bootstrap.FinishStockThin(17) == 17, "未启动/回滚后finish保留错误码");
@@ -376,6 +379,7 @@ atexit.register(check_frames)
             Require(PyTraceback.SystemExitCode(new PySystemExit("expected-diagnostic-system-exit")) == 1,
                 "SystemExit诊断保留原exitcode");
         }
+        if (mode == "call-carrier") CarrierAfterEntry();
         bool empty = mode is "zero" or "entry-fail";
         Require(CPythonHost.StockThinOwnedHandles == 0, "内部H已由入口作用域确定交还");
         if (mode == "borrowed-receiver")

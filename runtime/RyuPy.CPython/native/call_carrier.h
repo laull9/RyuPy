@@ -159,13 +159,20 @@ API int rp_carrier_frame_context(PyObject **globals) {
     return kind;
 }
 API PyObject *rp_execute_external_carrier(intptr_t token, rp_carrier_invoke_fn invoke, rp_carrier_release_fn release) {
-    PyObject *module = PyImport_AddModule("__main__");
+    PyObject *module = PyDict_GetItemString(PyImport_GetModuleDict(), "__main__");
+    int created = module == NULL;
+    if (created) module = PyImport_AddModule("__main__");
     if (!module || !PyModule_Check(module)) {
         release(token);
         if (module) PyErr_SetString(PyExc_NotImplementedError, "native caller frame requires real module globals");
         return NULL;
     }
     PyObject *globals = Py_NewRef(PyModule_GetDict(module));
+    /* 失败入口删除sys.modules后，标准新__main__初始化需安装canonical builtins。
+     * 已有业务D的删键语义保留：available检查会选择旧无frame外部调用，不偷偷补回键。 */
+    if (created && PyDict_SetItemString(globals, "__builtins__", PyEval_GetBuiltins()) < 0) {
+        release(token); Py_DECREF(globals); return NULL;
+    }
     PyObject *source = PyDict_GetItemString(globals, "__file__");
     source = source && PyUnicode_Check(source) ? Py_NewRef(source) : PyUnicode_FromString("<external CPython call>");
     if (!source) { release(token); Py_DECREF(globals); return NULL; }
@@ -176,5 +183,6 @@ API PyObject *rp_execute_external_carrier(intptr_t token, rp_carrier_invoke_fn i
 /* 非module的旧sys.modules替换对象不被强转或新NI覆盖，旧调用保持原协议。 */
 API int rp_external_carrier_available(void) {
     PyObject *module = PyDict_GetItemString(PyImport_GetModuleDict(), "__main__");
-    return !module || PyModule_Check(module);
+    return !module || (PyModule_Check(module)
+        && PyDict_GetItemString(PyModule_GetDict(module), "__builtins__") != NULL);
 }
