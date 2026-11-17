@@ -192,6 +192,11 @@ if len(sys.argv)>1:
                     built = run(command, work, env, label+'-build')
                     data = (output if mode=='jit' else output/(entry.stem+'.dist')) if args.expect_unconverged else provider_data(output, entry.stem, mode)
                     report = json.loads((data/'cpython-provider.json').read_text())
+                    if mode!='jit':
+                        # 普通资源直接逐字节比对；原collector集合外的fat64数据必须完整保留。
+                        resources=list((data/'resources/v1' if (data/'resources/v1').exists() else data/'_internal/resources/v1').rglob(RESOURCE))
+                        assert len(resources)==1,resources
+                        assert resources[0].read_bytes()==(inputs/RESOURCE).read_bytes()
                     if args.expect_unconverged:
                         assert 'native_architecture_convergence' not in report
                         binary=next((data/'python/lib/python3.12/site-packages'/case['directory']).glob(case['extension']+'*.so'))
@@ -199,7 +204,8 @@ if len(sys.argv)>1:
                         print('EXPECTED_OLD_UNCONVERGED',label,flush=True)
                         continue
                     catalog = audit_catalog(report, case)
-                    audit_convergence(report,case)
+                    convergence=audit_convergence(report,case)
+                    (evidence/(label+'-convergence.json')).write_text(json.dumps(convergence,ensure_ascii=False,indent=2)+'\n')
                     (evidence/(label+'-catalog.json')).write_text(json.dumps(catalog, ensure_ascii=False, indent=2)+'\n')
                     if mode=='onefile':
                         dist_candidates=list(output.rglob(case['id']+'.dist'))

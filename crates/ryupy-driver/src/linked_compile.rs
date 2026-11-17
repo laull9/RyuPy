@@ -217,7 +217,7 @@ pub(super) fn compile_linked_traced(
         } else {
             sess.module_environment_report[index].compiled = true;
         }
-        let location = if !is_delegated_entry
+        let bundled_location = if !is_delegated_entry
             && let Some(provider) = sess.cpython_provider_state.plan.as_mut()
         {
             let relative = format!(
@@ -235,7 +235,23 @@ pub(super) fn compile_linked_traced(
                     destination: relative.clone(),
                 },
             );
-            ryupy_mir::ModuleLocation::BundleRelative(format!("python/{relative}"))
+            Some(ryupy_mir::ModuleLocation::BundleRelative(format!(
+                "python/{relative}"
+            )))
+        } else {
+            None
+        };
+        // 显式资源元数据是源码锚点权威；provider仍保源码部署/审计，但不能覆盖该位置。
+        let location = if aot_locations
+            && !is_delegated_entry
+            && (resource_request.is_some() || bundled_location.is_none())
+            && let Some(relative) = resource_plan
+                .as_ref()
+                .and_then(|plan| plan.module_location(index as u32))
+        {
+            ryupy_mir::ModuleLocation::ExecutableRelative(relative.to_owned())
+        } else if let Some(location) = bundled_location {
+            location
         } else if !aot_locations {
             ryupy_mir::ModuleLocation::SourceAbsolute(
                 module
@@ -244,11 +260,6 @@ pub(super) fn compile_linked_traced(
                     .context("模块源码绝对路径必须可表示为 UTF-8")?
                     .to_owned(),
             )
-        } else if let Some(relative) = resource_plan
-            .as_ref()
-            .and_then(|plan| plan.module_location(index as u32))
-        {
-            ryupy_mir::ModuleLocation::ExecutableRelative(relative.to_owned())
         } else {
             ryupy_mir::ModuleLocation::LegacyDiagnostic
         };

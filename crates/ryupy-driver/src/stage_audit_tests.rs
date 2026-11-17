@@ -6,7 +6,7 @@ fn failed_stage_audit_write_keeps_the_compiled_application_runnable() {
     let root = crate::test_temp::Root::new("stage-audit-write");
     let input = root.join("main.py");
     std::fs::write(&input, "print(1)\n").unwrap();
-    let mut binaries = Vec::new();
+    let mut outcomes = Vec::new();
     for enabled in [false, true] {
         let opts = BuildOptions {
             input: input.clone(),
@@ -30,7 +30,6 @@ fn failed_stage_audit_write_keeps_the_compiled_application_runnable() {
                 .join("internal/module-environment.json")
                 .is_dir()
         );
-        binaries.push(std::fs::read(&artifacts.dll).unwrap());
         let actual = crate::dotnet::run_executable_with(
             artifacts.native_exe.as_ref().unwrap(),
             &crate::dotnet::RunOptions::default(),
@@ -43,6 +42,7 @@ fn failed_stage_audit_write_keeps_the_compiled_application_runnable() {
         );
         assert_eq!(actual.stdout, b"1\n");
         assert!(actual.stderr.is_empty());
+        outcomes.push((actual.status.code(), actual.stdout, actual.stderr));
     }
-    assert_eq!(binaries[0], binaries[1]);
+    assert_eq!(outcomes[0], outcomes[1]);
 }

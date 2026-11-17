@@ -1,7 +1,7 @@
 # ADR-0240：按冻结目标RID收敛原生Mach-O架构
 
 - 日期：2026-11-17。
-- 状态：结构与旧版红证已验；六产品验收发现真实重签授权丢失，修复后复验。
+- 状态：结构与旧版红证已验；授权修复后的六产品签名门已绿，资源锚点修复后复验运行。
 - 接续：[ADR-0239](0239-canonical-internal-application-layout.md)；签名保留候选见[ADR-0241](0241-minimal-macho-relocation-signature.md)。
 
 ## 问题与决定
@@ -61,8 +61,9 @@ provider顶层`file_path_base`采用同一锚点；central artifact manifest仍�
 使用真实arm64/x86_64 clang输出组成fat32/fat64。每个消费者还有普通无PyInit共享库
 与无扩展名原生helper。验收同时检查真实初始化导出、CIL回调、异常、身份、原WHEEL
 universal标签、签名identifier/runtime/entitlements、最终thin头及库存大小。
-当前固定v3已通过legacy三形态构建和签名门；fat64 BUNDLE在JIT部署后授权丢失，
-完整运行矩阵等待修复。JIT、NativeAOT、OneFile验收要求各自删除源输入、wheel、虚拟环境及构建目录后搬迁执行，
+固定v3曾在fat64 BUNDLE部署发现授权丢失；v4六产品构建、签名及闭包审计全部通过。
+删输入搬迁后legacy JIT已绿，AOT读显式资源暴露provider bundle位置优先于显式资源plan
+的独立锚点问题，正在按资源plan统一编译位置与真实D.__file__后复验。JIT、NativeAOT、OneFile验收要求各自删除源输入、wheel、虚拟环境及构建目录后搬迁执行，
 逐项与同次CPython三流比较。AOT/OneFile还真实读取集合外fat64资源的magic与长度。
 
 fat64源签名另有平台差异：本机codesign把fat64当generic数据，仅给外层签名；

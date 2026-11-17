@@ -67,6 +67,7 @@ pub(super) fn build(
     opts: &BuildOptions,
     compile: impl FnOnce(&BuildOptions) -> Result<Artifacts>,
 ) -> Result<Artifacts> {
+    crate::aot::validate_before_build(&opts.input, false)?;
     let target = if opts.out_dir.is_absolute() {
         opts.out_dir.clone()
     } else {

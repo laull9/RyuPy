@@ -59,6 +59,68 @@ fn stock_thin_graph_freezes_candidate_and_keeps_namespace() {
         assert!(!bytes.is_empty());
     }
 }
+
+#[test]
+fn declared_resource_anchor_wins_without_losing_provider_source_inventory() {
+    let root = crate::test_temp::Root::new("stock-resource-location");
+    for (name, source) in [
+        (
+            "orchard",
+            include_str!("../../../tests/cases/stock_resource_locations/orchard.py"),
+        ),
+        (
+            "estuary",
+            include_str!("../../../tests/cases/stock_resource_locations/estuary.py"),
+        ),
+    ] {
+        let input = root.join(format!("{name}.py"));
+        std::fs::write(&input, source).unwrap();
+        let request = root.join("resources.json");
+        std::fs::write(
+            &request,
+            r#"{"schema_version":1,"modules":[{"module":"__main__","files":[]}]}"#,
+        )
+        .unwrap();
+        for declared in [false, true] {
+            let mut sess = session(&root);
+            let (linked, _, plan) = compile_linked_locations(
+                &mut sess,
+                &input,
+                &[],
+                false,
+                declared.then_some(request.as_path()),
+                true,
+            )
+            .unwrap_or_else(|e| panic!("{e}: {}", sess.render_diagnostics(false)));
+            let location = &linked.modules[linked.entry].location;
+            if declared {
+                assert_eq!(
+                    location,
+                    &ryupy_mir::ModuleLocation::ExecutableRelative(
+                        plan.unwrap().module_location(0).unwrap().to_owned()
+                    )
+                );
+            } else {
+                assert_eq!(
+                    location,
+                    &ryupy_mir::ModuleLocation::BundleRelative(
+                        "python/ryupy_compiled/__main__.py".into()
+                    )
+                );
+            }
+            let inventory = &sess
+                .cpython_provider_state
+                .plan
+                .as_ref()
+                .unwrap()
+                .delegation
+                .compiled_sources;
+            assert_eq!(inventory.len(), 1);
+            assert_eq!(inventory[0].source, input);
+            assert_eq!(inventory[0].destination, "ryupy_compiled/__main__.py");
+        }
+    }
+}
 #[test]
 fn stock_thin_graph_rejects_provider_fixed_delegated_and_extra_source() {
     let root = crate::test_temp::Root::new("stock-thin-reject");

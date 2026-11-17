@@ -153,7 +153,8 @@ fn provider_bundle_uses_one_explicit_bridge_root_and_binding_failure_restores_pl
     );
     let options = crate::BuildOptions {
         input: root.0.join("entry.py"),
-        out_dir: output,
+        // 此请求测试缺失provider及会话恢复；桥复制哨兵目录属于用户，不交给应用发布接管。
+        out_dir: root.0.join("binding-output"),
         aot: false,
         search_paths: vec![],
     };
