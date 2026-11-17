@@ -137,3 +137,7 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 - [0229：真实薄函数编译的中性冷 ABI](0229-stock-thin-compiler-cold-abi.md)（Rust接线、正常结束和三形态产品已验；完整闭包继续实施）
 - [0230：薄函数局部身份分支与入口弱登记](0230-stock-thin-local-identity.md)（显式CIL扩围18产品、56生命周期和完整门禁通过；默认关闭）
 - [0231：可选导入的依赖闭包](0231-optional-import-dependency-closure.md)（四产品搬迁、三负例及完整门禁通过）
+- [0232：通用原生接口与共享分发归属](0232-generic-native-interface-distribution.md)（跨场景共享归属已验；接口与原生组件验收实施中）
+- [0233：递归解包与动态格式规格](0233-recursive-unpack-and-dynamic-format.md)（定向差分与九产品搬迁通过）
+- [0234：stock回调发布结果的所有权](0234-stock-callback-published-ownership.md)（76正与4跨堆环负例通过；实际CIL产品继续验收）
+- [0235：源码常量与对象桥保留Python Unicode码点](0235-unicode-codepoint-constants.md)（源码/桥/严格编码核心已验；方法生态逐项推进）

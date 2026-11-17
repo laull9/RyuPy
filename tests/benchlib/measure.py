@@ -82,6 +82,7 @@ class Result:
     backend: str = "jit"
     native: bool = True
     cpython_direct_ms: float | None = None
+    sampling_order: list[list[str]] = field(default_factory=list)
 
 
 def get_safe_external_dir(repo_root: Path) -> Path:
@@ -297,55 +298,34 @@ def measure_bench(plan: Plan, cli: Path, target: Path, bench: Benchmark) -> Resu
     result.ryupy = Series()
     result.variants = {label: Series() for label in variant_envs}
 
-    # 2. 主采样轮：纯净无外壳直接运行，测量真实墙钟与峰值 RSS，交替采样
-    total_rounds = plan.warmup + plan.runs
-    for round_index in range(total_rounds):
+    # 2. 主采样轮：正式轮从CP/主实现/各变体循环轮换起点，预热不占正式位置。
+    # 完整K轮内每个实现各处于每个位置一次；不足K轮的尾部照实保留，禁止固定CP先跑。
+    jobs = []
+    if plan.with_cpython:
+        jobs.append(("cpython", cpython_clean_cmd, env, result.cpython, "cpython-failed"))
+    jobs.append(("ryupy", ryupy_clean_cmd, env, result.ryupy, "run-failed"))
+    jobs.extend(("variant:" + label, ryupy_clean_cmd, variant_env, result.variants[label], "variant-failed")
+                for label, variant_env in variant_envs.items())
+    for round_index in range(plan.warmup + plan.runs):
         record = round_index >= plan.warmup
-
-        # CPython 纯净测量
-        if plan.with_cpython:
-            cp_sample = run_once(cpython_clean_cmd, env, plan.root, None)
-            if cp_sample.exit_code != 0:
-                result.status = "cpython-failed"
-                result.note = f"CPython 采样失败 (code {cp_sample.exit_code})：\n{cp_sample.stderr.decode(errors='replace')}"
-                return result
-            if (cp_sample.stdout, cp_sample.stderr) != (expected_stdout, expected_stderr):
-                result.status = "mismatch"
-                result.note = "CPython 多次执行的双流不稳定"
-                return result
-            if record:
-                result.cpython.add(cp_sample)
-
-        # RyuPy 纯净测量（无 RYUPY_STATS 注入）
-        ryu_sample = run_once(ryupy_clean_cmd, env, plan.root, None)
-        if ryu_sample.exit_code != 0:
-            result.status = "run-failed"
-            result.note = f"RyuPy 执行失败 (code {ryu_sample.exit_code})：\n{ryu_sample.stderr.decode(errors='replace')}"
-            result.ryupy = None
-            result.variants = {}
-            return result
-
-        if (ryu_sample.stdout, ryu_sample.stderr) != (expected_stdout, expected_stderr):
-            result.status = "mismatch"
-            result.note = f"输出不一致：预期长度 {len(expected_stdout)}，实际长度 {len(ryu_sample.stdout)}"
-            return result
-
+        offset = (round_index - plan.warmup if record else round_index) % len(jobs)
+        ordered = jobs[offset:] + jobs[:offset]
+        actual_order = []
         if record:
-            result.ryupy.add(ryu_sample)
-
-        # 变体纯净测量
-        for label, variant_env in variant_envs.items():
-            var_sample = run_once(ryupy_clean_cmd, variant_env, plan.root, None)
-            if var_sample.exit_code != 0:
-                result.status = "variant-failed"
-                result.note = f"变体 [{label}] 执行失败 (code {var_sample.exit_code})：\n{var_sample.stderr.decode(errors='replace')}"
+            result.sampling_order.append(actual_order)
+        for label, command, job_env, series, failure in ordered:
+            actual_order.append(label)
+            sample = run_once(command, job_env, plan.root, None)
+            if sample.exit_code != 0:
+                result.status = failure
+                result.note = f"{label} 采样失败 (code {sample.exit_code})：\n{sample.stderr.decode(errors='replace')}"
                 return result
-            if (var_sample.stdout, var_sample.stderr) != (expected_stdout, expected_stderr):
+            if (sample.stdout, sample.stderr) != (expected_stdout, expected_stderr):
                 result.status = "mismatch"
-                result.note = f"变体 [{label}] 输出不匹配"
+                result.note = f"{label} 采样与同次CPython双流不同"
                 return result
             if record:
-                result.variants[label].add(var_sample)
+                series.add(sample)
 
     # 3. 独立 instrumented 轮：仅收集内部统计指标（MarkMainStart、分配量、GC 次数、暂停耗时）
     try:

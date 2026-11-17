@@ -188,7 +188,8 @@ def environment(root: Path, python: str, runs: int, warmup: int, backend: str = 
         "native": native,
         "jit_metrics_applicable": backend == "jit",
         "resource_aggregation": "separate_instrumented_process",
-        "measurement_protocol": "direct-wall-v2",
+        "measurement_protocol": "direct-wall-v3",
+        "sampling_order": "cyclic_rotation_per_measured_round_after_independent_warmup",
     }
 
 
@@ -197,6 +198,7 @@ def environment_lines(env: dict) -> list[str]:
     return [
         f"口径：{env['cpu']}，{env['platform']}；CPython {env['python']}，.NET {env['dotnet']}，"
         f"后端 {env.get('backend', 'jit')}（{mode_str}）；提交 {env['commit']}；{env['warmup']} 次热身 + {env['runs']} 次计时取中位数（各次为全新进程，主表为纯净无外壳直接脚本 vs 原生二进制）。",
+        "正式轮循环轮换CPython、主实现与各变体的执行起点，预热单独计数；每轮实际顺序保存在sampling_order。",
         "执行ms为独立 instrumented 轮从 MarkMainStart 至统计点，含模块执行/JIT/GC、不含此前 host/注册；资源分配/GC/JIT 取该轮内部统计，RSS 取各进程峰值中位数；MiB=2^20字节。",
         "编译ms是整次 build 耗时，NativeAOT 包含 ILC；AOT 下 JIT 指标不适用。"
     ]
@@ -217,6 +219,7 @@ def save(path: Path, env: dict, results: list[Result]) -> None:
                 "cpython": result.cpython.to_json() if result.cpython else None,
                 "ryupy": result.ryupy.to_json() if result.ryupy else None,
                 "variants": {k: v.to_json() for k, v in result.variants.items()},
+                "sampling_order": result.sampling_order,
             }
         )
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -232,8 +235,8 @@ def validate_comparison(backend: str, native: bool, baseline_env: dict, baseline
     """禁止跨 backend 或跨 native 模式进行无效对比。"""
     if not isinstance(baseline_env, dict):
         raise ValueError("基线 environment 必须为对象")
-    if baseline_env.get("measurement_protocol") != "direct-wall-v2":
-        raise ValueError("基线测量协议不同：需要直接脚本墙钟 v2，重新生成基线")
+    if baseline_env.get("measurement_protocol") != "direct-wall-v3":
+        raise ValueError("基线测量协议不同：需要逐轮轮换的直接脚本墙钟 v3，重新生成基线")
     old_backend = baseline_env.get("backend", "jit")
     if old_backend != backend:
         raise ValueError(f"不能跨 backend 比较：基线为 {old_backend}，当前为 {backend}")

@@ -92,8 +92,16 @@ CreateSuper 历史 Object 返回公共 ABI 已恢复，真实 `5d36db1e` 的 184
   503 e2e通过；长循环RSS与正式耗时分列，见[第四轮验收](docs/cil-execution-fourth-slices-validation.md)。
 - [x] **可选依赖通用收集**：词法ImportError保护、必需优先与已装无metadata拒绝；四项
   JIT/NativeAOT搬迁、三负例、六组边界及FastAPI/SanBudget各一项真实NativeAOT回归通过。
-- [ ] **大型项目下一阻塞**：FBA解析目标/PEP695及后续泛型异步合同；ExplorerPro的Qt发行
-  同真实文件多owner与资源分发。两原入口已真实构建，业务CIL与产品搬迁继续待办。
+- [ ] **大型项目下一阻塞**：FBA已按冻结Python版本解析并越过PEP695误诊，当前需要模块
+  活globals合同；ExplorerPro已越过共享归属、递归解包、动态格式、oct与字典解包，当前
+  验证原生插件依赖闭包和显式部署选择。完整原入口、隔离GUI业务与发布搬迁分别验收。
+- [x] **通用共享分发与静态接口导出子合同（2026-11-17）**：多owner、实际原生导出、pyi目录
+  与固定C ABI机器合同；独立命名/布局的JIT/AOT/OneFile删除输入搬迁通过。
+  禁止第三方库名特判，允许有依据并经测试的ABI推导，后续C++调用推导逐合同扩围。
+- [x] **薄函数通用值表达式子合同**：四输入×两Python版本×三发布形态24正产品通过，
+  直接/wrapped frame各六项精确NI负合同独立记录，发布/关闭76正4环负通过。
+- [~] **权威模块globals与通用C API调用现场**：复用InstanceGlobals接真实CP字典，按独立
+  语义合同推进推导式、注解、复杂except及AOT资格；两模块与真实Cocoa先验，完整原业务继续。
 - [ ] **可选严格内核研究（ADR-0221）**：Host Slice 1/2 源码完整保存在远端 WIP，已撤出
   stock 主线工作树；最终内核与十二项 Host 子进程门尚未完成，暂停扩展。
   已有 22 内核/10 stock 探针保留原快照范围。
