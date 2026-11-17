@@ -1,4 +1,3 @@
-# ryupy: pending
 # 独立多模块消费者：输出由同次固定CPython生成，手写输入无golden。
 import growth
 import consume

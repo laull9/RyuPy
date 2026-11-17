@@ -102,6 +102,14 @@ CreateSuper 历史 Object 返回公共 ABI 已恢复，真实 `5d36db1e` 的 184
   直接/wrapped frame各六项精确NI负合同独立记录，发布/关闭76正4环负通过。
 - [~] **权威模块globals与通用C API调用现场**：复用InstanceGlobals接真实CP字典，按独立
   语义合同推进推导式、注解、复杂except及AOT资格；两模块与真实Cocoa先验，完整原业务继续。
+- [x] **显式权威namespace语义子合同**：推导式/注解/两套独立模块环境双版16个JIT/AOT
+  产品通过；生成器/genexpr另四个搬迁产品通过，源码、venv、build均删除，真实归属与关闭核验。
+- [x] **通用导入hook与最小原生窗口子合同**：两独立hook双版JIT/AOT八产品，保原属性
+  del与任意hook返回；真实Cocoa最小输入JIT/AOT/OneFile三产品搬迁显示成功，无库名分支。
+- [x] **精确本地键热路恢复（ADR-0238）**：六输入独占AOT对照、19项协议测试及独立
+  完整make check通过，`207ebd6c`已推送；推导式RSS增加2.219MiB等不利保留。
+- [~] **原生函数现场与原业务下一阻塞**：定义点builtins及Python A→CIL B现场正在闭合；
+  完整ExplorerPro新profile到生成器except OSError，按真实逻辑异常路由逐项验证。联合全门待冻结。
 - [ ] **可选严格内核研究（ADR-0221）**：Host Slice 1/2 源码完整保存在远端 WIP，已撤出
   stock 主线工作树；最终内核与十二项 Host 子进程门尚未完成，暂停扩展。
   已有 22 内核/10 stock 探针保留原快照范围。

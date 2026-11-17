@@ -1,4 +1,3 @@
-# ryupy: pending
 # 急切推导式使用当前frame环境；普通def仍在定义点捕获真实builtins。
 import builtins
 import sys

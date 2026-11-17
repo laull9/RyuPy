@@ -5,7 +5,17 @@ import sys
 
 original = builtins.__dict__
 replacement = original.copy()
+
+def earlier():
+    return sys._getframe().f_builtins is original
+
 __builtins__ = replacement
+
+def later():
+    return [sys._getframe().f_builtins is replacement for item in [0]]
+
 print([sys._getframe().f_builtins is original for item in [0]])
+print(earlier(), later())
 del __builtins__
 print([sys._getframe().f_builtins is original for item in [0]])
+print(earlier(), later())

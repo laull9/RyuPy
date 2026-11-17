@@ -1,4 +1,3 @@
-# ryupy: pending
 # 真正多模块、yield/send/close/yield-from与genexpr；预期由同次固定CPython生成。
 import stream_state as stream
 
@@ -25,6 +24,10 @@ try:
     next(delegate)
 except StopIteration as stopped:
     print(stopped.value)
+try:
+    next(delegate)
+except StopIteration as stopped:
+    print('exhausted', stopped.value is None, stopped.args)
 print(stream.events)
 
 original = stream.marker

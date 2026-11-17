@@ -106,7 +106,7 @@ public static partial class PyTraceback
         if (instanceContext is not PyModuleExecutionContext context)
             throw new PyRuntimeError("instance code has no execution context");
         object entry = context.State.GetOrDefault("__name__", PyNone.Instance) ?? PyNone.Instance;
-        return new ModuleExecutionSource(context.State, code, context.State.Globals, entry);
+        return new ModuleExecutionSource(context.State, code, context.State.Globals, entry, context.Builtins);
     }
 
     // 同一索引读取location与origin；越界独立标识，真实文件名sys不伪装越界。

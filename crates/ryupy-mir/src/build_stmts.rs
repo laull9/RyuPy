@@ -114,8 +114,12 @@ impl FunctionBuilder<'_> {
                 let module = module.clone();
                 let bind = *bind;
                 let bind_root = *bind_root;
-                self.guard_instance_import();
-                self.build_import(&module, bind, bind_root);
+                if self.hir.info.instance_capabilities.provider_namespace {
+                    self.build_provider_import(&module, bind, bind_root);
+                } else {
+                    self.guard_instance_import();
+                    self.build_import(&module, bind, bind_root);
+                }
             }
             StmtKind::ImportFrom {
                 module,
@@ -124,7 +128,12 @@ impl FunctionBuilder<'_> {
             } => {
                 let module = module.clone();
                 let names = names.clone();
-                if let Some((level, raw)) = relative {
+                if self.hir.info.instance_capabilities.provider_namespace {
+                    let (level, name) = relative
+                        .as_ref()
+                        .map_or((0, module.as_str()), |(level, raw)| (*level, raw.as_str()));
+                    self.build_provider_import_from(name, level, &names);
+                } else if let Some((level, raw)) = relative {
                     self.build_relative_import(*level, raw, &names);
                 } else {
                     self.guard_instance_import();

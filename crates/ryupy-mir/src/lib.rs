@@ -34,6 +34,7 @@ mod build_params;
 mod build_print;
 mod build_product_trace;
 mod build_relative_import;
+mod provider_import;
 mod build_stmts;
 mod build_try;
 mod call_builder;

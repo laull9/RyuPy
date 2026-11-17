@@ -1,4 +1,3 @@
-# ryupy: pending
 # SETUP_ANNOTATIONS在首条语句前执行；所有写入读取当前权威字典，普通局部注解不求值。
 import sys
 import builtins

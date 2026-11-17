@@ -7,6 +7,7 @@ pub(crate) fn signature(runtime: RuntimeFn) -> Option<(&'static [MirType], MirTy
     crate::trace_product_abi::signature(runtime)
         .or_else(|| crate::lexical_class_abi::signature(runtime))
         .or_else(|| crate::async_iteration_abi::signature(runtime))
+        .or_else(|| crate::provider_import::signature(runtime))
 }
 
 pub(crate) fn valid_values(runtime: RuntimeFn, args: &[Operand]) -> bool {

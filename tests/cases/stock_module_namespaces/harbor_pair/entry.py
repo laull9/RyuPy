@@ -1,4 +1,3 @@
-# ryupy: pending
 # 两个真实模块共享各自权威globals；跨模块调用、外部重绑、builtin回退和函数身份必须同次CP差分。
 import math
 import sys

@@ -110,6 +110,7 @@ pub(crate) fn validate(program: &Program, errors: &mut Vec<String>) {
                 }
                 if let Statement::Assign { value, .. } | Statement::Eval(value) = stmt {
                     validate_frame_write(function, value, block_id, statement_index, errors);
+                    crate::provider_import::validate(function, value, errors);
                     if matches!(
                         value,
                         Rvalue::Call {
@@ -144,6 +145,8 @@ pub(crate) fn validate(program: &Program, errors: &mut Vec<String>) {
                                 | RuntimeFn::InstanceRelativeImport
                                 | RuntimeFn::InstanceRelativeImportAttr
                                 | RuntimeFn::InstanceImportGuard
+                                | RuntimeFn::InstanceImportName
+                                | RuntimeFn::InstanceImportAttribute
                                 | RuntimeFn::InstanceDirectGlobals
                                 | RuntimeFn::InstanceLoadName
                                 | RuntimeFn::InstanceStoreName

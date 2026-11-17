@@ -10,7 +10,7 @@ import tempfile
 
 from support import ROOT, environment, audit_native_paths, inspect_host_report, standalone_layout, rid
 
-CASES = ('eager', 'annotations', 'harbor_pair', 'frost_pair', 'generators')
+CASES = ('eager', 'annotations', 'harbor_pair', 'frost_pair', 'generators', 'courier_hooks', 'marsh_hooks', 'sunrise_context', 'quartz_context')
 
 
 def audit_sources(bundle, count, version):
@@ -80,7 +80,7 @@ def main():
                         bundle, filename = layout.dist, layout.native.name
                     else:
                         bundle, filename = output, 'entry.dll'
-                    source_record = audit_sources(bundle, len(list(fixture.glob('*.py'))), version)
+                    source_record = audit_sources(bundle, len(list(fixture.rglob('*.py'))), version)
                     moved = work / '已搬迁 产品'
                     shutil.move(bundle, moved)
                     shutil.rmtree(inputs)

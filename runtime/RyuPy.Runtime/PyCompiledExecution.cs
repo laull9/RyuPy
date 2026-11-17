@@ -20,10 +20,12 @@ public sealed class PyCompiledExecutionRequest
     private int consumed;
     /// <summary>本次执行的权威globals视图。</summary>
     public object Globals { get; }
+    /// <summary>执行入口捕获的精确builtins字典视图；后续globals键变化不会改变此身份。</summary>
+    public object Builtins { get; }
     /// <summary>已冻结的源文件位置。</summary>
     public string File { get; }
-    internal PyCompiledExecutionRequest(object provider, object globals, string file, Action execute)
-    { this.provider = provider; Globals = globals; File = file; this.execute = execute; }
+    internal PyCompiledExecutionRequest(object provider, object globals, object builtins, string file, Action execute)
+    { this.provider = provider; Globals = globals; Builtins = builtins; File = file; this.execute = execute; }
     /// <summary>只有匹配provider可取出执行体一次；不匹配不会消耗请求。</summary>
     public bool TryConsume(object target, out Action? body)
     {
@@ -32,11 +34,11 @@ public sealed class PyCompiledExecutionRequest
             || Interlocked.CompareExchange(ref consumed, 1, 0) != 0) return false;
         Interlocked.Exchange(ref provider, null); body = Interlocked.Exchange(ref execute, null); return true;
     }
-    internal static void Execute(object globals, string file, Action body)
+    internal static void Execute(object globals, object builtins, string file, Action body)
     {
         object? provider = PyProvider.Current;
         if (provider is IPyCompiledExecutionProvider foreign)
-            foreign.ExecuteCompiledModule(new(provider, globals, file, body));
+            foreign.ExecuteCompiledModule(new(provider, globals, builtins, file, body));
         else body();
     }
 }

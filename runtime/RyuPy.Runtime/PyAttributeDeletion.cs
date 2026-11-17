@@ -26,7 +26,8 @@ internal static class PyAttributeDeletion
 
     internal static void Guard(object? value, string name, bool fromObject = false)
     {
-        if (value is PyModule module && !PyModuleInstances.IsInstance(module))
+        if (value is PyModule module && !PyModuleInstances.IsInstance(module)
+            && module.ForeignObject is not PyNativeObject)
             throw Unsupported("module attribute deletion requires global-slot synchronization");
         if (value is PyType type)
             throw Error(new PyTypeError($"cannot set '{name}' attribute of immutable type '{type.Name}'"));

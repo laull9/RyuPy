@@ -1,4 +1,3 @@
-# ryupy: pending
 # 第二组不同模块名与布局：保存闭包、真实全局更新及属性/元组异常目标，禁止按模块名字注册修复。
 import ssl
 import sys

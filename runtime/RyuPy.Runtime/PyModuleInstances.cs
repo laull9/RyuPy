@@ -147,7 +147,7 @@ public static partial class PyModuleInstances
         object builtins = PyModuleNamespaceAccess.RequireBuiltins(value);
         var context = new PyModuleExecutionContext(state, builtins);
         if (state.ForeignGlobals is not null)
-            PyCompiledExecutionRequest.Execute(state.View, code.File, () => code.Execute(context));
+            PyCompiledExecutionRequest.Execute(state.View, context.BuiltinsView, code.File, () => code.Execute(context));
         else code.Execute(context);
     }
     private static PyModuleExecutionContext Context(object state) => state as PyModuleExecutionContext

@@ -1,6 +1,6 @@
 //! 新provider命名空间的竖切结构门：旧资格持续拒绝，急切推导式继承frame，注解前言走真实D。
 use crate::*;
-fn compile(source: &str, profile: bool) -> Result<Program, Vec<ryupy_base::Diagnostic>> {
+pub(super) fn compile(source: &str, profile: bool) -> Result<Program, Vec<ryupy_base::Diagnostic>> {
     let mut db = ryupy_base::SourceDb::default();
     let file = db.add("namespace.py", source);
     let (parsed, diagnostics) = ryupy_syntax::parse(file, source);
@@ -112,7 +112,7 @@ fn annotation_setup_precedes_source_and_retains_runtime_mapping_writes() {
             .unwrap()
             < calls
                 .iter()
-                .position(|function| *function == RuntimeFn::ImportModule)
+                .position(|function| *function == RuntimeFn::InstanceImportName)
                 .unwrap()
     );
     assert!(calls.contains(&RuntimeFn::SetItem));

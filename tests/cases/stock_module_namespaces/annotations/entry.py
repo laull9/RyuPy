@@ -1,4 +1,3 @@
-# ryupy: pending
 # 独立多模块消费者：右值、目标、注解、mapping协议和失败后的可见值顺序共同验收。
 import notes
 import reader

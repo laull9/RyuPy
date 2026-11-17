@@ -80,6 +80,9 @@ public sealed partial class CPythonHost
                 case 11: result = PyRepr.Str(target); break;
                 case 12: result = PyIter.Create(target); break;
                 case 13:
+                    // tp_iternext必须保留生成器本次完成的终值；MoveNext的布尔接口会丢弃它。
+                    // Next同时负责仅首次耗尽返回终值、后续为空以及PEP 479，不能另存终值镜像。
+                    if (target is PyGenerator generator) { result = generator.Next(null, false); break; }
                     if (target is not IPyIterator iterator) throw new PyTypeError("managed object is not an iterator");
                     if (!iterator.MoveNext()) { Native.rp_error_text("StopIteration", ""); return 0; }
                     result = iterator.Current(); break;
