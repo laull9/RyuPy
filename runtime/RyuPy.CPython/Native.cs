@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace RyuPy.CPython;
 
-internal static unsafe class Native
+internal static unsafe partial class Native
 {
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_class_prepare(nint name, nint bases);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_class_lookup(nint session, [MarshalAs(UnmanagedType.LPUTF8Str)] string name, out nint value);

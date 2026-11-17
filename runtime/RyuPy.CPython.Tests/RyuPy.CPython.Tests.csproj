@@ -5,6 +5,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <!-- 独立真实 Host runner 自行在仓外构建，禁止被共享 xUnit Host 重复编译/关闭。 -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);StockThinProvider/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>

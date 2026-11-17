@@ -137,6 +137,7 @@ static char init_error[4096];
 #include "class_construction.h"
 #include "import_hooks.h"
 #include "signature_bridge.h"
+#include "stock_thin_function.h"
 
 /* 回调失败必须已设置Python异常，绝不能让托管异常穿过C栈。 */
 static PyObject *forward(Managed *self, int op, PyObject *a, PyObject *b, PyObject *c, int64_t n, const char *s) {

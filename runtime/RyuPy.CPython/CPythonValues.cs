@@ -20,6 +20,7 @@ public sealed partial class CPythonHost
     internal object? FromOwned(nint pointer)
     {
         Check(pointer);
+        if (TryFromStockThinOwned(pointer, out object? thinFunction)) return thinFunction;
         if (TryImportInspect(pointer, out object? inspected)) return inspected;
         if (Native.rp_is_none(pointer) != 0) { Native.rp_decref(pointer); return PyNone.Instance; }
         if (Native.rp_scalar_kind(pointer) == 2)
@@ -48,6 +49,12 @@ public sealed partial class CPythonHost
     internal unsafe nint ToPython(object? value)
     {
         if (value is null or PyNone) return Native.rp_none();
+        if (value is StockThinFunctionHandle thinFunction)
+        {
+            PythonObject function = thinFunction.ForeignFunction;
+            if (!ReferenceEquals(function.Host, this)) throw new PyTypeError("objects belong to different interpreters");
+            return Native.rp_incref(function.Pointer);
+        }
         if (TryExportInspect(value, out nint inspected)) return inspected;
         if (value is PyNativeType superType && ReferenceEquals(superType, PyLexicalSuper.Type)) return Native.rp_super_type();
         if (value is PySuper super)

@@ -266,6 +266,15 @@ NaN/Inf/±0短结果保符号规则，非零有限值复用固定.NET10显式有
 
 ## 4. 语义陷阱清单
 
+显式内部 stock 薄函数候选（ADR-0226/0227）采用真实 `f(x)` closure 胶水与 GC owner，
+保留 CP binder/活元数据，globals 未命中时查 F 定义时捕获的 builtins。
+默认值任意非 None 时调用明确能力失败；已登记 F 的 code setter 赋值前拒绝。
+closure cell 写入保留 CP 行为，H 调用验证当前 P 绑定，失效时报 NotImplementedError，
+恢复 P 后可用。P/owner/cell 外逃延长 F 与旧环境生命期，最终根释放后循环 GC 回收。
+普通 Python __del__ 复活可调用/回流；native DESTROY 在 GC clear 内保活的已清字段对象
+是单独原生消费者边界，按同次 stock oracle 仅观察不调用。此候选默认关闭，编译器资格待接。
+
+
 ### C2 默认值反射的 typed 发布边界（2026-11-16）
 
 `__defaults__` / `__kwdefaults__` 的容器身份、替换、删除及字典别名修改从下一次
@@ -277,8 +286,8 @@ NaN/Inf/±0短结果保符号规则，非零有限值复用固定.NET10显式有
 ### CPython provider的项目与文本边界（2026-11-14）
 
 - 嵌入解释器固定隔离UTF-8模式，构建期JSON管道同样使用UTF-8；独立CPython oracle以`-X utf8`对齐。
-- 编译入口对应的`__main__`仍缺少与全局槽双向同步的模块活字典；`attrs23.2.0`固定入口在
-  读取`sys.modules[cls.__module__].__dict__`时抛AttributeError，列为实际项目失败。
+- 历史入口缺少 `__main__.__dict__`，曾阻断 attrs23.2.0；2026-11-17 ADR-0225 的有限
+  stock 活字典入口已修复原输入，JIT/AOT/删除输入搬迁通过。含函数模块的所有权迁移继续独立实施。
 - 显式`object.__setattr__`、`object.__delattr__`绕过用户同名hook与frozen检查，保留property及槽布局协议；
   默认路径继续沿已有修改/删除守卫。差分用例见`phase3/object_base_mutation`。
 - 固定项目stderr保留警告类型、行号和正文，比较时只把已知载荷警告头中的绝对路径映射为部署相对名；

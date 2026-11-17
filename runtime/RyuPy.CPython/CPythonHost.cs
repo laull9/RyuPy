@@ -202,6 +202,9 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
             while (active != 0) Monitor.Wait(gate);
         }
         Exception? observationError = null;
+        // 显式薄函数 profile 在所有候选引用回收前拒绝 finalize；失败恢复可操作状态。
+        try { CheckStockThinShutdown(); }
+        catch { lock (gate) state = 1; throw; }
         try
         {
             using Lease lease = Enter();
@@ -250,7 +253,8 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
     }
     private void ReleaseCore(object value)
     {
-        if (value is PythonObject foreign) { if (!foreign.IsDisposed) objects.Remove(foreign.Pointer); foreign.Dispose(); }
+        if (value is StockThinFunctionHandle thin) thin.Dispose();
+        else if (value is PythonObject foreign) { if (!foreign.IsDisposed) objects.Remove(foreign.Pointer); foreign.Dispose(); }
         else if (value is PySuper { ForeignObject: PythonObject foreignSuper })
         { if (!foreignSuper.IsDisposed) objects.Remove(foreignSuper.Pointer); foreignSuper.Dispose(); }
         else if (value is PyInstance instance && PyForeignClassBridge.GetForeignInstance(instance) is PythonObject foreignInstance)

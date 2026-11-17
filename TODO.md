@@ -76,12 +76,13 @@ CreateSuper 历史 Object 返回公共 ABI 已恢复，真实 `5d36db1e` 的 184
   纯切片完整检查 3418 Runtime / 503 e2e、六版本共 216 类桥及真实项目六产品通过；
   固定二十项目纯切片 JIT/NativeAOT/删除输入搬迁 60/60 通过，函数所有权与完整模块迁移继续待办。
 - [x] **薄函数/core/handle 独立回收首证（ADR-0224）**：stock 3.12.13/3.13.3 的 JIT/真实
-  NativeAOT 四组合通过；各十二轮、48 函数、168 次静态 CIL 运算，真实析构/弱引用与根数
+  NativeAOT 四组合通过；各原十二轮、48 函数，另加三处失败和一个复活函数，52 owner 析构/172 次静态 CIL 运算，真实析构/弱引用与根数
   证明回收发生在 finalize 前。主代理补充参数转换重入的 owned 租约回归；产品接入、动态
   元数据、完整关闭、多版本平台与性能门继续待办。
 - [~] **薄函数产品接线（ADR-0226）**：静态 core、弱 H 缓存与独立 owner/lease 内部合同，
-  5 项托管协议测试与两版四次 pending 输入 oracle 通过；产品尚未接入。元数据变更、真实
-  owned F、原生回调/回收、主动关闭、静态编译资格和性能门依次实施。
+  A closure＋直接 GC owner 内部 Host 首切已接；两版 JIT/NativeAOT 各四独立进程及6项托管测试通过，
+  原 P/owner/cell 强环、Python finalizer 复活、captured builtins 与关闭拒绝已验。完整检查
+  3418 Runtime/503 e2e 通过；候选默认关闭，编译资格、产品搬迁、闭包与性能继续实施。
 - [ ] **可选严格内核研究（ADR-0221）**：Host Slice 1/2 源码完整保存在远端 WIP，已撤出
   stock 主线工作树；最终内核与十二项 Host 子进程门尚未完成，暂停扩展。
   已有 22 内核/10 stock 探针保留原快照范围。
