@@ -4,6 +4,13 @@ API PyObject *rp_entry_module(void) {
     PyObject *module = PyImport_AddModule("__main__");
     return module ? Py_NewRef(module) : NULL;
 }
+/* 源码模块先拥有独立md_dict；sys.modules的发布、失败回滚交同一真实loader事务。 */
+API PyObject *rp_compiled_module(PyObject *name) {
+    if (!PyUnicode_CheckExact(name)) {
+        PyErr_SetString(PyExc_TypeError, "compiled module name must be an exact string"); return NULL;
+    }
+    return PyModule_NewObject(name);
+}
 API PyObject *rp_module_namespace(PyObject *value) {
     if (PyDict_CheckExact(value)) return Py_NewRef(value);
     if (PyModule_Check(value)) return Py_XNewRef(PyModule_GetDict(value));

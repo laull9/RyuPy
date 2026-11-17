@@ -247,6 +247,9 @@ pub(crate) fn append_module_registration(
                 program.functions[module.init]
                     .instance_capabilities
                     .entry_namespace,
+                program.functions[module.init]
+                    .instance_capabilities
+                    .provider_namespace,
             );
             continue;
         }

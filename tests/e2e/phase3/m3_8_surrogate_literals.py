@@ -52,3 +52,11 @@ print(typed_equal('x' + pair, 'x\ud83d\ude00'), typed_less('\ue000', emoji))
 class Text(str):
     pass
 print(Text(pair) == emoji, Text(pair) < Text(emoji), str.__lt__(Text('\ue000'), emoji))
+class SeeSpec:
+    def __format__(self, specification):
+        print(repr(specification), len(specification), [ord(part) for part in specification])
+        return 'formatted'
+print(f'{SeeSpec():\ud83d\ude00}')
+def with_default(value='\ud800x'):
+    return value
+print(repr(with_default()), with_default() is with_default())

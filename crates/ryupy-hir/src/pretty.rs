@@ -196,6 +196,9 @@ fn dump_stmt(
             let _ = (value, cause);
             writeln!(out, "raise ...;").unwrap();
         }
+        StmtKind::SetupAnnotations => {
+            writeln!(out, "{pad}setup_annotations").unwrap();
+        }
         StmtKind::Pass => {
             writeln!(out, "{pad}pass").unwrap();
         }

@@ -103,7 +103,8 @@ pub(crate) fn safe_uses(function: &Function, facts: &TypeckResults) -> bool {
             }
             | StmtKind::Return(_)
             | StmtKind::Expr(_)
-            | StmtKind::Pass => true,
+            | StmtKind::Pass
+            | StmtKind::SetupAnnotations => true,
             StmtKind::If { cond, .. } => !opaque(*cond),
             StmtKind::ForRange { .. } | StmtKind::While { .. } => {
                 independent_statement(function, facts, &statement.kind)
@@ -131,7 +132,7 @@ fn independent_statement(function: &Function, facts: &TypeckResults, stmt: &Stmt
         StmtKind::Assign { .. } => false,
         StmtKind::Expr(e) => plain(*e),
         StmtKind::Return(e) => e.is_none_or(plain),
-        StmtKind::Pass | StmtKind::Break | StmtKind::Continue => true,
+        StmtKind::Pass | StmtKind::SetupAnnotations | StmtKind::Break | StmtKind::Continue => true,
         StmtKind::If { cond, then_, else_ } => {
             plain(*cond)
                 && independent_block(function, facts, then_)

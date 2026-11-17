@@ -146,6 +146,8 @@ mod instance_aot_lambda;
 #[cfg(test)]
 mod instance_aot_tests;
 mod instance_globals;
+mod provider_namespace;
+pub use provider_namespace::{provider_namespace_capabilities, validate_provider_namespace_aot};
 mod stock_entry;
 mod stock_thin;
 pub use instance_aot::{

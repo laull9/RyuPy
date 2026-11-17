@@ -468,6 +468,22 @@ impl FunctionBuilder<'_> {
             StmtKind::ClassDef(cls_id) => {
                 self.build_class_def(*cls_id);
             }
+            StmtKind::SetupAnnotations => {
+                if let Some(context) = self.module_state {
+                    self.push_stmt(Statement::Eval(Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::InstanceSetupAnnotations),
+                        args: vec![Operand::Local(context)],
+                    }));
+                } else {
+                    self.diagnostics.push(
+                        ryupy_base::Diagnostic::error(
+                            ryupy_base::Span::new(self.hir.file, stmt.range),
+                            "SETUP_ANNOTATIONS缺少实例模块执行context",
+                        )
+                        .with_code("E0200"),
+                    );
+                }
+            }
             StmtKind::Pass => {}
         }
     }

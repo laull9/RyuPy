@@ -15,6 +15,7 @@ pub(crate) fn validate(
         generator: false,
         direct_globals: capabilities.direct_globals,
         entry_namespace: capabilities.entry_namespace,
+        provider_namespace: capabilities.provider_namespace,
     };
     for statement in body {
         check.visit_stmt(statement);
@@ -55,6 +56,7 @@ struct Check {
     generator: bool,
     direct_globals: bool,
     entry_namespace: bool,
+    provider_namespace: bool,
 }
 
 impl Check {
@@ -102,6 +104,7 @@ impl<'a> Visitor<'a> for Check {
             ast::Stmt::ClassDef(class) if class.type_params.is_some() => {
                 self.reject(class.range, "PEP695 泛型类的注解作用域");
             }
+            ast::Stmt::AnnAssign(_) if self.provider_namespace => {}
             ast::Stmt::AnnAssign(_)
                 if self.entry_namespace
                     && matches!(self.scope, crate::module_deletions::DeleteScope::Class) => {}
@@ -111,6 +114,8 @@ impl<'a> Visitor<'a> for Check {
             ast::Stmt::Delete(delete) => {
                 for target in &delete.targets {
                     if !matches!(target, ast::Expr::Name(name) if self.scope.owns_module_name(name.id.as_str()))
+                        && !(self.provider_namespace
+                            && matches!(target, ast::Expr::Attribute(_) | ast::Expr::Subscript(_)))
                     {
                         self.reject(target.range(), "非模块/global裸名del目标");
                     }
@@ -169,7 +174,9 @@ impl<'a> Visitor<'a> for Check {
                     && name.id.as_str() == "globals"
                     && !matches!(name.ctx, ast::ExprContext::Load) => {}
             // CP3.12急切推导式沿用当前frame builtins；现synthetic函数协议尚未接好。
-            ast::Expr::ListComp(_) | ast::Expr::SetComp(_) | ast::Expr::DictComp(_) => {
+            ast::Expr::ListComp(_) | ast::Expr::SetComp(_) | ast::Expr::DictComp(_)
+                if !self.provider_namespace =>
+            {
                 self.reject(expression.range(), "急切推导式的frame环境继承")
             }
             // A1明确不迁移惰性推导式；仅新能力域拒绝，保留旧实例/Legacy资格。
@@ -204,11 +211,10 @@ impl<'a> Visitor<'a> for Check {
         let ast::ExceptHandler::ExceptHandler(except) = handler;
         if self.generator || matches!(self.scope, crate::module_deletions::DeleteScope::Class) {
             self.reject(handler.range(), "生成器或类体源码except handler");
-        } else if except
-            .type_
-            .as_ref()
-            .is_some_and(|target| !matches!(target.as_ref(), ast::Expr::Name(_)))
-        {
+        } else if except.type_.as_ref().is_some_and(|target| {
+            !matches!(target.as_ref(), ast::Expr::Name(_))
+                && !(self.provider_namespace && crate::exception_targets::supported_target(target))
+        }) {
             self.reject(handler.range(), "非Name/bare except目标");
         } else {
             self.requirements

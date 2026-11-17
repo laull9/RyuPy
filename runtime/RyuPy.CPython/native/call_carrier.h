@@ -3,16 +3,36 @@
  * capsule自身可由CP持有至GC/退出；其dealloc只处理已清空的上下文，绝不回访失效CLR句柄。 */
 typedef PyObject *(*rp_carrier_invoke_fn)(intptr_t);
 typedef void (*rp_carrier_release_fn)(intptr_t);
-typedef struct {
+typedef struct RpCallCarrier {
+    struct RpCallCarrier *previous, *next;
+    int registered;
+    PyObject *globals; /* 活动eval期间借用，由run的owned参数保活。 */
     intptr_t token;
     rp_carrier_invoke_fn invoke;
     rp_carrier_release_fn release;
     PyObject *target, *args, *kwargs;
+    PyObject *code; /* 仅活动eval期间借用，栈上code强保活；失效时清空，不能被地址复用伪装。 */
     int state; /* 1未调用，2活动，3完成，0失效。 */
 } RpCallCarrier;
 static int64_t rp_carrier_live, rp_carrier_calls;
+/* GIL保护的活动链；多线程释放GIL后可以交错返回，因此按节点unlink而非假设全局LIFO。 */
+static RpCallCarrier *rp_carrier_active;
+static void rp_carrier_register(RpCallCarrier *context, PyObject *code, PyObject *globals) {
+    context->code = code; context->globals = globals; context->registered = 1;
+    context->next = rp_carrier_active;
+    if (rp_carrier_active) rp_carrier_active->previous = context;
+    rp_carrier_active = context;
+}
+static void rp_carrier_unregister(RpCallCarrier *context) {
+    if (!context->registered) return;
+    if (context->previous) context->previous->next = context->next;
+    else rp_carrier_active = context->next;
+    if (context->next) context->next->previous = context->previous;
+    context->previous = context->next = NULL; context->registered = 0;
+    context->code = NULL; context->globals = NULL;
+}
 static void rp_carrier_close(RpCallCarrier *context) {
-    context->state = 0;
+    rp_carrier_unregister(context); context->state = 0;
     intptr_t token = context->token; context->token = 0;
     if (token) context->release(token);
     Py_CLEAR(context->target); Py_CLEAR(context->args); Py_CLEAR(context->kwargs);
@@ -41,9 +61,11 @@ static PyMethodDef rp_carrier_method = {"_ryupy_call_carrier", rp_carrier_dispat
 static PyObject *rp_carrier_run(RpCallCarrier *context, PyObject *globals, PyObject *filename) {
     PyObject *capsule = NULL, *thunk = NULL, *template = NULL, *constants = NULL;
     PyObject *replace = NULL, *empty = NULL, *keywords = NULL, *code = NULL, *result = NULL;
+    int own_arguments = 0;
     if (!PyDict_CheckExact(globals) || !PyUnicode_Check(filename)) {
         PyErr_SetString(PyExc_TypeError, "call carrier requires exact globals dict and source filename"); goto done;
     }
+    Py_INCREF(globals); Py_INCREF(filename); own_arguments = 1;
     capsule = PyCapsule_New(context, "ryupy.call-carrier.v1", rp_carrier_destroy);
     if (!capsule) goto done;
     thunk = PyCFunction_New(&rp_carrier_method, capsule);
@@ -69,7 +91,8 @@ static PyObject *rp_carrier_run(RpCallCarrier *context, PyObject *globals, PyObj
     if (!replace || !empty || !keywords || PyDict_SetItemString(keywords, "co_consts", constants) < 0
         || PyDict_SetItemString(keywords, "co_filename", filename) < 0) goto done;
     code = PyObject_Call(replace, empty, keywords);
-    if (code) result = PyEval_EvalCode(code, globals, globals);
+    if (code) { PyObject *tagged = rp_code_origin_attach(code, 2); Py_DECREF(code); code = tagged; }
+    if (code) { rp_carrier_register(context, code, globals); result = PyEval_EvalCode(code, globals, globals); }
 done:
     {
         PyObject *type, *value, *trace; PyErr_Fetch(&type, &value, &trace);
@@ -77,6 +100,7 @@ done:
         rp_carrier_close(context);
         Py_XDECREF(code); Py_XDECREF(keywords); Py_XDECREF(empty); Py_XDECREF(replace);
         Py_XDECREF(constants); Py_XDECREF(template); Py_XDECREF(thunk);
+        if (own_arguments) { Py_DECREF(globals); Py_DECREF(filename); }
         if (capsule) Py_DECREF(capsule); else { PyMem_Free(context); rp_carrier_live--; }
         PyErr_Restore(type, value, trace);
     }
@@ -92,21 +116,65 @@ API PyObject *rp_execute_carrier(PyObject *globals, PyObject *filename, intptr_t
     return rp_carrier_run(context, globals, filename);
 }
 /* 外部Host没有Python frame时复用真实__main__ D；现有Python调用现场始终保留。 */
-static PyObject *rp_call_with_frame(PyObject *target, PyObject *args, PyObject *kwargs) {
+API PyObject *rp_call_with_frame(PyObject *target, PyObject *args, PyObject *kwargs) {
     if (PyEval_GetFrame()) return PyObject_Call(target, args, kwargs);
     PyObject *module = PyImport_AddModule("__main__");
     if (!module) return NULL;
     if (!PyModule_Check(module)) {
         PyErr_SetString(PyExc_NotImplementedError, "native caller frame requires real module globals"); return NULL;
     }
-    PyObject *globals = PyModule_GetDict(module);
+    PyObject *globals = Py_NewRef(PyModule_GetDict(module));
     PyObject *filename = PyDict_GetItemString(globals, "__file__");
     filename = filename && PyUnicode_Check(filename) ? Py_NewRef(filename) : PyUnicode_FromString("<external CPython call>");
-    if (!filename) return NULL;
+    if (!filename) { Py_DECREF(globals); return NULL; }
     RpCallCarrier *context = PyMem_Calloc(1, sizeof(*context));
-    if (!context) { Py_DECREF(filename); return PyErr_NoMemory(); }
+    if (!context) { Py_DECREF(filename); Py_DECREF(globals); return PyErr_NoMemory(); }
     rp_carrier_live++; context->state = 1;
     context->target = Py_NewRef(target); context->args = Py_NewRef(args); context->kwargs = Py_XNewRef(kwargs);
-    PyObject *result = rp_carrier_run(context, globals, filename); Py_DECREF(filename); return result;
+    PyObject *result = rp_carrier_run(context, globals, filename); Py_DECREF(filename); Py_DECREF(globals); return result;
 }
 API void rp_carrier_stats(int64_t *live, int64_t *calls) { *live = rp_carrier_live; *calls = rp_carrier_calls; }
+
+/* 返回0=无frame，1=真实Python frame，2=本桥活动carrier；只有2才供CIL跨模块切换现场。 */
+API int rp_carrier_frame_context(PyObject **globals) {
+    *globals = NULL;
+    PyFrameObject *frame = PyEval_GetFrame();
+    if (!frame) return 0;
+    if (!rp_carrier_active) return 1;
+    PyObject *code = (PyObject *)PyFrame_GetCode(frame);
+    if (!code) return -1;
+    RpCallCarrier *found = NULL;
+    for (RpCallCarrier *context = rp_carrier_active; context; context = context->next)
+        if (context->code == code) { found = context; break; }
+    Py_DECREF(code);
+    if (!found) return 1;
+#if PY_VERSION_HEX >= 0x030b0000
+    PyObject *actual = PyFrame_GetGlobals(frame);
+#else
+    PyObject *actual = PyObject_GetAttrString((PyObject *)frame, "f_globals");
+#endif
+    if (!actual) return -1;
+    int kind = actual == found->globals ? 2 : 1;
+    if (kind == 2) *globals = actual; else Py_DECREF(actual);
+    return kind;
+}
+API PyObject *rp_execute_external_carrier(intptr_t token, rp_carrier_invoke_fn invoke, rp_carrier_release_fn release) {
+    PyObject *module = PyImport_AddModule("__main__");
+    if (!module || !PyModule_Check(module)) {
+        release(token);
+        if (module) PyErr_SetString(PyExc_NotImplementedError, "native caller frame requires real module globals");
+        return NULL;
+    }
+    PyObject *globals = Py_NewRef(PyModule_GetDict(module));
+    PyObject *source = PyDict_GetItemString(globals, "__file__");
+    source = source && PyUnicode_Check(source) ? Py_NewRef(source) : PyUnicode_FromString("<external CPython call>");
+    if (!source) { release(token); Py_DECREF(globals); return NULL; }
+    PyObject *result = rp_execute_carrier(globals, source, token, invoke, release);
+    Py_DECREF(source); Py_DECREF(globals); return result;
+}
+
+/* 非module的旧sys.modules替换对象不被强转或新NI覆盖，旧调用保持原协议。 */
+API int rp_external_carrier_available(void) {
+    PyObject *module = PyDict_GetItemString(PyImport_GetModuleDict(), "__main__");
+    return !module || PyModule_Check(module);
+}

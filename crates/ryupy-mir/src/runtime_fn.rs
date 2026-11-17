@@ -89,6 +89,8 @@ pub enum RuntimeFn {
     InstanceDeleteName,
     InstanceExecutionSource,
     InstanceCaptureDefinitionContext,
+    /// 真实模块D的SETUP_ANNOTATIONS；缺键才建立目标域字典。
+    InstanceSetupAnnotations,
     InstanceDefinitionModule,
     InstanceClassGuard,
     /// 类体/普通终结之后，词法class cell填充之前的冷能力检查。

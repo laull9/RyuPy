@@ -12,6 +12,7 @@ typedef void (*rp_fo_action)(void *);
 typedef struct {
     PyObject_HEAD
     PyObject *function;
+    PyObject *expected_code; /* 原始静态胶水code强见证；无P/owner常量回边，GC显式可见。 */
     PyObject *frame_guards; /* 规范builtin身份元组，GC可见；不持应用D。 */
     void *context;
     rp_fo_action detach, dispose;
@@ -22,12 +23,14 @@ static int rp_fo_traverse(RpFunctionOwner *self, visitproc visit, void *arg) {
     Py_VISIT(Py_TYPE(self));
     Py_VISIT(self->function);
     Py_VISIT(self->frame_guards);
+    Py_VISIT(self->expected_code);
     return 0;
 }
 static int rp_fo_clear(RpFunctionOwner *self) {
     /* tp_clear 可多次调用；置 NULL 先于 DECREF，重入者只能看到已撤销的环境。 */
     Py_CLEAR(self->function);
     Py_CLEAR(self->frame_guards);
+    Py_CLEAR(self->expected_code);
     return 0;
 }
 static void rp_fo_dealloc(RpFunctionOwner *self) {

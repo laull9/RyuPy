@@ -9,6 +9,8 @@ use std::path::{Path, PathBuf};
 pub struct Session {
     /// 候选薄函数静态竖切；默认关闭，必须显式冻结stock provider。
     pub experimental_stock_thin_functions: bool,
+    /// 显式全图InstanceGlobals与provider真实模块字典；不选择薄函数core。
+    pub experimental_stock_module_namespaces: bool,
     /// 显式冻结 CPython 执行域及基础发行；不从环境或系统解释器隐式选择。
     pub cpython_provider: Option<PathBuf>,
     /// 显式原生组件来源、许可证与ABI声明；不自动加载宿主开发库。

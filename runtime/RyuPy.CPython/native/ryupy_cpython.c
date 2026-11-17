@@ -142,12 +142,14 @@ static int rp_install_current_builtins(PyObject *globals) {
     if (!dict) { PyErr_SetString(PyExc_RuntimeError, "builtins unavailable"); return -1; }
     return PyDict_SetItemString(globals, "__builtins__", dict);
 }
+#include "code_origin.h"
 #include "execution_audit.h"
 #include "method_descriptor.h"
 #include "class_construction.h"
 #include "import_hooks.h"
 #include "signature_bridge.h"
 #include "stock_thin_function.h"
+#include "call_carrier.h"
 
 /* 回调失败必须已设置Python异常，绝不能让托管异常穿过C栈。 */
 static PyObject *forward(Managed *self, int op, PyObject *a, PyObject *b, PyObject *c, int64_t n, const char *s) {

@@ -21,7 +21,8 @@ pub(crate) fn eligible(sess: &Session, aot: bool, _resources: bool) -> bool {
         && sess.distribution_metadata.is_none()
 }
 pub(crate) fn needed(sess: &Session, sources: &[SourceModule]) -> bool {
-    sess.default_source_state.aot_request
+    !sess.experimental_stock_module_namespaces
+        && sess.default_source_state.aot_request
         && (sources.iter().any(|s| s.candidate)
             || sess.default_source_state.plan.payload.is_some()
             || sess
@@ -47,6 +48,7 @@ pub(crate) fn selected(sess: &Session, sources: &[SourceModule]) -> Result<Vec<u
             "默认AOT catalog身份变化"
         );
         let capabilities = ryupy_base::InstanceCapabilities {
+            provider_namespace: false,
             entry_namespace: false,
             aot_class_guards: false,
             direct_globals: false,

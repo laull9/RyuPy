@@ -32,6 +32,8 @@ pub struct GlobalScope {
     pub(crate) source_text: String,
     /// 真实名字从当前模块实例命名空间读取，内建也不可静态直达。
     pub instance_globals: bool,
+    /// 固定provider模块开放已验证的急切推导式和运行期变量注解。
+    pub(crate) provider_namespace: bool,
     /// provider 类体允许 prepared mapping 注入任意裸名。
     pub(crate) foreign_class_construction: bool,
     /// 同模块MI族定义只获得延后公开入口；实际基值仍必须逐值验证。

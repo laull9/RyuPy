@@ -147,7 +147,7 @@ impl FunctionChecker<'_> {
                     self.soft_demote = true;
                 }
             }
-            StmtKind::Pass => {}
+            StmtKind::Pass | StmtKind::SetupAnnotations => {}
             StmtKind::If { cond, then_, else_ } => {
                 self.check_cond(*cond);
                 for &s in then_ {

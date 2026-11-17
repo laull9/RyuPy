@@ -31,6 +31,7 @@ pub(super) fn compile_linked_traced(
         distribution_payload,
         aot_locations,
     )?;
+    stock_module_namespaces::validate(sess, &sources)?;
     stock_thin::validate(sess, &sources)?;
     crate::source_probe::write(sess, entry, &roots, &sources)?;
     // 加载函数返回不等于无语法诊断：沿用原有逐模块 stop_if_errors 边界。
@@ -165,7 +166,8 @@ pub(super) fn compile_linked_traced(
                     sources.len() > 1,
                 )
             };
-            if automatic && selected.contains(&index) {
+            if sess.experimental_stock_module_namespaces || (automatic && selected.contains(&index))
+            {
                 Some(compile(sess)?)
             } else {
                 optional_sources::compile(sess, module, compile)?
@@ -302,6 +304,20 @@ pub(super) fn compile_linked_traced(
     trace.mark("end", "link", "-");
     trace.mark("begin", "export-check", "-");
     check_linked_exports(sess, &linked, entry_file)?;
+    if sess.experimental_stock_module_namespaces {
+        // 实际完成的编译计划随provider产品保留；不靠运行期模块名猜测哪些模块用了权威字典。
+        let audit = serde_json::json!({"profile": "experimental-stock-module-namespaces",
+            "modules": sess.module_environment_report});
+        let provider = sess
+            .cpython_provider_state
+            .plan
+            .as_mut()
+            .context("权威模块字典provider丢失")?;
+        if provider.dependency_report.is_null() {
+            provider.dependency_report = serde_json::json!({});
+        }
+        provider.dependency_report["module_namespaces"] = audit;
+    }
     trace.mark("end", "export-check", "-");
     Ok((linked, summaries, resource_plan))
 }

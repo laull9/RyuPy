@@ -17,7 +17,8 @@ pub(crate) fn validate(program: &Program, errors: &mut Vec<String>) {
                 function.name
             ));
         }
-        if (function.instance_capabilities.direct_globals
+        if (function.instance_capabilities.provider_namespace
+            || function.instance_capabilities.direct_globals
             || function.instance_capabilities.relative_from_import
             || function.instance_capabilities.ordinary_name_handlers)
             && function.module_state.is_none()
@@ -150,6 +151,7 @@ pub(crate) fn validate(program: &Program, errors: &mut Vec<String>) {
                                 | RuntimeFn::InstanceExecutionSource
                                 | RuntimeFn::InstanceCaptureDefinitionContext
                                 | RuntimeFn::InstanceDefinitionModule
+                                | RuntimeFn::InstanceSetupAnnotations
                         )
                         && !matches!(args.first(), Some(Operand::Local(state)) if contexts.contains(state) && context_dominates(function, *state, block_id, statement_index))
                     {
@@ -174,11 +176,32 @@ pub(crate) fn validate(program: &Program, errors: &mut Vec<String>) {
                             function.name
                         ));
                     }
+                    if matches!(
+                        value,
+                        Rvalue::Call {
+                            callee: Callee::Runtime(RuntimeFn::InstanceSetupAnnotations),
+                            ..
+                        }
+                    ) && (!function.instance_capabilities.provider_namespace
+                        || function.module_state_source
+                            != Some(InstanceStateSource::ModuleEntryParameter))
+                    {
+                        errors.push(format!(
+                            "函数 `{}` 的注解前言缺少provider模块入口能力",
+                            function.name
+                        ));
+                    }
                     if let Rvalue::MakeFunction {
                         instance_context: Some(context),
+                        func: target,
                         ..
                     } = value
                     {
+                        // 急切推导式是PEP709当前frame的内部降级，不是新的普通def环境捕获点。
+                        let inherited = function.instance_capabilities.provider_namespace
+                            && program.functions[*target].is_comprehension
+                            && matches!(context,Operand::Local(state) if Some(*state)==function.module_state
+                                && context_dominates(function,*state,block_id,statement_index));
                         let produced = if let Operand::Local(local) = context {
                             let last =
                                 block.stmts[..statement_index]
@@ -196,7 +219,7 @@ pub(crate) fn validate(program: &Program, errors: &mut Vec<String>) {
                         } else {
                             false
                         };
-                        if !produced {
+                        if !produced && !inherited {
                             errors.push(format!(
                                 "函数 `{}` 的定义context必须来自唯一显式捕获",
                                 function.name

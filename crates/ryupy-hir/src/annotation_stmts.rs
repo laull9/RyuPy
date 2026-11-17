@@ -26,6 +26,11 @@ pub(crate) fn has_module_annotations(body: &[ast::Stmt]) -> bool {
 }
 impl crate::lower::StmtLowerCtx<'_> {
     pub(crate) fn setup_annotations(&mut self, range: TextRange) {
+        if self.global_scope.provider_namespace {
+            let id = self.annotation_stmt(StmtKind::SetupAnnotations, range);
+            self.body.root.push(id);
+            return;
+        }
         let Some(&var) = self.module_vars.get(&Name::from("__annotations__")) else {
             return;
         };
@@ -42,6 +47,20 @@ impl crate::lower::StmtLowerCtx<'_> {
         );
         self.body.root.push(id);
     }
+    /// 新namespace域复用既有赋值时序；局部注解不求值，模块非简单目标只执行annotation。
+    pub(crate) fn lower_provider_annotation(
+        &mut self,
+        annotation: &ast::StmtAnnAssign,
+    ) -> Option<StmtId> {
+        if self.global_scope.postponed_annotations {
+            return self.lower_postponed_assignment(annotation);
+        }
+        if !self.module_scope {
+            return self.lower_local_annotated_target(annotation);
+        }
+        self.lower_annotation_assignment(annotation)
+    }
+
     pub(crate) fn lower_postponed_assignment(
         &mut self,
         annotation: &ast::StmtAnnAssign,
@@ -159,6 +178,13 @@ impl crate::lower::StmtLowerCtx<'_> {
                 },
                 range,
             ));
+        }
+        if self.module_scope
+            && !self.global_scope.postponed_annotations
+            && !(annotation.simple && matches!(annotation.target.as_ref(), ast::Expr::Name(_)))
+        {
+            let value = self.lower_expr(&annotation.annotation);
+            statements.push(self.annotation_stmt(StmtKind::Expr(value), range));
         }
         if statements.len() == 1 {
             return statements.pop();

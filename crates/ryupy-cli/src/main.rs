@@ -54,6 +54,7 @@ fn main() -> ExitCode {
         experimental_records_increment: cli.experimental_records_increment,
         experimental_leaf_inline: cli.experimental_leaf_inline,
         experimental_stock_thin_functions: cli.experimental_stock_thin_functions,
+        experimental_stock_module_namespaces: cli.experimental_stock_module_namespaces,
         diagnostic_scalar_slp: cli.diagnostic_scalar_slp,
         experimental_packed_slp: cli.experimental_packed_slp,
         ..Session::default()

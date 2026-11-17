@@ -147,13 +147,17 @@ pub(crate) fn validate_aot(
     aot: bool,
     resources: Option<&crate::resources::ResourcePlan>,
 ) -> Result<Option<ValidatedAot>> {
-    if !aot || sess.instance_modules.is_empty() {
+    if !aot || (sess.instance_modules.is_empty() && !sess.experimental_stock_module_namespaces) {
         return Ok(None);
     }
     let selected: Vec<_> = sources
         .iter()
         .enumerate()
-        .filter_map(|(i, source)| sess.instance_modules.contains(&source.name).then_some(i))
+        .filter_map(|(i, source)| {
+            (sess.experimental_stock_module_namespaces
+                || sess.instance_modules.contains(&source.name))
+            .then_some(i)
+        })
         .collect();
     validate_indices(sess, sources, entry, resources, &selected)
 }
@@ -203,7 +207,9 @@ pub(crate) fn validate_indices(
             validated.required.push(index);
         }
         if selected.contains(&index) {
-            let validation = if inspect_profile(sess) {
+            let validation = if sess.experimental_stock_module_namespaces {
+                ryupy_hir::validate_provider_namespace_aot(&source.parsed)
+            } else if inspect_profile(sess) {
                 ryupy_hir::validate_instance_aot_inspect_profile(
                     &source.parsed,
                     sess.instance_direct_globals,

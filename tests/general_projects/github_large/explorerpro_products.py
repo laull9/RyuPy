@@ -101,7 +101,7 @@ def product(args, project, evidence):
         if args.oracle_only:
             return {'mode': args.mode, 'oracle': 'pass', 'product': 'not-run'}
         output = work / 'output'
-        extra = []
+        extra = ['--experimental-stock-module-namespaces'] if args.stock_module_namespaces else []
         if args.native_components:
             original = args.native_components.expanduser().resolve()
             declaration = json.loads(original.read_text())
@@ -114,7 +114,7 @@ def product(args, project, evidence):
                 component['root'] = str(private)
             native_declaration = inputs / 'native-components.json'
             native_declaration.write_text(json.dumps(declaration, ensure_ascii=False))
-            extra = ['--cpython-native-components', native_declaration]
+            extra.extend(['--cpython-native-components', native_declaration])
         built = execute([args.ryupy.resolve(), entry, '--mode', args.mode, '-o', output,
                          '-I', tree / 'src', '-I', tree, *extra], work, dict(env, VIRTUAL_ENV=str(venv)),
                         evidence, 'build')
@@ -149,7 +149,8 @@ def product(args, project, evidence):
         assert normalize(actual.stdout, profiles['product']) == normalize(oracle.stdout, profiles['oracle'])
         assert normalize(actual.stderr, profiles['product']) == normalize(oracle.stderr, profiles['oracle'])
         return {'mode': args.mode, 'oracle': 'pass', 'product': 'deleted_inputs_relocated_pass',
-                'business_delegations': [], 'probe_entry': 'cil', 'display': 'cocoa'}
+                'business_delegations': [], 'probe_entry': 'cil', 'display': 'cocoa',
+                'stock_module_namespaces': args.stock_module_namespaces}
 
 
 def main():
@@ -161,6 +162,7 @@ def main():
     parser.add_argument('--oracle-only', action='store_true')
     parser.add_argument('--probe-entry', type=Path, default=HERE / 'explorerpro_probe.py', help='同次CP/CIL诊断入口，默认保持完整原业务合同')
     parser.add_argument('--native-components', type=Path)
+    parser.add_argument('--stock-module-namespaces', action='store_true', help='显式全图Instance/provider权威globals合同')
     parser.add_argument('--evidence', type=Path, default=Path.home() / '.cache/ryupy/validation/explorerpro-products')
     args = parser.parse_args()
     evidence = args.evidence.expanduser().resolve() / datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ')

@@ -101,13 +101,15 @@ public sealed partial class CPythonHost : IPyStockThinFunctionProvider
         stockThinCores ??= [];
         stockThinCores.RemoveAll(static weak => !weak.TryGetTarget(out _));
         stockThinCores.Add(new(core));
-        nint dictionary = ToPython(globals);
+        nint dictionary = ToPython(globals), source = 0, displayName = 0;
         try
         {
+            source = MakeNativeMetadataText(definition.SourcePath);
+            displayName = ToPython(definition.Name);
             nint token = GCHandle.ToIntPtr(GCHandle.Alloc(core));
             Interlocked.Increment(ref stockThinRoots);
             // make 在所有返回路径消费 token；托管端绝不二次 Free。
-            nint f = Check(Native.rp_thin_make(dictionary, token, failure));
+            nint f = Check(Native.rp_thin_make_source(dictionary, token, failure, source, definition.SourceLine, displayName));
             try
             {
                 nint name = ToPython(definition.Name);
@@ -122,7 +124,7 @@ public sealed partial class CPythonHost : IPyStockThinFunctionProvider
             catch { Native.rp_thin_abort(f); throw; }
             finally { Native.rp_decref(f); }
         }
-        finally { Native.rp_decref(dictionary); }
+        finally { Native.rp_decref(displayName); Native.rp_decref(source); Native.rp_decref(dictionary); }
     }
 
     // 从真实 F 查 owner 的 owned 身份，不向普通 objects/reverse/Roots 强根表登记 H。

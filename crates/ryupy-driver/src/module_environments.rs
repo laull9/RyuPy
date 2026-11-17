@@ -58,6 +58,14 @@ pub(crate) fn plan_validated(
     index: usize,
     validated: Option<&crate::instance_modules::ValidatedAot>,
 ) -> ModuleEnvironmentPlan {
+    if session.experimental_stock_module_namespaces {
+        return ModuleEnvironmentPlan {
+            capabilities: ryupy_hir::provider_namespace_capabilities(),
+            execution: ModuleExecutionKind::InstanceGlobals,
+            automatic: false,
+            reason: "experimental-stock-module-namespaces".into(),
+        };
+    }
     if session.experimental_stock_thin_functions {
         return ModuleEnvironmentPlan {
             capabilities: ryupy_hir::stock_entry_capabilities(),
@@ -82,6 +90,7 @@ pub(crate) fn plan_validated(
     if session.instance_modules.contains(&source.name) && admitted {
         return ModuleEnvironmentPlan {
             capabilities: ryupy_base::InstanceCapabilities {
+                provider_namespace: false,
                 entry_namespace: false,
                 aot_class_guards: aot
                     && source.kind == SourceKind::ModuleFile
@@ -104,6 +113,7 @@ pub(crate) fn plan_validated(
     }
     // 令牌只证明来源；角色与完整Instance AST能力分别准入，不catch后重编或授新协议。
     let catalog_capabilities = ryupy_base::InstanceCapabilities {
+        provider_namespace: false,
         entry_namespace: false,
         aot_class_guards: aot && validated.is_some_and(|v| v.selects(index)),
         direct_globals: false,
@@ -178,6 +188,8 @@ pub struct ModuleEnvironmentDecision {
     pub ordinary_name_handlers: bool,
     #[serde(skip_serializing_if = "direct_globals_disabled")]
     pub direct_globals: bool,
+    #[serde(skip_serializing_if = "direct_globals_disabled")]
+    pub provider_namespace: bool,
 }
 pub(crate) fn record(
     session: &mut Session,
@@ -201,6 +213,7 @@ pub(crate) fn record(
             relative_from_import: plan.capabilities.relative_from_import,
             ordinary_name_handlers: plan.capabilities.ordinary_name_handlers,
             direct_globals: plan.capabilities.direct_globals,
+            provider_namespace: plan.capabilities.provider_namespace,
         })
         .collect();
 }

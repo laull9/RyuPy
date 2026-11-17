@@ -49,6 +49,10 @@ pub(super) fn build(
                 include_str!("../../../runtime/RyuPy.CPython/native/stock_function_owner.h"),
             ),
             (
+                "code_origin.h",
+                include_str!("../../../runtime/RyuPy.CPython/native/code_origin.h"),
+            ),
+            (
                 "call_carrier.h",
                 include_str!("../../../runtime/RyuPy.CPython/native/call_carrier.h"),
             ),

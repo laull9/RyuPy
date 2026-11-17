@@ -46,6 +46,9 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         RuntimeFn::InstanceMakeClass => ins.push(Instruction::call(
             crate::instance_refs::required(ctx.runtime_refs).create_class,
         )),
+        RuntimeFn::InstanceSetupAnnotations => ins.push(Instruction::call(
+            crate::instance_refs::required(ctx.runtime_refs).setup_annotations,
+        )),
         RuntimeFn::InstanceCaptureDefinitionContext => ins.push(Instruction::call(
             crate::instance_refs::required(ctx.runtime_refs).capture_definition,
         )),

@@ -9,6 +9,8 @@ internal static class ModuleNamespaceNative
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern nint rp_entry_module();
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern nint rp_compiled_module(nint name);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern nint rp_module_namespace(nint value);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int rp_namespace_lookup(nint dict, nint key, out nint result);

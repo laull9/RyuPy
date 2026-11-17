@@ -56,7 +56,10 @@ PythonObject过早退休以及内部proxy无法关闭。原失败日志保留，
 归属与关闭。正例严格三流差分；frame能力负合同单独计量，包装后的反射场景保留实际结果。
 通用值表达式四输入×两个Python版本×三发布形态24产品已通过，共观察528次静态调用、
 222个实际owner；frame负合同六产品独立记录。早期wrapped反射失败已推动exact标准库
-partial有效调用形状守卫和顶层诊断短scope，最终结果待本次生命周期复验后更新。
+partial有效调用形状守卫和顶层诊断短scope，最终生命周期与真实产品均已复验。
+最终CIL产品复验为24正、直接frame六项NI和wrapped frame六项NI；包装后的显式环境
+vars/eval/compile与普通str保持可用，隐式frame依赖按精确调用形状阻断，所有终态计数
+归零。最新手写输入为`wrapped_frame_boundaries.py`，历史错误结果和漏账红证继续保留。
 最终生命周期四组已通过76正与4个真实跨堆环负例，其中68个授权进程、8个未启动/
 未授权对照。1000次终态临时回调峰值记录为3；所有正例owned/native实际退账归零，
 跨堆环负例保留ledger/Roots并精确拒绝关闭。日志及合同详见ADR-0234。
@@ -85,3 +88,8 @@ FBA按实际冻结的3.12解析后PEP695版本误诊消失，当前到达模块�
 每轮已实际启动的实现顺序进入结果，失败轮也保留执行到的位置。正式墙钟与RSS继续
 使用无统计注入的新进程，内部统计独立采集；旧v2结果继续保存，比较前需要重新采样。
 21项基准工具测试通过，含三实现三轮各占一次首中末位置、诊断隔离及失败分类。
+
+本轮checkpoint `make-check-v6.log`完整exit0：3446项Runtime通过、3跳过；803项CPython
+输入基线、514项编译e2e通过，299项ignored保留；Rust、fmt和clippy全部通过。v5在
+并行dotnet构建时无诊断exit1，单独禁用build server重建成功；v6固定仓外TMPDIR、
+CPython3.12.13并禁用server复用后整门通过。后续C4权威globals与carrier单独验收。

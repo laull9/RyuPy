@@ -24,11 +24,44 @@ public sealed partial class CPythonHost : IPyCompiledExecutionProvider
             throw new PyTypeError("compiled execution requires the provider's real globals");
         ExecuteWithCallCarrier(globals, request.File, body);
     }
-    internal unsafe void ExecuteWithCallCarrier(PythonObject globals, string file, Action body)
+    internal void ExecuteWithCallCarrier(PythonObject globals, string file, Action body) =>
+        RunCallCarrier(globals, file, body);
+
+    private bool TryCallCarrier<T>(Func<T> operation, out T result)
+    {
+        result = default!;
+        int kind = Native.rp_carrier_frame_context(out nint currentGlobals);
+        if (kind < 0) ThrowError();
+        try
+        {
+            if (kind == 1) return false; // 真正Python调用现场优先，不被外层CIL元数据覆盖。
+            int source = PyTraceback.CompiledNativeCallSite(out object? globals, out string? file);
+            if (source is 2 or 3) return false; // Legacy/未知旧来源保原执行，新profile独立提供权威D。
+            PythonObject? dictionary = null;
+            if (source == 1)
+            {
+                if (globals is not PythonObject value) return false; // 旧NativeGlobals PyDict不取得新frame能力。
+                if (!ReferenceEquals(value.Host, this)) throw new PyTypeError("native caller globals belong to a different execution domain");
+                dictionary = value;
+                if (kind == 2 && currentGlobals == dictionary.Pointer) return false;
+            }
+            else if (kind != 0 || Native.rp_external_carrier_available() == 0) return false;
+            T captured = default!;
+            RunCallCarrier(dictionary, file, () => captured = ExecutePythonCall(operation));
+            result = captured; return true;
+        }
+        finally { Native.rp_decref(currentGlobals); }
+    }
+    private unsafe nint MakeNativeMetadataText(string text)
+    {
+        string points = PyOps.UnicodeCodePoints(text);
+        fixed (char* units = points) return Check(Native.rp_text_codepoints(units, points.Length));
+    }
+    private unsafe void RunCallCarrier(PythonObject? globals, string? file, Action body)
     {
         using Lease lease = Enter();
         using var handled = new PythonHandledScope(this);
-        if (!ReferenceEquals(globals.Host, this) || Native.rp_container_kind(globals.Pointer) != 2)
+        if (globals is not null && (!ReferenceEquals(globals.Host, this) || Native.rp_container_kind(globals.Pointer) != 2))
             throw new PyTypeError("compiled execution requires exact globals dict");
         var execution = new CompiledExecution(this, body);
         GCHandle handle = GCHandle.Alloc(execution);
@@ -36,9 +69,15 @@ public sealed partial class CPythonHost : IPyCompiledExecutionProvider
         nint source = 0;
         try
         {
-            source = ToPython(file);
-            nint result = Native.rp_execute_carrier(globals.Pointer, source, GCHandle.ToIntPtr(handle),
-                &InvokeCompiledExecution, &ReleaseCompiledExecution);
+            nint result;
+            if (globals is null)
+                result = Native.rp_execute_external_carrier(GCHandle.ToIntPtr(handle), &InvokeCompiledExecution, &ReleaseCompiledExecution);
+            else
+            {
+                source = MakeNativeMetadataText(file!);
+                result = Native.rp_execute_carrier(globals.Pointer, source, GCHandle.ToIntPtr(handle),
+                    &InvokeCompiledExecution, &ReleaseCompiledExecution);
+            }
             Native.rp_decref(Check(result));
         }
         finally
@@ -90,4 +129,11 @@ internal static unsafe partial class Native
         delegate* unmanaged[Cdecl]<nint, nint> invoke, delegate* unmanaged[Cdecl]<nint, void> release);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern void rp_carrier_stats(out long live, out long calls);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int rp_carrier_frame_context(out nint globals);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int rp_external_carrier_available();
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern nint rp_execute_external_carrier(nint token,
+        delegate* unmanaged[Cdecl]<nint, nint> invoke, delegate* unmanaged[Cdecl]<nint, void> release);
 }

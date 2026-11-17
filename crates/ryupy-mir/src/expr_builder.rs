@@ -382,7 +382,16 @@ impl<'a> ExprBuilder<'a> {
                     }
                 }
                 let module = self.capture_function_module();
-                let instance_context = self.capture_definition_context();
+                // PEP709急切推导式继承执行frame，不按普通def重读已重绑的__builtins__。
+                let target = &self.hir.functions[*func_id];
+                let instance_context = if self.hir.info.instance_capabilities.provider_namespace
+                    && target.is_comprehension
+                    && !target.is_generator
+                {
+                    self.module_state.map(Operand::Local)
+                } else {
+                    self.capture_definition_context()
+                };
                 let dest = self.alloc_temp(MirType::Dynamic);
                 self.push_stmt(Statement::Assign {
                     dest,

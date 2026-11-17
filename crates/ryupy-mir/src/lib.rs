@@ -312,3 +312,6 @@ mod stock_thin_contract;
 
 #[cfg(test)]
 mod unicode_literal_tests;
+
+#[cfg(test)]
+mod provider_namespace_tests;

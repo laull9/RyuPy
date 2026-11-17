@@ -65,6 +65,7 @@ mod session;
 mod source_catalog;
 mod source_probe;
 mod source_scan;
+mod stock_module_namespaces;
 mod stock_thin;
 pub use source_probe::probe_sources;
 mod source_deployment;
@@ -151,7 +152,8 @@ fn compile_module(
     );
     sess.diagnostics.extend(diags);
     stop_if_errors(sess)?;
-    if plan.automatic && !hir.protected_exports.is_empty() {
+    if (plan.automatic || plan.capabilities.provider_namespace) && !hir.protected_exports.is_empty()
+    {
         bail!("内部错误：实例计划仍依赖静态异常导出保护");
     }
     trace.mark("end", "hir", &module.name);
@@ -482,3 +484,9 @@ mod records_options_tests;
 
 #[cfg(test)]
 mod stock_thin_tests;
+
+#[cfg(test)]
+mod stock_namespace_probe_tests;
+
+#[cfg(test)]
+mod stock_module_namespaces_tests;
