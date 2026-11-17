@@ -77,12 +77,17 @@ requirements，SanBudget 使用 3.12.13。`run.py` 的两项目各三种产品�
 
 SanBudget 继续使用 `--compiled-app` 并运行真实 macOS 窗口；FastAPI 仍采用本页登记的
 显式业务委派与 ASGI TestClient 合同。业务闭包 CIL 迁移、stock 活字典及所有权继续开发，
-最终修复候选需再跑相同六种产品；其它平台与 TCP 部署保持各自待验状态。
+最终纯 stock 入口切片（ADR-0225）已再跑相同六种产品并全部通过；其它平台与 TCP 部署
+保持各自待验状态。该切片完整 make check 为 3418 Runtime / 503 编译 e2e，固定二十
+provider 项目的 JIT/NativeAOT/删除输入搬迁共 60/60 通过，详见 [ADR-0225](../../docs/adr/0225-stock-entry-live-module-namespace.md)。
 
 本轮 CLI、精确源码状态、环境安装日志及六项结果保存在仓库外持久目录
 `/Users/laull/.cache/ryupy/validation/adr0208-20261117/`，其中
 `baseline-source.json`、`fastapi-products.log`、`sanbudget-products.log` 和
 `real-projects-pre-attrs.json` 分别记录来源和实际结果，原始报告未进入仓库。
+最终切片证据为 `isolated-stock-entry-v3-*-products.log` 与
+`product-matrix-isolated-stock-v3/`；旧候选的 toml/reloc 编译失败完整保留在独立的
+`product-matrix-guarded-v3/` 中，未覆盖或改写。
 
 ### 2026-11-16 已提交历史门禁
 

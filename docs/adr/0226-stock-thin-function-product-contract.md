@@ -80,7 +80,8 @@ core/capsule 不持宿主强引用，释放回调通过静态 token 表删除唯
 新旧导入和双端释放均须在 Py_FinalizeEx 前通过真实原生析构和弱观察验收。
 
 stock 尚缺完整主动关闭协议，采用显式阻塞关闭合同：Open → Closing 后禁止创建/回流/
-新调用，等活动租约退出，反复 CLR GC/drain/CP GC 到稳态。外部 H 或其它 owned CP 值仍
+新调用，等活动租约退出，撤销宿主持有的模块注册强根，只对仍匹配原 module 身份的候选
+sys.modules 缓存解除登记，再反复 CLR GC/drain/CP GC 到稳态。外部 H 或其它 owned CP 值仍
 活着时返回“关闭受阻”并保留解释器，允许释放已有引用与重试；不得 finalize 活跃 H。
 只有 owned 根、待释放队列、活动调用、native core link 与 core root 全回基线才进入 Closed。
 drain 必须计入 DECREF 导致的重入；Closing 期间的新函数构造和 atexit 新根明确拒绝。
@@ -112,9 +113,20 @@ drain 必须计入 DECREF 导致的重入；Closing 期间的新函数构造和 
 | Runtime 中性调用 | `runtime/RyuPy.Runtime/PyFunctionOwner.cs`、`PyFunctionMetadata.cs` 及实际通用调用分派文件（窗口前精确盘点） | 新建独立 H 类型和 provider 合同；移出 owner 的强 context 边，反射直读 F；禁止复用旧 owner 导出 |
 | 显式编译归属 | driver 归属计划、HIR MakeFunction 与 MIR/codegen 固定引用表（待前述 ABI 冻结再定清单） | 显式 stock 普通函数资格、静态体与中性环境操作，逐阶段诊断 |
 
-第一窗口只需上表前三行的五个确定文件，加独立新增实现；涉及 observer、Runtime 与 Rust
+第一窗口只需上表前三行的四个确定文件，加独立新增实现；涉及 observer、Runtime 与 Rust
 的窗口需主代理先确认实际分派位置和 ABI。不得修改 ADR-0225 的 attrs 资格、入口守卫或
 既有 PyFunctionOwner 行为，也不得操作 `tests/fixtures/projects`。
 
 最终晋升须专用宿主矩阵、原项目回归、四组合执行与回收、完整 stock 关闭、正式性能门及
 make check 全部完成；默认晋升和旧路径退出分开验收。本轮不提交、不推送。
+
+## 7. 本轮实际验证
+
+两组 pending 输入以固定 PBS CPython 3.12.13、3.13.3 分别运行，四次退出零且 stderr 为空。
+live_reload 特别保留异常 traceback 时旧 F 仍活着，释放异常后 CP GC 才回收；避免忽略真实
+frame 对 globals 的合法持有。产品输入仍为 pending。
+
+仓外临时 net10.0 测试项目只链接上述两个新增 C# 文件，启用 warnings-as-errors 与 AOT
+分析器，五项托管测试通过。机器只有 .NET 11.0.0 共享运行时，首次 testhost 因缺 net10
+运行时退出；设置 DOTNET_ROLL_FORWARD=Major 后在 .NET 11 JIT 完成测试。未做 NativeAOT
+发布、真实 CP owner/shim 测试或完整 make check。临时项目已清理，产品 obj/bin 未触碰。

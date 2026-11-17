@@ -85,6 +85,14 @@ list/dict/str/异常专用布局与循环建类保留路径的同次 CPython/JIT
 
 同一纯切片 CLI 的活字典三臂，以及 FastAPI/SanBudget 各 JIT、standalone、onefile 全部
 通过删除输入后的中文空格搬迁。FastAPI 仍为原显式六族业务委派与 ASGI TestClient，
-SanBudget 保持原业务 CIL 与真实 macOS 窗口。固定二十项目的纯切片三臂矩阵独立复验中。
+SanBudget 保持原业务 CIL 与真实 macOS 窗口。固定二十项目的纯切片三臂矩阵为 **60/60**：
+JIT、NativeAOT、删除输入搬迁各 20/20。60 格均先运行固定 CPython 3.12.13 同次 oracle，
+三流、退出码与文件副作用匹配；全部临时产品清理。包资源实测覆盖原入口消费的 pyfiglet
+standard 字体、Markdown extra/egg-info 与 binaryornot 文件读写；任意资源、所有字体/插件、
+源码原文、可写根分离、20 项目的 onefile 及其它平台仍有各自验收门。
+
+前两份完整候选矩阵独立保留：v2 为 60/60；含研究 WIP 的 guarded-v3 为 59/60，其中
+toml/reloc 在 dotnet publish 的 Generating native code 阶段退出 1，内层 stderr 为空，
+原因未确定。该失败未重跑覆盖，日志和首错保留；最终纯切片的独立 60/60 为本提交验收来源。
 本切片未修改严格 kernel，不生成 golden 或普通文件摘要。所有日志和构建身份记录保存在
 仓库外 `/Users/laull/.cache/ryupy/validation/adr0208-20261117/`；生成产品由驱动清理。
