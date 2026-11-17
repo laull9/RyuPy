@@ -23,6 +23,7 @@ pub(crate) fn rvalue_arg_count(value: &Rvalue) -> usize {
         Rvalue::InstanceZeroCall { .. } => 6,
         Rvalue::Call { args, .. } | Rvalue::NewObject { args, .. } => args.len(),
         // MakeFunction 的数组逐元素发射，加上构造函数的其余实参
+        Rvalue::MakeStockThinFunction { .. } => 8,
         Rvalue::MakeFunction { env, defaults, .. } => env.len() + defaults.len() + 8,
         Rvalue::MakeGenerator { frame, origin, .. } => {
             frame.len() + 5 + usize::from(origin.is_some())
@@ -474,6 +475,10 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
             };
             ins.push(Instruction::NewObject(UserMethod::Reference(ctor)));
         }
+        Rvalue::MakeStockThinFunction {
+            func,
+            module_context,
+        } => crate::stock_thin::emit(*func, module_context, ins, ctx),
         Rvalue::MakeFunction {
             instance_context,
             func,

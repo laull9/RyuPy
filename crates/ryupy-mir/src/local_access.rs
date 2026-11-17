@@ -89,6 +89,7 @@ pub(crate) fn rewrite_value(v: &mut Rvalue, map: &FxHashMap<LocalId, LocalId>) {
             rewrite(payload);
             origin.iter_mut().for_each(rewrite);
         }
+        Rvalue::MakeStockThinFunction { module_context, .. } => rewrite(module_context),
         Rvalue::MakeFunction {
             env,
             defaults,
@@ -261,6 +262,7 @@ pub(crate) fn read_value(value: &Rvalue, reads: &mut FxHashSet<LocalId>) {
                 read_operand(argument, reads);
             }
         }
+        Rvalue::MakeStockThinFunction { module_context, .. } => read_operand(module_context, reads),
         Rvalue::MakeFunction {
             env,
             defaults,

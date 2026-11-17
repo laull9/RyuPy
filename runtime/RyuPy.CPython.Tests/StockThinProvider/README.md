@@ -64,3 +64,12 @@ false，默认 JIT 模式要求其为 true。
 shim/tools 被复制到本次独立输出目录，CPython 标准库和 libpython 仍来自固定发行原路径。
 完整产品 CIL 闭包、Rust 编译资格、standalone/onefile 交付、删除输入后的搬迁、多平台及性能
 继续由各自门验收；本门通过后产品默认开关保持关闭。
+
+
+## 编译程序集的中性冷接口
+
+`--neutral` 只运行新增 public ABI 门，可以与 `--aot` 组合。测试通过
+`PyStockThinFunctions.Create` 创建真实 F/H，静态 `PyStockThinBody` 只使用
+`IPyStockThinEnvironment.LoadGlobal`，验证真实元数据、动态读名和输入对象身份。
+两版各 JIT/NativeAOT 通过，均 2 owner 析构、4 native calls，各回收指标归零。
+该门仍使用手写静态 C# body；Rust 编译接线与正常模块结束按 ADR-0229 继续实施。

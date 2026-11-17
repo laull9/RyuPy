@@ -83,6 +83,10 @@ CreateSuper 历史 Object 返回公共 ABI 已恢复，真实 `5d36db1e` 的 184
   A closure＋直接 GC owner 内部 Host 首切已接；两版 JIT/NativeAOT 各四独立进程及6项托管测试通过，
   原 P/owner/cell 强环、Python finalizer 复活、captured builtins 与关闭拒绝已验。完整检查
   3418 Runtime/503 e2e 通过；候选默认关闭，编译资格、产品搬迁、闭包与性能继续实施。
+- [~] **真实薄函数静态编译（ADR-0229）**：Runtime 中性冷 ABI、无捕获 public body 与
+  provider 直接静态委托已接，两版 JIT/NativeAOT public ABI 门通过；Rust 显式资格、
+  HIR/MIR/PE 静态发射与正常保留模块函数退出已接；两版 JIT/NativeAOT/OneFile 删除输入搬迁24/24，
+  完整检查3424 Runtime/503 e2e通过。入口临时owned有界化、性能及函数体扩围继续实施，默认保持关闭。
 - [ ] **可选严格内核研究（ADR-0221）**：Host Slice 1/2 源码完整保存在远端 WIP，已撤出
   stock 主线工作树；最终内核与十二项 Host 子进程门尚未完成，暂停扩展。
   已有 22 内核/10 stock 探针保留原快照范围。

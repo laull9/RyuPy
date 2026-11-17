@@ -1,5 +1,6 @@
 // ADR-0226 的纯托管协议测试：覆盖静态目标、回流缓存、验证门及异常释放；不加载解释器。
 using System.Runtime.CompilerServices;
+using RyuPy.Runtime;
 
 namespace RyuPy.CPython.Tests;
 
@@ -9,6 +10,25 @@ public sealed class StockThinFunctionContractTests
         new("test:read", "subject", "read", "subject.py", 3), Read);
     private static object? Read(IStockThinFunctionLease environment, object? argument) =>
         environment.LoadGlobal("answer");
+    private static object? ReadCompiled(IPyStockThinEnvironment environment, object? argument) =>
+        PyStockThinFunctions.LoadGlobal(environment, "answer");
+
+    [Fact]
+    public void CompiledNeutralBodyKeepsStaticTargetAndUsesOnlyTheActiveLease()
+    {
+        var owner = new Owner();
+        var core = StockThinFunctionCore.CreateCompiled(NewCore().Definition, ReadCompiled);
+        var handle = core.AcquirePublicHandle(() => owner);
+        Assert.Same(owner.Answer, handle.Invoke(null));
+        Assert.Equal(1, owner.Validations);
+        Assert.Equal(1, owner.Disposals);
+        owner.Answer = new object();
+        Assert.Same(owner.Answer, handle.Invoke(null));
+        Assert.Throws<ArgumentException>(() => StockThinFunctionCore.CreateCompiled(core.Definition,
+            (_, _) => owner.Answer));
+        PyStockThinBody target = ReadCompiled;
+        Assert.Throws<ArgumentException>(() => StockThinFunctionCore.CreateCompiled(core.Definition, target + target));
+    }
 
     [Fact]
     public void CoreRejectsCapturedAndMulticastTargets()

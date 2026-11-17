@@ -83,6 +83,17 @@ impl FunctionBuilder<'_> {
 
     /// 每次def执行创建新默认值数组和函数对象，闭包环境保存cell引用。
     pub(crate) fn create_function(&mut self, func: FuncId) -> Operand {
+        if self.hir.info.stock_thin_functions {
+            let local = self.alloc_temp(MirType::Dynamic);
+            self.push_stmt(Statement::Assign {
+                dest: local,
+                value: Rvalue::MakeStockThinFunction {
+                    func: self.fn_map[&func],
+                    module_context: Operand::Local(self.module_state.expect("薄函数入口state")),
+                },
+            });
+            return Operand::Local(local);
+        }
         let params: Vec<_> = self.hir.functions[func]
             .params
             .iter()

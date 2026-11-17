@@ -27,6 +27,7 @@ print(p.x)
     let (hir, diags) = lower_module(
         &parsed,
         &ModuleInfo {
+            stock_thin_functions: false,
             foreign_class_construction: false,
             introspection_profile: false,
             instance_capabilities: Default::default(),
@@ -68,6 +69,7 @@ print(f(10))
     let (hir, diags) = lower_module(
         &parsed,
         &ModuleInfo {
+            stock_thin_functions: false,
             foreign_class_construction: false,
             introspection_profile: false,
             instance_capabilities: Default::default(),
@@ -102,6 +104,7 @@ def classify(n: int) -> int:
     let (hir, diags) = lower_module(
         &parsed,
         &ModuleInfo {
+            stock_thin_functions: false,
             foreign_class_construction: false,
             introspection_profile: false,
             instance_capabilities: Default::default(),
@@ -132,6 +135,7 @@ for i in range(10):
     let (hir, diags) = lower_module(
         &parsed,
         &ModuleInfo {
+            stock_thin_functions: false,
             foreign_class_construction: false,
             introspection_profile: false,
             instance_capabilities: Default::default(),
@@ -166,6 +170,7 @@ fn integer_literals_above_u64_use_exact_big_integer_hir() {
         let (hir, diagnostics) = lower_module(
             &parsed,
             &ModuleInfo {
+                stock_thin_functions: false,
                 foreign_class_construction: false,
                 introspection_profile: false,
                 instance_capabilities: Default::default(),

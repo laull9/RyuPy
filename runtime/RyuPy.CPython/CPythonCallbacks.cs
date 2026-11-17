@@ -21,9 +21,11 @@ public sealed partial class CPythonHost
         Lease? lease = null;
         CallbackScope? callback = null;
         ManagedHandledScope? handled = null;
+        ProgramRegistrationPause? externalOwnership = null;
         try
         {
             lease = host.Enter(callback: true);
+            if (identity != -1) externalOwnership = host.PauseStockProgramRegistration();
             callback = new CallbackScope(true);
             handled = new ManagedHandledScope(host);
             if (identity == -1)
@@ -39,6 +41,7 @@ public sealed partial class CPythonHost
                 };
                 return host.ToPython(importResult);
             }
+            // 原生import组合根使用显式登记权限；其余第三方managed业务暂停内部owned收编。
             if (!host.Roots.TryGetValue(identity, out object? target)) throw new PyRuntimeError("managed proxy has been unregistered");
             string name = text == 0 ? "" : Marshal.PtrToStringUTF8(text)!;
             // 在容器同步或实参转换产生 opaque 视图之前，先用 frozen 原生成员核实构造接收者。
@@ -101,7 +104,7 @@ public sealed partial class CPythonHost
             // CLR异常展开越出编译函数时，CIL正常返回的PopTo不会执行；恢复入口深度，
             // cause已保存的帧保持不变，外层随后抛出的新异常只捕获仍活动的编译调用者。
             PyTraceback.PopTo(callbackDepth + 1);
-            lease?.Dispose();
+            externalOwnership?.Dispose(); lease?.Dispose();
         }
     }
 

@@ -168,8 +168,9 @@ def validate(args, log):
             search_paths=[str(Path(cfg['home'])/'lib'/f'python{series}'),
                           str(Path(cfg['home'])/'lib'/f'python{series}'/'lib-dynload')],
             modules=['builtins', '__main__', 'gc', 'types', 'sys'], container_transfer='synchronized')))
-        cases = ['resurrect'] if args.resurrection else ['ordinary', 'blocked', 'watcher-full']
-        if not args.resurrection and not args.ordinary_only:
+        cases = (['neutral'] if args.neutral else ['resurrect'] if args.resurrection
+                 else ['ordinary', 'blocked', 'watcher-full'])
+        if not args.neutral and not args.resurrection and not args.ordinary_only:
             cases.append('resurrect')
         for case in cases:
             log.write(f'HOST mode={mode} python={cfg["version"]} case={case}\n')
@@ -190,11 +191,12 @@ def main():
     parser.add_argument('--resurrection', action='store_true', help='单独运行正常 GC 析构复活门')
     parser.add_argument('--ordinary-only', action='store_true', help='仅诊断普通矩阵，排除复活门')
     parser.add_argument('--unit', action='store_true', help='附加运行 JIT 托管协议单测')
+    parser.add_argument('--neutral', action='store_true', help='单独验证生成程序集的 public 中性 ABI')
     args = parser.parse_args()
     if platform.system() != 'Darwin' or platform.machine() != 'arm64':
         parser.error('当前 Runner 驱动只验收 macOS arm64')
-    if args.resurrection and args.ordinary_only:
-        parser.error('--resurrection 与 --ordinary-only 不能同时使用')
+    if sum((args.resurrection, args.ordinary_only, args.neutral)) > 1:
+        parser.error('--resurrection、--ordinary-only 与 --neutral 不能同时使用')
     log = ValidationLog('aot' if args.aot else 'jit', args.python)
     print(f'LOG {log.path}', flush=True)
     try:

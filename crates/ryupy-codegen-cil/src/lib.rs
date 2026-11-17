@@ -52,6 +52,7 @@ mod provider_refs;
 mod refs;
 pub mod runtimeconfig;
 mod source_provenance;
+mod stock_thin;
 pub use source_provenance::SourceModules;
 #[cfg(test)]
 mod source_provenance_tests;
@@ -251,3 +252,6 @@ mod native_traceback_refs;
 
 #[cfg(test)]
 mod inspect_kind_tests;
+
+#[cfg(test)]
+mod stock_thin_tests;

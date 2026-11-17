@@ -52,6 +52,7 @@ fn main() -> ExitCode {
         experimental_direct_accumulator: cli.experimental_direct_accumulator,
         experimental_records_increment: cli.experimental_records_increment,
         experimental_leaf_inline: cli.experimental_leaf_inline,
+        experimental_stock_thin_functions: cli.experimental_stock_thin_functions,
         diagnostic_scalar_slp: cli.diagnostic_scalar_slp,
         experimental_packed_slp: cli.experimental_packed_slp,
         ..Session::default()
@@ -209,6 +210,34 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn stock_thin_flag_is_explicit_for_every_command() {
+        for command in ["build", "run", "dump"] {
+            let default = Cli::try_parse_from(["ryupy", command, "input.py"]).unwrap();
+            assert!(!default.experimental_stock_thin_functions);
+            for args in [
+                vec![
+                    "ryupy",
+                    "--experimental-stock-thin-functions",
+                    command,
+                    "input.py",
+                ],
+                vec![
+                    "ryupy",
+                    command,
+                    "input.py",
+                    "--experimental-stock-thin-functions",
+                ],
+            ] {
+                assert!(
+                    Cli::try_parse_from(args)
+                        .unwrap()
+                        .experimental_stock_thin_functions
+                );
+            }
+        }
+    }
 
     #[test]
     fn direct_accumulator_is_explicit_for_every_command() {

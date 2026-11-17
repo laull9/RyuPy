@@ -9,7 +9,7 @@ pub(crate) fn validate(
 ) {
     for (id, function) in functions.iter() {
         match function.core {
-            FunctionCore::Ordinary => {}
+            FunctionCore::Ordinary | FunctionCore::StockThinStatic => {}
             FunctionCore::TypedWithGeneric { generic } => {
                 let peer = functions
                     .iter()

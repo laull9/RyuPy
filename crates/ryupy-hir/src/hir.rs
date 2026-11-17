@@ -38,6 +38,8 @@ impl std::fmt::Display for Name {
 /// 模块的身份信息，全部由 driver 提供（HIR 不读文件）。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ModuleInfo {
+    /// 显式候选合同；只允许顶层单参数return-name函数。
+    pub stock_thin_functions: bool,
     /// driver 冻结的外部类构造能力；只有该域需要类体失败时的原生命名空间清理。
     pub foreign_class_construction: bool,
     /// 显式inspect provider profile才发布受信函数种类；普通构建保持原def发射。

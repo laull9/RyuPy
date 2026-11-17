@@ -50,7 +50,9 @@ public static partial class PyModuleInstances
     {
         var execution = Context(context);
         if (!execution.TryBuiltin("__import__", out object? importer)) throw new PyImportError("__import__ not found");
-        if (!ReferenceEquals(importer, PyModuleImport.Function))
+        if (!ReferenceEquals(importer, PyModuleImport.Function)
+            && !(PyProvider.Current is IPyCompiledBuiltinsProvider provider
+                && provider.IsCanonicalCompiledBuiltin(importer, "__import__")))
             throw new PyNotImplementedError("custom __import__ hooks are not implemented for instance modules");
     }
 }

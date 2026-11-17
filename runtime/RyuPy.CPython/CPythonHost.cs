@@ -131,14 +131,14 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
     /// <summary>即时计数，不触发GC或隐式回收。</summary>
     public HostStatistics Statistics
     {
-        get { lock (gate) return new(state == 1 ? "running" : state is 2 or 4 ? "stopping" : "closed", calls, active, handles.Count, Roots.Count, releases.Count, late); }
+        get { lock (gate) return new(state == 1 ? "running" : state is 2 or 4 or 5 ? "stopping" : "closed", calls, active, handles.Count, Roots.Count, releases.Count, late); }
     }
 
     internal Lease Enter(bool callback = false)
     {
         lock (gate)
         {
-            if (state != 1 && !((state is 2 or 4) && (Environment.CurrentManagedThreadId == ownerThread || state == 2 && callback && active > 0)))
+            if (state != 1 && !(state == 5 && Environment.CurrentManagedThreadId == ownerThread) && !((state is 2 or 4) && (Environment.CurrentManagedThreadId == ownerThread || state == 2 && callback && active > 0)))
                 throw new ObjectDisposedException("CPython", "解释器关闭中或已关闭");
             active++; calls++;
         }
@@ -184,7 +184,11 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
         if (reverse.TryGetValue(value, out ManagedReference? reference))
         {
             Roots.TryRemove(reference.Identity, out _); reverse.Remove(value);
-            if (transfers.TryGetValue(value, out ContainerTransfer? transfer)) { transfers.Remove(value); transfer.Owner.Dispose(); }
+            if (transfers.TryGetValue(value, out ContainerTransfer? transfer))
+            {
+                transfers.Remove(value); transfer.Owner.Dispose();
+                transferIndex.RemoveAll(weak => !weak.TryGetTarget(out var item) || ReferenceEquals(item, transfer));
+            }
         }
     }
 

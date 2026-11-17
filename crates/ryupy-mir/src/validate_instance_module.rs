@@ -41,6 +41,13 @@ pub(crate) fn validate(program: &Program, errors: &mut Vec<String>) {
                                 && function.dynamic_origin.is_none()
                                 && function.ret == MirType::Unit
                         }
+                        InstanceStateSource::StockThinLease => {
+                            function.params.len() == 2 && function.param_meta.len() == 1
+                            && function.params[1] == state && function.env.is_none()
+                            && function.dynamic_origin.is_none() && function.signature_global.is_none()
+                            && function.ret == MirType::Dynamic
+                            && function.params.iter().all(|p| function.body.locals[*p].ty == MirType::Dynamic)
+                        }
                         InstanceStateSource::FunctionParameter => {
                             function.params.get(
                                 function.param_meta.len() + usize::from(function.env.is_some()),

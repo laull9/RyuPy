@@ -9,6 +9,7 @@ use rustc_hash::FxHashMap;
 use ryupy_mir::{Constant as MirConstant, GlobalId, RuntimeFn};
 
 pub struct RuntimeRefs {
+    pub(crate) stock_thin: Option<crate::stock_thin::Refs>,
     pub(crate) iteration: crate::iteration_refs::IterationRefs,
     pub(crate) trace_product: Option<crate::trace_product_refs::TraceProductRefs>,
     pub(crate) deletions: Option<crate::module_deletion_refs::DeletionRefs>,

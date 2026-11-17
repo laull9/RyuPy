@@ -71,7 +71,12 @@ public static partial class PyModuleInstances
         var metadata = new PyModuleMetadata(code.Name, code.File, code.IsPackage, code);
         state.Set("__name__", code.Name); state.Set("__package__", code.Package);
         state.Set("__file__", code.File); state.Set("__doc__", PyNone.Instance);
-        state.Set("__builtins__", PyModuleBuiltins.Default);
+        // 外来 profile 在 Execute 捕获环境之前提供 canonical builtins，避免顶层与新 F 分属两份字典。
+        object builtins = PyModuleBuiltins.Default;
+        if (foreign is not null && PyProvider.Current is IPyCompiledBuiltinsProvider builtinProvider
+            && builtinProvider.TryGetCompiledBuiltins(out var supplied))
+            builtins = supplied?.ViewObject ?? throw new PyRuntimeError("compiled builtins has no dictionary identity");
+        state.Set("__builtins__", builtins);
         foreach (string name in new[] { "__spec__", "__loader__", "__cached__", "__path__" })
         {
             object? value = metadata.Initial(name);

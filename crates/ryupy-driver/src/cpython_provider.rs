@@ -92,12 +92,21 @@ pub(crate) struct Plan {
 }
 
 pub(crate) fn prepare(sess: &mut Session, opts: &crate::BuildOptions) -> Result<()> {
+    prepare_input(sess, &opts.input, &opts.search_paths)
+}
+
+/// 编译与显式候选dump共用输入冻结，不为转储创建产物目录。
+pub(crate) fn prepare_input(
+    sess: &mut Session,
+    input: &Path,
+    search_paths: &[PathBuf],
+) -> Result<()> {
     let included_modules = sess.include_modules.clone();
     let delegated_modules = sess.cpython_modules.clone();
     let dynamic_modules = sess.cpython_dynamic_modules.clone();
     let source_input = dependencies::SourceInput {
-        entry: &opts.input,
-        search_paths: &opts.search_paths,
+        entry: input,
+        search_paths,
         include_modules: &included_modules,
         delegated_modules: &delegated_modules,
         dynamic_modules: &dynamic_modules,

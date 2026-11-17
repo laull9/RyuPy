@@ -22,7 +22,9 @@ public static partial class PyModuleInstances
     public static object? CallDirectGlobals(object state, object? callable)
     {
         var context = Context(state);
-        return ReferenceEquals(callable, PyInstanceGlobals.Function)
+        return (ReferenceEquals(callable, PyInstanceGlobals.Function)
+            || PyProvider.Current is IPyCompiledBuiltinsProvider provider
+                && provider.IsCanonicalCompiledBuiltin(callable, "globals"))
             ? context.State.View
             : PyOps.CallValue(callable, [], [], []);
     }

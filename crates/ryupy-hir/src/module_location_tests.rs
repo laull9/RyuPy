@@ -10,6 +10,7 @@ fn lower(enabled: bool) -> Module {
     let (module, errors) = lower_module(
         &parsed,
         &ModuleInfo {
+            stock_thin_functions: false,
             foreign_class_construction: false,
             introspection_profile: false,
             instance_capabilities: Default::default(),

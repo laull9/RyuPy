@@ -31,6 +31,7 @@ pub(crate) fn validate(program: &crate::Program, errors: &mut Vec<String>) {
         }
         if let Some(definition) = &function.definition {
             if function.signature_global.is_none()
+                && function.module_state_source != Some(crate::InstanceStateSource::StockThinLease)
                 && !matches!(function.core, crate::FunctionCore::GenericCompanion { .. })
             {
                 errors.push(format!("函数 `{}` 的定义来源缺少共享签名", function.name));

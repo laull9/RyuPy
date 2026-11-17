@@ -46,6 +46,7 @@ pub(super) fn fixed_abi(callee: RuntimeFn) -> bool {
             | RuntimeFn::InstanceRelativeImportAttr
             | RuntimeFn::InstanceImportGuard
             | RuntimeFn::InstanceDirectGlobals
+            | RuntimeFn::StockThinLoadGlobal
             | RuntimeFn::InstanceLoadName
             | RuntimeFn::InstanceStoreName
             | RuntimeFn::InstanceDeleteName
@@ -167,6 +168,7 @@ pub(super) fn validate_call(
             RuntimeFn::ExceptionMatch => Some(&[MirType::Dynamic, MirType::Dynamic]),
             RuntimeFn::UnpackEx => Some(&[MirType::Dynamic, MirType::I64, MirType::I64]),
             RuntimeFn::FinalizeOrdinaryClass => Some(&[MirType::Dynamic]),
+            RuntimeFn::StockThinLoadGlobal => Some(&[MirType::Dynamic, MirType::Str]),
             RuntimeFn::FunctionModule => Some(&[MirType::Dynamic, MirType::Dynamic]),
             RuntimeFn::FunctionDefaultsUnobserved => Some(&[MirType::Dynamic, MirType::Dynamic]),
             RuntimeFn::ModuleExecutionSourceWithCode => Some(&[MirType::Dynamic, MirType::Dynamic]),
@@ -424,6 +426,7 @@ pub(super) fn validate_destination(
             | RuntimeFn::InstanceRelativeImport
             | RuntimeFn::InstanceRelativeImportAttr
             | RuntimeFn::InstanceDirectGlobals
+            | RuntimeFn::StockThinLoadGlobal
             | RuntimeFn::InstanceLoadName
             | RuntimeFn::LoadDeletedModuleName
             | RuntimeFn::LoadDefaultBuiltin
@@ -531,6 +534,7 @@ pub(super) fn validate_eval(func: &Function, value: &Rvalue, errors: &mut Vec<St
                     | RuntimeFn::LexicalNamespaceGet
                     | RuntimeFn::InstanceMakeClass
                     | RuntimeFn::InstanceDirectGlobals
+                    | RuntimeFn::StockThinLoadGlobal
                     | RuntimeFn::InstanceLoadName
                     | RuntimeFn::LoadDeletedModuleName
                     | RuntimeFn::LoadDefaultBuiltin

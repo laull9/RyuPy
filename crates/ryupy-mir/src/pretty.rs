@@ -249,6 +249,10 @@ fn format_rvalue(rval: &Rvalue, program: &Program) -> String {
                 .map(format_operand)
                 .unwrap_or_else(|| "unknown".to_owned())
         ),
+        Rvalue::MakeStockThinFunction {
+            func,
+            module_context,
+        } => format!("MakeStockThinFunction({func:?}; {module_context:?})"),
         Rvalue::MakeFunction {
             instance_context,
             func,

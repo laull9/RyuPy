@@ -23,6 +23,39 @@ public static class Bootstrap
         host = CPythonHost.Start(configPath, args);
         PyProvider.Install(host);
     }
+    /// <summary>仅显式编译资格调用：安装既有宿主后启用 stock 薄函数能力。</summary>
+    public static void StartStockThin(string configPath, string[] args)
+    {
+        Start(configPath, args);
+        try { Host.EnableStockThinFunctions(); }
+        catch (Exception startup)
+        {
+            try { Stop(); }
+            catch (Exception cleanup) { throw new AggregateException("stock 薄函数启动和回滚均失败", startup, cleanup); }
+            throw;
+        }
+    }
+    /// <summary>授权并执行封闭stock编译入口；finally交还入口内部临时H。</summary>
+    public static void RunStockThinMain() => Host.RunStockProgramMain();
+
+    /// <summary>一次性编译程序终态；外部owned拒绝时保留宿主供释放重试。</summary>
+    public static int FinishStockThin(int code)
+    {
+        // 启动回滚或入口前初始化失败仍走原退出合同，不能凭finish调用伪造程序权限。
+        if (host is not { HasStockProgramPermission: true } current) return Finish(code);
+        try
+        {
+            int result = current.FinishStockProgram(() => Builtins.FinishExit(code));
+            Builtins.Flush(); return result;
+        }
+        catch (Exception error)
+        { Console.Error.WriteLine("CPython关闭失败：" + error.Message); return code == 0 ? 1 : code; }
+        finally
+        {
+            if (current.IsClosed) { PyProvider.Remove(current); host = null; }
+        }
+    }
+
     /// <summary>统一退出路径；标准流/运行时退出失败也会执行解释器关闭。</summary>
     public static int Finish(int code)
     {

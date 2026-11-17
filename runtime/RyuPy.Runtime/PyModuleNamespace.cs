@@ -39,6 +39,9 @@ internal static class PyModuleNamespaceAccess
     internal static object RequireBuiltins(object? value)
     {
         if (value is PyDict or IPyModuleNamespace) return value;
+        if (value is not null && PyProvider.Current is IPyCompiledBuiltinsProvider compiled
+            && compiled.TryGetCompiledBuiltinsNamespace(value, out var canonical))
+            return canonical ?? throw new PyRuntimeError("compiled builtins has no dictionary identity");
         if (value is not null && PyProvider.Current is IPyStrictImportProvider provider
             && provider.TryGetBuiltinsNamespace(value, out var ns))
         {

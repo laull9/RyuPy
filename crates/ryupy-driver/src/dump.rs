@@ -8,7 +8,16 @@ use super::*;
 pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
     accumulator_options::validate(sess)?;
     sess.module_environment_report.clear();
-    let module = modules::load_single(sess, input)?;
+    let module = if sess.experimental_stock_thin_functions {
+        // CLI新Session只有配置路径；先按本次输入冻结provider，再核验实际图。
+        // 不能用load_single伪造“单源码”，遗漏import/include的额外业务模块。
+        cpython_provider::prepare_input(sess, input, &[])?;
+        let (mut sources, entry) = modules::load_build_graph(sess, input, &[], false)?;
+        stock_thin::validate(sess, &sources)?;
+        sources.swap_remove(entry)
+    } else {
+        modules::load_single(sess, input)?
+    };
     let mut invalid_selection = false;
     for name in &sess.instance_modules {
         if name != &module.name {
@@ -34,6 +43,7 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
     trace_product::graph(sess, module.parsed.file, 1, 0, false)?;
     let plan = module_environments::plan(sess, &module, false);
     let info = ryupy_hir::ModuleInfo {
+        stock_thin_functions: sess.experimental_stock_thin_functions,
         foreign_class_construction: sess.cpython_provider.is_some(),
         introspection_profile: crate::instance_modules::inspect_profile(sess),
         instance_globals: plan.instance_globals(),
@@ -112,6 +122,14 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
     )?;
     linked.native_modules =
         native_module_requirements::freeze_parsed(sess, [&module.parsed], false);
+    if sess.experimental_stock_thin_functions {
+        // CIL转储也展示真实候选启动，而非没有provider的不可执行入口替身。
+        linked.external_provider = sess
+            .cpython_provider_state
+            .plan
+            .as_ref()
+            .map(|_| cpython_provider::CONFIG.to_owned());
+    }
     check_linked_exports(sess, &linked, module.parsed.file)?;
     let emit_opts = ryupy_codegen_cil::EmitOptions {
         assembly_name: assembly_name(input),

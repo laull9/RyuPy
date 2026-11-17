@@ -177,6 +177,7 @@ pub(crate) fn link_with_origins(
             let new_id = fn_map[&old];
             functions[new_id].core = match func.core {
                 crate::FunctionCore::Ordinary => crate::FunctionCore::Ordinary,
+                crate::FunctionCore::StockThinStatic => crate::FunctionCore::StockThinStatic,
                 crate::FunctionCore::TypedWithGeneric { generic } => {
                     crate::FunctionCore::TypedWithGeneric {
                         generic: fn_map[&generic],

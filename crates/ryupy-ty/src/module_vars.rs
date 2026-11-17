@@ -384,6 +384,7 @@ mod tests {
         let (module, errors) = ryupy_hir::lower_module(
             &parsed,
             &ryupy_hir::ModuleInfo {
+                stock_thin_functions: false,
                 foreign_class_construction: false,
                 introspection_profile: false,
                 instance_capabilities: Default::default(),

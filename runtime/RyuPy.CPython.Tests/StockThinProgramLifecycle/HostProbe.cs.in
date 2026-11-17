@@ -1,0 +1,9 @@
+// 独立测试观察ABI；产品Host、callback、owned与native终态均使用实际程序集/正式shim。
+using System.Runtime.InteropServices;
+namespace RyuPy.CPython.Tests;
+internal static class ProgramObserver
+{
+    [DllImport("stock_program_observer")] internal static extern int program_check_missing_builtins();
+    [DllImport("stock_program_observer")] internal static extern int program_install_observer();
+    [DllImport("stock_program_observer")] internal static extern long program_lowlevel_live();
+}

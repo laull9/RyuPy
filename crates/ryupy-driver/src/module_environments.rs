@@ -58,6 +58,14 @@ pub(crate) fn plan_validated(
     index: usize,
     validated: Option<&crate::instance_modules::ValidatedAot>,
 ) -> ModuleEnvironmentPlan {
+    if session.experimental_stock_thin_functions {
+        return ModuleEnvironmentPlan {
+            capabilities: ryupy_hir::stock_entry_capabilities(),
+            execution: ModuleExecutionKind::InstanceGlobals,
+            automatic: false,
+            reason: "experimental-stock-thin-functions".into(),
+        };
+    }
     if !session.fixed_binding_build
         && source.kind == SourceKind::Entry
         && session.cpython_provider_state.plan.is_some()

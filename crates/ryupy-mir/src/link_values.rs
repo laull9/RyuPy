@@ -157,6 +157,13 @@ pub(super) fn remap_rvalue(
                 .map(|op| remap_operand(op, global_map))
                 .collect(),
         },
+        Rvalue::MakeStockThinFunction {
+            func,
+            module_context,
+        } => Rvalue::MakeStockThinFunction {
+            func: fn_map[func],
+            module_context: remap_operand(module_context, global_map),
+        },
         Rvalue::MakeFunction {
             instance_context,
             func,

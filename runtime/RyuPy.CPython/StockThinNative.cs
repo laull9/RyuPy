@@ -21,5 +21,11 @@ internal static unsafe partial class Native
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern void rp_thin_abort(nint function);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int rp_thin_program_check();
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int rp_thin_program_prepare();
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void rp_reference_stats(out long post);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int rp_thin_clear();
 }

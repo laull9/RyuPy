@@ -53,6 +53,7 @@ impl ManifestContext {
                 "experimental_foreach_accumulator": session.experimental_foreach_accumulator,
                 "experimental_records_increment": session.experimental_records_increment,
                 "experimental_leaf_inline": session.experimental_leaf_inline,
+                "experimental_stock_thin_functions": session.experimental_stock_thin_functions,
                 "diagnostic_scalar_slp": session.diagnostic_scalar_slp,
                 "experimental_packed_slp": session.experimental_packed_slp,
                 "instance_modules": session.instance_modules,

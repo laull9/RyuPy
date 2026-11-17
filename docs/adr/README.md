@@ -133,3 +133,5 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 - [0226：显式 stock 普通函数的 core/handle 接线合同](0226-stock-thin-function-product-contract.md)（A closure＋直接 GC owner 两版 Host JIT/AOT 已验；编译资格、搬迁与性能继续推进）
 
 - [0227：stock 薄函数 closure/GC owner 与有限元数据合同](0227-stock-thin-function-metadata-probe.md)（淘汰 raw witness/B 常量环；普通复活与 clear 期原生边界分列）
+
+- [0229：真实薄函数编译的中性冷 ABI](0229-stock-thin-compiler-cold-abi.md)（冷接口两版 Host JIT/AOT 已验；Rust 接线与正常程序结束实施中）

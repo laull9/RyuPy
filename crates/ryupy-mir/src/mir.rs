@@ -209,6 +209,8 @@ pub struct Function {
 pub enum FunctionCore {
     #[default]
     Ordinary,
+    /// 显式候选静态薄体；真实Python形参后只接受object lease。
+    StockThinStatic,
     /// 原typed核心保持ABI，冷缺省入口使用指定的通用体。
     TypedWithGeneric { generic: FnId },
     /// 只拥有通用参数/CFG和实际owner，不分配第二份Python元数据。
@@ -501,6 +503,11 @@ pub enum Rvalue {
     ///
     /// 嵌套函数 / lambda 都由它创建：每次执行 def / lambda 表达式都会产生新的
     /// 函数对象，默认值也重新求值（与 CPython 一致）。
+    /// 显式候选静态体与本次模块Context；冷工厂只保留State.View。
+    MakeStockThinFunction {
+        func: FnId,
+        module_context: Operand,
+    },
     MakeFunction {
         /// 已在真实定义位置捕获的环境；旧函数为None。
         instance_context: Option<Operand>,

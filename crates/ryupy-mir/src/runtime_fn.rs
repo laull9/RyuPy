@@ -356,6 +356,8 @@ pub enum RuntimeFn {
     BuiltinFunction,
     /// `PyOps.FunctionModule(object, object)`：定义点写入已冻结的真实模块成员。
     FunctionModule,
+    /// PyStockThinFunctions.LoadGlobal(object lease, string name)。
+    StockThinLoadGlobal,
     /// 实际canonical函数的受信Python语义kind冷登记；只有显式inspect profile发射。
     FunctionIntrospectionKind,
     /// 读取真实函数实例的Defaults；只在成功的静态def发布处更新直调默认值槽。

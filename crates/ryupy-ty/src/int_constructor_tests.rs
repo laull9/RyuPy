@@ -11,6 +11,7 @@ fn int_constructor_shapes_do_not_discard_arguments_or_demote_numeric_fast_path()
     let (hir, diagnostics) = ryupy_hir::lower_module(
         &parsed,
         &ryupy_hir::ModuleInfo {
+            stock_thin_functions: false,
             foreign_class_construction: false,
             introspection_profile: false,
             instance_capabilities: Default::default(),
