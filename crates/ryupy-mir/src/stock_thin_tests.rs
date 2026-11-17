@@ -80,6 +80,81 @@ fn stock_thin_real_body_uses_lease_for_every_global_name() {
         );
     }
 }
+
+#[test]
+fn stock_thin_local_identity_bodies_use_static_cfg_and_neutral_values() {
+    for source in [
+        include_str!("../../../tests/cases/stock_thin_compiler/local_identity.py"),
+        include_str!("../../../tests/cases/stock_thin_compiler/local_unbound.py"),
+        include_str!("../../../tests/cases/stock_thin_compiler/identity_order.py"),
+    ] {
+        let (program, _) = compile(source);
+        validate::validate(&program).unwrap();
+        for (id, function) in program
+            .functions
+            .iter()
+            .filter(|(id, _)| *id != program.entry)
+        {
+            assert_ne!(id, program.entry);
+            assert_eq!(function.core, FunctionCore::StockThinStatic);
+            assert!(function.env.is_none() && function.body.regions.is_empty());
+        }
+    }
+    let (program, _) = compile(
+        "shadow = None\ndef f(x):\n    result = shadow\n    shadow = x\n    return result\n",
+    );
+    let (_, function) = program
+        .functions
+        .iter()
+        .find(|(_, f)| f.name == "f")
+        .unwrap();
+    let calls: Vec<_> = function
+        .body
+        .blocks
+        .iter()
+        .flat_map(|(_, b)| &b.stmts)
+        .filter_map(|s| match s {
+            Statement::Assign {
+                value: Rvalue::Call { callee, .. },
+                ..
+            } => Some(*callee),
+            _ => None,
+        })
+        .collect();
+    assert!(calls.contains(&Callee::Runtime(RuntimeFn::LoadChecked)));
+    assert!(!calls.contains(&Callee::Runtime(RuntimeFn::StockThinLoadGlobal)));
+
+    let (program, _) = compile("def f(x):\n    return left is right\n");
+    let (_, function) = program
+        .functions
+        .iter()
+        .find(|(_, f)| f.name == "f")
+        .unwrap();
+    let loads: Vec<_> = function
+        .body
+        .blocks
+        .iter()
+        .flat_map(|(_, b)| &b.stmts)
+        .filter_map(|s| match s {
+            Statement::Assign {
+                value:
+                    Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::StockThinLoadGlobal),
+                        args,
+                    },
+                ..
+            } => Some(args[1].clone()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        loads,
+        vec![
+            Operand::Const(Constant::Str("left".into())),
+            Operand::Const(Constant::Str("right".into()))
+        ]
+    );
+}
 #[test]
 fn stock_thin_rejects_each_shape_before_lowering() {
     let fixture = include_str!("../../../tests/cases/stock_thin_compiler/reject_shapes.py");
@@ -98,6 +173,15 @@ fn stock_thin_rejects_each_shape_before_lowering() {
             "def f[T](x):\n    return x\n",
             "if True:\n    def f(x):\n        return x\n",
             "f = lambda x: x\n",
+            "def f(x):\n    if x:\n        return x\n",
+            "def f(x):\n    if x is None:\n        return x\n    else:\n        return x + 1\n",
+            "def f(x):\n    alias = x()\n    return alias\n",
+            "def f(x):\n    return x if x is None else __debug__\n",
+            "def f(x):\n    if x is None:\n        return x\n    elif __debug__ is x:\n        return x\n",
+            "def f(x):\n    return x is None is x\n",
+            "def f(x):\n    x.attr = x\n    return x\n",
+            "def f(x):\n    global value\n    value = x\n    return value\n",
+            "def f(x):\n    return x\n    while x is None:\n        pass\n",
         ]
         .map(str::to_string),
     );

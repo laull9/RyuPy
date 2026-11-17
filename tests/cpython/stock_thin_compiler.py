@@ -19,7 +19,11 @@ from support import ROOT, audit_native_paths, environment, inspect_host_report, 
 from onefile_support import audit_onefile_output
 
 
-CASES = ('identity', 'global_rebinding', 'builtin_and_function', 'shutdown')
+CASES = ('identity', 'global_rebinding', 'builtin_and_function', 'shutdown',
+         'local_identity', 'local_unbound', 'identity_order')
+# 手写输入中的调用（包括抛错路径）和顶层定义数，防止只验输出漏掉静态core调度。
+EXPECTED_THIN = {'shutdown': (1, 1), 'local_identity': (9, 4),
+                 'local_unbound': (3, 2), 'identity_order': (8, 3)}
 
 
 class Recorder:
@@ -124,8 +128,10 @@ def validate_case(args, log, version, mode, case, workspace):
             raise RuntimeError(f'正常结束未归零: {key}={thin[key]}')
     if thin['native_calls'] <= 0 or thin['destroyed'] <= 0:
         raise RuntimeError('没有真实静态 core 调用或 owner 析构证据')
-    if case == 'shutdown' and thin['native_calls'] != 1:
-        raise RuntimeError('shutdown 输入只有 atexit 调用业务函数，真实调用计数必须为 1')
+    if case in EXPECTED_THIN:
+        expected_calls, expected_destroyed = EXPECTED_THIN[case]
+        if (thin['native_calls'], thin['destroyed']) != (expected_calls, expected_destroyed):
+            raise RuntimeError(f'{case} 静态core调用或owner析构次数与手写输入不同')
     print(f'PASS {version} {mode} {case}', flush=True)
 
 

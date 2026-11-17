@@ -22,6 +22,9 @@ fn stock_thin_graph_freezes_candidate_and_keeps_namespace() {
         include_str!("../../../tests/cases/stock_thin_compiler/global_rebinding.py"),
         include_str!("../../../tests/cases/stock_thin_compiler/builtin_and_function.py"),
         include_str!("../../../tests/cases/stock_thin_compiler/shutdown.py"),
+        include_str!("../../../tests/cases/stock_thin_compiler/local_identity.py"),
+        include_str!("../../../tests/cases/stock_thin_compiler/local_unbound.py"),
+        include_str!("../../../tests/cases/stock_thin_compiler/identity_order.py"),
     ] {
         std::fs::write(root.join("entry.py"), source).unwrap();
         let mut session = session(&root);
@@ -103,6 +106,9 @@ fn stock_thin_pinned_two_version_oracle() {
         "global_rebinding.py",
         "builtin_and_function.py",
         "shutdown.py",
+        "local_identity.py",
+        "local_unbound.py",
+        "identity_order.py",
     ];
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/cases/stock_thin_compiler");
     let mut observations = vec![];

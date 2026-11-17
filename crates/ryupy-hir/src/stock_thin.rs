@@ -3,6 +3,9 @@ use ryupy_base::{Diagnostic, Ranged, Span};
 use ryupy_syntax::ast::visitor::{Visitor, walk_expr, walk_stmt};
 use ryupy_syntax::{ParsedModule, ast};
 
+#[path = "stock_thin_body.rs"]
+mod body;
+
 pub(crate) fn validate(parsed: &ParsedModule) -> Vec<Diagnostic> {
     let mut scan = Scan {
         parsed,
@@ -37,7 +40,7 @@ impl Scan<'_> {
         self.diagnostics.push(
             Diagnostic::error(
                 Span::new(self.parsed.file, range),
-                "薄函数候选只支持顶层同步def f(x)，无装饰器、注解、默认值，体为单条return名称",
+                "薄函数候选只支持顶层同步def f(x)，无装饰器、注解、默认值",
             )
             .with_code("E0100"),
         );
@@ -46,19 +49,6 @@ impl Scan<'_> {
 impl<'a> Visitor<'a> for Scan<'_> {
     fn visit_stmt(&mut self, stmt: &'a ast::Stmt) {
         if let ast::Stmt::FunctionDef(f) = stmt {
-            // __debug__ 是按编译选项冻结的语言常量，不能作为可遮蔽global进入lease。
-            if matches!(f.body.as_slice(), [ast::Stmt::Return(ret)]
-                if matches!(ret.value.as_deref(), Some(ast::Expr::Name(name)) if name.id.as_str() == "__debug__"))
-            {
-                self.diagnostics.push(
-                    Diagnostic::error(
-                        Span::new(self.parsed.file, stmt.range()),
-                        "薄函数候选暂不支持语言常量 `__debug__`，不能降为动态全局读取",
-                    )
-                    .with_code("E0100"),
-                );
-                return;
-            }
             let p = &f.parameters;
             let valid = self.top
                 && !f.is_async
@@ -73,12 +63,12 @@ impl<'a> Visitor<'a> for Scan<'_> {
                 // 冷ABI的Python胶水冻结为x；参数改名需单独扩展ABI合同。
                 && p.args[0].parameter.name.as_str() == "x"
                 && p.args[0].default.is_none()
-                && p.args[0].parameter.annotation.is_none()
-                && matches!(f.body.as_slice(), [ast::Stmt::Return(ret)]
-                    if matches!(ret.value.as_deref(), Some(ast::Expr::Name(_))));
+                && p.args[0].parameter.annotation.is_none();
             if !valid {
                 self.reject(stmt.range());
             }
+            self.diagnostics
+                .extend(body::validate(&f.body, self.parsed.file));
             return;
         }
         if matches!(stmt, ast::Stmt::ClassDef(_)) {

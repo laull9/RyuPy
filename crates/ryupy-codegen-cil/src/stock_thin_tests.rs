@@ -29,6 +29,36 @@ fn stock_thin_pe_has_static_typed_adapter_and_cold_factory() {
         vec![x, lease],
         MirType::Dynamic,
     );
+    // 扩围后的局部别名和身份分支直接落到同一静态body的CFG，adapter不增加业务胶水。
+    let alias = local(&mut core.body.locals, MirType::Dynamic);
+    let same = local(&mut core.body.locals, MirType::Bool);
+    let entry = core.body.entry;
+    core.body.blocks[entry].stmts.extend([
+        Statement::Assign {
+            dest: alias,
+            value: Rvalue::Use(Operand::Local(x)),
+        },
+        Statement::Assign {
+            dest: same,
+            value: Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::IsSame),
+                args: vec![Operand::Local(alias), Operand::Local(loaded)],
+            },
+        },
+    ]);
+    let then_ = core.body.blocks.alloc(BasicBlock {
+        stmts: vec![],
+        terminator: Terminator::Return(Some(Operand::Local(alias))),
+    });
+    let else_ = core.body.blocks.alloc(BasicBlock {
+        stmts: vec![],
+        terminator: Terminator::Return(Some(Operand::Local(loaded))),
+    });
+    core.body.blocks[entry].terminator = Terminator::Branch {
+        cond: Operand::Local(same),
+        then_,
+        else_,
+    };
     core.core = FunctionCore::StockThinStatic;
     core.module_state = Some(lease);
     core.module_state_source = Some(InstanceStateSource::StockThinLease);
@@ -102,6 +132,37 @@ fn stock_thin_pe_has_static_typed_adapter_and_cold_factory() {
         let text = i.show(&res);
         text.contains("PyStockThinFunctions") && text.contains("LoadGlobal")
     }));
+    let core_text = core
+        .body
+        .as_ref()
+        .unwrap()
+        .instructions
+        .iter()
+        .map(|i| i.show(&res))
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        core_text.contains("PyOps::Is") || core_text.contains("PyOps.Is"),
+        "{core_text}"
+    );
+    assert_eq!(
+        core.body
+            .as_ref()
+            .unwrap()
+            .instructions
+            .iter()
+            .filter(|i| matches!(i, Instruction::Return))
+            .count(),
+        2
+    );
+    assert!(
+        core.body
+            .as_ref()
+            .unwrap()
+            .instructions
+            .iter()
+            .any(|i| matches!(i, Instruction::BranchTruthy(_)))
+    );
     let main = methods.iter().find(|m| m.name == "__main__").unwrap();
     let ins = &main.body.as_ref().unwrap().instructions;
     assert!(ins.windows(3).any(|w| matches!(

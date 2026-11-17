@@ -1,4 +1,4 @@
-//! 薄体lease的封闭使用合同：仅LoadGlobal可借用，不准传入旧Context helper或逃逸。
+//! 薄体lease的封闭使用合同：仅LoadGlobal借用；局部绑定/身份选择只用中性值操作。
 use crate::*;
 pub(crate) fn validate(program: &Program, errors: &mut Vec<String>) {
     for (_, function) in program.functions.iter() {
@@ -24,32 +24,73 @@ pub(crate) fn validate(program: &Program, errors: &mut Vec<String>) {
             for stmt in &block.stmts {
                 match stmt {
                     Statement::Assign { value, .. } | Statement::Eval(value) => {
-                        if let Rvalue::Call { callee, args } = value {
-                            if *callee != Callee::Runtime(RuntimeFn::StockThinLoadGlobal)
-                                || !matches!(args.as_slice(), [Operand::Local(state), Operand::Const(Constant::Str(_))] if *state == lease)
+                        if matches!(stmt, Statement::Assign { dest, .. } if *dest == lease) {
+                            errors.push("薄函数lease禁止覆盖".into());
+                        }
+                        if let Rvalue::Call {
+                            callee: Callee::Runtime(RuntimeFn::StockThinLoadGlobal),
+                            args,
+                        } = value
+                        {
+                            if !matches!(args.as_slice(), [Operand::Local(state), Operand::Const(Constant::Str(_))] if *state == lease)
                             {
-                                errors.push(
-                                    "薄函数体只能以真实lease读取冻结名称，禁止旧Context/helper"
-                                        .into(),
-                                );
+                                errors.push("薄函数全局读取必须借用原lease和冻结名称".into());
                             }
-                        } else {
-                            let mut reads = rustc_hash::FxHashSet::default();
-                            crate::passes::dead_values::read_value(value, &mut reads);
-                            if reads.contains(&lease) {
-                                errors.push("薄函数lease禁止别名或逃逸".into());
-                            }
+                            continue;
+                        }
+                        if !neutral_value(value) {
+                            errors.push(format!(
+                                "薄函数体禁止旧Context/helper及未准入值操作：{value:?}"
+                            ));
+                        }
+                        let mut reads = rustc_hash::FxHashSet::default();
+                        crate::passes::dead_values::read_value(value, &mut reads);
+                        if reads.contains(&lease) {
+                            errors.push("薄函数lease禁止别名或逃逸".into());
                         }
                     }
                     Statement::Line(_) => {}
                     _ => errors.push("薄函数体禁止全局或字段写入".into()),
                 }
             }
-            if matches!(&block.terminator, Terminator::Return(Some(Operand::Local(local))) if *local == lease)
-            {
-                errors.push("薄函数禁止返回lease".into());
+            let operand = match &block.terminator {
+                Terminator::Return(value) => value.as_ref(),
+                Terminator::Branch { cond, .. } => Some(cond),
+                Terminator::Goto(_) | Terminator::Unreachable => None,
+                _ => {
+                    errors.push("薄函数体禁止未准入控制转移".into());
+                    None
+                }
+            };
+            let mut reads = rustc_hash::FxHashSet::default();
+            if let Some(operand) = operand {
+                crate::passes::dead_values::read_operand(operand, &mut reads);
+            }
+            if reads.contains(&lease) {
+                errors.push("薄函数lease禁止进入控制条件或返回值".into());
             }
         }
+    }
+}
+
+/// 这些既有操作只处理业务值，不能取得Context或活动lease的所有权。
+fn neutral_value(value: &Rvalue) -> bool {
+    match value {
+        Rvalue::Use(_) | Rvalue::Box { .. } | Rvalue::DynTruthy { .. } => true,
+        Rvalue::Unary {
+            op: UnaryOp::Not, ..
+        } => true,
+        Rvalue::Call { callee, args } => match callee {
+            Callee::Runtime(RuntimeFn::DynNone | RuntimeFn::MakeUnbound) => args.is_empty(),
+            Callee::Runtime(RuntimeFn::IsSame) => args.len() == 2,
+            // 动态函数中的身份比较结果先装箱，控制流复用既有bool真值入口。
+            Callee::Runtime(RuntimeFn::DynTruthy) => args.len() == 1,
+            Callee::Runtime(RuntimeFn::LoadChecked) => {
+                matches!(args.as_slice(), [_, Operand::Const(Constant::Str(_))])
+            }
+            _ => false,
+        },
+        _ => false,
     }
 }
 
