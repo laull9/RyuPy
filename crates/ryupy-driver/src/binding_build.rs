@@ -126,6 +126,7 @@ fn build_prepared(
             });
         }
         let frozen = plan.stage_shared(&bundle)?;
+        plan.write_interfaces(&bundle)?;
         let mut inputs = crate::manifest::input_digests(&dll, &runtime)?;
         inputs.push(plan.input.digest.clone());
         inputs.extend(
@@ -143,6 +144,8 @@ fn build_prepared(
                 "runtimeconfig"
             } else if a.relative_path == plan.platform.relative_file() {
                 "native_shared"
+            } else if let Some(role) = plan.interface_artifact_role(&a.relative_path) {
+                role
             } else if plan
                 .dependencies
                 .iter()

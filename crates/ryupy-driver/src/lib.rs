@@ -60,6 +60,7 @@ use ryupy_base::FileId;
 
 mod optional_sources;
 pub use optional_sources::DefaultSourceState;
+mod interface_catalog;
 mod session;
 mod source_catalog;
 mod source_probe;

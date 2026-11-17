@@ -4,7 +4,7 @@ import csv
 import io
 import importlib.metadata as metadata
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import sys
 import tokenize
@@ -14,17 +14,72 @@ def fail(message):
     raise ValueError(message)
 
 
-def record_files(dist):
+def record_files(dist, *, strict=True):
     # importlib.metadata.files会静默过滤缺失文件；直接读RECORD才能在构建时发现破损安装。
     text = dist.read_text('RECORD') or ''
     files = []
+    seen = set()
     for row in csv.reader(io.StringIO(text)):
         if not row:
             continue
         if len(row) != 3:
             fail(f'{dist.metadata["Name"]} 的RECORD格式错误')
-        files.append(row[0].replace("\\", "/"))
+        # 保留既有Windows RECORD斜杠兼容；点分量/重复斜杠归一后仍禁止单发行内部重复。
+        logical = str(PurePosixPath(row[0].replace("\\", "/")))
+        if logical in seen:
+            if strict:
+                fail(f'{dist.metadata["Name"]} 的RECORD包含重复安装目标：{logical}')
+            continue
+        seen.add(logical)
+        files.append(logical)
     return files
+
+
+def canonical_target(logical):
+    """沿既有分发规则规范相对目标；不按包名、扩展名或文件内容分类。"""
+    path = PurePosixPath(logical)
+    if (not logical or '\\' in logical or path.is_absolute() or not path.parts
+            or '..' in path.parts or any(ord(char) < 32 or ord(char) == 127 for char in logical)):
+        fail(f'RECORD路径越界或不是规范相对目标：{logical!r}')
+    return str(path)
+
+
+def validated_source(site, logical, owner):
+    """保留site内安全链接的物化语义；缺失、链接环、外逃及非普通文件明确拒绝。"""
+    logical = canonical_target(logical)
+    try:
+        boundary = site.resolve(strict=True)
+        source = (site / logical).resolve(strict=True)
+    except (OSError, RuntimeError) as error:
+        fail(f'{owner} 的RECORD文件缺失或符号链接循环：{logical}；{error}')
+    if not source.is_relative_to(boundary) or not source.is_file():
+        fail(f'{owner} 的RECORD缺少普通文件或符号链接越界：{logical}')
+    return source
+
+
+class SharedFiles:
+    """以规范目标与真实源身份合并跨发行载荷，逐owner保留审计，禁止同owner重复。"""
+    def __init__(self):
+        self.payloads = {}
+        self.owners = {}
+
+    def add(self, logical, source, owner):
+        logical = canonical_target(logical)
+        source = str(source.resolve(strict=True))
+        previous = self.payloads.get(logical)
+        if previous is not None:
+            if owner in self.owners[logical]:
+                fail(f'{owner} 重复登记同一安装目标：{logical}')
+            if previous != source:
+                fail(f'不同源文件争用同一安装目标：{logical}；{previous}；{source}')
+        else:
+            self.payloads[logical] = source
+            self.owners[logical] = set()
+        self.owners[logical].add(owner)
+
+    def shared_files(self):
+        return [{'destination': logical, 'source': self.payloads[logical], 'owners': sorted(owners)}
+                for logical, owners in sorted(self.owners.items()) if len(owners) > 1]
 
 
 def source_imports(tree):
@@ -121,7 +176,8 @@ def main(request):
             fail(f'构建环境含重复发行：{name}')
         distributions[name] = dist
         # 从RECORD识别导入族，覆盖无top_level.txt的wheel和PEP420命名空间。
-        for file in record_files(dist):
+        # 未选中的发行只提供名称归属线索；新文件验证必须限于本次冻结闭包。
+        for file in record_files(dist, strict=False):
             top = str(file).split('/')[0]
             module = top[:-3] if top.endswith('.py') else top.split('.')[0]
             if ((len(Path(str(file)).parts) > 1 and '.' not in top)
@@ -277,7 +333,7 @@ def main(request):
             parsed.marker = None
             queue.append((str(parsed), f'{name}=={dist.version}'))
     supported_tags = set(sys_tags())
-    payloads = {}
+    shared = SharedFiles()
     reports = []
     selected_modules = set()
     for name in sorted(selected):
@@ -335,12 +391,8 @@ def main(request):
                 continue
             if logical.endswith(('.pth', '.egg-link')):
                 fail(f'{name} 依赖site启动钩子 {logical}，请改用普通wheel和显式模块')
-            source = (site / logical).resolve()
-            if not source.is_relative_to(site.resolve()) or not source.is_file():
-                fail(f'{name} 缺少文件或符号链接越界：{logical}')
-            if logical in payloads:
-                fail(f'多个发行拥有同一文件：{logical}')
-            payloads[logical] = str(source)
+            source = validated_source(site, logical, name)
+            shared.add(logical, source, name)
             collected.append(logical)
         licenses = [file for file in collected
                     if re.search(r'(^|/)(licenses?|copying|notice)([./_-]|$)', file, re.I)]
@@ -360,13 +412,14 @@ def main(request):
                         'files': collected, 'build_headers': build_headers})
     return {'modules': sorted(selected_modules),
             'payloads': [{'source': source, 'destination': destination}
-                         for destination, source in sorted(payloads.items())],
+                         for destination, source in sorted(shared.payloads.items())],
             'report': {'collector': 'static_metadata_record', 'packaging_version': packaging.__version__,
                        'environment': str(environment), 'entry': str(entry),
                        'search_paths': list(map(str, roots)),
                        'source_includes': request.get('include_modules', []),
                        'dynamic_modules': request['dynamic_modules'],
                        'optional_imports': optional_imports,
+                       'shared_files': shared.shared_files(),
                        'requirements': request['requirements'], 'distributions': reports,
                        'marker_environment': marker_environment}}
 

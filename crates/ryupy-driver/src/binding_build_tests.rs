@@ -277,7 +277,9 @@ fn resources_keep_real_source_locations_and_binding_origins_for_both_versions() 
             let native = publish.join("app");
             std::fs::write(&native, b"native placeholder").unwrap();
             staged.publish(&publish).unwrap();
+            plan.write_interfaces(&publish).unwrap();
             let mut artifacts = crate::manifest_files::collect(&publish, &native).unwrap();
+            plan.mark_interfaces(&mut artifacts);
             staged.mark_artifacts(&mut artifacts).unwrap();
             let base = context
                 .render(&plan, Some("10.0.403"), &artifacts, &inputs)
@@ -319,7 +321,7 @@ fn resources_keep_real_source_locations_and_binding_origins_for_both_versions() 
         }
     }
 }
-/// 核心四项与固定 runtime 依赖分开核对；旧测试环境没有版本合同则仍只有核心四项。
+/// 核心四项、两项绑定接口与固定runtime依赖分别核对。
 fn assert_runtime_bundle(value: &serde_json::Value) {
     let artifacts = value["artifacts"].as_array().unwrap();
     let dependencies: Vec<_> = artifacts
@@ -329,7 +331,18 @@ fn assert_runtime_bundle(value: &serde_json::Value) {
                 && item["role"] != "runtime_managed"
         })
         .collect();
-    assert_eq!(artifacts.len() - dependencies.len(), 4);
+    assert_eq!(artifacts.len() - dependencies.len(), 6);
+    for (key, role) in [
+        ("python_stub", "native_binding_python_stub"),
+        ("machine_contract", "native_binding_machine_contract"),
+    ] {
+        let path = &value["binding_interfaces"][key];
+        assert!(
+            artifacts
+                .iter()
+                .any(|item| &item["relative_path"] == path && item["role"] == role)
+        );
+    }
     if crate::runtime::runtime_dir()
         .unwrap()
         .join(crate::runtime::DEPENDENCIES)

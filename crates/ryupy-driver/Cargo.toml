@@ -21,6 +21,8 @@ ordinary-dynamic-module-pilot = []
 [dependencies]
 # 仅构建期文件身份；Windows 同目标仍只放行同一已验证 lexical 记录。
 same-file = "1.0.6"
+# 静态读取实际原生导出；不加载库或依赖宿主nm，复用锁内版本。
+object = { version = "0.38.1", default-features = false, features = ["read_core", "std", "elf", "macho", "pe", "unaligned"] }
 # 标准File锁要求更高MSRV；仅用于内嵌运行时的短暂原子缓存提交。
 fs2 = "0.4.3"
 ryupy-base.workspace = true

@@ -8,6 +8,8 @@ pub(crate) mod files;
 mod images;
 #[path = "native_binding_signature.rs"]
 mod signature;
+#[path = "native_binding_stub.rs"]
+mod stub;
 pub(crate) const INPUT_LIMIT: u64 = 64 * 1024 * 1024;
 const DECLARATION_LIMIT: u64 = 64 * 1024;
 pub(crate) const SIGNATURE: &str = "cdecl_i32_i32_i64";

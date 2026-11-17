@@ -8,6 +8,7 @@ use anyhow::{Result, ensure};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+pub(crate) use platform_relocate::macho_identity;
 #[path = "cpython_platform.rs"]
 mod platform;
 #[path = "cpython_platform_abi.rs"]
@@ -193,13 +194,24 @@ pub(super) fn preflight(root: &Path) -> Result<()> {
 /// 在 Linux 上校验 ELF DT_NEEDED 闭包并配置 rpath；
 /// 在 Windows 上校验 PE 导入表，拒绝任何未经授权的外部依赖。
 pub(super) fn relocate(output: &Path) -> Result<()> {
+    relocate_with_components(output, &[])
+}
+
+pub(super) fn check_architecture(path: &Path, rid: &str) -> Result<()> {
+    platform_abi::check_architecture(path, rid)
+}
+
+pub(super) fn relocate_with_components(
+    output: &Path,
+    aliases: &[super::components::Alias],
+) -> Result<()> {
     let platform = PlatformKind::current()?;
     let shim = platform.shim_name();
     let sys_deps = platform.system_dependencies();
 
     match platform {
         PlatformKind::MacOSArm64 => {
-            platform_relocate::relocate_macos(output, shim, sys_deps)?;
+            platform_relocate::relocate_macos_with_components(output, shim, sys_deps, aliases)?;
         }
         PlatformKind::LinuxX64 => {
             platform_relocate::relocate_linux(output, shim, sys_deps)?;

@@ -23,6 +23,7 @@ def main():
     parser.add_argument('--ryupy', type=Path, required=True)
     parser.add_argument('--cache', type=Path, default=CACHE)
     parser.add_argument('--mode', choices=['jit', 'standalone', 'onefile'], action='append')
+    parser.add_argument('--native-components', type=Path, help='显式原生组件来源/许可/ABI声明')
     parser.add_argument('--evidence', type=Path, default=Path.home() / '.cache/ryupy/validation/github-large-build')
     args = parser.parse_args()
     cache, cli = args.cache.expanduser().resolve(), args.ryupy.resolve(strict=True)
@@ -55,6 +56,8 @@ def main():
         shutil.copytree(source, tree, ignore=shutil.ignore_patterns('.git', '.venv', '__pycache__'))
         for mode in args.mode or ['jit']:
             command = [str(cli), str(tree / project['entry']), '--mode', mode, '-o', str(work / mode)]
+            if args.native_components:
+                command.extend(['--cpython-native-components', str(args.native_components.expanduser().resolve())])
             for root in project['import_roots']:
                 command.extend(['-I', str(tree / root)])
             (evidence / (mode + '-command.json')).write_text(json.dumps(command, ensure_ascii=False) + '\n')

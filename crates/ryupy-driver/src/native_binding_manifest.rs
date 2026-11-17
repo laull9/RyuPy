@@ -5,7 +5,7 @@ use crate::{
     manifest_files::{self, FileDigest},
     native_binding::BindingPlan,
 };
-use anyhow::{Result, ensure};
+use anyhow::{Context, Result, ensure};
 use ryupy_codegen_cil::{EmissionReport, MethodDescriptor, fixed_bindings::BindingEmission};
 use serde_json::{Value, json};
 pub(crate) struct BindingManifest {
@@ -153,6 +153,20 @@ impl BindingManifest {
             "绑定部署入口数量不符"
         );
         ensure!(plan.aot == sdk.is_some(), "SDK记录与模式不一致");
+        let interfaces = plan.interface_metadata();
+        for (key, role) in [
+            ("python_stub", "native_binding_python_stub"),
+            ("machine_contract", "native_binding_machine_contract"),
+        ] {
+            let path = interfaces[key].as_str().context("接口记录缺生成路径")?;
+            ensure!(
+                artifacts.iter().filter(|a| a.role == role).count() == 1
+                    && artifacts
+                        .iter()
+                        .any(|a| a.relative_path == path && a.role == role && a.size > 0),
+                "绑定发布缺少本次生成的{role}"
+            );
+        }
         if !plan.dynamic {
             ensure!(
                 !artifacts.iter().any(|a| a.role == "native_shared"),
@@ -174,7 +188,7 @@ impl BindingManifest {
         let value = json!({"schema_version":match plan.declaration_version { 1 => 3, 2 => 4, _ => 7 },"kind":if plan.aot{"ryupy-native-aot-artifact"}else{"ryupy-managed-binding-artifact"},
  "compiler":{"package_version":env!("CARGO_PKG_VERSION"),"build_revision":Value::Null,"codegen_report_version":self.report.schema_version,"options":self.options},"target":{"rid":plan.platform.rid(),"native_format":plan.platform.native_format(),"architecture":plan.platform.architecture()},"toolchain":{"sdk_version":sdk,"target_framework_major":ryupy_codegen_cil::runtimeconfig::TARGET_FRAMEWORK_MAJOR},
  "entry":{"module_id":self.entry,"managed_entry":method(&self.report.entry)},"sources":self.sources,"modules":modules,"emitted_delegate_references":refs,
- "native_bindings":native_bindings,
+ "native_bindings":native_bindings,"binding_interfaces":interfaces,
  "native_dependencies":plan.dependencies.iter().map(|(name, _)| name).collect::<Vec<_>>(),
  "build_inputs":inputs,"artifacts":artifacts,"scope":{"dynamic_dependency_closure_complete":false,"resources_included":false,"native_retention_proven":false,"manifest_self_hash_included":false}});
         let mut bytes = serde_json::to_vec_pretty(&value)?;

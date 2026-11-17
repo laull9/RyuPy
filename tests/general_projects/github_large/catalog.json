@@ -43,7 +43,7 @@
         "删除私有输入后搬迁"
       ],
       "status": "CPython 3.12.13 原 app startup/OpenAPI/ORM提交回滚/退出清理已通过且重复通过；完整业务矩阵和 RyuPy 产品待验",
-      "frontend_blocker": "build_project.py 完整原入口构建已复现 E0002：response_schema.py/type parameters、lifespan.py/type alias、queue.py/type parameters；没有业务委派；运行和搬迁未启动",
+      "frontend_blocker": "provider精确Python3.12版本已联动语法目标，原PEP695语法通过；完整原入口现拒绝backend/__init__.py:10/11的globals builtin。后续CIL/运行门待该通用能力。",
       "cpython_baseline": {
         "driver": "baseline.py --project fba",
         "evidence": "~/.cache/ryupy/validation/adr0208-20261117/github-large/fba-20261117T065728.962181Z",
@@ -99,8 +99,8 @@
         "onefile",
         "删除私有输入后搬迁"
       ],
-      "status": "CPython 3.12.13 真实 Cocoa 原窗口/Unicode导航预览/SQLite索引搜索/关闭无业务线程已通过且重复通过；完整业务矩阵与 RyuPy 产品待验",
-      "frontend_blocker": "build_project.py 已真实构建完整原入口；provider 收集阶段拒绝 PySide6 共同 RECORD 文件，尚未进入本轮完整 CIL 编译；历史单文件 HIR 压力点保留参考",
+      "status": "CPython 3.12.13真实Cocoa原业务基线重复通过；RyuPy完整入口JIT构建通过（显式Cocoa/SQLite发布能力）；真实CIL搬迁运行已进入并暴露C API调用现场首阻塞，AOT/OneFile原业务运行待该修复。",
+      "frontend_blocker": "完整原入口JIT已通过，保固定源码及零本地业务委派；默认全量原生闭包精确缺Mimer客户端。显式Cocoa/SQLite选择后，隔离probe实际搬迁运行在QApplication([])因PyEval_GetGlobals无frame导致SIGSEGV，通用C API现场修复开发中。",
       "cpython_baseline": {
         "driver": "baseline.py --project explorerpro",
         "evidence": "~/.cache/ryupy/validation/adr0208-20261117/github-large/explorerpro-20261117T070122.463120Z",

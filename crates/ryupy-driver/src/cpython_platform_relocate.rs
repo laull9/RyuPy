@@ -10,6 +10,8 @@ use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+#[path = "cpython_macho_identity.rs"]
+pub(crate) mod macho_identity;
 
 /// 判断文件是否为目标平台原生二进制动态库或扩展。
 pub(super) fn is_native_image(path: &Path) -> bool {
@@ -114,82 +116,140 @@ pub(super) fn relative_path(base: &Path, target: &Path) -> Result<String> {
 
 /// macOS Mach-O 映像重定位与代码签名（保持 macOS 原有严格行为不变）。
 pub(super) fn relocate_macos(output: &Path, shim_name: &str, system_deps: &[&str]) -> Result<()> {
+    relocate_macos_with_components(output, shim_name, system_deps, &[])
+}
+
+pub(super) fn relocate_macos_with_components(
+    output: &Path,
+    shim_name: &str,
+    system_deps: &[&str],
+    aliases: &[macho_identity::Alias],
+) -> Result<()> {
+    use std::collections::BTreeMap;
+    let output = output.canonicalize()?;
     let mut all = Vec::new();
     collect_images(&output.join("python"), &mut all)?;
     all.push(output.join(shim_name));
-
+    // 修改部署副本前冻结全部原始身份，不能让前一映像的-id改写改变后续候选证据。
+    let mut images = BTreeMap::new();
     for image in &all {
         super::platform_abi::check_architecture(image, super::rid()?)?;
-        let report = Command::new("otool")
-            .args(["-arch", "arm64"])
-            .arg("-L")
-            .arg(image)
-            .output()
-            .with_context(|| format!("无法运行 otool -L 检查：{}", image.display()))?;
-        ensure!(
-            report.status.success(),
-            "CPython 原生依赖无法读取：{}",
-            image.display()
-        );
-        let text = String::from_utf8(report.stdout)?;
-        // .so 也可能是 MH_DYLIB，LC_ID_DYLIB 可与磁盘文件名不同（如 pydantic-core）。
-        // 它声明映像自身身份，并非需要收集的外部加载边。
-        let identity_report = Command::new("otool")
-            .args(["-arch", "arm64", "-D"])
-            .arg(image)
-            .output()
-            .context("无法读取 Mach-O 自身身份")?;
-        ensure!(
-            identity_report.status.success(),
-            "无法读取 Mach-O LC_ID_DYLIB"
-        );
-        let identity_text = String::from_utf8(identity_report.stdout)?;
-        let identity = identity_text
-            .lines()
-            .skip(1)
-            .map(str::trim)
-            .find(|line| !line.is_empty());
-        for dependency in macho_dependencies(&text) {
-            if Some(dependency) == identity
-                || dependency.is_empty()
-                || system_deps
-                    .iter()
-                    .any(|prefix| dependency.starts_with(prefix))
+        images.insert(image.clone(), macho_identity::read(image)?);
+    }
+    for image in &all {
+        let info = &images[image];
+        for dependency in &info.dependencies {
+            if system_deps
+                .iter()
+                .any(|prefix| dependency.name.starts_with(prefix))
             {
                 continue;
             }
-            let name = Path::new(dependency)
-                .file_name()
-                .context("Mach-O 依赖缺少文件名")?;
-            let matches: Vec<_> = all
+            let declared: Vec<_> = aliases
                 .iter()
-                .filter(|candidate| candidate.file_name() == Some(name))
+                .filter(|alias| alias.load_name == dependency.name)
                 .collect();
             ensure!(
-                matches.len() == 1,
-                "CPython 原生依赖未唯一收集：{} → {dependency}",
-                image.display()
+                declared.len() <= 1,
+                "Mach-O显式加载名有多个目标：{}",
+                dependency.name
             );
-            let target = matches[0];
+            let local = dependency
+                .name
+                .strip_prefix("@loader_path/")
+                .and_then(|relative| image.parent().map(|parent| parent.join(relative)))
+                .and_then(|path| path.canonicalize().ok())
+                .filter(|path| path.starts_with(&output) && images.contains_key(path));
+            let runpath = if declared.is_empty() {
+                macho_identity::local_runpath(image, &info.rpaths, &dependency.name, &output)?
+            } else {
+                None
+            };
+            let target = if let Some(alias) = declared.first() {
+                ensure!(
+                    all.contains(&alias.target),
+                    "Mach-O声明目标未部署：{}",
+                    alias.target.display()
+                );
+                let actual = images[&alias.target]
+                    .identity
+                    .as_ref()
+                    .context("Mach-O声明目标缺少LC_ID_DYLIB")?;
+                ensure!(
+                    actual.name == alias.install_name,
+                    "Mach-O声明LC_ID与部署副本不符：{}",
+                    alias.target.display()
+                );
+                &alias.target
+            } else if let Some(ref local) = local {
+                // 加载边相对当前映像的位置先于全局候选；多个组件可携带同名不同ABI库。
+                local
+            } else if let Some(ref runpath) = runpath {
+                ensure!(
+                    images.contains_key(runpath),
+                    "Mach-O runpath目标未部署为原生映像：{}",
+                    runpath.display()
+                );
+                runpath
+            } else {
+                // basename只作候选hint；真正替换前仍核实LC_ID身份、目标架构及版本。
+                let name = Path::new(&dependency.name)
+                    .file_name()
+                    .context("Mach-O依赖缺少文件名")?;
+                let exact: Vec<_> = all
+                    .iter()
+                    .filter(|candidate| {
+                        images[*candidate]
+                            .identity
+                            .as_ref()
+                            .is_some_and(|identity| identity.name == dependency.name)
+                    })
+                    .collect();
+                let matches: Vec<_> = if exact.is_empty() {
+                    all.iter()
+                        .filter(|candidate| candidate.file_name() == Some(name))
+                        .collect()
+                } else {
+                    exact
+                };
+                ensure!(
+                    matches.len() == 1,
+                    "CPython 原生依赖未唯一收集：{} → {}",
+                    image.display(),
+                    dependency.name
+                );
+                matches[0]
+            };
+            let identity = images[target]
+                .identity
+                .as_ref()
+                .context("Mach-O加载目标缺少LC_ID_DYLIB")?;
+            macho_identity::require_compatible(dependency, identity)?;
             if target == image {
                 continue;
             }
             let relative = relative_path(image.parent().context("原生映像缺少父目录")?, target)?;
             let replacement = format!("@loader_path/{relative}");
-            if dependency != replacement {
+            if dependency.name != replacement {
                 run_command(
                     "install_name_tool",
                     &[
                         "-change".as_ref(),
-                        dependency.as_ref(),
+                        dependency.name.as_ref(),
                         replacement.as_ref(),
                         image.as_os_str(),
                     ],
                 )?;
             }
         }
-        if identity.is_some() {
-            let id = format!("@rpath/{}", image.file_name().unwrap().to_string_lossy());
+        if info.identity.is_some() {
+            let id = format!(
+                "@rpath/{}",
+                image
+                    .file_name()
+                    .context("Mach-O映像缺少文件名")?
+                    .to_string_lossy()
+            );
             run_command(
                 "install_name_tool",
                 &["-id".as_ref(), id.as_ref(), image.as_os_str()],
