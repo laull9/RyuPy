@@ -27,6 +27,70 @@ def record_files(dist):
     return files
 
 
+def source_imports(tree):
+    """仅明确捕获导入错误的 try 主体允许缺包；函数调用不继承定义处保护。
+
+    不求值条件、不执行源码；handler/else/finally 使用进入 try 前的保护状态。
+    同源码绑定过异常名时保守退回必需导入，避免把用户自定义异常当成内建异常。
+    """
+    exception_names = {'ImportError', 'ModuleNotFoundError'}
+    shadowed = {node.id for node in ast.walk(tree)
+                if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store)}
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            shadowed.add(node.name)
+        elif isinstance(node, ast.arg):
+            shadowed.add(node.arg)
+        elif isinstance(node, ast.alias):
+            shadowed.add(node.asname or node.name.split('.')[0])
+        elif isinstance(node, ast.ExceptHandler) and node.name:
+            shadowed.add(node.name)
+
+    def catches(node):
+        if isinstance(node, ast.Tuple):
+            return any(catches(item) for item in node.elts)
+        return (isinstance(node, ast.Name) and node.id in exception_names
+                and node.id not in shadowed)
+
+    class Imports(ast.NodeVisitor):
+        def __init__(self):
+            self.optional = False
+            self.items = []
+
+        def visit_Import(self, node):
+            self.items.append((node, self.optional))
+
+        visit_ImportFrom = visit_Import
+
+        def visit_Try(self, node):
+            previous = self.optional
+            self.optional = previous or any(catches(h.type) for h in node.handlers)
+            for item in node.body:
+                self.visit(item)
+            self.optional = previous
+            for item in [*node.handlers, *node.orelse, *node.finalbody]:
+                self.visit(item)
+
+        def visit_FunctionDef(self, node):
+            previous = self.optional
+            self.optional = False
+            self.generic_visit(node)
+            self.optional = previous
+
+        visit_AsyncFunctionDef = visit_FunctionDef
+
+        def visit_TryStar(self, node):
+            # except* 可能把单个导入异常包装成 ExceptionGroup；外层 ImportError 也未必接住。
+            previous = self.optional
+            self.optional = False
+            self.generic_visit(node)
+            self.optional = previous
+
+    visitor = Imports()
+    visitor.visit(tree)
+    return visitor.items
+
+
 def main(request):
     if sys.version_info < (3, 9):
         fail(f'依赖收集要求 CPython 3.9+，当前为 {sys.version}')
@@ -66,6 +130,7 @@ def main(request):
                     owners.setdefault(module, set()).add(name)
     requirements = list(request['requirements'])
     modules = set(request['dynamic_modules'])
+    optional_imports = []
     entry = Path(request['entry'])
     project = entry.parent
     while (project / "__init__.py").is_file():
@@ -75,6 +140,13 @@ def main(request):
     seen = set()
 
     roots = list(dict.fromkeys([project.resolve(), *(Path(value).resolve() for value in request.get('search_paths', []))]))
+
+    def installed_without_metadata(top):
+        # 可选仅允许确实缺席；已有未登记源码/扩展不能静默漏包，仍走原 metadata 错误。
+        return ((site / top).exists() or (site / (top + '.py')).exists()
+                or (site / (top + '.pyc')).exists()
+                or (site / (top + '.so')).exists() or any(site.glob(top + '.*.so'))
+                or (site / (top + '.pyd')).exists() or any(site.glob(top + '.*.pyd')))
 
     def follow_local(root, target):
         # 只跟随实际导入链及父包初始化，不把同目录测试/开发文件当应用依赖。
@@ -100,7 +172,7 @@ def main(request):
         seen.add(identity)
         with tokenize.open(path) as source:
             tree = ast.parse(source.read(), filename=str(path))
-        for node in ast.walk(tree):
+        for node, optional in source_imports(tree):
             if isinstance(node, ast.ImportFrom) and node.level:
                 base = path.parent
                 for _ in range(node.level - 1):
@@ -131,7 +203,13 @@ def main(request):
                             if alias.name != '*':
                                 follow_local(local_root, target.joinpath(*alias.name.split('.')))
                 elif top not in stdlib:
-                    modules.add(top)
+                    if optional:
+                        optional_imports.append({'module': name, 'file': str(path),
+                                                 'line': node.lineno, 'installed': top in owners})
+                        if top in owners or installed_without_metadata(top):
+                            modules.add(top)
+                    else:
+                        modules.add(top)
 
     scan(entry, roots[0])
     for name in request.get('include_modules', []):
@@ -288,12 +366,14 @@ def main(request):
                        'search_paths': list(map(str, roots)),
                        'source_includes': request.get('include_modules', []),
                        'dynamic_modules': request['dynamic_modules'],
+                       'optional_imports': optional_imports,
                        'requirements': request['requirements'], 'distributions': reports,
                        'marker_environment': marker_environment}}
 
 
-try:
-    print(json.dumps(main(json.load(sys.stdin)), ensure_ascii=False))
-except Exception as error:
-    print(f'依赖收集：{error}', file=sys.stderr)
-    sys.exit(1)
+if __name__ == '__main__':
+    try:
+        print(json.dumps(main(json.load(sys.stdin)), ensure_ascii=False))
+    except Exception as error:
+        print(f'依赖收集：{error}', file=sys.stderr)
+        sys.exit(1)

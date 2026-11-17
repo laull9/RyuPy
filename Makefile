@@ -76,6 +76,7 @@ python-baseline: ## 自检 Phase 1–3 的 CPython 用例与预期错误退出
 	"$(PYTHON)" -B -m unittest discover -s tests/cil_execution -p 'test_*.py'
 	"$(PYTHON)" -B runtime/kernel/test_transform.py
 	"$(PYTHON)" -B tests/cpython/test_portable.py
+	"$(PYTHON)" -B tests/general_projects/optional_imports/test_scan.py
 	"$(PYTHON)" tests/run_python_baseline.py
 
 .PHONY: python-extensions
