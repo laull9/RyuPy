@@ -1,0 +1,14 @@
+# ExplorerPro macOS arm64 CPython 3.12.13 原生门的精确依赖；不含模型或云 API。
+PySide6==6.9.2
+PySide6_Addons==6.9.2
+PySide6_Essentials==6.9.2
+shiboken6==6.9.2
+PyMuPDF==1.26.5
+pandas==2.3.3
+numpy==2.3.5
+openpyxl==3.1.5
+python-dateutil==2.9.0.post0
+pytz==2025.2
+tzdata==2025.2
+six==1.17.0
+et_xmlfile==2.0.0
