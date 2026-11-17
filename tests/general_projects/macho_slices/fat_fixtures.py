@@ -79,7 +79,8 @@ def prepare(root, python, env, run):
             target=root/(case['id']+'-helper-'+architecture)
             run(['clang','-arch',architecture,helper_source,'-o',target],root,env,case['id']+'-helper-compile')
             helper_slices.append(target.read_bytes())
-        make_fat(helper_slices[0],helper_slices[1],helper,wide)
+        # 无扩展名沿原collector的fat32拥有入口；不借收敛步骤扩大fat64资源准入。
+        make_fat(helper_slices[0],helper_slices[1],helper,False)
         run(['codesign','--force','--sign','-','--identifier','org.ryupy.fixture.helper.'+case['id'],
              '--options','runtime','--entitlements',plist,helper],root,env,case['id']+'-helper-sign')
         directory = case['directory']

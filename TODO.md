@@ -92,9 +92,9 @@ CreateSuper 历史 Object 返回公共 ABI 已恢复，真实 `5d36db1e` 的 184
   503 e2e通过；长循环RSS与正式耗时分列，见[第四轮验收](docs/cil-execution-fourth-slices-validation.md)。
 - [x] **可选依赖通用收集**：词法ImportError保护、必需优先与已装无metadata拒绝；四项
   JIT/NativeAOT搬迁、三负例、六组边界及FastAPI/SanBudget各一项真实NativeAOT回归通过。
-- [ ] **大型项目下一阻塞**：FBA已按冻结Python版本解析并越过PEP695误诊，当前需要模块
-  活globals合同；ExplorerPro已越过共享归属、递归解包、动态格式、oct与字典解包，当前
-  验证原生插件依赖闭包和显式部署选择。完整原入口、隔离GUI业务与发布搬迁分别验收。
+- [ ] **大型项目下一阻塞**：FBA新stock profile已越过PEP695与模块globals，完整原入口当前
+  E0100拒绝实例模块async def；ExplorerPro新profile已越过生成器except，当前实例dataclass。
+  固定版本、原入口、完整业务与发布搬迁分别验收，详见大型项目catalog的最新构建证据。
 - [x] **通用共享分发与静态接口导出子合同（2026-11-17）**：多owner、实际原生导出、pyi目录
   与固定C ABI机器合同；独立命名/布局的JIT/AOT/OneFile删除输入搬迁通过。
   禁止第三方库名特判，允许有依据并经测试的ABI推导，后续C++调用推导逐合同扩围。
@@ -112,8 +112,11 @@ CreateSuper 历史 Object 返回公共 ABI 已恢复，真实 `5d36db1e` 的 184
   四产品、反向Python协议现场四产品通过，业务D保持原样；完整函数locals/name/line继续开发。
 - [x] **生成器源码异常链子合同**：实际窗口/typed/PC/私有帧证明与二十IR破坏拒绝通过，
   两模块双版JIT/AOT八产品搬迁通过；原ExplorerPro已越过except OSError。
-- [~] **原生交互与完整原业务下一阻塞**：按用户实际观察补持续QTimer、真实鼠标/键盘和关闭
-  验收；完整ExplorerPro新profile到实例dataclass。联合完整门待这组交互冻结。
+- [~] **原生交互与完整原业务下一阻塞**：持续QTimer、真实鼠标/键盘和关闭在CP/JIT/目录AOT
+  已通过；OneFile有7.200/8.208秒心跳间隔待定位。完整ExplorerPro新profile到实例dataclass。
+- [~] **启动与目录交付整理**：同次启动中位数CP 0.338秒、目录AOT 0.481秒、OneFile 8.848秒；
+  已分离提取与macOS首次原生镜像评估，Fastest压缩与延迟builtins候选均无收益，保留负结果。
+  非OneFile根部仅保留入口，其余依赖/配置/资源/接口导出集中`internal/`，加载路径和真实搬迁在做。
 - [ ] **可选严格内核研究（ADR-0221）**：Host Slice 1/2 源码完整保存在远端 WIP，已撤出
   stock 主线工作树；最终内核与十二项 Host 子进程门尚未完成，暂停扩展。
   已有 22 内核/10 stock 探针保留原快照范围。

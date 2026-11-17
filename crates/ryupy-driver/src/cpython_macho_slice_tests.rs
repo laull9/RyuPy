@@ -155,11 +155,24 @@ fn selected_slice_is_atomic_mode_preserving_and_missing_target_keeps_existing_ab
 
 #[test]
 fn occupied_temporary_file_is_never_removed_or_replaced() {
-    let root=temp();let source=root.0.join("source");let occupied=root.0.join("occupied");
-    std::fs::write(&source,thin(ARM64,0,6)).unwrap();std::fs::write(&occupied,"existing-owner").unwrap();
-    let mut file=File::open(&source).unwrap();let permissions=file.metadata().unwrap().permissions();
-    let slice=Slice {cpu_type:ARM64,subtype:0,offset:0,bytes:32,alignment:0};
-    assert!(copy_slice_to(&mut file,&source,&occupied,slice,&permissions).is_err());
-    assert_eq!(std::fs::read_to_string(&occupied).unwrap(),"existing-owner");
-    assert_eq!(std::fs::read(&source).unwrap(),thin(ARM64,0,6));
+    let root = temp();
+    let source = root.0.join("source");
+    let occupied = root.0.join("occupied");
+    std::fs::write(&source, thin(ARM64, 0, 6)).unwrap();
+    std::fs::write(&occupied, "existing-owner").unwrap();
+    let mut file = File::open(&source).unwrap();
+    let permissions = file.metadata().unwrap().permissions();
+    let slice = Slice {
+        cpu_type: ARM64,
+        subtype: 0,
+        offset: 0,
+        bytes: 32,
+        alignment: 0,
+    };
+    assert!(copy_slice_to(&mut file, &source, &occupied, slice, &permissions).is_err());
+    assert_eq!(
+        std::fs::read_to_string(&occupied).unwrap(),
+        "existing-owner"
+    );
+    assert_eq!(std::fs::read(&source).unwrap(), thin(ARM64, 0, 6));
 }

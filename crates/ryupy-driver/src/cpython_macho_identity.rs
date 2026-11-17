@@ -69,13 +69,8 @@ pub(crate) fn read(path: &Path) -> Result<Image> {
     };
     let mut image = parse(&query("-L")?, &query("-D")?)
         .with_context(|| format!("Mach-O身份/版本损坏：{}", path.display()))?;
-    if image
-        .dependencies
-        .iter()
-        .any(|dependency| dependency.name.starts_with("@rpath/"))
-    {
-        image.rpaths = parse_rpaths(&query("-l")?)?;
-    }
+    // 自身不用@rpath的映像也能向依赖链提供祖先runpath；规划保留加载边时必须完整观察。
+    image.rpaths = parse_rpaths(&query("-l")?)?;
     Ok(image)
 }
 

@@ -15,4 +15,6 @@ AOT与OneFile另带显式fat原始资源，位于重定位拥有集合之外，�
 `--expect-unconverged --mode jit --case legacy --cli <旧CLI>` 是旧入口红证，要求原部署
 仍为fat且无收敛报告。结构门在 `cpython_macho_slice_tests.rs`，覆盖交换字节序、范围、
 alignment、重叠、inner header冲突、缺目标沿原ABI诊断、subtype不明保原、非loadable保原、
-权限与临时文件清理。普通文件不计算摘要，所有生成产物和原始日志写仓外并清理。
+权限与临时文件清理。报告的preserved只指不选slice，后续原重定位与签名仍执行；源安装文件不变。
+无扩展名helper沿原fat32入口，fat64消费者沿原.so入口；不扩大原collector的magic准入。
+普通文件不计算摘要，所有生成产物和原始日志写仓外并清理。

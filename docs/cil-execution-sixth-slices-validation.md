@@ -56,7 +56,11 @@ StopIteration路由。可达根包含真实EH入口；只豁免最终CFG确不�
 `20261117T115851.074451Z`。完整原入口及原GUI业务按其实际后续阻塞分别登记。
 
 首轮窗口探针通过QTimer在`app.exec()`约300ms后截图并退出。用户随后实际观察到鼠标
-持续加载，验收已追加持续心跳、真实鼠标/键盘输入及原生关闭事件；这一组交互正在验证。
+持续加载，验收已追加持续心跳、真实鼠标/键盘输入及原生关闭事件。CPython、JIT、目录
+NativeAOT均完成点击、输入Return、原生关闭，193/391/410次心跳的最大间隔分别为
+0.351/0.138/0.274秒。OneFile的这四类回调也执行成功，但两次交互出现7.200/8.208秒
+心跳间隔，超过3秒门槛，仍需定位。CUA查询/截图与停顿的因果尚未确定。交互证据在
+`~/.cache/ryupy/validation/explorerpro-interactive/`，测试用.app包装尚未成为编译器产品功能。
 
 主审发现IMPORT_FROM的name_from布局只存在于3.12+，无版本守卫会破坏旧provider。
 保留七版preflight中3.9–3.11失败记录，补真实头文件版本条件后3.9–3.15严格native
@@ -70,6 +74,30 @@ StopIteration路由。可达根包含真实EH入口；只豁免最终CFG确不�
 推导式墙钟分别下降约28%、22%、44%、32%；推导式RSS增加2.219MiB，hello增加
 0.121ms，字符串近乎持平。原不利数据、CPU/RSS分列与六输入范围完整保留于ADR-0238。
 修复在独立worktree完整make check通过后以`207ebd6c`提交并推送。
+
+启动专项直接启动实际产物，到首个真实100ms Qt心跳停止计时，关闭report/audit/stats，
+每轮使用新私有profile和证据目录，平衡顺序；首次观察另列，未清除系统缓存。固定3.12.13
+的三轮中位数为CPython 0.338秒、目录AOT 0.481秒、OneFile 8.848秒。首观察为
+0.425/0.637/11.161秒，完整逐样本证据为仓外
+`generic-interfaces-20261117/gui-startup-20261117T205119/result.json`。
+
+同一1,391,205,918字节原始载荷含6715项，Brotli Optimal与Fastest的启动中位数分别
+10.133/10.502秒，外壳体积434,338,704/540,609,936字节；Fastest未获得收益，继续保留
+Optimal。这组到ready后的两进程RSS和为584.125/686.531MiB，仅是同一时点的RSS和，
+共享页可能重复，完整运行峰值须另测。去掉压缩的提取诊断为0.73–1.23秒，Brotli为
+2.81–3.14秒；清理另需0.43–0.48秒。这些是诊断分段，启动主表保留完整进程墙钟。
+
+带trace的同载荷诊断首轮进入Main前3.237秒、CPU仅0.014秒；系统AMFI至syspolicyd
+同路径评估为3.220秒。首轮内层同类评估另为3.114秒；重复外壳进入Main为6.8/8.5ms，
+提取2.759/2.888秒，内层到ready为1.295/1.278秒。后续同一外壳交叉临时目录六轮，
+`/tmp`为10.950/8.064/7.557秒，系统临时目录为8.555/8.711/8.667秒，pre-Main均
+8–26ms；系统临时目录未稳定复现4秒启动。目录AOT首次观察也存在逐原生镜像
+评估波动，记录于仓外`onefile-compression-20261117/startup-os-diagnostic/FINDINGS.md`。
+测试未修改系统安全设置。临时目录、原生镜像签名和目标架构体积继续以独立变量验证。
+
+另一个仅延迟默认builtins初始化的Runtime候选在六轮平衡采样中为旧0.405秒、新0.408秒，
+到ready后的RSS时点值151.461/153.133MiB。该候选没有收益，撤回该优化；负结果保留在
+`generic-interfaces-20261117/startup-runtime-pair-20261117T214759/result.json`。
 
 函数定义点builtins与Python回调来源现已完成有限合同：两套独立模块输入双版JIT/AOT
 八产品通过，原pending原样迁入四模块sunrise场景；canonical、外来及字面量builtins
@@ -92,5 +120,7 @@ KeyError的退出码/stdout/错误末行核验，真实carrier/token/origin均�
 `~/.cache/ryupy/validation/ownership-carrier-final-20261117.json`。
 
 完整ExplorerPro新profile已越过生成器except，当前到archive_service.py的实例
-dataclass合同。原完整入口、原业务probe、窗口交互与各发布形态分别登记。最终联合
+dataclass合同。FBA同profile完整原入口重新构建，已越过模块globals，当前E0100拒绝
+实例模块async def，日志`github-large-build/fba-20261117T140445.762989Z`。原完整入口、
+原业务probe、窗口交互与各发布形态分别登记。最终联合
 完整门及必要边界成本在冻结实现后追加；C1–C4完整闭包和默认晋升按各自门槛验收。

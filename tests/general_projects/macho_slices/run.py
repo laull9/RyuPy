@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 
+sys.dont_write_bytecode = True
 from fat_fixtures import HERE, prepare, RESOURCE, entitlements
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -87,6 +88,8 @@ def audit_convergence(report,case):
     sizes={row['path']:row['bytes'] for row in report['files']}
     for row in selected:
         assert row['action']=='selected_target_slice' and row['output_architecture']=='arm64_all',row
+        expected_container='fat64' if case['id']=='multiphase' and not row['path'].endswith('/native_helper') else 'fat32'
+        assert row['source_container']==expected_container,row
         assert {part['cpu_type'] for part in row['source_fat_table']}=={0x1000007,0x100000c}
         assert row['selected_slice']['subtype']==0 and row['source_bytes']>row['output_bytes']>0
         assert row['output_bytes']==sizes[row['path']]

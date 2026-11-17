@@ -18,7 +18,7 @@
       "entry": "backend/main.py",
       "start": "python -m uvicorn backend.main:app --host 127.0.0.1 --port <私有端口>",
       "pytest": "python -m pytest backend/app/admin/tests/api_v1/test_auth.py",
-      "first_blocker": "RyuPy 原入口完整 JIT 构建：语法前端固定目标 3.11 拒绝原 PEP 695；原 CPython 基线通过，后续业务矩阵与产品继续待验",
+      "first_blocker": "2026-11-17显式stock-module-namespaces完整原入口JIT构建：已越过PEP695与模块globals，当前E0100拒绝实例模块异步函数；原入口运行与AOT尚待验收",
       "ownership": {
         "cil_target": [
           "backend"
@@ -43,7 +43,7 @@
         "删除私有输入后搬迁"
       ],
       "status": "CPython 3.12.13 原 app startup/OpenAPI/ORM提交回滚/退出清理已通过且重复通过；完整业务矩阵和 RyuPy 产品待验",
-      "frontend_blocker": "provider精确Python3.12版本已联动语法目标，原PEP695语法通过；完整原入口现拒绝backend/__init__.py:10/11的globals builtin。后续CIL/运行门待该通用能力。",
+      "frontend_blocker": "backend/app/admin/api/v1/auth/auth.py:18起的async def需要真实模块环境与异步调度合同；保留明确E0100，业务委派为空。",
       "cpython_baseline": {
         "driver": "baseline.py --project fba",
         "evidence": "~/.cache/ryupy/validation/adr0208-20261117/github-large/fba-20261117T065728.962181Z",
@@ -56,6 +56,14 @@
           "service_stop_and_temporary_cleanup"
         ],
         "monkeypatches": []
+      },
+      "latest_cil_build": {
+        "profile": "--experimental-stock-module-namespaces",
+        "evidence": "~/.cache/ryupy/validation/github-large-build/fba-20261117T140445.762989Z",
+        "mode": "jit",
+        "build_exit": 1,
+        "runtime": "not-run",
+        "relocation": "not-run"
       }
     },
     {
@@ -74,7 +82,7 @@
       "entry": "src/main.py",
       "start": "python src/main.py",
       "pytest": "python -m pytest tests",
-      "first_blocker": "RyuPy 原入口完整 JIT 构建：可选 PyPDF2 导入修复后，停在 PySide6 6.9.2 三发行共同声明 PySide6/Qt3DAnimation.pyi 的 RECORD 归属规则",
+      "first_blocker": "2026-11-17显式stock-module-namespaces完整原入口JIT构建：已越过生成器except，当前实例dataclass合同E0100；独立最小Cocoa产品已搬迁通过",
       "ownership": {
         "cil_target": [
           "src",
@@ -99,8 +107,8 @@
         "onefile",
         "删除私有输入后搬迁"
       ],
-      "status": "CPython 3.12.13真实Cocoa原业务基线重复通过；RyuPy完整入口JIT构建通过（显式Cocoa/SQLite发布能力）；真实CIL搬迁运行已进入并暴露C API调用现场首阻塞，AOT/OneFile原业务运行待该修复。",
-      "frontend_blocker": "完整原入口JIT已通过，保固定源码及零本地业务委派；默认全量原生闭包精确缺Mimer客户端。显式Cocoa/SQLite选择后，隔离probe实际搬迁运行在QApplication([])因PyEval_GetGlobals无frame导致SIGSEGV，通用C API现场修复开发中。",
+      "status": "CPython真实Cocoa原业务基线重复通过；旧兼容profile完整入口JIT构建曾通过。新stock profile完整入口停在实例dataclass；独立最小Cocoa JIT/AOT/OneFile产品搬迁显示通过，持续交互CP/JIT/目录AOT通过，OneFile心跳停顿待定位。",
+      "frontend_blocker": "新stock profile在services/archive_service.py:36/65拒绝实例dataclass；原QApplication([])缺原生frame问题已由通用C API载体修复，原完整业务运行继续开发。",
       "cpython_baseline": {
         "driver": "baseline.py --project explorerpro",
         "evidence": "~/.cache/ryupy/validation/adr0208-20261117/github-large/explorerpro-20261117T070122.463120Z",
@@ -121,6 +129,14 @@
           "QApplication.clipboard => fail access",
           "FileBrowser.navigate_to => assert private root then original"
         ]
+      },
+      "latest_cil_build": {
+        "profile": "--experimental-stock-module-namespaces",
+        "evidence": "~/.cache/ryupy/validation/github-large-build/explorerpro-20261117T121625.619196Z",
+        "mode": "jit",
+        "build_exit": 1,
+        "runtime": "not-run",
+        "relocation": "not-run"
       }
     },
     {

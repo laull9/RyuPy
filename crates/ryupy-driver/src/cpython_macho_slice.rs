@@ -106,7 +106,7 @@ fn inspect(file: &mut (impl Read + Seek), length: u64) -> Result<Proof> {
             .checked_shl(slice.alignment)
             .context("fat slice alignment越界")?;
         ensure!(
-            slice.bytes >= 32
+            slice.bytes > 0
                 && slice.offset >= table_end
                 && slice.offset % align == 0
                 && slice
@@ -147,6 +147,7 @@ fn inspect(file: &mut (impl Read + Seek), length: u64) -> Result<Proof> {
         return Ok(proof);
     }
     let slice = candidates[0];
+    ensure!(slice.bytes >= 32, "目标slice不足Mach-O64头长度");
     let inner = read_at(file, length, slice.offset, 32)?;
     ensure!(
         inner[..4] == [0xcf, 0xfa, 0xed, 0xfe]
@@ -215,7 +216,13 @@ fn replace_slice(
     ));
     copy_slice_to(file, path, &temp, slice, permissions)
 }
-fn copy_slice_to(file: &mut File, path: &Path, temp: &Path, slice: Slice, permissions: &std::fs::Permissions) -> Result<()> {
+fn copy_slice_to(
+    file: &mut File,
+    path: &Path,
+    temp: &Path,
+    slice: Slice,
+    permissions: &std::fs::Permissions,
+) -> Result<()> {
     // create_new成功后才取得清理权限；碰撞文件属于别人，绝不能在失败清理中删除。
     let mut output = OpenOptions::new().write(true).create_new(true).open(temp)?;
     let result = (|| {

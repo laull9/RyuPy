@@ -303,7 +303,8 @@ pub(super) fn relocate_macos_with_components(
     }
     convergence.sort_by(|left, right| left["path"].as_str().cmp(&right["path"].as_str()));
     Ok(serde_json::json!({"schema":1,"policy":"frozen_target_rid",
-        "scope":"existing_native_relocation_owned_images_only", "target_rid":super::rid()?,"files":convergence}))
+        "scope":"existing_native_relocation_owned_images_only", "target_rid":super::rid()?,
+        "preserved_action_scope":"no_slice_conversion; original_relocation_and_signing_still_apply", "files":convergence}))
 }
 
 /// universal2 的分架构标题不是加载边；只解析携带依赖版本信息的真实条目。
