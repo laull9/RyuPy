@@ -20,6 +20,7 @@ public sealed partial class CPythonHost
     internal object? FromOwned(nint pointer)
     {
         Check(pointer);
+        if (TryFromStockThinOwned(pointer, out object? thinFunction)) return thinFunction;
         if (TryImportInspect(pointer, out object? inspected)) return inspected;
         if (Native.rp_is_none(pointer) != 0) { Native.rp_decref(pointer); return PyNone.Instance; }
         if (Native.rp_scalar_kind(pointer) == 2)
@@ -48,6 +49,12 @@ public sealed partial class CPythonHost
     internal unsafe nint ToPython(object? value)
     {
         if (value is null or PyNone) return Native.rp_none();
+        if (value is StockThinFunctionHandle thinFunction)
+        {
+            PythonObject function = thinFunction.ForeignFunction;
+            if (!ReferenceEquals(function.Host, this)) throw new PyTypeError("objects belong to different interpreters");
+            return Native.rp_incref(function.Pointer);
+        }
         if (TryExportInspect(value, out nint inspected)) return inspected;
         if (value is PyNativeType superType && ReferenceEquals(superType, PyLexicalSuper.Type)) return Native.rp_super_type();
         if (value is PySuper super)
@@ -127,8 +134,6 @@ public sealed partial class CPythonHost
             catch { reverse.Remove(value); owner.Dispose(); throw; }
         }
         if (synchronizeContainers && value is PyList or PyDict) return TransferContainer(value);
-        if (IsRefRegistrationBlocked)
-            throw new ObjectDisposedException("CPython", "FiniCore释放栅栏期间或关闭后禁止注册新托管根");
         // 弱反向索引不钉住托管对象；C端代理存活期间Roots才是明确的强根。
         nint identity = (nint)Interlocked.Increment(ref nextRoot);
         Roots[identity] = value;

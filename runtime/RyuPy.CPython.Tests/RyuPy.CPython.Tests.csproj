@@ -5,7 +5,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
-    <DefaultItemExcludes>$(DefaultItemExcludes);Runner\**</DefaultItemExcludes>
+    <!-- 独立真实 Host runner 自行在仓外构建，禁止被共享 xUnit Host 重复编译/关闭。 -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);StockThinProvider/**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,11 +17,6 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
-  </ItemGroup>
-
-  <!-- ADR-0223：自定义严格内核为可选研究；常规门使用原版 libpython，避免隐式源码重建。 -->
-  <ItemGroup Condition="'$(RyuPyStrictKernelTests)' != 'true'">
-    <Compile Remove="StrictKernelSlice1Tests.cs;StrictKernelTestHarness.cs" />
   </ItemGroup>
 
   <ItemGroup>

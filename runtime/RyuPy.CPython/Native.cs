@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace RyuPy.CPython;
 
-internal static unsafe class Native
+internal static unsafe partial class Native
 {
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_class_prepare(nint name, nint bases);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_class_lookup(nint session, [MarshalAs(UnmanagedType.LPUTF8Str)] string name, out nint value);
@@ -52,8 +52,6 @@ internal static unsafe class Native
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_install_native_imports();
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_descriptor_type(int kind);
     internal const string Library = "ryupy_cpython";
-    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_build_version();
-    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_python_version();
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_set_env([MarshalAs(UnmanagedType.LPUTF8Str)] string name, [MarshalAs(UnmanagedType.LPUTF8Str)] string? value);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_start([MarshalAs(UnmanagedType.LPUTF8Str)] string home, nint* paths, int pathCount, nint* argv, int argc, delegate* unmanaged[Cdecl]<nint, int, nint, nint, nint, long, nint, nint> callback);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_init_error();

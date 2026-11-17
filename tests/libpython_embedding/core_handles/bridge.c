@@ -1,38 +1,30 @@
-/* 独立双 GC 探针：公开 CPython API 管理真实薄函数、弱回流与 capsule 生命周期。
- * capsule 仅强持 CLR core token；弱 F 不能形成通向 globals 的强回边。
+/* 独立双 GC 探针：公开 CPython API 管理真实薄函数、GC 可见 owner 与 capsule 生命周期。
+ * capsule 仅强持 CLR core token；owner 的 F 强边由 CP GC 遍历，core 不持 CP 环境。
  * 所有导出函数及析构在主解释器 GIL 下调用；禁止关闭后调用。
  */
 #include <Python.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include "../function_owner.h"
 
 typedef int (*invoke_fn)(intptr_t, int64_t, int64_t, int64_t *);
 typedef void (*release_fn)(intptr_t);
-typedef struct { intptr_t token; PyObject *weak_f; } CoreLink;
+typedef struct { intptr_t token; RpFunctionOwner *owner; } CoreLink;
 static invoke_fn invoke_core;
 static release_fn release_core;
 static long live_links, destroyed_links;
 static PyObject *main_dict, *glue_code;
-static const char *capsule_name = "ryupy.proof.core";
 
-static void destroy_link(PyObject *capsule) {
-    CoreLink *link = PyCapsule_GetPointer(capsule, capsule_name);
-    if (!link) { PyErr_WriteUnraisable(capsule); return; }
-    Py_XDECREF(link->weak_f);
+static void destroy_link(void *context) {
+    CoreLink *link = context;
     release_core(link->token);
-    free(link);
-    live_links--;
-    destroyed_links++;
+    free(link); live_links--; destroyed_links++;
 }
 
-static PyObject *dispatch(PyObject *capsule, PyObject *arg) {
-    CoreLink *link = PyCapsule_GetPointer(capsule, capsule_name);
+static PyObject *dispatch(PyObject *owner, PyObject *arg) {
+    CoreLink *link = rp_fo_context(owner);
     if (!link) return NULL;
-    if (!link->weak_f) {
-        PyErr_SetString(PyExc_RuntimeError, "执行 core 尚未发布");
-        return NULL;
-    }
-    PyObject *f = PyWeakref_GetObject(link->weak_f); /* GIL 保护 borrowed F。 */
+    PyObject *f = rp_fo_borrow(link->owner); /* owner 强持真实 F，GIL 下借用。 */
     if (!f || f == Py_None) {
         PyErr_SetString(PyExc_RuntimeError, "执行 core 的函数环境已释放");
         return NULL;
@@ -95,32 +87,54 @@ PyObject *ch_eval(const char *expression) {
     if (!result) PyErr_Print();
     return result; /* owned */
 }
-PyObject *ch_make(PyObject *d, intptr_t token) {
+static PyObject *make_function(PyObject *d, intptr_t token, int failure) {
     /* token 无论成功失败均被此函数消费，调用方不得二次释放。 */
     CoreLink *link = calloc(1, sizeof(CoreLink));
     if (!link) { release_core(token); return PyErr_NoMemory(); }
     link->token = token;
-    PyObject *capsule = PyCapsule_New(link, capsule_name, destroy_link);
-    if (!capsule) { free(link); release_core(token); return NULL; }
+    RpFunctionOwner *owner = rp_fo_new(link, NULL, destroy_link);
+    if (!owner) { free(link); release_core(token); return NULL; }
     live_links++;
-    PyObject *p = PyCFunction_New(&dispatch_def, capsule);
-    Py_DECREF(capsule);
+    link->owner = owner;
+    PyObject *p = PyCFunction_New(&dispatch_def, (PyObject *)owner);
+    Py_DECREF(owner); /* 此后 p/closure 保活 owner；绑定前失败没有 F 环。 */
     if (!p) return NULL;
+    if (failure == 1) {
+        PyErr_SetString(PyExc_RuntimeError, "注入创建失败"); Py_DECREF(p); return NULL;
+    }
     PyObject *cell = PyCell_New(p);
     PyObject *closure = cell ? PyTuple_Pack(1, cell) : NULL;
     Py_XDECREF(cell);
     Py_DECREF(p);
     if (!closure) return NULL;
+    if (failure == 2) {
+        PyErr_SetString(PyExc_RuntimeError, "注入创建失败"); Py_DECREF(closure); return NULL;
+    }
     PyObject *f = PyFunction_New(glue_code, d);
     /* 初始化弱环境前不向 GC 对象枚举发布 F；所有组装使用公开 C API。 */
     if (f) PyObject_GC_UnTrack(f);
-    if (f && PyFunction_SetClosure(f, closure) < 0) { Py_DECREF(f); f = NULL; }
+    if (f && PyFunction_SetClosure(f, closure) < 0) {
+        /* stock func_dealloc 无条件解除跟踪；销毁半成品前必须恢复 GC 跟踪。 */
+        PyObject_GC_Track(f); Py_DECREF(f); f = NULL;
+    }
     Py_DECREF(closure);
     if (!f) return NULL;
-    link->weak_f = PyWeakref_NewRef(f, NULL);
-    if (!link->weak_f) { Py_DECREF(f); return NULL; }
+    if (failure == 3) {
+        rp_fo_unbind(owner);
+        PyErr_SetString(PyExc_RuntimeError, "注入创建失败");
+        PyObject_GC_Track(f); Py_DECREF(f); return NULL;
+    }
+    rp_fo_bind(owner, f);
     PyObject_GC_Track(f);
     return f;
+}
+PyObject *ch_make(PyObject *d, intptr_t token) { return make_function(d, token, 0); }
+/* 控制面验证三处已拥有 capsule 的失败回滚；消费 token 后保留析构计数而清除预期异常。 */
+int ch_make_failure(PyObject *d, intptr_t token, int stage) {
+    PyObject *f = make_function(d, token, stage);
+    if (f) { Py_DECREF(f); return -1; }
+    if (!PyErr_ExceptionMatches(PyExc_RuntimeError)) return -1;
+    PyErr_Clear(); return 0;
 }
 intptr_t ch_token(PyObject *f) {
     /* 首证只接纳固定创建的无默认值、单 dispatch 捕获函数。 */
@@ -132,8 +146,8 @@ intptr_t ch_token(PyObject *f) {
     if (!p) return 0;
     intptr_t token = 0;
     if (PyCFunction_Check(p) && PyCFunction_GetFunction(p) == dispatch) {
-        CoreLink *link = PyCapsule_GetPointer(PyCFunction_GetSelf(p), capsule_name);
-        if (link && PyWeakref_GetObject(link->weak_f) == f) token = link->token;
+        CoreLink *link = rp_fo_context(PyCFunction_GetSelf(p));
+        if (link && rp_fo_borrow(link->owner) == f) token = link->token;
     }
     Py_DECREF(p);
     return token;
@@ -143,7 +157,11 @@ void ch_inc(PyObject *p) { Py_INCREF(p); }
 void ch_dec(PyObject *p) { Py_DECREF(p); }
 long ch_live(void) { return live_links; }
 long ch_destroyed(void) { return destroyed_links; }
-int ch_finish(void) { Py_CLEAR(glue_code); return Py_FinalizeEx(); }
+int ch_finish(void) {
+    Py_CLEAR(glue_code);
+    rp_fo_stop();
+    return Py_FinalizeEx();
+}
 int ch_call(PyObject *f, int64_t x, int64_t *result) {
     PyObject *arg = PyLong_FromLongLong(x);
     PyObject *value = arg ? PyObject_CallFunctionObjArgs(f, arg, NULL) : NULL;

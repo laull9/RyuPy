@@ -37,20 +37,20 @@ pub(super) fn build(
     let result = (|| {
         for (name, source) in [
             (
+                "stock_function_owner.h",
+                include_str!("../../../runtime/RyuPy.CPython/native/stock_function_owner.h"),
+            ),
+            (
+                "stock_thin_function.h",
+                include_str!("../../../runtime/RyuPy.CPython/native/stock_thin_function.h"),
+            ),
+            (
                 "module_namespace.h",
                 include_str!("../../../runtime/RyuPy.CPython/native/module_namespace.h"),
             ),
             (
                 "ryupy_cpython.c",
                 include_str!("../../../runtime/RyuPy.CPython/native/ryupy_cpython.c"),
-            ),
-            (
-                "cpython_compat_env.h",
-                include_str!("../../../runtime/RyuPy.CPython/native/cpython_compat_env.h"),
-            ),
-            (
-                "cpython_bridge_ops.h",
-                include_str!("../../../runtime/RyuPy.CPython/native/cpython_bridge_ops.h"),
             ),
             (
                 "execution_audit.h",

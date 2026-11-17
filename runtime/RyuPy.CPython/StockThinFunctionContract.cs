@@ -1,6 +1,7 @@
-// ADR-0226 的候选中性合同：静态 core 与 owned F 分离；尚无 Host 注册或产品入口。
+// ADR-0226 的显式内部合同：静态 core 与 owned F 分离；产品默认关闭。
 // 类型暂存 provider 内部，接线验收后再决定跨程序集 ABI，避免提前增加 Runtime 公共表面。
 using System;
+using RyuPy.Runtime;
 
 namespace RyuPy.CPython;
 
@@ -50,7 +51,7 @@ internal sealed class StockThinFunctionCore
     // factory 只在缓存失效时消费一份新 owned F；命中路径不分配第二个 owner。
     internal StockThinFunctionHandle AcquirePublicHandle(Func<IStockThinFunctionOwner> factory)
     {
-        if (publicHandle is not null && publicHandle.TryGetTarget(out var cached)) return cached;
+        if (publicHandle is not null && publicHandle.TryGetTarget(out var cached) && !cached.IsDisposed) return cached;
         var handle = new StockThinFunctionHandle(this, factory());
         publicHandle = new(handle);
         return handle;
@@ -64,11 +65,16 @@ internal sealed class StockThinFunctionCore
 }
 
 internal sealed class StockThinFunctionHandle(StockThinFunctionCore core, IStockThinFunctionOwner owner)
+    : PyNativeObject, IPyForeignObject, IDisposable
 {
-    // 这只是未来直达适配入口；provider 未接线，不能从生产 PyFunction 或 ToPython 调用。
-    // tracing/profiling 活跃时 provider 必须走真实 F，并由同一 core.Invoke 完成二次形状核验。
+    internal PythonObject ForeignFunction => owner is StockThinFunctionOwner actual ? actual.Function
+        : throw new InvalidOperationException("纯托管协议 owner 没有 CP 函数");
+    internal bool IsDisposed => owner is StockThinFunctionOwner actual && actual.Function.IsDisposed;
+
+    // 真实产品始终经过原 F binder；纯托管协议替身保留 core/lease 状态测试 seam。
     internal object? Invoke(object? argument)
     {
+        if (owner is StockThinFunctionOwner) return Invoke([argument], [], []);
         try
         {
             using var lease = owner.AcquireCall();
@@ -76,4 +82,39 @@ internal sealed class StockThinFunctionHandle(StockThinFunctionCore core, IStock
         }
         finally { GC.KeepAlive(this); }
     }
+
+    public object? Invoke(object?[] args, string[] names, object?[] values)
+    {
+        PythonObject f = ForeignFunction;
+        try
+        {
+            return f.Host.CallStockThinFunction(f, args, names, values);
+        }
+        finally { GC.KeepAlive(this); }
+    }
+    public void Dispose() { if (owner is StockThinFunctionOwner actual) actual.Dispose(); }
+    public override string TypeName => ForeignFunction.TypeName;
+    public override object? GetAttr(string name) => ForeignFunction.GetAttr(name);
+    public override void SetAttr(string name, object? value) => ForeignFunction.SetAttr(name, value);
+    public override void DelAttr(string name) => ForeignFunction.DelAttr(name);
+    public override string PythonRepr() => ForeignFunction.PythonRepr();
+    public override string PythonStr() => ForeignFunction.PythonStr();
+    public object ForeignType => ForeignFunction.ForeignType;
+    public object ReadScalar(string kind) => ForeignFunction.ReadScalar(kind);
+    public object? Item(object? key) => ForeignFunction.Item(key);
+    public void WriteItem(object? key, object? value, bool deleting) => ForeignFunction.WriteItem(key, value, deleting);
+    public IPyIterator Iterate() => ForeignFunction.Iterate();
+    public long Length() => ForeignFunction.Length();
+    public bool Truth() => ForeignFunction.Truth();
+    public long Hash() => ForeignFunction.Hash();
+    public object Binary(int operation, object? other, bool reverse) => ForeignFunction.Binary(operation, other, reverse);
+    public bool Compare(int operation, object? other, bool reverse) => ForeignFunction.Compare(operation, other, reverse);
+    public object RichCompare(int operation, object? other, bool reverse) => ForeignFunction.RichCompare(operation, other, reverse);
+    public object Unary(int operation) => ForeignFunction.Unary(operation);
+    public bool IsInstanceOf(object type) => ForeignFunction.IsInstanceOf(type);
+    public bool Accepts(object? value) => ForeignFunction.Accepts(value);
+    public bool IsExceptionClass => ForeignFunction.IsExceptionClass;
+    public bool MatchesException(PyBaseException error) => ForeignFunction.MatchesException(error);
+    public PyStackFrame[] TracebackFrames() => ForeignFunction.TracebackFrames();
+    public void SynchronizeException(PyBaseException error, bool write) => ForeignFunction.SynchronizeException(error, write);
 }

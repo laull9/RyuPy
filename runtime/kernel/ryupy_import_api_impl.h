@@ -154,20 +154,13 @@ rp_kernel_import_fini_core(PyInterpreterState *interp)
     PyMUTEX_UNLOCK(&rp_side_table_mutex);
 
     if (state != NULL) {
-        /* 2. 在锁外先后调用 CIL cleanup 与独立 FiniCore Fence 钩子。 */
+        /* 2. 在锁外调用 CIL cleanup，避免宿主回调与表锁产生锁序冲突。 */
         if (state->has_cil_callbacks && state->cil_callbacks.cleanup != NULL) {
             rp_cil_callback_cleanup_fn fn = state->cil_callbacks.cleanup;
             void *ud = state->cil_callbacks.user_data;
             state->has_cil_callbacks = 0;
             memset(&state->cil_callbacks, 0, sizeof(state->cil_callbacks));
             fn(ud);
-        }
-        if (state->fini_fence_fn != NULL) {
-            rp_kernel_fini_fence_fn fence_fn = state->fini_fence_fn;
-            void *fence_ud = state->fini_fence_user_data;
-            state->fini_fence_fn = NULL;
-            state->fini_fence_user_data = NULL;
-            fence_fn(fence_ud);
         }
 
         /* 3. 置位 state->finalizing、广播所有等待节点并排空 active_waiters，消除 UAF。 */
@@ -182,40 +175,9 @@ rp_kernel_import_fini_core(PyInterpreterState *interp)
             }
             PyMUTEX_UNLOCK(&state->table_mutex);
         }
-
-        /* 4. 保留侧表 slot->finalizing 墓碑直至全部 PyObject 类型引用与 state 彻底清完，
-         * 防止 Py_CLEAR 析构期或晚期 GC 重入 import_find_and_load 时重建游离 state。 */
-        for (size_t i = 0; i < state->entry_count; i++) {
-            PyMem_RawFree(state->entries[i].name);
-            PyMem_RawFree(state->entries[i].origin);
-            PyMem_RawFree(state->entries[i].package_dir);
-        }
-        PyMem_RawFree(state->entries);
-
-        while (state->locks != NULL) {
-            RpModuleLockNode *next = state->locks->next;
-            PyCOND_FINI(&state->locks->cond);
-            PyMem_RawFree(state->locks->name);
-            PyMem_RawFree(state->locks);
-            state->locks = next;
-        }
-        for (size_t i = 0; i < state->blocked_count; i++) {
-            PyMem_RawFree(state->blocked[i].locks);
-        }
-        PyMem_RawFree(state->blocked);
-        if (state->sync_initialized) {
-            PyCOND_FINI(&state->drain_cond);
-            PyMUTEX_FINI(&state->table_mutex);
-        }
-
-        Py_CLEAR(state->spec_type);
-        Py_CLEAR(state->builtin_loader_type);
-        Py_CLEAR(state->extension_loader_type);
-        Py_CLEAR(state->cil_loader_type);
-        PyMem_RawFree(state);
     }
 
-    /* 5. 全部 waiter 排空且 state 所拥有的 PyObject 均已清空后，再摘除侧表墓碑槽位。 */
+    /* 4. 全部 waiter 已离开 state/table_mutex 后再从侧表摘除并释放槽位。 */
     PyMUTEX_LOCK(&rp_side_table_mutex);
     RpSideTableSlot **prev = &rp_side_table_head;
     while (*prev != NULL) {
@@ -227,6 +189,38 @@ rp_kernel_import_fini_core(PyInterpreterState *interp)
     }
     PyMUTEX_UNLOCK(&rp_side_table_mutex);
     PyMem_RawFree(slot);
+
+    if (state == NULL) {
+        return;
+    }
+    for (size_t i = 0; i < state->entry_count; i++) {
+        PyMem_RawFree(state->entries[i].name);
+        PyMem_RawFree(state->entries[i].origin);
+        PyMem_RawFree(state->entries[i].package_dir);
+    }
+    PyMem_RawFree(state->entries);
+
+    while (state->locks != NULL) {
+        RpModuleLockNode *next = state->locks->next;
+        PyCOND_FINI(&state->locks->cond);
+        PyMem_RawFree(state->locks->name);
+        PyMem_RawFree(state->locks);
+        state->locks = next;
+    }
+    for (size_t i = 0; i < state->blocked_count; i++) {
+        PyMem_RawFree(state->blocked[i].locks);
+    }
+    PyMem_RawFree(state->blocked);
+    if (state->sync_initialized) {
+        PyCOND_FINI(&state->drain_cond);
+        PyMUTEX_FINI(&state->table_mutex);
+    }
+
+    Py_CLEAR(state->spec_type);
+    Py_CLEAR(state->builtin_loader_type);
+    Py_CLEAR(state->extension_loader_type);
+    Py_CLEAR(state->cil_loader_type);
+    PyMem_RawFree(state);
 }
 
 /* --- 公开 C ABI 实现（仅支持已初始化解释器及所属 GIL） ---------------- */
@@ -397,43 +391,6 @@ rp_kernel_import_set_cil_callbacks(PyInterpreterState *interp,
     }
     state->cil_callbacks = *callbacks;
     state->has_cil_callbacks = 1;
-    return 0;
-}
-
-int
-rp_kernel_set_fini_fence(PyInterpreterState *interp,
-                         rp_kernel_fini_fence_fn fence_fn,
-                         void *user_data)
-{
-    if (rp_verify_interp_ownership(interp, NULL) < 0) {
-        return -1;
-    }
-    if (fence_fn == NULL) {
-        PyErr_SetString(PyExc_ValueError, "FiniCore fence callback must not be NULL");
-        return -1;
-    }
-    RpKernelImportState *state = rp_import_get_state(interp, 1);
-    if (state == NULL) {
-        if (!PyErr_Occurred()) {
-            PyErr_SetString(PyExc_RuntimeError, "import registry is unavailable or finalizing");
-        }
-        return -1;
-    }
-    if (state->cil_cleanup_in_progress) {
-        PyErr_SetString(PyExc_RuntimeError,
-                        "cannot update FiniCore fence during CIL callback cleanup transaction");
-        return -1;
-    }
-    if (state->fini_fence_fn != NULL) {
-        if (state->fini_fence_fn == fence_fn && state->fini_fence_user_data == user_data) {
-            return 0;
-        }
-        PyErr_SetString(PyExc_RuntimeError,
-                        "FiniCore fence is write-once per interpreter and cannot be cleared or replaced");
-        return -1;
-    }
-    state->fini_fence_fn = fence_fn;
-    state->fini_fence_user_data = user_data;
     return 0;
 }
 

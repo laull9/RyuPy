@@ -177,6 +177,46 @@ static unsafe class Program
         Native.ch_dec(f);
         Run("del unknown, outer");
     }
+    private static void ConstructionFailures()
+    {
+        nint globals = Eval("{'offset': 1}");
+        long before = Native.ch_destroyed();
+        try
+        {
+            // 最后一处在 F 已取消 GC 跟踪且 closure 已绑定之后失败，直接覆盖曾遗漏的回滚。
+            for (int stage = 1; stage <= 3; stage++)
+            {
+                Require(Native.ch_make_failure(globals, NewRoot(), stage) == 0, "预期的创建失败");
+                Cycle();
+                Require(Roots == 0 && Handles == 0 && Pending.IsEmpty && Native.ch_live() == 0,
+                    "构造失败必须释放 core 根及所有 owned 引用");
+                Require(Native.ch_destroyed() == before + stage, "每次失败精确析构一个 capsule");
+                Require(Cores.All(w => !w.TryGetTarget(out _)), "失败 core 已由 CLR 回收");
+            }
+        }
+        finally { Native.ch_dec(globals); }
+        Console.WriteLine("PASS construction_failure stages=3 roots=0 handles=0 native_live=0");
+    }
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static WeakReference<Handle> PrepareResurrection()
+    {
+        Handle handle = Create(50);
+        Run("arm_function_resurrection()");
+        return new(handle);
+    }
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void ResurrectAndReflow()
+    {
+        Run("collect_function_resurrection()");
+        nint f = Eval("resurrected[0]");
+        Handle handle = Acquire(f);
+        Native.ch_dec(f);
+        Require(ReferenceEquals(handle, Acquire(handle.Function)), "复活后的原 F 回流身份");
+        Run("resurrected.clear()");
+        Cycle();
+        Require(handle.Call(3) == 53, "复活后 CLR 独持 H 仍保原 globals");
+        GC.KeepAlive(handle);
+    }
     public static int Main(string[] args)
     {
         Require(RuntimeFeature.IsDynamicCodeSupported == (args[2] == "jit"), "真实 JIT/NativeAOT 运行模式");
@@ -201,8 +241,14 @@ static unsafe class Program
             FailedImport();
             Baseline($"failed_import_{i}", i * 4 + 4);
         }
+        ConstructionFailures();
+        var resurrectedHandle = PrepareResurrection();
+        ClrCollect(); Drain();
+        Require(!resurrectedHandle.TryGetTarget(out _), "复活前 CLR 公开 H 已消失");
+        ResurrectAndReflow();
+        Baseline("resurrected_function", 52);
         Require(invocations >= 12 * 8, "真实 CIL 回调次数");
-        Console.WriteLine($"RESULT cycles=12 functions=48 cil_calls={invocations} roots=0 handles=0 native_live=0");
+        Console.WriteLine($"RESULT cycles=12 functions=48 failed_creations=3 resurrected_functions=1 cil_calls={invocations} roots=0 handles=0 native_live=0");
         Require(Native.ch_finish() == 0, "stock finalize");
         return 0;
     }

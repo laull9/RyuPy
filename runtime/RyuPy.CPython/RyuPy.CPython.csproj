@@ -11,15 +11,10 @@
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
-  <ItemGroup>
-    <ProjectReference Include="../RyuPy.Runtime/RyuPy.Runtime.csproj" />
-  </ItemGroup>
+  <ItemGroup><ProjectReference Include="../RyuPy.Runtime/RyuPy.Runtime.csproj" /></ItemGroup>
   <ItemGroup>
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>RyuPy.CPython.Tests</_Parameter1>
-    </AssemblyAttribute>
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
-      <_Parameter1>RyuPy.CPython.StrictRunner</_Parameter1>
     </AssemblyAttribute>
   </ItemGroup>
 </Project>

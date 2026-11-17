@@ -11,6 +11,7 @@ internal static unsafe class Native
     [DllImport(Library)] internal static extern int ch_run([MarshalAs(UnmanagedType.LPUTF8Str)] string source);
     [DllImport(Library)] internal static extern nint ch_eval([MarshalAs(UnmanagedType.LPUTF8Str)] string expression);
     [DllImport(Library)] internal static extern nint ch_make(nint globals, nint token);
+    [DllImport(Library)] internal static extern int ch_make_failure(nint globals, nint token, int stage);
     [DllImport(Library)] internal static extern nint ch_token(nint function);
     [DllImport(Library)] internal static extern int ch_set(nint globals, nint function);
     [DllImport(Library)] internal static extern void ch_inc(nint value);

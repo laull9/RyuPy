@@ -49,6 +49,16 @@ public sealed class StockThinFunctionContractTests
     }
 
     [Fact]
+    public void OwnerFactoryFailureLeavesWeakCacheAvailableForRetry()
+    {
+        var core = NewCore();
+        Assert.Throws<InvalidOperationException>(() => core.AcquirePublicHandle(
+            static () => throw new InvalidOperationException("owner 创建失败")));
+        var owner = new Owner();
+        Assert.Same(owner.Answer, core.AcquirePublicHandle(() => owner).Invoke(null));
+    }
+
+    [Fact]
     public void BodyExceptionKeepsIdentityAndDisposesLease()
     {
         var owner = new Owner { Failure = new InvalidOperationException("同一个异常") };

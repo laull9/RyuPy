@@ -50,8 +50,6 @@ typedef struct {
     int has_cil_callbacks;
     int cil_cleanup_in_progress;
     RpKernelCilImportCallbacks cil_callbacks;
-    rp_kernel_fini_fence_fn fini_fence_fn;
-    void *fini_fence_user_data;
 
     /* 保护 locks / blocked / finalizing / active_waiters 的短临界区互斥锁；
      * 严禁在持锁期间调用 Python API 或获取 GIL。 */
@@ -178,14 +176,6 @@ rp_import_get_state(PyInterpreterState *interp, int create)
     }
     PyMUTEX_UNLOCK(&rp_side_table_mutex);
 
-    /* 在短表锁外检查目标解释器是否已进入 finalizing（如 Py_FinalizeEx 关机阶段或 Py_EndInterpreter）；
-     * atexit 回调运行于置位 _finalizing 之前，仍可正常创建/使用侧表；置位后禁止新建游离 state。 */
-    if (_PyInterpreterState_GetFinalizing(interp) != NULL) {
-        PyErr_SetString(PyExc_RuntimeError,
-                        "cannot initialize RyuPy import registry while interpreter is finalizing");
-        return NULL;
-    }
-
     new_state = (RpKernelImportState *)PyMem_RawCalloc(1, sizeof(RpKernelImportState));
     new_slot = (RpSideTableSlot *)PyMem_RawCalloc(1, sizeof(RpSideTableSlot));
     if (new_state == NULL || new_slot == NULL) {
@@ -214,18 +204,13 @@ rp_import_get_state(PyInterpreterState *interp, int create)
 
     PyMUTEX_LOCK(&rp_side_table_mutex);
     slot = rp_side_table_find_locked(interp, interp_id);
-    int interp_finalizing = (_PyInterpreterState_GetFinalizing(interp) != NULL);
-    if (slot != NULL || interp_finalizing) {
-        RpKernelImportState *existing = (slot != NULL && !slot->finalizing) ? slot->state : NULL;
+    if (slot != NULL) {
+        RpKernelImportState *existing = slot->finalizing ? NULL : slot->state;
         PyMUTEX_UNLOCK(&rp_side_table_mutex);
         PyCOND_FINI(&new_state->drain_cond);
         PyMUTEX_FINI(&new_state->table_mutex);
         PyMem_RawFree(new_state);
         PyMem_RawFree(new_slot);
-        if (slot == NULL && interp_finalizing) {
-            PyErr_SetString(PyExc_RuntimeError,
-                            "cannot initialize RyuPy import registry while interpreter is finalizing");
-        }
         return existing;
     }
     new_slot->next = rp_side_table_head;

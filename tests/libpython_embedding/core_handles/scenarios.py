@@ -113,6 +113,37 @@ def fail_import():
         sys.meta_path.remove(loader)
 
 
+resurrected = []
+resurrected_watch = None
+
+
+class ResurrectionKeeper:
+    """在 GC finalizer 中直接进入真实 CIL，然后把原 F 保存在 CP 端。"""
+    def __init__(self, function):
+        self.function = function
+
+    def __del__(self):
+        assert self.function(2) == 52
+        resurrected.append(self.function)
+
+
+def arm_function_resurrection():
+    global resurrected_watch
+    function = sys.modules["proof"].f
+    function.marker = ResurrectionKeeper(function)
+    resurrected_watch = weakref.ref(function)
+
+
+def collect_function_resurrection():
+    del sys.modules["proof"]
+    gc.collect()
+    assert resurrected_watch() is None
+    assert len(resurrected) == 1 and resurrected[0](2) == 52
+    # 旧 F 与 globals 哨兵的 weakref 均已被 GC 清空；复活后新建观察，不改旧 weakref 语义。
+    function = resurrected[0]
+    watches.append((weakref.ref(function), weakref.ref(function.__globals__["sentinel"])))
+
+
 def publish():
     """通过真实 importlib 建立成功缓存；候选模块体只安装预建的 CIL 薄函数。"""
     import importlib

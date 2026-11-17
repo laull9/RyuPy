@@ -11,16 +11,16 @@
 
 ```text
 CP 模块字典 D -> 真实 FunctionType F -> 固定胶水 closure -> PyCFunction P
-P -> capsule -> GCHandle 强根 -> 纯 CIL 执行 core K
-capsule -> CP weakref(F)             K -> WeakReference(H)
+P -> GC owner -> GCHandle 强根 -> 纯 CIL 执行 core K
+GC owner -> 强 F                    K -> WeakReference(H)
 CLR 公开 handle H -> 独立 owned F
 ```
 
 F 原生持有 D、closure 和函数元数据；D 保存 F，形成由 CP 循环 GC 可见的强环。
-P/capsule 强持 K，K 没有 owned CP 引用或 CLR owner 回边。只有 H 独立拥有 F，
+GC owner 强持 K，K 没有 owned CP 引用或 CLR owner 回边。只有 H 独立拥有 F，
 H 的终结器只把 owned 引用转移至释放队列，主线程持 GIL drain 后才 DECREF。
 CP 端保留 F 时 K 必须存活；CLR 端保留 H 时 F 和旧 D 必须存活；两端释放后，
-CP 循环 GC 释放 P/capsule，真实 capsule 析构回调解除 GCHandle，随后 CLR 收集 K。
+CP 循环 GC 释放 P/owner，真实 owner 析构回调解除 GCHandle，随后 CLR 收集 K。
 
 现有捕获完整 PyFunction 的包装方式会形成 Roots → owner → owned D → F → Roots 强环。
 后续接入必须拆开执行 core 与公开 handle，不可将旧 owner 换名后直接捕获。
@@ -33,7 +33,7 @@ UnmanagedCallersOnly 回调，checked Int64 加法由 C# 静态方法完成；C 
 
 固定胶水来源为 `bridge.c/ch_init` 内嵌 `_factory` 与其嵌套 `f`，精确代码为
 `f(x): return p(x)`。初始化仅取得模板的嵌套 code；每个函数由公开 PyFunction_New、
-PyFunction_SetClosure 组装，绑定弱环境后才重新进入 GC 跟踪；每次 CP 调用执行一次 f。
+PyFunction_SetClosure 组装，绑定 GC owner 的强环境后才重新进入 GC 跟踪；每次 CP 调用执行一次 f。
 F 的真实 `__code__`、`co_filename=<string>`、closure 与 frame 属于胶水，业务计算属于
 `Core.Leaf`。测试驱动、模块 loader 和 oracle Python 均是测试控制面，和候选胶水分开。
 产品逐函数三阶段清单及全帧审计继续按 ADR-0223 接入。
@@ -41,14 +41,14 @@ F 的真实 `__code__`、`co_filename=<string>`、closure 与 frame 属于胶水
 2026-11-17 在 macOS arm64，stock PBS CPython 3.12.13 与 3.13.3，.NET SDK 11.0.100、
 net10.0 目标，JIT 与真实 osx-arm64 NativeAOT 各实跑一套最终功能用例。宿主检查
 RuntimeFeature.IsDynamicCodeSupported，确认两种运行模式。
-每套 12 轮、48 个函数、168 次静态 CIL 叶子调用；每轮三处回收门同时验证：
+每套原 12 轮、48 个函数，追加三处失败和一个复活函数；172 次静态 CIL 叶子调用；每轮三处回收门同时验证：
 
 - CP 单独保留 F，CLR handle 已终结、队列 drain 后仍能调用；回流重建 H 且同代身份相同。
 - CLR 单独保留 H，删除 sys.modules 并做 CP GC 后旧 D 仍可读；真实 importlib 重导建立新 D，
   新旧函数分别读取各自的 live globals，修改新 D 不影响旧 D。
 - 真实 importlib exec_module 抛错，由上游事务删除缓存；外逃 H 仍能读取旧环境。
 - 两端释放、CLR GC 与 drain 后先观察 CP 强环仍活着，再显式 CP GC；F 与 globals 哨兵的
-  真实 weakref 失效，capsule 原生析构累计 48 次，managed core 弱引用全部失效，
+  真实 weakref 失效，owner 原生析构累计 52 次（49 个成功函数、三处失败），managed core 弱引用全部失效，
   GCHandle 根、owned H、队列、native live 均回零。全部发生在 Py_FinalizeEx 之前。
 - 回流拒绝未知函数、未知业务捕获、动态新增默认值和替换 glue code；恢复元数据后可重建 H。
 
@@ -99,3 +99,26 @@ offset，并在转换完成后释放，避免 globals 被改写后使用已释�
 独立复核发现 factory 的 return trace 可提前观察半初始化 F；主代理取消创建期的 factory
 执行，直接组装函数与 closure，并补创建期 sys.settrace 回归：factory return 不触发，
 发布后的正常 f 调用仍被 trace 观察。两版 JIT/AOT 四组合最终复验通过，回收终态保持一致。
+
+2026-11-17 失败路径追加复核：半成品 F 取消 GC 跟踪后，如果 closure/owner 初始化失败，
+须在 DECREF 前恢复跟踪，满足 stock func_dealloc 的约定。主代理已修正并在相同 shim
+新增三处确定性失败注入；两版 JIT/NativeAOT 四组合各新增三个 core 根，全部在 finalize
+前释放，capsule 总析构由原成功构造的 48 次增至 51 次，CIL 运算仍为 168 次。
+
+
+## GC owner 结构修订（2026-11-17）
+
+GC 会先清 weakref 再执行 Python finalizer，旧弱身份方案使真实复活的 F 无法调用/回流。
+raw-live watcher/callback 补救又依赖可能因分配失败而缺席的通知，已退出。最终使用
+`function_owner.h` 的直接 GC owner，强持 F 且精确 traverse F/heap type，纯 native
+context 只存 core token；无 capsule、weak-F 或内部 watcher。P 的实例引用仅存在 closure，
+禁止放入没有 GC traversal 的 stock GIL code 常量。详见 [ADR-0227](0227-stock-thin-function-metadata-probe.md)。
+
+两版各 JIT/NativeAOT 最终四组合均通过：三处创建失败及时释放 core；Python __del__
+在 GC 内调用真实 CIL 并保存 F；旧 weakref 仍按 CP 规则死亡，使用复活 F 回流新 H，
+随后释放两端并再次回收。每组合 52 次 owner 析构、172 次 CIL 运算，core/owned/队列/native
+全零。native DESTROY 在 GC clear 内复活时的已清字段是高级消费者边界，按同次 stock
+oracle 观察，禁止盲目调用；本合同的 Python finalizer 复活完整保留。
+
+P、P.__self__ 或 cell 外逃会延长 F/D/K 生命期，最终根释放后由 CP GC 回收。普通 closure
+写入仍是 CP 语义；本首证只准入仍绑定原 P 的静态 core，产品 H 调用前另做能力验证。

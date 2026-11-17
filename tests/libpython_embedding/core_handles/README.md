@@ -23,14 +23,15 @@ python3 tests/libpython_embedding/core_handles/run.py --python "$HOME/.local/sha
 每组合输出 36 个回收检查点和一个终态：
 
 ```text
-RESULT cycles=12 functions=48 cil_calls=168 roots=0 handles=0 native_live=0
+RESULT cycles=12 functions=48 failed_creations=3 resurrected_functions=1 cil_calls=172 roots=0 handles=0 native_live=0
 ```
 
-每组合 capsule 真实析构 48 次，48 个 core 弱引用全部失效；48 个 F 与 globals 哨兵的真实
+每组合原 48 个函数另加一个复活函数与三处创建失败，GC owner 真实析构共 52 次，52 个 core
+弱引用全部失效；成功 F 与 globals 哨兵的真实
 weakref 全部失效。每次回收门还断言终结器队列为空，并在 CP 循环 GC 前观察尚存的强环。
 字典本身不能 weakref，因此以独占哨兵、真实 F 弱引用、native dealloc 与全根计数联合验证。
 
-- `bridge.c`：固定 factory/f 薄胶水；公开 C API；PyCFunction/capsule 与弱 F；原生析构释放 core root。
+- `bridge.c`：固定 factory/f 薄胶水；公开 C API；PyCFunction/GC owner 与强 F；可遍历 CP 强环，原生析构释放 core root。
 - `Program.cs`：静态 CIL checked Int64 业务叶子；GCHandle 强 core；弱 H 缓存；owned F 与 GIL drain。
 - `Native.cs`：固定 P/Invoke ABI；无反射、任意函数指针封装或 CP 内存偏移。
 - `scenarios.py`：测试控制面、同次 oracle 与真实 importlib 成功/失败事务；不进入候选业务执行归属。
@@ -46,5 +47,14 @@ F.__code__ 真实来自 `<string>` 胶水，真正加法在 C# 静态 `Core.Leaf
 主代理复核后增加参数 `__index__` 重入改写 globals 的回归：转换期间强持 offset，
 确保旧值在本次调用结束前保持存活。两版 JIT/AOT 四组合复验通过，执行 stderr 必须为空。
 
-创建阶段通过公开函数/closure API 直接组装，弱环境建立后恢复 GC 跟踪；
+创建阶段通过公开函数/closure API 直接组装，GC owner 强环境建立后恢复 GC 跟踪；
 创建期 trace 回归验证半初始化函数不会从 factory return 暴露，正常调用仍可被 trace 观察。
+三处创建失败分别覆盖 P 已创建、closure 已创建、F 已取消 GC 跟踪并绑定 closure；
+失败销毁前恢复 GC 跟踪，core token 精确释放一次，异常由控制面核验并清理。
+
+
+最新结构使用共享 `../function_owner.h`：F→closure/cell→P→owner→F 为 CP 可见环，
+owner 的纯 native context 只持 core token，无 capsule、weak-F 或内部 watcher。
+新增真实 Python finalizer 在 GC 内调用 CIL、保存原 F，再从该 F 回流 H；释放原 weakref
+继续保持死亡语义，新弱观察与 owner 析构共同证明最终回收。两版 JIT/AOT 均通过。
+参见 ADR-0227 的淘汰方案及 native DESTROY clear 期边界。
