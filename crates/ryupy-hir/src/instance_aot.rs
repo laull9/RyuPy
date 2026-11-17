@@ -32,6 +32,7 @@ fn validate_profile(
         &parsed.module.body,
         parsed.file,
         ryupy_base::InstanceCapabilities {
+            entry_namespace: false,
             aot_class_guards: true,
             direct_globals,
             ordinary_name_handlers: true,

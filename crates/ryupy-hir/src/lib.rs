@@ -145,10 +145,12 @@ mod instance_aot_lambda;
 #[cfg(test)]
 mod instance_aot_tests;
 mod instance_globals;
+mod stock_entry;
 pub use instance_aot::{
     validate_instance_aot, validate_instance_aot_direct_globals,
     validate_instance_aot_inspect_profile,
 };
+pub use stock_entry::{stock_entry_capabilities, stock_entry_supported};
 mod ordinary_dynamic;
 pub use ordinary_dynamic::{
     OrdinaryDynamicEligibility, has_defined_functions, instance_ast_supported,

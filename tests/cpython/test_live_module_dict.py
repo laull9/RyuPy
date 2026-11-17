@@ -20,18 +20,18 @@ from tests.cpython.projects_support import (
 from tests.cpython.support import external_workspace
 
 
-def contract():
+def contract(kind="functions"):
     """手写探针使用同一套私有 payload、构建与搬迁协议，不修改固定20项目。"""
     fixtures = ROOT / "tests/cpython/fixtures"
     return ProjectSpec(
         project_id="live-module-dict", category="模块字典", pypi_name="bridge_fixture",
         version="handwritten", import_name="bridge_fixture", entry_rel="live_module_dict.py",
         test_scope="真实dict身份/双向写删/回调/别名/异常", deps_raw="-",
-        entry_abs=fixtures / "live_module_dict.py", source_dir=fixtures,
+        entry_abs=fixtures / ("live_module_dict_entry.py" if kind == "entry" else "live_module_dict.py"), source_dir=fixtures,
     )
 
 
-def run(cli, evidence, source_label, modes):
+def run(cli, evidence, source_label, modes, kind="functions"):
     evidence = evidence.resolve()
     if evidence == ROOT or ROOT in evidence.parents:
         raise ValueError("验证证据必须保存到仓库外")
@@ -44,7 +44,7 @@ def run(cli, evidence, source_label, modes):
             oracle_cwd, actual_cwd = workspace / "oracle", workspace / "candidate"
             oracle_cwd.mkdir()
             actual_cwd.mkdir()
-            project = contract()
+            project = contract(kind)
             oracle = run_oracle_process(project, oracle_cwd)
             if oracle[0] != 0:
                 raise RuntimeError(f"固定 CPython 合同失败：{oracle}")
@@ -53,7 +53,8 @@ def run(cli, evidence, source_label, modes):
                                        mode=mode, ryupy_cli=cli)
             matched = tuple(actual[:3]) == oracle
             result = dict(source=source_label, cli=str(cli), mode=mode, oracle=oracle,
-                          actual=actual, passed=matched, pending=True,
+                          actual=actual, passed=matched,
+                          pending="# ryupy: pending" in project.entry_abs.read_text(encoding="utf-8"),
                           duration_sec=round(time.monotonic() - start, 3))
             (evidence / f"{mode}.json").write_text(
                 json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -69,10 +70,11 @@ def main():
     parser.add_argument("--cli", type=Path, required=True)
     parser.add_argument("--evidence", type=Path, required=True)
     parser.add_argument("--source-label", required=True)
+    parser.add_argument("--contract", choices=["entry", "functions"], default="functions")
     parser.add_argument("--mode", choices=["jit", "aot", "reloc", "all"], default="all")
     args = parser.parse_args()
     modes = ["jit", "aot", "reloc"] if args.mode == "all" else [args.mode]
-    return 0 if run(args.cli.resolve(), args.evidence, args.source_label, modes) else 1
+    return 0 if run(args.cli.resolve(), args.evidence, args.source_label, modes, args.contract) else 1
 
 
 if __name__ == "__main__":

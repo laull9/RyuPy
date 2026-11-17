@@ -12,6 +12,7 @@ API const char *rp_python_version(void) { return Py_GetVersion(); }
 #include "import_hooks.h"
 #include "signature_bridge.h"
 #include "cpython_bridge_ops.h"
+#include "module_namespace.h"
 
 static PyObject *bridge_has(PyObject *self, PyObject *name) { (void)self; return dispatch(-1, 20, name, NULL, NULL, 0, NULL); }
 static PyObject *bridge_load(PyObject *self, PyObject *name) { (void)self; return dispatch(-1, 21, name, NULL, NULL, 0, NULL); }

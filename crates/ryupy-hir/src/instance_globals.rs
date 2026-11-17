@@ -14,6 +14,7 @@ pub(crate) fn validate(
         scope: Default::default(),
         generator: false,
         direct_globals: capabilities.direct_globals,
+        entry_namespace: capabilities.entry_namespace,
     };
     for statement in body {
         check.visit_stmt(statement);
@@ -53,6 +54,7 @@ struct Check {
     scope: crate::module_deletions::DeleteScope,
     generator: bool,
     direct_globals: bool,
+    entry_namespace: bool,
 }
 
 impl Check {
@@ -100,6 +102,9 @@ impl<'a> Visitor<'a> for Check {
             ast::Stmt::ClassDef(class) if class.type_params.is_some() => {
                 self.reject(class.range, "PEP695 泛型类的注解作用域");
             }
+            ast::Stmt::AnnAssign(_)
+                if self.entry_namespace
+                    && matches!(self.scope, crate::module_deletions::DeleteScope::Class) => {}
             ast::Stmt::AnnAssign(_) | ast::Stmt::TypeAlias(_) => {
                 self.reject(statement.range(), "注解与类型别名")
             }

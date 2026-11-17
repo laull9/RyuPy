@@ -12,7 +12,7 @@ typedef struct { intptr_t token; PyObject *weak_f; } CoreLink;
 static invoke_fn invoke_core;
 static release_fn release_core;
 static long live_links, destroyed_links;
-static PyObject *main_dict, *factory_code;
+static PyObject *main_dict, *factory_code, *glue_code;
 static const char *capsule_name = "ryupy.proof.core";
 
 static void destroy_link(PyObject *capsule) {
@@ -36,7 +36,12 @@ static PyObject *dispatch(PyObject *capsule, PyObject *arg) {
     PyObject *d = PyFunction_GetGlobals(f);
     PyObject *offset = PyDict_GetItemString(d, "offset");
     if (!offset) { PyErr_SetString(PyExc_NameError, "offset"); return NULL; }
-    long long x = PyLong_AsLongLong(arg), y = PyLong_AsLongLong(offset);
+    /* 参数转换可调用 __index__ 并重入修改 D；先持有 offset，禁止跨回调借用字典值。 */
+    Py_INCREF(offset);
+    long long x = PyLong_AsLongLong(arg);
+    if (PyErr_Occurred()) { Py_DECREF(offset); return NULL; }
+    long long y = PyLong_AsLongLong(offset);
+    Py_DECREF(offset);
     if (PyErr_Occurred()) return NULL;
     int64_t result;
     if (invoke_core(link->token, x, y, &result)) {
@@ -92,13 +97,15 @@ PyObject *ch_make(PyObject *d, intptr_t token) {
     Py_XDECREF(factory);
     Py_DECREF(p);
     if (!f) return NULL;
+    if (!glue_code) { glue_code = PyFunction_GetCode(f); Py_INCREF(glue_code); }
     link->weak_f = PyWeakref_NewRef(f, NULL);
     if (!link->weak_f) { Py_DECREF(f); return NULL; }
     return f;
 }
 intptr_t ch_token(PyObject *f) {
     /* 首证只接纳固定创建的无默认值、单 dispatch 捕获函数。 */
-    if (!PyFunction_Check(f) || PyFunction_GetDefaults(f) || PyFunction_GetKwDefaults(f)) return 0;
+    if (!PyFunction_Check(f) || PyFunction_GetCode(f) != glue_code ||
+        PyFunction_GetDefaults(f) || PyFunction_GetKwDefaults(f)) return 0;
     PyObject *closure = PyFunction_GetClosure(f);
     if (!closure || PyTuple_Size(closure) != 1) return 0;
     PyObject *p = PyCell_Get(PyTuple_GetItem(closure, 0));
@@ -116,7 +123,7 @@ void ch_inc(PyObject *p) { Py_INCREF(p); }
 void ch_dec(PyObject *p) { Py_DECREF(p); }
 long ch_live(void) { return live_links; }
 long ch_destroyed(void) { return destroyed_links; }
-int ch_finish(void) { Py_CLEAR(factory_code); return Py_FinalizeEx(); }
+int ch_finish(void) { Py_CLEAR(glue_code); Py_CLEAR(factory_code); return Py_FinalizeEx(); }
 int ch_call(PyObject *f, int64_t x, int64_t *result) {
     PyObject *arg = PyLong_FromLongLong(x);
     PyObject *value = arg ? PyObject_CallFunctionObjArgs(f, arg, NULL) : NULL;

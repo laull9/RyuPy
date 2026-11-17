@@ -128,3 +128,4 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 - [0210：原生协程显式状态机首切](0210-native-coroutine-state-machine.md)（显式 Cargo 候选，macOS JIT/AOT 搬迁已验，完整 C3 调度待办）
 
 - [0223：原版 libpython、受控必要胶水与性能验收](0223-stock-libpython-bounded-glue.md)（方向已接受；胶水清单产品化与性能门待验）
+- [0224：真实 CP 薄函数与独立 core/handle 的回收首证](0224-cpython-thin-function-core-handles.md)（独立 JIT/AOT 首证已验；产品接入与元数据扩围待办）

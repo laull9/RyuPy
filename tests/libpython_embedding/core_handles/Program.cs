@@ -89,7 +89,7 @@ static unsafe class Program
         Handle handle = Acquire(f);
         Native.ch_dec(f);
         Native.ch_dec(d);
-        Run("observe(); del d, m");
+        Run("observe(); publish(); del d, m");
         return handle;
     }
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -103,9 +103,18 @@ static unsafe class Program
     private static WeakReference<Handle> Reflow()
     {
         nint f = Eval("sys.modules['proof'].f");
+        Run("sys.modules['proof'].f.__defaults__ = (1,)");
+        Require(Native.ch_token(f) == 0, "拒绝新增默认值");
+        Run("sys.modules['proof'].f.__defaults__ = None");
+        Run("saved_code = sys.modules['proof'].f.__code__; " +
+            "exec('def other(p):\\n def g(x): return p(x)\\n return g'); " +
+            "sys.modules['proof'].f.__code__ = other(None).__code__");
+        Require(Native.ch_token(f) == 0, "拒绝替换 glue code");
+        Run("sys.modules['proof'].f.__code__ = saved_code; del saved_code, other");
         Handle handle = Acquire(f);
         Require(ReferenceEquals(handle, Acquire(f)), "同代 handle 身份");
         Require(handle.Call(3) == 13, "CP 回流重建 handle");
+        Run("check_conversion_reentry()");
         Native.ch_dec(f);
         return new(handle);
     }
@@ -121,6 +130,9 @@ static unsafe class Program
     private static void Cycle() { ClrCollect(); Drain(); Run("gc.collect()"); }
     private static void Baseline(string label, long expectedDestroyed)
     {
+        ClrCollect(); Drain();
+        Require(Native.ch_live() > 0, "CP 强环仍待循环 GC，不能靠引用计数提前消失");
+        Run("assert any(f() is not None for f,s in watches)");
         for (int i = 0; i < 8; i++) Cycle();
         Run("assert all(f() is None and s() is None for f,s in watches)");
         Require(Roots == 0 && Handles == 0 && Pending.IsEmpty, "CLR 根/handle/队列回基线");
@@ -147,7 +159,7 @@ static unsafe class Program
     private static void FailedImport()
     {
         Handle handle = Create(40);
-        Run("try:\n raise RuntimeError('模拟模块执行失败')\nexcept RuntimeError:\n del sys.modules['proof']\n");
+        Run("fail_import()");
         // 外逃 H 在失败清理后仍持旧环境，随后两端全部释放。
         Require(handle.Call(2) == 42, "失败事务外逃函数仍可调用");
     }
@@ -166,6 +178,7 @@ static unsafe class Program
     }
     public static int Main(string[] args)
     {
+        Require(RuntimeFeature.IsDynamicCodeSupported == (args[2] == "jit"), "真实 JIT/NativeAOT 运行模式");
         Require(Native.ch_init(args[0], &Invoke, &Release) == 0, "stock 初始化");
         Run(File.ReadAllText(args[1]));
         RejectUnknown();

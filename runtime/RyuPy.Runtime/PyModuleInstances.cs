@@ -8,7 +8,7 @@ public delegate void PyModuleExecute(object state);
 
 // 不可变代码身份；注册替换不会改动已创建实例的代码及来源。
 internal sealed record PyCompiledModuleCode(string Name, string Package, string File,
-    bool IsPackage, PyModuleExecute Execute);
+    bool IsPackage, PyModuleExecute Execute, bool StockEntry = false);
 
 internal sealed class PyModuleInstanceState
 {
@@ -61,7 +61,13 @@ public static partial class PyModuleInstances
 
     internal static PyModule Create(PyCompiledModuleCode code)
     {
-        var state = new PyModuleInstanceState(code);
+        // 入口资格由driver冻结；provider只分配存储，不重放源码或迁移旧静态槽。
+        if (code.StockEntry && PyProvider.Current is not IPyCompiledModuleNamespaceProvider)
+            throw new PyNotImplementedError("compiled stock entry requires a real module namespace provider");
+        PyCompiledModuleNamespace? foreign = code.StockEntry
+            && PyProvider.Current is IPyCompiledModuleNamespaceProvider factory
+                ? factory.CreateEntryNamespace(code.Name) : null;
+        var state = new PyModuleInstanceState(code, foreign?.Globals, foreign?.Module);
         var metadata = new PyModuleMetadata(code.Name, code.File, code.IsPackage, code);
         state.Set("__name__", code.Name); state.Set("__package__", code.Package);
         state.Set("__file__", code.File); state.Set("__doc__", PyNone.Instance);
@@ -74,8 +80,10 @@ public static partial class PyModuleInstances
         // 复用原getter/setter，legacy属性热路不增加CWT查询或实例state字段。
         var module = new PyModule(code.Name, code.Package, code.File, () => Execute(state),
             state.GetAttr, (_, name, value) => state.SetAttr(name, value), fileBackedByGlobal: true, instanceGlobals: true)
-            { Metadata = metadata };
+            { Metadata = metadata, ForeignObject = foreign?.Module };
         States.Add(module, state);
+        if (foreign is not null)
+            ((IPyCompiledModuleNamespaceProvider)PyProvider.Current!).PublishEntryNamespace(module, foreign);
         PyModules.BindDefaultInstance(module, code);
         return module;
     }
@@ -157,11 +165,20 @@ public static partial class PyModules
     /// <summary>注册真实实例源码能力；来源1/2及受校验provider bundle来源3有效。</summary>
     public static void RegisterInstanceSourceLocated(string name, string package, string diagnosticFile,
         long locationKind, string locationValue, bool isPackage, PyModuleExecute execute)
+        => RegisterInstanceCode(name, package, diagnosticFile, locationKind, locationValue, isPackage, execute, false);
+
+    /// <summary>编译器冻结的stock入口ABI；与旧显式Instance注册分开，禁止按运行期名称猜资格。</summary>
+    public static void RegisterStockEntrySourceLocated(string name, string package, string diagnosticFile,
+        long locationKind, string locationValue, bool isPackage, PyModuleExecute execute)
+        => RegisterInstanceCode(name, package, diagnosticFile, locationKind, locationValue, isPackage, execute, true);
+
+    private static void RegisterInstanceCode(string name, string package, string diagnosticFile,
+        long locationKind, string locationValue, bool isPackage, PyModuleExecute execute, bool stockEntry)
     {
         EnsureRegistrationAvoidsCacheAliases(name);
         if (locationKind is not (1 or 2 or 3)) throw new PyNotImplementedError("instance modules require an explicit source location");
         string resolved = PyModuleLocations.Resolve(locationKind, locationValue);
-        var code = new PyCompiledModuleCode(name, package, resolved, isPackage, execute);
+        var code = new PyCompiledModuleCode(name, package, resolved, isPackage, execute, stockEntry);
         Registry[name] = new Registration(package, diagnosticFile, () => { },
             _ => throw new PyRuntimeError("instance code has no singleton globals"), SetDynamic,
             resolved, true, new ResourceLocation(isPackage, locationKind, resolved), true, code);
