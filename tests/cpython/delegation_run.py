@@ -2,13 +2,13 @@
 import argparse
 import json
 import os
-from support import built_product, product_layout
 from pathlib import Path
 import shutil
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tests/cpython'))
+from support import built_product, product_layout
 from support import checked, environment, execute, external_workspace  # noqa: E402
 
 

@@ -1,5 +1,5 @@
-//! 阶段诊断的窄CLI契约：只编译小fixture，不启动dotnet或外部项目。
-//! runtime使用复制步骤哨兵；运行时语义另由真实差分验收。
+//! 阶段诊断的CLI契约：编译小fixture并由官方SDK生成入口，检查诊断全序列及公开交付报告。
+//! runtime使用复制步骤哨兵；这些测试不执行应用，运行时语义由真实差分验收。
 use std::fs;
 use std::path::PathBuf;
 use std::process::{Command, Output};
@@ -44,14 +44,64 @@ impl Fixture {
         command.output().unwrap()
     }
 
-    // 图加载完成后，即使语义编译失败也保留来源报告；禁止出现 DLL 等编译产物。
-    fn assert_source_report_only(&self) {
-        let files: Vec<_> = fs::read_dir(self.0.join("out"))
+    // 入口来自明确marker，公开报告只有一个generated入口；managed输入另行报告。
+    fn assert_application(&self, output: &Output) {
+        let root = self.0.join("out");
+        let marker: serde_json::Value =
+            serde_json::from_slice(&fs::read(root.join("internal/.ryupy-layout.json")).unwrap())
+                .unwrap();
+        assert_eq!(marker["schema_version"], 1);
+        assert_eq!(marker["kind"], "ryupy-application-layout");
+        assert_eq!(marker["payload_mode"], "canonical-v1");
+        assert_eq!(marker["entry_kind"], "apphost");
+        let name = marker["entry"].as_str().unwrap();
+        let entry = root.join(name);
+        assert!(entry.is_file());
+        let mut names = fs::read_dir(&root)
+            .unwrap()
+            .map(|p| p.unwrap().file_name())
+            .collect::<Vec<_>>();
+        names.sort();
+        let mut expected = vec![std::ffi::OsString::from(name), "internal".into()];
+        expected.sort();
+        assert_eq!(names, expected);
+        let report = without_markers(output);
+        let generated = report
+            .lines()
+            .filter_map(|line| line.strip_prefix("已生成 "))
+            .collect::<Vec<_>>();
+        assert_eq!(generated, [entry.to_str().unwrap()]);
+        let managed = root.join("internal/main.dll");
+        assert!(managed.is_file());
+        let intermediate = report
+            .lines()
+            .filter_map(|line| line.strip_prefix("CIL 中间产物："))
+            .collect::<Vec<_>>();
+        assert_eq!(intermediate, [managed.to_str().unwrap()]);
+        assert_eq!(
+            fs::read(root.join("internal/RyuPy.Runtime.dll")).unwrap(),
+            b"compile-only-copy-sentinel"
+        );
+    }
+
+    // 图加载完成后，失败报告在错误精确指出的独占sibling中保留；不会发布失败应用。
+    fn assert_source_report_only(&self, output: &Output) {
+        let text = String::from_utf8_lossy(&output.stderr);
+        let paths = text
+            .lines()
+            .filter_map(|line| line.strip_prefix("JIT失败诊断目录："))
+            .collect::<Vec<_>>();
+        assert_eq!(paths.len(), 1, "{text}");
+        let diagnostics = PathBuf::from(paths[0]);
+        assert!(diagnostics.starts_with(&self.0));
+        assert_ne!(diagnostics, self.0.join("out"));
+        assert!(!self.0.join("out").exists());
+        let files: Vec<_> = fs::read_dir(&diagnostics)
             .unwrap()
             .map(|entry| entry.unwrap().file_name())
             .collect();
         assert_eq!(files, ["main.source-plan.json"]);
-        let report = fs::read_to_string(self.0.join("out/main.source-plan.json")).unwrap();
+        let report = fs::read_to_string(diagnostics.join("main.source-plan.json")).unwrap();
         assert!(report.contains("\"compiler_verified\": false"));
         assert!(report.contains("\"__main__\""));
     }
@@ -98,6 +148,13 @@ fn without_markers(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr)
         .split_inclusive('\n')
         .filter(|line| !line.starts_with("[ryupy-stage] "))
+        .collect()
+}
+// 独占失败目录每次不同；目录本身由assert_source_report_only逐次核验，原诊断文本继续逐字比较。
+fn without_failure_location(output: &Output) -> String {
+    without_markers(output)
+        .split_inclusive('\n')
+        .filter(|line| !line.starts_with("JIT失败诊断目录："))
         .collect()
 }
 fn pair(stage: &str, module: &str) -> Vec<(String, String, String)> {
@@ -160,10 +217,8 @@ fn stage_diagnostics_default_unchanged_and_enabled_ordered() {
     }
     assert_eq!(markers(&traced), expected);
     assert_pass_markers(&traced);
-    assert_eq!(
-        fs::read(fixture.0.join("out/RyuPy.Runtime.dll")).unwrap(),
-        b"compile-only-copy-sentinel"
-    );
+    fixture.assert_application(&plain);
+    fixture.assert_application(&traced);
 }
 
 #[test]
@@ -175,8 +230,8 @@ fn stage_diagnostics_error_preserves_original_diagnostics() {
     assert_eq!(plain.status.code(), traced.status.code());
     assert_eq!(plain.stdout, traced.stdout);
     assert_eq!(
-        String::from_utf8_lossy(&plain.stderr),
-        without_markers(&traced)
+        without_failure_location(&plain),
+        without_failure_location(&traced)
     );
     // parser的诊断原本就在HIR后的边界终止；graph-load end仅表示加载返回。
     let mut expected = pair("graph-load", "-");
@@ -186,7 +241,8 @@ fn stage_diagnostics_error_preserves_original_diagnostics() {
         "module=\"__main__\"".into(),
     ));
     assert_eq!(markers(&traced), expected);
-    fixture.assert_source_report_only();
+    fixture.assert_source_report_only(&plain);
+    fixture.assert_source_report_only(&traced);
 }
 
 #[test]
@@ -273,29 +329,24 @@ fn assert_pass_markers(output: &Output) {
 }
 
 #[test]
-fn stage_diagnostics_audit_write_failure_does_not_change_build() {
+fn stage_diagnostics_rejects_unowned_output_without_modifying_it() {
     let fixture = Fixture::new("print(1)\n");
     // 已有同名目录使审计write确定失败，不依赖宿主chmod或管理员权限。
     fs::create_dir_all(fixture.0.join("out/module-environment.json")).unwrap();
     let plain = fixture.build(false);
     let traced = fixture.build(true);
-    assert!(plain.status.success());
-    assert!(
-        traced.status.success(),
-        "{}",
-        String::from_utf8_lossy(&traced.stderr)
-    );
+    assert!(!plain.status.success());
+    assert_eq!(plain.status.code(), traced.status.code());
     assert_eq!(plain.stdout, traced.stdout);
     assert_eq!(
         String::from_utf8_lossy(&plain.stderr),
         without_markers(&traced)
     );
-    assert!(fixture.0.join("out/main.dll").is_file());
+    assert!(String::from_utf8_lossy(&plain.stderr).contains("JIT只替换自己已有的完整输出目录"));
+    assert!(markers(&plain).is_empty());
+    assert!(markers(&traced).is_empty());
+    assert_eq!(fs::read_dir(fixture.0.join("out")).unwrap().count(), 1);
     assert!(fixture.0.join("out/module-environment.json").is_dir());
-    assert_eq!(
-        fs::read(fixture.0.join("out/RyuPy.Runtime.dll")).unwrap(),
-        b"compile-only-copy-sentinel"
-    );
 }
 
 // 同一小参数组覆盖实际CLI四条选路，不启动dotnet，不从结果日志推断产物证书。
@@ -314,7 +365,7 @@ fn stage_diagnostics_trace_results_are_single_points_for_each_path() {
         assert!(!fixture.0.join("out").exists());
         let plain = fixture.build_mode(false, required);
         if required {
-            fixture.assert_source_report_only();
+            fixture.assert_source_report_only(&plain);
         }
         let traced = fixture.build_mode(true, required);
         assert_eq!(plain.status.code(), traced.status.code());
@@ -326,10 +377,17 @@ fn stage_diagnostics_trace_results_are_single_points_for_each_path() {
         );
         assert!(markers(&plain).is_empty());
         assert_eq!(plain.stdout, traced.stdout);
-        assert_eq!(
-            String::from_utf8_lossy(&plain.stderr),
-            without_markers(&traced)
-        );
+        if required {
+            assert_eq!(
+                without_failure_location(&plain),
+                without_failure_location(&traced)
+            );
+        } else {
+            assert_eq!(
+                String::from_utf8_lossy(&plain.stderr),
+                without_markers(&traced)
+            );
+        }
         let mut expected = pair("graph-load", "-");
         for stage in ["hir", "type-check"] {
             expected.extend(pair(stage, "__main__"));
@@ -355,16 +413,13 @@ fn stage_diagnostics_trace_results_are_single_points_for_each_path() {
                     .count(),
                 1
             );
-            fixture.assert_source_report_only();
+            fixture.assert_source_report_only(&traced);
         } else {
             for stage in ["link", "export-check", "emit", "output-write"] {
                 expected.extend(pair(stage, "-"));
             }
-            assert!(fixture.0.join("out/main.dll").is_file());
-            assert_eq!(
-                fs::read(fixture.0.join("out/RyuPy.Runtime.dll")).unwrap(),
-                b"compile-only-copy-sentinel"
-            );
+            fixture.assert_application(&plain);
+            fixture.assert_application(&traced);
         }
         // 包含精确event、模块、相对位置和全序列；拒绝时绝不能有lower/结果/emit/write。
         assert_eq!(markers(&traced), expected);

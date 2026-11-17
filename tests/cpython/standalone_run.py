@@ -10,7 +10,6 @@ import csv
 import io
 import json
 import os
-from support import built_product, product_layout
 from pathlib import Path
 import shutil
 import subprocess
@@ -21,6 +20,7 @@ import zipfile
 # 保持无字节码缓存
 sys.dont_write_bytecode = True
 
+from support import built_product, product_layout
 from support import (
     ROOT,
     VERSION,

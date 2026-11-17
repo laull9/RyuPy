@@ -84,7 +84,8 @@ fn inspect(argument: &str, need: &str) -> Result<String> {
 }
 
 pub(super) fn require_sdk() -> Result<()> {
-    let versions = inspect("--list-sdks", "原生发布需要.NET SDK 10及以上")?;
+    let versions = inspect("--list-sdks", "构建应用入口需要.NET SDK 10及以上")
+        .with_context(|| sdk_download_guidance("未能读取SDK清单"))?;
     ensure!(
         versions.lines().any(|line| line
             .split_whitespace()
@@ -95,10 +96,36 @@ pub(super) fn require_sdk() -> Result<()> {
                     .next()
                     .and_then(|major| major.parse::<u32>().ok())
                     .is_some_and(|major| major >= 10))),
-        "原生发布需要.NET SDK 10及以上；当前检测到：{}",
-        versions.trim()
+        "{}",
+        sdk_download_guidance(if versions.trim().is_empty() {
+            "无"
+        } else {
+            versions.trim()
+        })
     );
     Ok(())
+}
+
+/// SDK由用户显式下载安装；缺席诊断给出官方入口，不在普通构建中静默修改开发环境。
+fn sdk_download_guidance(detected: &str) -> String {
+    let mut message = format!(
+        "构建应用入口需要.NET SDK 10及以上；当前检测到的SDK：{detected}\n\
+         官方下载（请选择SDK）：https://dotnet.microsoft.com/zh-cn/download/dotnet/10.0"
+    );
+    if cfg!(unix) {
+        message.push_str(
+            "\n一键自动安装（微软官方脚本）：\n\
+             curl -fsSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 10.0",
+        );
+    }
+    if cfg!(unix) {
+        message.push_str(
+            "\n脚本默认安装到用户的.dotnet目录；请设置DOTNET指向其中的dotnet，再重新构建。",
+        );
+    } else {
+        message.push_str("\n安装后重新打开终端，或将DOTNET指向安装目录中的dotnet，再重新构建。");
+    }
+    message
 }
 
 pub(super) fn require_runtime() -> Result<()> {

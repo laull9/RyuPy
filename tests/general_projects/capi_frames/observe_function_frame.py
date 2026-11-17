@@ -60,10 +60,8 @@ def main():
         if args.aot: command.append('--aot')
         built = run('build', command)
         sys.path.insert(0, str(source.parents[1]/'cpython'))
-        from support import built_product
+        from support import built_product, standalone_layout, rid
         if args.aot:
-            sys.path.insert(0, str(source.parents[1]/'cpython'))
-            from support import built_product, standalone_layout, rid
             layout = standalone_layout(built.stderr.encode(), output, 'entry', rid())
             bundle, filename = layout.dist, layout.native.name
         else:

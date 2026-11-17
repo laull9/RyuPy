@@ -7,9 +7,19 @@ import unittest
 from application_layout import CANONICAL, MARKER, application_layout
 from manifest_files import ManifestError
 from runtime_dependencies import validate_runtime_dependencies
+from manifest_options import validate_options, BOOL_OPTIONS
 
 
 class ApplicationLayoutTests(unittest.TestCase):
+    def test_current_cold_options_keep_unknown_keys_and_types_rejected(self):
+        options={key:False for key in BOOL_OPTIONS}
+        options.update(instance_modules=[],module_environment_policy='catalog-only',
+                       experimental_records_increment=False,experimental_stock_thin_functions=False)
+        validate_options(options)
+        for key,value in [('unknown',False),('experimental_stock_module_namespaces',1),
+                          ('distribution_metadata','not-a-report')]:
+            with self.assertRaises(ManifestError):validate_options({**options,key:value})
+
     def product(self, root, entry='中文应用', kind='native_aot'):
         marker=root/MARKER
         marker.parent.mkdir()

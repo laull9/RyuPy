@@ -11,7 +11,6 @@
 
 import json
 import os
-from tests.cpython.support import built_product, product_layout
 from pathlib import Path
 import platform
 import shutil
@@ -27,6 +26,8 @@ if str(_REPO_ROOT) not in sys.path:
 
 # 引用共用 support 中的环境与路径工具
 from tests.cpython.support import (
+    built_product,
+    product_layout,
     ROOT,
     VERSION,
     require_python,

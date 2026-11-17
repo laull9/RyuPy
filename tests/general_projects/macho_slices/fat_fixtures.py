@@ -56,6 +56,8 @@ def prepare(root, python, env, run):
         ordinary = root/('ordinary_image-'+case['id']+config['suffix'])
         for source, output in ((HERE/case['source'], extension), (HERE/'ordinary.c', ordinary)):
             thin = []
+            expected = {'org.ryupy.fixture':case['id'], 'com.apple.security.cs.disable-library-validation':True}
+            plist = root/(case['id']+'-entitlements.plist'); plist.write_bytes(plistlib.dumps(expected))
             native_source=root/(case['id']+'-'+source.name);shutil.copy2(source,native_source)
             bundle=wide and source.name==case['source']
             for architecture in ('arm64', 'x86_64'):
@@ -63,15 +65,18 @@ def prepare(root, python, env, run):
                 command=['clang','-arch',architecture,'-bundle' if bundle else '-dynamiclib','-undefined','dynamic_lookup','-I',config['include']]
                 if not bundle:command.append('-Wl,-install_name,@rpath/'+output.name)
                 run([*command,native_source,'-o',target],root,env,case['id']+'-'+architecture+'-compile')
+                # codesign将fat64识别为generic；逐真实slice先签，避免给外层数据blob签名冒充内层授权。
+                run(['codesign', '--force', '--sign', '-', '--identifier', 'org.ryupy.fixture.'+case['id'],
+                     '--options', 'runtime', '--entitlements', plist,
+                     *(['--force-library-entitlements'] if int(platform.mac_ver()[0].split('.')[0])>=15 else []), target], root, env, case['id']+'-slice-sign')
+                run(['codesign','--verify','--strict',target],root,env,case['id']+'-slice-signature')
+                assert entitlements(run,target,root,env,case['id']+'-slice-entitlements')==expected
+                metadata=signature_metadata(target)
+                assert metadata['flags']&0x10000 and metadata['identifier']=='org.ryupy.fixture.'+case['id']
                 thin.append(target.read_bytes())
             make_fat(thin[0], thin[1], output, wide)
-            expected = {'org.ryupy.fixture':case['id'], 'com.apple.security.cs.disable-library-validation':True}
-            plist = root/(case['id']+'-entitlements.plist'); plist.write_bytes(plistlib.dumps(expected))
-            run(['codesign', '--force', '--sign', '-', '--identifier', 'org.ryupy.fixture.'+case['id'],
-                 '--options', 'runtime', '--entitlements', plist,
-                 *(['--force-library-entitlements'] if int(platform.mac_ver()[0].split('.')[0])>=15 else []), output], root, env, case['id']+'-source-sign')
-            run(['codesign', '--verify', '--strict', output], root, env, case['id']+'-source-signature')
-            assert entitlements(run, output, root, env, case['id']+'-source-entitlements') == expected
+            metadata=signature_metadata(output)
+            assert metadata['flags']&0x10000 and metadata['identifier']=='org.ryupy.fixture.'+case['id']
         helper=root/(case['id']+'-native-helper')
         helper_source=root/(case['id']+'-helper.c');shutil.copy2(SOURCE/'native_helper.c',helper_source)
         helper_slices=[]

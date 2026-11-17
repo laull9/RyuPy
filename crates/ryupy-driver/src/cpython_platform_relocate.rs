@@ -15,7 +15,7 @@ pub(crate) mod macho_identity;
 #[path = "cpython_macho_relocation_plan.rs"]
 mod macho_relocation_plan;
 #[path = "cpython_macho_relocation_signature.rs"]
-mod macho_relocation_signature;
+pub(crate) mod macho_relocation_signature;
 #[path = "cpython_macho_slice.rs"]
 mod macho_slice;
 
@@ -141,11 +141,8 @@ pub(super) fn relocate_macos_with_components(
         .iter()
         .map(|image| macho_slice::converge(image, &output, super::rid()?))
         .collect::<Result<Vec<_>>>()?;
-    // Apple codesign在macOS15起默认丢弃库entitlements；只在本切转换时查询一次宿主工具语义。
-    let force_library_entitlements = if convergence
-        .iter()
-        .any(|row| row["action"] == "selected_target_slice")
-    {
+    // Apple codesign在macOS15起默认丢弃库entitlements；每轮查询一次宿主能力，同时覆盖原本thin映像的重签。
+    let force_library_entitlements = {
         let version = Command::new("/usr/bin/sw_vers")
             .arg("-productVersion")
             .output()?;
@@ -158,8 +155,6 @@ pub(super) fn relocate_macos_with_components(
             .context("codesign宿主版本为空")?
             .parse::<u32>()?
             >= 15
-    } else {
-        false
     };
     // 修改部署副本前冻结全部原始身份，不能让前一映像的-id改写改变后续候选证据。
     let mut images = BTreeMap::new();
@@ -170,6 +165,7 @@ pub(super) fn relocate_macos_with_components(
     let plan = macho_relocation_plan::Plan::new(&output, &images);
     for (index, image) in all.iter().enumerate() {
         let info = &images[image];
+        let original_entitlements = macho_relocation_signature::snapshot(image)?;
         let mut changed = false;
         let mut preserved_edges = 0;
         let mut rewritten_edges = 0;
@@ -311,6 +307,7 @@ pub(super) fn relocate_macos_with_components(
             plan.preserve_signature(image, changed, true),
             converted,
             force_library_entitlements,
+            &original_entitlements,
         )?;
         convergence[index]["signature"] = signature.into();
         convergence[index]["preserved_dependency_edges"] = preserved_edges.into();
@@ -327,6 +324,7 @@ pub(super) fn relocate_macos_with_components(
     convergence.sort_by(|left, right| left["path"].as_str().cmp(&right["path"].as_str()));
     Ok(serde_json::json!({"schema":1,"policy":"frozen_target_rid",
         "scope":"existing_native_relocation_owned_images_only", "target_rid":super::rid()?,
+        "path_base":"provider_configuration_directory",
         "preserved_action_scope":"slice_and_load_commands_reported_separately; original_signature_requires_platform_verification", "files":convergence}))
 }
 

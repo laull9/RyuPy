@@ -68,9 +68,10 @@ mod source_scan;
 mod stock_module_namespaces;
 mod stock_thin;
 pub use source_probe::probe_sources;
-mod source_deployment;
 mod application_layout;
+mod application_native_relocate;
 mod jit_apphost;
+mod source_deployment;
 pub use session::Session;
 
 /// 编译因用户代码错误而中止（诊断已存入 [`Session`]）。区别于 IO 等内部错误。
@@ -488,5 +489,7 @@ mod stock_thin_tests;
 #[cfg(test)]
 mod stock_namespace_probe_tests;
 
+#[cfg(test)]
+mod stage_audit_tests;
 #[cfg(test)]
 mod stock_module_namespaces_tests;

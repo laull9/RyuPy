@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """在已生成分发上独立运行生命周期门；每个测试使用全新进程与临时目录。"""
 import argparse
-from support import product_layout
 from pathlib import Path
 import shutil
 import sys
@@ -9,6 +8,7 @@ import sys
 # 验收驱动本身也不在源码目录留下字节码缓存。
 sys.dont_write_bytecode = True
 
+from support import product_layout
 from support import ROOT, checked, environment, execute, external_workspace
 
 

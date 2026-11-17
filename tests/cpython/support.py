@@ -45,7 +45,18 @@ def product_layout(root):
     marker = data / '.ryupy-layout.json'
     assert root.is_dir() and not data.is_symlink() and data.is_dir(), ('缺少exact internal目录', root)
     assert marker.is_file() and not marker.is_symlink(), ('缺少canonical布局marker', marker)
-    value = json.loads(marker.read_text(encoding='utf-8'))
+    # marker只含五个短字段；限定读取并拒绝重复键，避免不同消费者选择不同事实。
+    with marker.open('rb') as stream:
+        encoded = stream.read(4097)
+    assert len(encoded) <= 4096, ('布局marker超过4KiB', marker)
+    def unique_object(pairs):
+        value = {}
+        for key, item in pairs:
+            assert key not in value, ('布局marker含重复键', key)
+            value[key] = item
+        return value
+    value = json.loads(encoded, object_pairs_hook=unique_object)
+    assert isinstance(value, dict), ('布局marker不是对象', marker)
     assert set(value) == {'schema_version', 'kind', 'payload_mode', 'entry', 'entry_kind'}, value
     assert type(value['schema_version']) is int and value['schema_version'] == 1, value
     assert value['kind'] == 'ryupy-application-layout' and value['payload_mode'] == 'canonical-v1', value
@@ -206,34 +217,12 @@ def audit_native_paths(dist):
 
 
 def audit_macho_paths(dist):
-    magic = {b'\xcf\xfa\xed\xfe', b'\xfe\xed\xfa\xcf', b'\xca\xfe\xba\xbe'}
-    for path in dist.rglob('*'):
-        if not path.is_file():
-            continue
-        with path.open('rb') as stream:
-            if stream.read(4) not in magic:
-                continue
-        result = subprocess.run(['/usr/bin/otool', '-L', path], capture_output=True, check=True)
-        # CP扩展的.so也可能是MH_DYLIB；按实际LC_ID_DYLIB识别自身ID，后缀不能替代映像事实。
-        identity = subprocess.run(['/usr/bin/otool', '-D', path], capture_output=True, check=True)
-        ids = identity.stdout.decode().splitlines()[1:]
-        own_id = ids[0].strip() if ids else None
-        if path.name in ('libryupy_cpython.dylib', 'libpython3.12.dylib'):
-            assert own_id and own_id.startswith(('@rpath/', '@loader_path/')), ('宿主库ID必须可搬迁', path, own_id)
-        for index, line in enumerate(result.stdout.decode().splitlines()[1:]):
-            dependency = line.strip().split(' (compatibility', 1)[0]
-            # otool对dylib的第一行展示自身ID；它不是加载其他映像的边。
-            if index == 0 and dependency == own_id:
-                continue
-            if dependency.startswith(('/usr/lib/', '/System/Library/')):
-                continue
-            if dependency.startswith('@loader_path/'):
-                resolved = (path.parent / dependency[len('@loader_path/'):]).resolve()
-                assert resolved.is_relative_to(dist.resolve()) and resolved.exists(), (path, dependency)
-            elif dependency.startswith('@rpath/'):
-                raise AssertionError(('尚未解析的rpath加载边', path, dependency))
-            else:
-                raise AssertionError(('分发之外的原生加载边', path, dependency))
+    """Mach-O独立审计拆到专属模块，避免公共支持库承载平台解析。"""
+    if __package__:
+        from .macho_audit import audit_macho_paths as audit
+    else:
+        from macho_audit import audit_macho_paths as audit
+    audit(dist)
 
 
 def audit_elf_paths(dist):

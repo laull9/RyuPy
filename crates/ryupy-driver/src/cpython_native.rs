@@ -8,7 +8,7 @@ use anyhow::{Result, ensure};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-pub(crate) use platform_relocate::macho_identity;
+pub(crate) use platform_relocate::{macho_identity, macho_relocation_signature};
 #[path = "cpython_platform.rs"]
 mod platform;
 #[path = "cpython_platform_abi.rs"]

@@ -69,7 +69,16 @@ fn main() -> ExitCode {
     }
     match result {
         Ok(code) => code,
-        Err(e) if e.is::<HasErrors>() => ExitCode::FAILURE,
+        Err(e) if e.is::<HasErrors>() => {
+            // 语义诊断已单独渲染；保留发布事务附加的诊断目录等context，不能吞掉可操作路径。
+            let mut causes = e.chain().peekable();
+            while let Some(context) = causes.next() {
+                if causes.peek().is_some() {
+                    eprintln!("{context}");
+                }
+            }
+            ExitCode::FAILURE
+        }
         Err(e) => {
             eprintln!("error: {e:#}");
             ExitCode::FAILURE
@@ -191,7 +200,8 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
                 std::process::Command::new(executable)
             } else {
                 let mut command = std::process::Command::new(dotnet::dotnet_exe());
-                command.arg(&artifacts.dll); command
+                command.arg(&artifacts.dll);
+                command
             };
             let status = command.status()?;
             Ok(ExitCode::from(status.code().unwrap_or(1) as u8))

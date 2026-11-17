@@ -3,7 +3,6 @@
 import argparse
 import json
 import os
-from support import built_product
 from pathlib import Path
 import shutil
 import sys
@@ -12,6 +11,7 @@ import sys
 sys.dont_write_bytecode = True
 
 from native_import_audit import verify_import_audit
+from support import built_product
 from support import (ROOT, audit_native_paths, checked, declaration, environment, execute,
                      external_workspace, inspect_host_report, private_distribution,
                      require_python, rid, standalone_layout, write_json)

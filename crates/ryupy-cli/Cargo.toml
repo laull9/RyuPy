@@ -22,6 +22,9 @@ ryupy-base.workspace = true
 clap.workspace = true
 anyhow.workspace = true
 
+[dev-dependencies]
+serde_json.workspace = true
+
 [[bin]]
 name = "ryupy"
 path = "src/main.rs"

@@ -245,6 +245,7 @@ impl AotManifest<'_> {
         }
     }
 }
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn publish_binding(
     dll: &Path,
     out: &Path,
@@ -293,7 +294,9 @@ fn publish_internal(
     } else {
         owned_root(&out, input_name)?
     };
-    let result = publish_owned(&root, &host, input_name, &dll, &runtime, context, resources, canonical);
+    let result = publish_owned(
+        &root, &host, input_name, &dll, &runtime, context, resources, canonical,
+    );
     if owned.is_some() {
         result
     } else {
@@ -315,6 +318,7 @@ fn finish_owned<T>(root: &Path, result: Result<T>) -> Result<T> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn publish_owned(
     root: &Path,
     host: &str,
@@ -481,9 +485,13 @@ fn publish_owned(
             if let AotManifest::Binding(_, plan) = context {
                 plan.write_interfaces(&publish)?;
             }
-            if canonical { crate::application_layout::canonicalize(&publish, &executable, "native_aot")?; }
+            if canonical {
+                crate::application_layout::canonicalize(&publish, &executable, "native_aot")?;
+            }
             let mut artifacts = crate::manifest_files::collect(&publish, &executable)?;
-            if canonical { crate::application_layout::logical_artifacts(&mut artifacts); }
+            if canonical {
+                crate::application_layout::logical_artifacts(&mut artifacts);
+            }
             if let Some(staged) = &staged {
                 staged.mark_artifacts(&mut artifacts)?;
             }
@@ -506,11 +514,18 @@ fn publish_owned(
                 bytes
             };
             if canonical {
-                let bytes = crate::application_layout::manifest_bytes(&bytes, &platform.executable_name(host))?;
+                let bytes = crate::application_layout::manifest_bytes(
+                    &bytes,
+                    &platform.executable_name(host),
+                )?;
                 Some(crate::application_layout::write_manifest(&publish, &bytes)?)
-            } else { Some(crate::manifest_files::write_atomic(&publish, &bytes)?) }
+            } else {
+                Some(crate::manifest_files::write_atomic(&publish, &bytes)?)
+            }
         } else {
-            if canonical { crate::application_layout::canonicalize(&publish, &executable, "native_aot")?; }
+            if canonical {
+                crate::application_layout::canonicalize(&publish, &executable, "native_aot")?;
+            }
             None
         };
         Ok(Publication {

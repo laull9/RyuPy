@@ -21,7 +21,7 @@ import sys
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[2] / 'tests/cpython'))
-from support import built_product, provider_data
+from support import audit_native_paths, built_product, provider_data
 
 
 
@@ -143,6 +143,8 @@ def product(args, project, evidence):
             shutil.copy2(executable, relocated / executable.name)
         else:
             shutil.copytree(executable.parent, relocated)
+        if args.mode != 'onefile':
+            audit_native_paths(relocated)
         shutil.rmtree(inputs)
         shutil.rmtree(output)
         empty_path, cwd = work / 'empty-path', work / 'empty-cwd'

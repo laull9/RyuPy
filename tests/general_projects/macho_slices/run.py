@@ -17,7 +17,7 @@ from fat_fixtures import HERE, prepare, RESOURCE, entitlements, signature_metada
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT/'tests/cpython'))
 from stock_thin_compiler import Recorder, require_success
-from support import built_product, provider_data, audit_native_paths, environment, inspect_host_report, rid, standalone_layout
+from support import product_layout, built_product, provider_data, audit_native_paths, environment, inspect_host_report, rid, standalone_layout
 from onefile_support import audit_onefile_output
 
 
@@ -80,7 +80,9 @@ def audit_catalog(report, case):
 
 def audit_convergence(report,case):
     """源universal事实与最终thin库存同时核对，普通库不取得Python执行身份。"""
+    assert report['file_path_base']=='provider_configuration_directory'
     audit=report['native_architecture_convergence']
+    assert audit['path_base']=='provider_configuration_directory'
     assert audit['scope']=='existing_native_relocation_owned_images_only' and audit['target_rid']=='osx-arm64'
     prefix='python/lib/python3.12/site-packages/'+case['directory']+'/'
     selected=[row for row in audit['files'] if row['path'].startswith(prefix)]
@@ -121,7 +123,8 @@ def audit_signatures(recorder,case,root,work,env):
         metadata=signature_metadata(binary)
         assert metadata['flags']&0x10000
         assert metadata['identifier']=='org.ryupy.fixture.'+('helper.' if helper else '')+case['id']
-        assert entitlements(run,binary,work,env,'deployed-entitlements')==expected
+        actual_entitlements=entitlements(run,binary,work,env,'deployed-entitlements')
+        assert actual_entitlements==expected,(binary,actual_entitlements,expected)
     wheel=list((dependency_root(root)/'python/lib/python3.12/site-packages').glob(case['distribution']+'-*.dist-info/WHEEL'))
     assert len(wheel)==1 and 'universal2' in wheel[0].read_text()
 
@@ -187,7 +190,7 @@ if len(sys.argv)>1:
                         resource_list.write_text(json.dumps({'schema_version':1,'modules':[{'module':'__main__','files':[RESOURCE]}]}))
                         command.extend(['--resources',resource_list])
                     built = run(command, work, env, label+'-build')
-                    data = provider_data(output, entry.stem, mode)
+                    data = (output if mode=='jit' else output/(entry.stem+'.dist')) if args.expect_unconverged else provider_data(output, entry.stem, mode)
                     report = json.loads((data/'cpython-provider.json').read_text())
                     if args.expect_unconverged:
                         assert 'native_architecture_convergence' not in report
@@ -215,8 +218,8 @@ if len(sys.argv)>1:
                         filename = public.entry.name
                         shutil.move(output, relocated); executable = relocated/filename
                     if output.exists(): shutil.rmtree(output)
-                    if mode != 'onefile': audit_native_paths(relocated)
                     if mode!='onefile': audit_signatures(recorder,case,product_layout(relocated).data,work,env)
+                    if mode != 'onefile': audit_native_paths(relocated)
                     products.append((label, mode, executable, oracle, application_args))
             # 所有模式都完成后物理删除原C源码副本、wheel、venv与应用输入，再执行已搬迁产品。
             shutil.rmtree(inputs)

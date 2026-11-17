@@ -4,7 +4,8 @@
 
 `run.py --python <固定3.12.13>` 构建两种独立的真实 universal 消费者：传统单阶段
 `MH_DYLIB` 扩展、PEP489/heap-type 的 `MH_BUNDLE` 扩展，分别覆盖 fat32 与 fat64。
-源输入含 arm64 与 x86_64，携带实际签名 identifier、runtime flags 和 entitlements。
+源输入含 arm64 与 x86_64，逐真实slice签名并核验identifier、runtime flags和entitlements，
+再组成fat容器；本机codesign把fat64当generic，驱动直接核对内层CodeDirectory避免外壳假授权。
 应用函数由CIL执行，扩展执行真实调用、原生异常与身份回调。JIT、NativeAOT、OneFile
 分别删除输入、wheel、虚拟环境与构建目录后搬迁执行，逐项比较当次 CPython 三流与终态计数。
 

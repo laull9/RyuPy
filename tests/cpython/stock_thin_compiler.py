@@ -15,7 +15,7 @@ import signal
 import subprocess
 import tempfile
 
-from support import built_product, product_layout, ROOT, audit_native_paths, environment, inspect_host_report, rid, standalone_layout
+from support import built_product, ROOT, audit_native_paths, environment, inspect_host_report, rid, standalone_layout
 from onefile_support import audit_onefile_output
 
 

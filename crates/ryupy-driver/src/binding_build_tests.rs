@@ -49,9 +49,22 @@ fn jit_bundle_owned_and_actual_source_schema() {
     let original = std::fs::read(first.manifest.as_ref().unwrap()).unwrap();
     let second =
         crate::build_configured(&mut Session::default(), &opts, None, Some(&declaration)).unwrap();
-    assert_ne!(first.dll, second.dll);
+    assert_eq!(first.dll, second.dll);
     assert_eq!(std::fs::read(first.manifest.unwrap()).unwrap(), original);
-    assert!(first.native_exe.is_none());
+    assert!(first.native_exe.as_ref().unwrap().is_file());
+    assert_eq!(first.dll, opts.out_dir.join("internal/main.dll"));
+    crate::application_layout::verify_root(
+        &opts.out_dir,
+        first
+            .native_exe
+            .as_ref()
+            .unwrap()
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap(),
+    )
+    .unwrap();
     let v: Value = serde_json::from_slice(&original).unwrap();
     assert_eq!(v["schema_version"], 3);
     assert_eq!(v["compiler"]["codegen_report_version"], 2);
@@ -331,7 +344,7 @@ fn assert_runtime_bundle(value: &serde_json::Value) {
                 && item["role"] != "runtime_managed"
         })
         .collect();
-    assert_eq!(artifacts.len() - dependencies.len(), 6);
+    assert_eq!(artifacts.len() - dependencies.len(), 8);
     for (key, role) in [
         ("python_stub", "native_binding_python_stub"),
         ("machine_contract", "native_binding_machine_contract"),
@@ -350,8 +363,10 @@ fn assert_runtime_bundle(value: &serde_json::Value) {
     {
         assert_eq!(dependencies.len(), 7);
         for item in dependencies {
+            let logical =
+                crate::application_layout::logical_path(item["relative_path"].as_str().unwrap());
             assert_eq!(
-                crate::runtime::dependency_role(item["relative_path"].as_str().unwrap()),
+                crate::runtime::dependency_role(&logical),
                 item["role"].as_str()
             );
         }

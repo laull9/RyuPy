@@ -225,7 +225,11 @@ pub(super) fn verify_manifest(root: &Path) -> Result<serde_json::Value> {
             native += 1;
         }
     }
-    expected.insert(path.strip_prefix(root)?.to_string_lossy().replace('\\', "/"));
+    expected.insert(
+        path.strip_prefix(root)?
+            .to_string_lossy()
+            .replace('\\', "/"),
+    );
     let actual: std::collections::BTreeSet<_> = snapshot
         .into_iter()
         .filter(|n| !n.directory)
@@ -271,7 +275,9 @@ pub(super) fn relocate(root: &Path, old: &str, new: &str) -> Result<()> {
     }
     if crate::application_layout::is_canonical(root)? {
         let size = crate::application_layout::relocate_entry(root, new)?;
-        let marker = entries.iter_mut().find(|v| v["role"] == "application_layout")
+        let marker = entries
+            .iter_mut()
+            .find(|v| v["role"] == "application_layout")
             .context("canonical清单缺marker artifact")?;
         marker["size"] = size.into();
     }
@@ -347,7 +353,9 @@ fn validate_resource_names(value: &serde_json::Value, nodes: &[Node]) -> Result<
     let mut names = std::collections::BTreeSet::new();
     for node in nodes {
         if node.path != native || node.directory {
-            crate::resources::validate_layout_artifact_path(&crate::application_layout::logical_path(&node.path))?;
+            crate::resources::validate_layout_artifact_path(
+                &crate::application_layout::logical_path(&node.path),
+            )?;
         }
         ensure!(
             names.insert(node.path.to_ascii_lowercase()),
