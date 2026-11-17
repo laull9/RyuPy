@@ -14,8 +14,10 @@ internal static class ProgramLifecycle
         entryContext = context;
         Require(PyModules.TryCached("__main__", out var current), "执行前已发布 Runtime Cache");
         // 独立 bootstrap 冷操作：在创建 F 前安装 canonical builtins，避免把业务交给 Python。
+        object originalBuiltins = PyModuleInstances.LoadName(context, "__builtins__")!;
         using var lease = host.Enter();
         if (ProgramNative.program_canonical_builtins(((PythonObject)current!.ForeignObject!).Pointer) < 0) host.ThrowError();
+        host.Unregister(originalBuiltins); host.ForgetReleasedTransferObservations();
     }
     private static void Require(bool ok, string text) { if (!ok) throw new InvalidOperationException(text); }
     private static void Run(string text)
@@ -30,10 +32,16 @@ internal static class ProgramLifecycle
         throw new InvalidOperationException("关闭本应拒绝");
     }
     private static object? Echo(IStockThinFunctionLease env, object? value) => value;
+    private static object? Self(IStockThinFunctionLease env, object? value) => env.LoadGlobal("f");
     private static object? Global(IStockThinFunctionLease env, object? value) => env.LoadGlobal("marker");
     private static object? AtExit(IStockThinFunctionLease env, object? value)
     {
         exits++; Console.WriteLine("EVENT atexit-cil");
+        bool foreignRejected = Task.Run(() => {
+            try { using var lease = host.Enter(callback: true); return false; }
+            catch (ObjectDisposedException) { return true; }
+        }).GetAwaiter().GetResult();
+        Require(foreignRejected, "终态拒绝外线程新callback租约");
         Require(ReferenceEquals(env.LoadGlobal("marker"), value), "atexit 原 D 身份");
         Require(env.LoadGlobal("len") is not null, "atexit 原 builtins");
         var f = (StockThinFunctionHandle)env.LoadGlobal("f")!;
@@ -74,10 +82,10 @@ internal static class ProgramLifecycle
         var d = (PythonObject)module.GetAttr("__dict__")!;
         // 只用控制胶水建 identity 哨兵与退出协议，不委派业务体。
         Run("import gc, atexit, sys\ngc.disable()\nmarker=object()\n");
-        Define(d, "f", Echo); Define(d, "global_f", Global);
+        Define(d, "f", Echo); Define(d, "global_f", Global); Define(d, "global_self", Self);
         Define(d, "onexit", AtExit); Define(d, "ondel", Del); Define(d, "fail", Fail);
         Define(d, "onunraisable", Unraisable);
-        Run("assert f(marker) is marker\nassert global_f(None) is marker\n");
+        Run("assert f(marker) is marker\nassert global_f(None) is marker\nassert global_self(None) is f\n");
         host.RegisterProgramOwners(module);
         // 普通 Dispose 的 nativeLive 拒绝必须保留可用宿主。
         Refused(host.Dispose);
@@ -94,6 +102,33 @@ internal static class ProgramLifecycle
             PythonObject extra;
             using (host.Enter()) extra = new PythonObject(host, Native.rp_incref(d.Pointer));
             Refused(() => host.FinishProgramForProbe(true)); extra.Dispose(); host.DrainReferences();
+        }
+        if (mode is "external-p" or "external-self" or "external-cell")
+        {
+            string expression = mode switch {
+                "external-p" => "f.__closure__[0].cell_contents",
+                "external-self" => "f.__closure__[0].cell_contents.__self__",
+                _ => "f.__closure__[0]" };
+            Run("escaped=" + expression);
+            var opaque = (PythonObject)module.GetAttr("escaped")!;
+            host.ReleaseObject("escaped"); // 本次getter的CLR元数据键，与外逃opaque所有权分开。
+            Require(CPythonHost.StockThinOwnedHandles == 0, "只有 opaque 外根，没有活 H");
+            Refused(() => host.FinishProgramForProbe(true));
+            Require(!opaque.IsDisposed, "拒绝保留外逃 opaque 使用权");
+            opaque.Dispose(); host.DrainReferences();
+            // CP 的 escaped 键继续保留，交给合法终态模块清理。
+        }
+        if (mode == "external-container")
+        {
+            var h = (StockThinFunctionHandle)module.GetAttr("f")!;
+            var container = new PyList([h]);
+            using (host.Enter()) Native.rp_decref(host.TransferContainer(container));
+            h.Dispose(); host.DrainReferences();
+            Require(CPythonHost.StockThinOwnedHandles == 0, "CLR H 已显式释放，真实 CP list 仍 owned F");
+            Refused(() => host.FinishProgramForProbe(true));
+            // 走真实 synchronized transfer 的 owner 释放；CLR list 仍活着，无 CLR GC 代劳。
+            host.Unregister(container); host.ForgetReleasedTransferObservations(); host.DrainReferences();
+            GC.KeepAlive(container);
         }
         using (host.Enter())
         {
@@ -130,7 +165,7 @@ victim.cycle=victim
 victim=None
 def check_exit(cb=onexit, bad=fail, m=marker):
  assert sys.modules['__main__'].__dict__ is globals()
- assert f(m) is m and global_f(None) is m
+ assert f(m) is m and global_f(None) is m and global_self(None) is f
  assert cb(m) is m
  e=ValueError('exit-original')
  try: bad(e)

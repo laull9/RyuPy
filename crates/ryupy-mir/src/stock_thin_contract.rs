@@ -2,6 +2,11 @@
 use crate::*;
 pub(crate) fn validate(program: &Program, errors: &mut Vec<String>) {
     for (_, function) in program.functions.iter() {
+        if (function.core == FunctionCore::StockThinStatic)
+            != (function.module_state_source == Some(InstanceStateSource::StockThinLease))
+        {
+            errors.push("薄函数执行种类和lease来源必须一同冻结".into());
+        }
         if function.module_state_source != Some(InstanceStateSource::StockThinLease) {
             continue;
         }
@@ -53,13 +58,19 @@ pub(crate) fn validate_factory(
     program: &Program,
     caller: &Function,
     block: BlockId,
-    target: FnId,
-    context: &Operand,
+    value: &Rvalue,
     errors: &mut Vec<String>,
 ) {
+    let Rvalue::MakeStockThinFunction {
+        func: target,
+        module_context: context,
+    } = value
+    else {
+        return;
+    };
     crate::validate_instance_module::validate_operand(program, caller, block, context, errors);
     if !program.functions.iter().any(|(id, f)| {
-        id == target && f.module_state_source == Some(InstanceStateSource::StockThinLease)
+        id == *target && f.module_state_source == Some(InstanceStateSource::StockThinLease)
     }) || caller.module_state_source != Some(InstanceStateSource::ModuleEntryParameter)
         || !matches!(context, Operand::Local(state) if Some(*state) == caller.module_state)
     {

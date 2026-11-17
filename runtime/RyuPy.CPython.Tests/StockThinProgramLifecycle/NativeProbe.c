@@ -11,6 +11,7 @@ static int terminal_prepared, terminal_done;
 static long terminal_decrefs, post_finalize_decrefs;
 static long lowlevel_live = -1;
 static void program_lowlevel_exit(void) { lowlevel_live = rp_thin_live; }
+API int program_install_observer(void) { return Py_AtExit(program_lowlevel_exit); }
 API long long program_lowlevel_live(void) { return lowlevel_live; }
 API PyObject *rp_thin_make(PyObject *d, intptr_t token, int failure) {
     if (terminal_prepared) {
@@ -28,7 +29,6 @@ API int program_canonical_builtins(PyObject *module) {
 }
 API int program_prepare(void) {
     if (terminal_prepared || !rp_thin_live || !rp_thin_template || !rp_fo_type) return -1;
-    if (Py_AtExit(program_lowlevel_exit) < 0) return -1;
     terminal_prepared = 1;
     /* 只交还 shim 自己的两份 owned 引用；F 保活 code，owner 保活 heap type。
      * 不能 Py_CLEAR：现有 shape/dispatch 在终态回调中仍比较这两个借用别名。 */

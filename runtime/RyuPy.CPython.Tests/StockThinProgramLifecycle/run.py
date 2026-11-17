@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import shlex
 import shutil
+import signal
 import subprocess
 import tempfile
 
@@ -16,7 +17,7 @@ import tempfile
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--python', type=Path, required=True)
-    parser.add_argument('--case', action='append', choices=['scoped', 'unscoped', 'keep-owned', 'external', 'external-d'])
+    parser.add_argument('--case', action='append', choices=['scoped', 'unscoped', 'keep-owned', 'external', 'external-d', 'external-p', 'external-self', 'external-cell', 'external-container'])
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[3]
     source = Path(__file__).resolve().parent
@@ -29,7 +30,19 @@ def main():
 
         def run(command, timeout=120, required=True, env=None, quiet=False):
             log.write('\nCOMMAND '+shlex.join(map(str, command))+'\n'); log.flush()
-            result = subprocess.run(command, cwd=work, text=True, capture_output=True, timeout=timeout, env=env)
+            process = subprocess.Popen(command, cwd=work, text=True, stdout=subprocess.PIPE,
+                                       stderr=subprocess.PIPE, stdin=subprocess.DEVNULL, env=env, start_new_session=True)
+            try:
+                stdout, stderr = process.communicate(timeout=timeout)
+            except BaseException:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                stdout, stderr = process.communicate()
+                log.write('INTERRUPTED\nSTDOUT\n'+stdout+'\nSTDERR\n'+stderr+'\n'); log.flush()
+                raise
+            result = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
             log.write(f'EXIT {result.returncode}\nSTDOUT\n{result.stdout}\nSTDERR\n{result.stderr}\n'); log.flush()
             if not quiet:
                 print(result.stdout, end='', flush=True)
@@ -58,9 +71,11 @@ def main():
             assert text.count(old) == 1, '固定源码接线漂移：'+filename
             target.write_text(text.replace(old, new))
         connect('PythonObject.cs', 'token = host.Track(pointer);',
-                'token = host.Track(pointer); host.ObserveProgramOwner(this);')
+                'token = host.Track(pointer); host.ObserveProgramOwner(this, token);')
         connect('CPythonStockThinFunctions.cs', 'Interlocked.Increment(ref CPythonHost.StockThinOwnedHandles);',
                 'Interlocked.Increment(ref CPythonHost.StockThinOwnedHandles); function.Host.ObserveProgramThinOwner(this);')
+        connect('CPythonHost.cs', 'internal Lease Enter(bool callback = false)\n    {',
+                'internal Lease Enter(bool callback = false)\n    {\n        ValidateProgramEntry();')
         log.write('SOURCE EXPERIMENT constructor strong owner hooks: PythonObject + StockThinFunctionOwner\n')
         cfg = json.loads(run([str(args.python.resolve()), '-I', '-B', '-c',
             'import sys,sysconfig,json; print(json.dumps(dict(home=sys.base_prefix,version=".".join(map(str,sys.version_info[:3])),lib=sysconfig.get_config_var("LIBDIR"),library=sysconfig.get_config_var("LDLIBRARY"),gil=sysconfig.get_config_var("Py_GIL_DISABLED"))))']).stdout)
@@ -102,16 +117,25 @@ def main():
              '-I'+str(Path(cfg['home'])/'include'/f'python{series}'), '-I'+str(provider/'native'),
              str(source/'NativeProbe.c'), str(Path(cfg['lib'])/cfg['library']), '-o', str(shim)])
         config = work/'host.json'
-        config.write_text(json.dumps(dict(schema=1, python_version=cfg['version'], development=True,
+        config_data = dict(schema=1, python_version=cfg['version'], development=True,
             home=cfg['home'], library=str(Path(cfg['lib'])/cfg['library']), shim=str(shim),
             search_paths=[str(Path(cfg['home'])/'lib'/f'python{series}'), str(Path(cfg['home'])/'lib'/f'python{series}'/'lib-dynload')],
-            modules=['builtins', 'gc', 'sys', 'atexit'], container_transfer='proxy')))
+            modules=['builtins', 'gc', 'sys', 'atexit'], container_transfer='proxy')
         failed = False
-        for case in args.case or ['unscoped', 'keep-owned', 'scoped', 'external', 'external-d']:
+        for case in args.case or ['unscoped', 'keep-owned', 'scoped', 'external', 'external-d', 'external-p', 'external-self', 'external-cell', 'external-container']:
+            config_data['container_transfer'] = 'synchronized' if case == 'external-container' else 'proxy'
+            config.write_text(json.dumps(config_data))
             result = run(['dotnet', str(output/'RyuPy.CPython.Tests.dll'), str(config), case], required=False, env=env)
             # 失败对照同样保留，SIGSEGV/异常退出永远不能作为预期泄漏通过。
             expected = 2 if case in ('unscoped', 'keep-owned') else 0
-            passed = result.returncode == expected and (not result.stderr if expected == 0 else 'AFTER ' in result.stdout)
+            after = next((line for line in result.stdout.splitlines() if line.startswith('AFTER ')), '')
+            fields = dict(item.split('=', 1) for item in after.split() if '=' in item)
+            diagnostic = fields.get('finalize') == '0' and fields.get('postFinalizeDecref') == '0'
+            if case == 'unscoped':
+                diagnostic &= int(fields.get('native', '-1')) > 0 and int(fields.get('roots', '-1')) > 0 and int(fields.get('late', '0')) > 0
+            elif case == 'keep-owned':
+                diagnostic &= fields.get('native') == '0' and int(fields.get('ledger', '0')) > 0
+            passed = result.returncode == expected and not result.stderr and diagnostic
             line = f'CASE python={cfg["version"]} case={case} exit={result.returncode} expected={expected} accepted={passed}\n'
             print(line, end='', flush=True); log.write(line); log.flush()
             failed |= not passed

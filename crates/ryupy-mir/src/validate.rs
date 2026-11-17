@@ -367,17 +367,9 @@ fn validate_rvalue(
                 }
             }
         }
-        Rvalue::MakeStockThinFunction {
-            func: target,
-            module_context,
-        } => crate::stock_thin_contract::validate_factory(
-            program,
-            func,
-            block_id,
-            *target,
-            module_context,
-            errors,
-        ),
+        value @ Rvalue::MakeStockThinFunction { .. } => {
+            crate::stock_thin_contract::validate_factory(program, func, block_id, value, errors)
+        }
         Rvalue::MakeFunction {
             instance_context,
             func: target,

@@ -33,6 +33,7 @@ entryId、module、name、sourcePath、sourceLine。只存字符串/整数，不
 `Context(context).State.View` 调用上述 factory；它不捕获或缓存模块 context。真实 F 持 D
 及定义时 builtins，K 不持 D。`PyStockThinFunctions.LoadGlobal(object lease, string name)`
 映射隐藏动态参数，实际查名语义由 provider 的活动 lease 实现。
+编译 provider 只接受本 Host 的真实精确 dict，拒绝把 CLR PyDict 转成另一份环境副本。
 
 Bootstrap.StartStockThin(config,args) 只供显式编译资格发射；安装旧宿主后启用候选，
 启用失败回滚 Stop，双失败同时保留两项异常。默认 Start 不经过这个分支。
@@ -46,7 +47,8 @@ Bootstrap.StartStockThin(config,args) 只供显式编译资格发射；安装旧
 首切只接顶层同步 `def f(x)`：x 为一个位置/关键字参数，无 positional-only、kw-only、
 variadic、注解、默认值、装饰器、type params 或业务 closure；body 恰一条 return Name。
 参数 x 直接返回；其它准入名字必须走真实 F 的 globals/builtins 活查，不能发射旧静态
-函数常量或 Runtime builtin 常量。超合同必须 Diagnostic，禁止退回旧 MakeFunction。
+函数常量或 Runtime builtin 常量。超合同必须 Diagnostic，禁止退回旧 MakeFunction。首切对语言常量 __debug__ 明确诊断，
+不能把它降成可被 globals 遮蔽的普通名字。
 
 HIR 将实际 FuncId 与执行资格绑定，MIR 使用独立创建操作和 StockThinLease 隐藏状态源。
 body 仍为真实 HIR/MIR 降级后的静态 CIL 方法；codegen 仅按 MIR 发射 typed static adapter、
@@ -70,3 +72,19 @@ Dispose 会拒绝活 owner，正常结束是实质准入前置。生命周期 pr
 
 后续验收采用真实 Python 输入与 Rust CLI 生成物，检查 HIR/MIR/PE 中的静态 body、委托、
 lease 读名和 factory，随后两版 JIT/NativeAOT/搬迁及原二十项目与真实应用回归。
+
+
+## 5. 编译与审查收口进展
+
+显式资格已贯穿 CLI/driver/HIR/MIR/CIL；8 项初始定向测试、fmt 与全目标 clippy 通过。
+新 CLI 已对原 identity.py 真实生成 DLL：输出两行 True，随后因模块保留 F 被旧关闭门
+拒绝，exit=1；这个完整失败保留，正例继续 pending。正常模块结束由 ADR-0228 处理。
+
+独立审查发现的两项 P2 已修：dump 在资格判定前按本次输入冻结 provider 并核验实际图，
+CIL dump 也显示 StartStockThin；__debug__ 以明确 Diagnostic 拒止。真实 CLI 的 ast/hir/
+types/mir/cil 五阶段均退出 0，额外源码模块明确拒绝；CP oracle 的 __debug__ 为 True，
+候选不读取被注入的 False。完整三流/退出码在仓外保存，原输入与临时产物已清理。
+
+冷 ABI 增量的 Runtime 全套固定 CPython 检查为 3422 pass、3 既有 skip；provider 43 pass。
+首个 Runtime 单独命令缺少 PYTHON 导致两项 textwrap oracle 环境失败，补固定解释器后
+完整重跑通过，失败日志保留。全部历史保护继续有效，最终 Rust/产品/性能门尚待生命周期合流。

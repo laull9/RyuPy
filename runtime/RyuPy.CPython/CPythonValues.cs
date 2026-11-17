@@ -33,6 +33,7 @@ public sealed partial class CPythonHost
         nint id = Native.rp_identity(pointer);
         if (id != 0 && Roots.TryGetValue(id, out object? original)) { Native.rp_decref(pointer); return original; }
         if (objects.TryGetValue(pointer, out WeakReference<object>? weak) && weak.TryGetTarget(out object? existing)
+            && !(reverse.TryGetValue(existing, out ManagedReference? cached) && cached.Owner is { IsDisposed: true })
             && existing is not PythonObject { IsDisposed: true }
             && existing is not PyBaseException { ForeignObject: PythonObject { IsDisposed: true } }
             && !(existing is PyInstance staleInstance && PyForeignClassBridge.GetForeignInstance(staleInstance) is PythonObject { IsDisposed: true })
@@ -87,10 +88,16 @@ public sealed partial class CPythonHost
         if (value is PyClass { IsException: true } exceptionClass) return ExceptionClass(exceptionClass);
         if (reverse.TryGetValue(value, out ManagedReference? reference))
         {
-            if (HasSetName(value) && Native.rp_is_managed_descriptor(reference.Pointer) == 0)
-                throw new PyNotImplementedError("exported managed proxy cannot add __set_name__ capability while preserving its identity");
-            ValidateSetNameDescriptor(value);
-            return Native.rp_incref(reference.Pointer);
+            // owned 作用域可以确定释放仍被 CLR 常量保活的缓存 owner；其裸地址随后不能再 INCREF。
+            if (reference.Owner is { IsDisposed: true } retired)
+                RetireOwnedIdentity(retired, reference.Pointer);
+            else
+            {
+                if (HasSetName(value) && Native.rp_is_managed_descriptor(reference.Pointer) == 0)
+                    throw new PyNotImplementedError("exported managed proxy cannot add __set_name__ capability while preserving its identity");
+                ValidateSetNameDescriptor(value);
+                return Native.rp_incref(reference.Pointer);
+            }
         }
         nint CacheScalar(nint scalar)
         {
@@ -147,6 +154,19 @@ public sealed partial class CPythonHost
         catch { Roots.TryRemove(identity, out _); throw; }
         reverse.Add(value, new ManagedReference(identity, pointer));
         return pointer;
+    }
+
+    // 只能在持 GIL 的 owned 作用域内调用，且必须先于 owner.Dispose/Drain。
+    // 按 owner 身份撤销两向缓存，避免旧 wrapper 误删同地址后续建立的新关联。
+    internal void RetireOwnedIdentity(PythonObject owner, nint pointer)
+    {
+        if (!objects.TryGetValue(pointer, out var weak) || !weak.TryGetTarget(out var value)) return;
+        if (reverse.TryGetValue(value, out var reference) && ReferenceEquals(reference.Owner, owner))
+        {
+            reverse.Remove(value);
+            objects.Remove(pointer);
+        }
+        else if (ReferenceEquals(value, owner)) objects.Remove(pointer);
     }
     // 能力只取真实类型链；实例自己的同名字段不能签发特殊槽。已导出普通代理不换身份升级。
     private static bool HasSetName(object? value) => value is PyInstance instance

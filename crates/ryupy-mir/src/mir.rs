@@ -209,6 +209,8 @@ pub struct Function {
 pub enum FunctionCore {
     #[default]
     Ordinary,
+    /// 显式候选静态薄体；真实Python形参后只接受object lease。
+    StockThinStatic,
     /// 原typed核心保持ABI，冷缺省入口使用指定的通用体。
     TypedWithGeneric { generic: FnId },
     /// 只拥有通用参数/CFG和实际owner，不分配第二份Python元数据。

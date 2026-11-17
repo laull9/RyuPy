@@ -84,6 +84,11 @@ public sealed partial class CPythonHost : IPyStockThinFunctionProvider
         PyStockThinDefinition definition, PyStockThinBody body) => PythonCall(() =>
     {
         if (!stockThinEnabled) throw new PyNotImplementedError("stock 薄函数候选尚未显式启用");
+        // 编译 ABI 只能使用当前 Host 的权威精确 dict；禁止将 CLR PyDict 同步成另一份环境。
+        // 原入口存储选择错误应立即失败，不能由转换器补出含 H/owned F 的跨堆回边。
+        if (globals is not PythonObject dictionary || !ReferenceEquals(dictionary.Host, this)
+            || Native.rp_container_kind(dictionary.Pointer) != 2)
+            throw new PyTypeError("compiled stock function requires the host's real globals dictionary");
         var source = new StockThinFunctionDefinition(definition.EntryId, definition.Module,
             definition.Name, definition.SourcePath, definition.SourceLine);
         return CreateStockThinFunctionCore(globals, StockThinFunctionCore.CreateCompiled(source, body), 0);
@@ -174,6 +179,7 @@ public sealed partial class CPythonHost : IPyStockThinFunctionProvider
         Lease? lease = null;
         CallbackScope? callback = null;
         ManagedHandledScope? handled = null;
+        ProgramOwnedScope? owned = null;
         StockThinFunctionCallLease? environment = null;
         long depth = PyTraceback.CaptureDepth();
         nint result = 0;
@@ -181,6 +187,7 @@ public sealed partial class CPythonHost : IPyStockThinFunctionProvider
         {
             if (host is null) throw new PyRuntimeError("RyuPy host is closed");
             lease = host.Enter(callback: true);
+            owned = host.BeginStockProgramCallback();
             callback = new CallbackScope(true);
             handled = new ManagedHandledScope(host);
             environment = new StockThinFunctionCallLease(host, function);
@@ -215,7 +222,7 @@ public sealed partial class CPythonHost : IPyStockThinFunctionProvider
                         finally
                         {
                             try { PyTraceback.PopTo(depth + 1); }
-                            finally { lease?.Dispose(); }
+                            finally { try { owned?.Dispose(); } finally { lease?.Dispose(); } }
                         }
                     }
                 }
@@ -239,6 +246,7 @@ internal sealed class StockThinFunctionOwner : IStockThinFunctionOwner, IDisposa
     {
         Function = function;
         Interlocked.Increment(ref CPythonHost.StockThinOwnedHandles);
+        function.Host.ObserveStockProgramHandle(this);
     }
     ~StockThinFunctionOwner() => Dispose();
     public void Dispose()

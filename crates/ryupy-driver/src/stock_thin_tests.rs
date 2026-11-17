@@ -70,6 +70,22 @@ fn stock_thin_graph_rejects_provider_fixed_delegated_and_extra_source() {
     }
     assert!(!Session::default().experimental_stock_thin_functions);
 }
+
+#[test]
+fn stock_thin_dump_freezes_a_fresh_session_before_qualification() {
+    let root = crate::test_temp::Root::new("stock-thin-dump-prepare");
+    let input = root.join("entry.py");
+    std::fs::write(&input, "def f(x):\n    return x\n").unwrap();
+    let mut session = Session {
+        experimental_stock_thin_functions: true,
+        cpython_provider: Some(root.join("missing-provider.json")),
+        ..Default::default()
+    };
+    let error = dump(&mut session, &input, Stage::Mir).unwrap_err();
+    // 回归旧行为会先报E0100，配置声明从未被冻结；现在由共同prepare呈现实际输入错误。
+    assert!(format!("{error:#}").contains("CPython provider 声明不存在"));
+    assert!(session.diagnostics.is_empty());
+}
 #[test]
 #[ignore = "显式指定固定CPython3.12.13和3.13.3，现场执行手写oracle"]
 fn stock_thin_pinned_two_version_oracle() {

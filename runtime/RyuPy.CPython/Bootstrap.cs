@@ -35,6 +35,26 @@ public static class Bootstrap
             throw;
         }
     }
+    /// <summary>授权并执行封闭stock编译入口；finally交还入口内部临时H。</summary>
+    public static void RunStockThinMain() => Host.RunStockProgramMain();
+
+    /// <summary>一次性编译程序终态；外部owned拒绝时保留宿主供释放重试。</summary>
+    public static int FinishStockThin(int code)
+    {
+        CPythonHost current = Host;
+        try
+        {
+            int result = current.FinishStockProgram(() => Builtins.FinishExit(code));
+            Builtins.Flush(); return result;
+        }
+        catch (Exception error)
+        { Console.Error.WriteLine("CPython关闭失败：" + error.Message); return code == 0 ? 1 : code; }
+        finally
+        {
+            if (current.IsClosed) { PyProvider.Remove(current); host = null; }
+        }
+    }
+
     /// <summary>统一退出路径；标准流/运行时退出失败也会执行解释器关闭。</summary>
     public static int Finish(int code)
     {

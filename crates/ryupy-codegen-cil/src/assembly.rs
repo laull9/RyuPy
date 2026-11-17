@@ -534,7 +534,10 @@ fn build_resolution_core(
         ),
     );
     let mut run_main_body = body::Method::new(vec![
-        Instruction::call(runtime_refs.module_run_main),
+        Instruction::call(crate::provider_refs::run_main(
+            provider_refs.as_ref(),
+            runtime_refs.module_run_main,
+        )),
         Instruction::Return,
     ]);
     run_main_body.header.maximum_stack_size = 8;

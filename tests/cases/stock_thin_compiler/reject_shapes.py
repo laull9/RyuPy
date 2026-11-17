@@ -21,3 +21,8 @@ def f(x):
 # case: async
 async def f(x):
     return x
+# case: language_constant
+def f(x):
+    return __debug__
+globals()["__debug__"] = False
+print(f(None))

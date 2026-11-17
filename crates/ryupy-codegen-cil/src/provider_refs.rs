@@ -3,6 +3,8 @@ use dotnetdll::prelude::*;
 pub(crate) struct ProviderRefs {
     pub start: MethodRefIndex,
     pub finish: MethodRefIndex,
+    /// 显式薄函数宿主包住真正RunMain；普通provider保留Runtime直接入口。
+    pub run_main: Option<MethodRefIndex>,
 }
 impl ProviderRefs {
     pub(crate) fn for_program(
@@ -16,9 +18,19 @@ impl ProviderRefs {
             }) {
                 let parent = res[refs.start].parent.clone();
                 refs.start = res.push_method_reference(ExternalMethodReference::new(
-                    parent,
+                    parent.clone(),
                     "StartStockThin",
                     msig! { static void (string, string[]) },
+                ));
+                refs.run_main = Some(res.push_method_reference(ExternalMethodReference::new(
+                    parent.clone(),
+                    "RunStockThinMain",
+                    msig! { static void () },
+                )));
+                refs.finish = res.push_method_reference(ExternalMethodReference::new(
+                    parent,
+                    "FinishStockThin",
+                    msig! { static int (int) },
                 ));
             }
             refs
@@ -36,10 +48,17 @@ impl ProviderRefs {
         let bootstrap = res.push_type_reference(type_ref! { RyuPy.CPython.Bootstrap in #assembly });
         let bootstrap: MethodType = BaseType::class(bootstrap).into();
         Self {
+            run_main: None,
             start: res.push_method_reference(
                 method_ref! { static void @bootstrap::Start(string, string[]) },
             ),
             finish: res.push_method_reference(method_ref! { static int @bootstrap::Finish(int) }),
         }
     }
+}
+
+/// 只消费MIR已冻结的角色。Main先执行共享函数/类工厂初始化，
+/// 再由__run_main调用宿主，使薄函数作用域包住实际PyModules.RunMain。
+pub(crate) fn run_main(provider: Option<&ProviderRefs>, default: MethodRefIndex) -> MethodRefIndex {
+    provider.and_then(|refs| refs.run_main).unwrap_or(default)
 }

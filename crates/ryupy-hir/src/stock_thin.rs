@@ -46,6 +46,19 @@ impl Scan<'_> {
 impl<'a> Visitor<'a> for Scan<'_> {
     fn visit_stmt(&mut self, stmt: &'a ast::Stmt) {
         if let ast::Stmt::FunctionDef(f) = stmt {
+            // __debug__ 是按编译选项冻结的语言常量，不能作为可遮蔽global进入lease。
+            if matches!(f.body.as_slice(), [ast::Stmt::Return(ret)]
+                if matches!(ret.value.as_deref(), Some(ast::Expr::Name(name)) if name.id.as_str() == "__debug__"))
+            {
+                self.diagnostics.push(
+                    Diagnostic::error(
+                        Span::new(self.parsed.file, stmt.range()),
+                        "薄函数候选暂不支持语言常量 `__debug__`，不能降为动态全局读取",
+                    )
+                    .with_code("E0100"),
+                );
+                return;
+            }
             let p = &f.parameters;
             let valid = self.top
                 && !f.is_async
@@ -82,5 +95,25 @@ impl<'a> Visitor<'a> for Scan<'_> {
             self.reject(expr.range());
         }
         walk_expr(self, expr);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn stock_thin_language_constant_never_becomes_a_shadowable_global() {
+        for (returned, rejected) in [("__debug__", true), ("abs", false), ("x", false)] {
+            let source =
+                format!("def f(x):\n    return {returned}\nglobals()['__debug__'] = False\n");
+            let mut db = ryupy_base::SourceDb::default();
+            let file = db.add("thin_constant.py", &source);
+            let (parsed, diagnostics) = ryupy_syntax::parse(file, &source);
+            assert!(diagnostics.is_empty());
+            let diagnostics = super::validate(&parsed);
+            assert_eq!(diagnostics.is_empty(), !rejected, "{diagnostics:?}");
+            if rejected {
+                assert!(diagnostics[0].message.contains("__debug__"));
+            }
+        }
     }
 }

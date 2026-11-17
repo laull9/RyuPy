@@ -29,6 +29,7 @@ fn stock_thin_pe_has_static_typed_adapter_and_cold_factory() {
         vec![x, lease],
         MirType::Dynamic,
     );
+    core.core = FunctionCore::StockThinStatic;
     core.module_state = Some(lease);
     core.module_state_source = Some(InstanceStateSource::StockThinLease);
     core.param_meta = vec![ParamMeta {
@@ -121,10 +122,143 @@ fn stock_thin_pe_has_static_typed_adapter_and_cold_factory() {
         .join("\n");
     assert!(shown.contains("CreateStockThinFunction"));
     assert!(shown.contains("StartStockThin"));
-    assert!(shown.contains("Finish"));
+    assert!(shown.contains("FinishStockThin"));
+    let wrapper = methods.iter().find(|m| m.name == "Main").unwrap();
+    let wrapper = wrapper.body.as_ref().unwrap();
+    for name in ["StartStockThin", "FinishStockThin"] {
+        assert_eq!(
+            wrapper
+                .instructions
+                .iter()
+                .filter(|i| bootstrap_call(i, &res, name))
+                .count(),
+            1
+        );
+    }
+    // 初始化仍走原Main；仅__run_main内部实际执行改由Host包住PyModules.RunMain。
+    let definition_calls: Vec<_> = wrapper
+        .instructions
+        .iter()
+        .filter_map(|i| match i {
+            Instruction::Call {
+                param0: MethodSource::User(UserMethod::Definition(target)),
+                ..
+            } => Some(res[*target].name.as_ref()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        definition_calls,
+        ["__init_functions", "__init_class_factories", "__run_main"]
+    );
+    let run = methods.iter().find(|m| m.name == "__run_main").unwrap();
+    let run = &run.body.as_ref().unwrap().instructions;
+    assert_eq!(run.len(), 2);
+    assert!(bootstrap_call(&run[0], &res, "RunStockThinMain"));
+    assert!(matches!(run[1], Instruction::Return));
+    // 成功、SystemExit、Python异常、CLR异常共享同一专用finish汇合点。
+    let finish = wrapper.instructions.len() - 3;
+    assert!(matches!(
+        wrapper.instructions[finish],
+        Instruction::LoadLocal(0)
+    ));
+    assert!(bootstrap_call(
+        &wrapper.instructions[finish + 1],
+        &res,
+        "FinishStockThin"
+    ));
+    let leaves: Vec<_> = wrapper
+        .instructions
+        .iter()
+        .filter_map(|i| match i {
+            Instruction::Leave(target) => Some(*target),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(leaves, vec![finish; 4]);
     assert!(
         !shown.contains("CreateOwnedFunction")
             && !shown.contains("FunctionModule(")
             && !shown.contains("FunctionMetadata(")
     );
+}
+
+/// 必须是真实call到精确Bootstrap静态签名，单有MemberRef不能通过此门。
+fn bootstrap_call(instruction: &Instruction, res: &Resolution<'_>, name: &str) -> bool {
+    let Instruction::Call {
+        param0: MethodSource::User(UserMethod::Reference(id)),
+        ..
+    } = instruction
+    else {
+        return false;
+    };
+    let method = &res[*id];
+    if method.name != name {
+        return false;
+    }
+    let MethodReferenceParent::Type(parent) = &method.parent else {
+        panic!("Bootstrap必须是类型静态方法");
+    };
+    assert!(parent.show(res).contains("RyuPy.CPython.Bootstrap"));
+    assert!(
+        !method.signature.instance
+            && !method.signature.explicit_this
+            && method.signature.varargs.is_none()
+    );
+    match name {
+        "StartStockThin" | "Start" => {
+            assert_eq!(method.signature, msig! { static void (string, string[]) })
+        }
+        "RunStockThinMain" => assert_eq!(method.signature, msig! { static void () }),
+        "FinishStockThin" | "Finish" => assert_eq!(method.signature, msig! { static int (int) }),
+        _ => panic!("未登记Bootstrap合同"),
+    }
+    true
+}
+
+#[test]
+fn ordinary_provider_keeps_original_start_run_and_finish() {
+    let mut program = program();
+    program.external_provider = Some("python/provider.json".into());
+    let bytes = crate::emit_assembly(
+        &program,
+        &crate::EmitOptions {
+            assembly_name: "OrdinaryProvider".into(),
+            entry_source_path: None,
+        },
+    )
+    .unwrap();
+    let res = Resolution::parse(&bytes, ReadOptions::default()).unwrap();
+    let methods: Vec<_> = res
+        .type_definitions
+        .iter()
+        .flat_map(|ty| &ty.methods)
+        .collect();
+    let wrapper = methods.iter().find(|m| m.name == "Main").unwrap();
+    let instructions = &wrapper.body.as_ref().unwrap().instructions;
+    for name in ["Start", "Finish"] {
+        assert_eq!(
+            instructions
+                .iter()
+                .filter(|i| bootstrap_call(i, &res, name))
+                .count(),
+            1
+        );
+    }
+    let run = methods.iter().find(|m| m.name == "__run_main").unwrap();
+    let instructions = &run.body.as_ref().unwrap().instructions;
+    let Instruction::Call {
+        param0: MethodSource::User(UserMethod::Reference(id)),
+        ..
+    } = instructions[0]
+    else {
+        panic!("默认RunMain必须直接静态call");
+    };
+    assert_eq!(res[id].name, "RunMain");
+    assert!(!res[id].signature.instance);
+    assert!(instructions[0].show(&res).contains("PyModules"));
+    assert!(res.method_references.iter().all(|m| !matches!(
+        m.name.as_ref(),
+        "StartStockThin" | "RunStockThinMain" | "FinishStockThin"
+    )));
 }

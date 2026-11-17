@@ -278,6 +278,10 @@ internal static class StockThinProviderRunner
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void NeutralCompiledApi(CPythonHost host)
     {
+        Throws<PyTypeError>(() => PyStockThinFunctions.Create(new PyDict(),
+            new("neutral:wrong", "subject", "wrong", "subject.py", 1), NeutralEcho));
+        Require(host.StockThinStatistics.NativeLive == 0 && host.StockThinStatistics.CoreRoots == 0,
+            "编译冷 ABI 拒绝 CLR 字典副本，未移交 core token");
         Run(host, "neutral_d={'__name__':'neutral_subject', 'answer':[]}");
         var dictionary = (PythonObject)Get(host, "neutral_d")!;
         var read = PyStockThinFunctions.Create(dictionary,

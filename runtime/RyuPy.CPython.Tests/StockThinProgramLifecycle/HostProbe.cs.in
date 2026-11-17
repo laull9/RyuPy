@@ -9,15 +9,27 @@ public sealed partial class CPythonHost
 {
     private PythonObject[] programOwners = [];
     private bool programTerminal;
+    private volatile bool programClosing;
     private List<PythonObject>? programRegistrationOwners;
-    internal void BeginProgramEntry() => programRegistrationOwners = [];
+    private List<StockThinFunctionOwner>? programEntryHandles;
+    private Dictionary<PythonObject, long>? programRegistrationTokens;
+    private HashSet<long> programTokens = [];
+    internal void BeginProgramEntry()
+    { programRegistrationOwners = []; programEntryHandles = []; programRegistrationTokens = []; }
     internal void RegisterProgramOwners(PyModule module)
     {
+        using var lease = Enter();
         if (programRegistrationOwners is not { } created || programOwners.Length != 0)
             throw new InvalidOperationException("缺失或重复发布事务");
+        // 编译入口的CLR临时H是本执行作用域资源：普通源码不执行del，F继续由真实D持有。
+        // 在入口返回边界交还它们，随后任何Host外部读取都会取得新的owned H。
+        foreach (var handle in programEntryHandles!) handle.Dispose();
+        programEntryHandles = null;
+        Drain();
         // 所有权按创建事务登记，绝不从 weak cache 或 pointer 类型推断。
         programOwners = created.Where(x => !x.IsDisposed).ToArray();
-        programRegistrationOwners = null;
+        programTokens = programOwners.Select(owner => programRegistrationTokens![owner]).ToHashSet();
+        programRegistrationTokens = null; programRegistrationOwners = null;
         if (!programOwners.Contains((PythonObject)module.ForeignObject!))
             throw new InvalidOperationException("module 未在事务内创建");
         Console.WriteLine($"REGISTER owned={programOwners.Length} ledger={handles.Count}");
@@ -25,6 +37,7 @@ public sealed partial class CPythonHost
     internal unsafe void EnableProgramProbe(bool scoped)
     {
         using var lease = Enter();
+        if (ProgramNative.program_install_observer() < 0) throw new InvalidOperationException("退出观察槽不足");
         if (Native.rp_thin_enable(scoped ? &ProgramInvoke : &InvokeStockThin, &ReleaseStockThin) < 0) ThrowError();
         stockThinEnabled = true;
     }
@@ -35,24 +48,22 @@ public sealed partial class CPythonHost
         lock (gate)
         {
             if (state != 1 || active != 0) throw new InvalidOperationException("活动调用禁止结束程序");
-            state = 2;
+            programClosing = true; state = 2;
         }
         try
         {
             using var lease = Enter();
-            var allowed = programOwners.Select(x => x.Pointer).ToHashSet();
-            if (StockThinOwnedHandles != 0 || handles.Count != programOwners.Length
-                || handles.Values.Any(p => !allowed.Contains(p)) || Roots.Count != 0)
+            if (StockThinOwnedHandles != 0 || !handles.Keys.ToHashSet().SetEquals(programTokens) || Roots.Count != 0)
                 throw new InvalidOperationException("外部 owned 引用禁止结束程序");
         }
-        catch { lock (gate) state = 1; throw; }
+        catch { lock (gate) { programClosing = false; state = 1; } throw; }
         // 提交点：从此独占程序终态；所有外部使用权已经由前置门拒绝。
         programTerminal = true;
         using (var lease = Enter())
         {
+            if (ProgramNative.program_prepare() < 0) throw new InvalidOperationException("模板移交失败");
             if (releaseOwners) foreach (var owner in programOwners) owner.Dispose();
             Drain();
-            if (ProgramNative.program_prepare() < 0) throw new InvalidOperationException("模板移交失败");
         }
         // 2 允许 owner 同步重入并真实 Drain；4 会丢弃 Release，因此本实验不能使用4。
         int result = ProgramNative.program_stop();
@@ -67,10 +78,19 @@ public sealed partial class CPythonHost
     internal static long ProgramLowlevelLive => ProgramNative.program_lowlevel_live();
     internal static int ProgramCoreRoots => Volatile.Read(ref stockThinRoots);
 
+    // Unregister已经真实Dispose transfer owner；这里只移除其失效弱观察项，避免后续同步访问disposed owner。
+    internal void ForgetReleasedTransferObservations() => transferIndex.RemoveAll(
+        weak => !weak.TryGetTarget(out var transfer) || transfer.Owner.IsDisposed);
+    internal void ValidateProgramEntry()
+    {
+        if (programClosing && Environment.CurrentManagedThreadId != ownerThread)
+            throw new ObjectDisposedException("CPython", "程序终态只准初始化线程回调");
+    }
     private List<IDisposable>? programCallbackOwners;
-    internal void ObserveProgramOwner(PythonObject owner)
-    { programRegistrationOwners?.Add(owner); programCallbackOwners?.Add(owner); }
-    internal void ObserveProgramThinOwner(StockThinFunctionOwner owner) => programCallbackOwners?.Add(owner);
+    internal void ObserveProgramOwner(PythonObject owner, long token)
+    { programRegistrationOwners?.Add(owner); programRegistrationTokens?.Add(owner, token); programCallbackOwners?.Add(owner); }
+    internal void ObserveProgramThinOwner(StockThinFunctionOwner owner)
+    { programEntryHandles?.Add(owner); programCallbackOwners?.Add(owner); }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static unsafe nint ProgramInvoke(nint token, nint function, nint argument)
@@ -116,6 +136,7 @@ public sealed partial class CPythonHost
 }
 internal static class ProgramNative
 {
+    [DllImport(Native.Library)] internal static extern int program_install_observer();
     [DllImport(Native.Library)] internal static extern int program_canonical_builtins(nint module);
     [DllImport(Native.Library)] internal static extern long program_lowlevel_live();
     [DllImport(Native.Library)] internal static extern int program_prepare();

@@ -11,7 +11,7 @@ internal sealed class PythonObject : PyNativeObject, IPyForeignObject, IDisposab
     private readonly long token;
     private int disposed;
     internal bool IsDisposed => Volatile.Read(ref disposed) != 0;
-    internal PythonObject(CPythonHost host, nint pointer) { Host = host; this.pointer = pointer; token = host.Track(pointer); }
+    internal PythonObject(CPythonHost host, nint pointer) { Host = host; this.pointer = pointer; token = host.Track(pointer); host.ObserveStockProgramOwner(this, token); }
     ~PythonObject() => Dispose();
     public void Dispose() { if (Interlocked.Exchange(ref disposed, 1) == 0) { Host.Release(token); GC.SuppressFinalize(this); } }
     public override string TypeName => Host.PythonCall(() =>
