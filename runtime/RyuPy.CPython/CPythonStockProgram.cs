@@ -12,6 +12,8 @@ public sealed partial class CPythonHost
     private PythonObject[] stockProgramOwners = [];
     private HashSet<long> stockProgramTokens = [];
     private StockProgramResult? stockProgramResult;
+    private string? stockCallbackFailure;
+    private readonly Dictionary<long, string> stockExternalOwnerOrigins = [];
 
     internal sealed record StockProgramResult(int FinalizeResult, long NativeLive, long Destroyed, long NativeCalls,
         int CoreRoots, int OwnedHandles, int Ledger, int Pending, long Late, long PostFinalizeDecrefs);
@@ -70,7 +72,13 @@ public sealed partial class CPythonHost
             }
             if (Native.rp_thin_program_check() < 0) ThrowError();
         }
-        catch { lock (gate) state = 1; throw; }
+        catch
+        {
+            // 拒绝仍保持关闭门，先记录纯托管账本和CLR失败栈，再恢复可用宿主；观测失败不替换原异常。
+            try { WriteReport(); } catch { }
+            lock (gate) state = 1;
+            throw;
+        }
 
         // 提交后先执行Runtime退出钩子；module/D包装此时尚可用，异常报告保留原入口退出码。
         int code = 0, nativeResult = -1;
@@ -125,7 +133,12 @@ public sealed partial class CPythonHost
     {
         if (Environment.CurrentManagedThreadId != ownerThread) return;
         if (stockProgramCallback is { } callback) callback.Add(owner);
-        else stockProgramEntry?.Add(owner, token);
+        else if (stockProgramEntry is { } entry) entry.Add(owner, token);
+        else if (stockProgramExecuting && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RYUPY_CPYTHON_REPORT")))
+        {
+            string trace = Environment.StackTrace;
+            lock (gate) stockExternalOwnerOrigins[token] = trace;
+        }
         PruneStockProgramIdentities();
     }
     internal void ObserveStockProgramHandle(StockThinFunctionOwner owner)
@@ -159,6 +172,7 @@ public sealed partial class CPythonHost
 
     private sealed class ProgramOwnedScope(CPythonHost host, ProgramOwnedScope? previous = null) : IDisposable
     {
+        internal ProgramOwnedScope? Previous => previous;
         internal readonly List<PythonObject> Owners = [];
         internal readonly List<StockThinFunctionOwner> Handles = [];
         internal void Add(PythonObject owner) => Owners.Add(owner);

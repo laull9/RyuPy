@@ -28,7 +28,14 @@ pub(crate) fn validate(program: &Program, errors: &mut Vec<String>) {
                 {
                     errors.push("零参frame调用结果必须写入普通dyn槽".into());
                 }
-                if function.module_state_source != Some(InstanceStateSource::FunctionParameter)
+                // 薄体同样有真实首位置参数；中性零参helper只借这些槽，不能借用lease或类Env。
+                let thin = function.module_state_source
+                    == Some(InstanceStateSource::StockThinLease)
+                    && function.core == FunctionCore::StockThinStatic
+                    && function.env.is_none()
+                    && frame.class == SuperClassSource::Missing;
+                if (!thin
+                    && function.module_state_source != Some(InstanceStateSource::FunctionParameter))
                     || function.definition.is_none()
                     || operand_type(program, function, callee) != Some(MirType::Dynamic)
                     || matches!(callee, Operand::Local(local) if local_decl(&function.body.locals, *local).is_some_and(|decl| decl.is_cell))

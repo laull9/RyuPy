@@ -167,6 +167,7 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
     {
         lock (gate)
         {
+            stockExternalOwnerOrigins.Remove(token);
             if (!handles.Remove(token, out nint pointer)) { if (state == 3) late++; return; }
             // Pause只撤销新登记权限；旧token退账始终使用稳定登记表，finalizer不获取GIL。
             if (stockProgramEntryRegistry is { } registry)

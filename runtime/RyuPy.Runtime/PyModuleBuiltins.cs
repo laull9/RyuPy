@@ -12,7 +12,7 @@ internal static class PyModuleBuiltins
         "ConnectionError" or "ConnectionRefusedError" or "ConnectionResetError" or "EncodingWarning" or
         "InterruptedError" or "ProcessLookupError" or "StopAsyncIteration" or
         "IndentationError" or "TabError" or "TimeoutError" or "UnicodeTranslateError" or "MemoryError" or
-        "ReferenceError" or "SystemError" or "FloatingPointError" or "ascii" or "bin" or "hex" or "oct";
+        "ReferenceError" or "SystemError" or "FloatingPointError" or "ascii" or "bin" or "hex";
 
     internal static PyDict Create()
     {
@@ -91,6 +91,7 @@ internal static class PyModuleBuiltins
         values.Set("len", PyOps.BuiltinFunction("len"));
         values.Set("ord", PyOps.BuiltinFunction("ord"));
         values.Set("chr", PyOps.BuiltinFunction("chr"));
+        values.Set("oct", PyOps.BuiltinFunction("oct"));
         values.Set("memoryview", PyOps.BuiltinFunction("memoryview"));
         values.Set("sorted", PyOps.BuiltinFunction("sorted"));
         values.Set("hash", PyOps.BuiltinFunction("hash"));

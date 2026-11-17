@@ -156,6 +156,7 @@ pub(super) fn stage(plan: &Plan, output: &Path) -> Result<()> {
         "entry_script": entry_script,
         "files": files,
         "dependency_collection": plan.dependency_report,
+        "interface_catalog": crate::interface_catalog::analyze(plan, output, &files)?,
         "payloads": plan.payloads.iter().map(|payload| &payload.destination).collect::<Vec<_>>(),
         "managed_bundle": {"source": "single_bridge_output", "symbols": "embedded_portable_pdb"},
         "system_dependencies": native::system_dependencies(),

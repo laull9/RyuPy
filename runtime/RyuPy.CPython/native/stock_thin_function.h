@@ -200,6 +200,10 @@ API intptr_t rp_thin_token(PyObject *f) {
     RpThinLink *link = rp_thin_find(f);
     return link ? link->token : 0;
 }
+/* 只核查可供eval/exec/compile接收的公开对象族；不读取buffer、不求值用户源码。 */
+API int rp_frame_source(PyObject *value) {
+    return PyUnicode_Check(value) || PyCode_Check(value) || PyObject_CheckBuffer(value);
+}
 API PyObject *rp_thin_global(PyObject *f, const char *name) {
     if (rp_thin_validate(f) < 0) return NULL;
     PyObject *key = PyUnicode_FromString(name);

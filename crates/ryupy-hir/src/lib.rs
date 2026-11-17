@@ -18,6 +18,7 @@ mod async_for_tests;
 mod aug_assign;
 mod await_context;
 mod expr_types;
+mod fstring;
 pub use await_context::AwaitContext;
 mod chain_assign;
 pub mod class;

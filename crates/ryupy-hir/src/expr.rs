@@ -409,60 +409,6 @@ impl<'a> ExprLowerCtx<'a> {
         self.body.exprs[cur].kind.clone()
     }
 
-    /// f-string → 字面量 / 插值段序列。
-    ///
-    /// 格式说明符本身也可以包含插值（`f"{x:{width}}"`），这需要运行时构造规格字符串；
-    /// 当前只支持纯字面量的规格，遇到嵌套插值报诊断。
-    fn lower_fstring(&mut self, fstring: &ast::ExprFString) -> ExprKind {
-        use crate::hir::FStringPart;
-
-        let mut parts = Vec::new();
-        for element in fstring.value.elements() {
-            match element {
-                ast::InterpolatedStringElement::Literal(literal) => {
-                    parts.push(FStringPart::Literal(literal.value.clone()));
-                }
-                ast::InterpolatedStringElement::Interpolation(item) => {
-                    let value = self.lower_expr(&item.expression);
-                    let spec = match &item.format_spec {
-                        None => None,
-                        Some(spec) => {
-                            let mut text = String::new();
-                            let mut ok = true;
-                            for part in spec.elements.iter() {
-                                match part {
-                                    ast::InterpolatedStringElement::Literal(literal) => {
-                                        text.push_str(&literal.value);
-                                    }
-                                    ast::InterpolatedStringElement::Interpolation(_) => {
-                                        ok = false;
-                                    }
-                                }
-                            }
-                            if !ok {
-                                self.diagnostics.push(
-                                    Diagnostic::error(
-                                        Span::new(self.file, spec.range),
-                                        "f-string 的格式说明符暂不支持嵌套插值",
-                                    )
-                                    .with_code("E0100")
-                                    .with_primary_label("不支持嵌套插值"),
-                                );
-                            }
-                            Some(text.into_boxed_str())
-                        }
-                    };
-                    parts.push(FStringPart::Value {
-                        value,
-                        conversion: item.conversion.to_byte().unwrap_or(0),
-                        spec,
-                    });
-                }
-            }
-        }
-        ExprKind::FString(parts)
-    }
-
     /// 调用实参完整保留四种形态：位置、`*args`、关键字、`**kwargs`。
     ///
     /// 绑定（谁对应哪个参数、默认值、重复绑定报错）属于语义层，放在 ty / MIR 处理，

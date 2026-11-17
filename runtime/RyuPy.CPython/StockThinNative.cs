@@ -17,6 +17,8 @@ internal static unsafe partial class Native
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern nint rp_thin_global(nint function, [MarshalAs(UnmanagedType.LPUTF8Str)] string name);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int rp_frame_source(nint value);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern void rp_thin_stats(out long live, out long destroyed, out long calls);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern void rp_thin_abort(nint function);

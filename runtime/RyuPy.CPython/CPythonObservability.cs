@@ -58,6 +58,13 @@ public sealed partial class CPythonHost
     {
         if (!stockProgramAuthorized && !stockProgramExecuting) return;
         writer.WriteStartObject("stock_compiled_program");
+        if (stockCallbackFailure is not null) writer.WriteString("callback_failure", stockCallbackFailure);
+        KeyValuePair<long, string>[] origins;
+        lock (gate) origins = stockExternalOwnerOrigins.ToArray();
+        writer.WriteStartArray("external_owned_origins");
+        foreach (var origin in origins)
+        { writer.WriteStartObject(); writer.WriteNumber("token", origin.Key); writer.WriteString("trace", origin.Value); writer.WriteEndObject(); }
+        writer.WriteEndArray();
         writer.WriteBoolean("permission", stockProgramAuthorized);
         writer.WriteBoolean("terminal", stockProgramResult is not null);
         writer.WriteNumber("entry_peak_records", stockProgramEntryRegistry?.PeakCount ?? 0);

@@ -1048,6 +1048,7 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "fs2",
+ "object",
  "ryupy-base",
  "ryupy-codegen-cil",
  "ryupy-hir",

@@ -32,6 +32,8 @@ fn stock_thin_pe_has_static_typed_adapter_and_cold_factory() {
     // 扩围后的局部别名和身份分支直接落到同一静态body的CFG，adapter不增加业务胶水。
     let alias = local(&mut core.body.locals, MirType::Dynamic);
     let same = local(&mut core.body.locals, MirType::Bool);
+    let applied = local(&mut core.body.locals, MirType::Dynamic);
+    let sum = local(&mut core.body.locals, MirType::Dynamic);
     let entry = core.body.entry;
     core.body.blocks[entry].stmts.extend([
         Statement::Assign {
@@ -43,6 +45,22 @@ fn stock_thin_pe_has_static_typed_adapter_and_cold_factory() {
             value: Rvalue::Call {
                 callee: Callee::Runtime(RuntimeFn::IsSame),
                 args: vec![Operand::Local(alias), Operand::Local(loaded)],
+            },
+        },
+        Statement::Assign {
+            dest: applied,
+            value: Rvalue::DynCallValue {
+                callee: Operand::Local(loaded),
+                args: vec![Operand::Local(x)],
+            },
+        },
+        Statement::Assign {
+            dest: sum,
+            value: Rvalue::DynBinary {
+                op: DynOp::Add,
+                lhs: Operand::Local(applied),
+                rhs: Operand::Local(x),
+                inplace: false,
             },
         },
     ]);
@@ -145,6 +163,14 @@ fn stock_thin_pe_has_static_typed_adapter_and_cold_factory() {
         core_text.contains("PyOps::Is") || core_text.contains("PyOps.Is"),
         "{core_text}"
     );
+    for method in ["Binary", "CallValue1"] {
+        assert!(
+            core_text.contains(&format!("PyPic::{method}"))
+                || core_text.contains(&format!("PyPic.{method}")),
+            "{core_text}"
+        );
+    }
+    assert!(!core_text.contains("DynamicMethod") && !core_text.contains("Reflection.Emit"));
     assert_eq!(
         core.body
             .as_ref()

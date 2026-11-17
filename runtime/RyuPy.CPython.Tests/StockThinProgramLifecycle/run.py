@@ -16,7 +16,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--python', type=Path, required=True)
     parser.add_argument('--aot', action='store_true', help='发布并直接运行真实NativeAOT runner')
-    parser.add_argument('--case', action='append', choices=['scoped', 'external', 'external-d', 'external-p', 'external-self', 'external-cell', 'external-container', 'zero', 'entry-fail', 'no-host', 'pre-entry-fail', 'scalar', 'external-callback', 'borrowed-receiver'])
+    parser.add_argument('--case', action='append', choices=['scoped', 'external', 'external-d', 'external-p', 'external-self', 'external-cell', 'external-container', 'zero', 'entry-fail', 'no-host', 'pre-entry-fail', 'scalar', 'external-callback', 'borrowed-receiver', 'callback-result'])
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[3]
     source = Path(__file__).resolve().parent
@@ -91,8 +91,8 @@ def main():
             search_paths=[str(Path(cfg['home'])/'lib'/f'python{series}'), str(Path(cfg['home'])/'lib'/f'python{series}'/'lib-dynload')],
             modules=['builtins', 'gc', 'sys', 'atexit'], container_transfer='proxy')
         failed = False
-        for case in args.case or ['scoped', 'external', 'external-d', 'external-p', 'external-self', 'external-cell', 'external-container', 'zero', 'entry-fail', 'no-host', 'pre-entry-fail', 'scalar', 'external-callback', 'borrowed-receiver']:
-            config_data['container_transfer'] = 'synchronized' if case == 'external-container' else 'proxy'
+        for case in args.case or ['scoped', 'external', 'external-d', 'external-p', 'external-self', 'external-cell', 'external-container', 'zero', 'entry-fail', 'no-host', 'pre-entry-fail', 'scalar', 'external-callback', 'borrowed-receiver', 'callback-result']:
+            config_data['container_transfer'] = 'synchronized' if case in ('external-container', 'callback-result') else 'proxy'
             config.write_text(json.dumps(config_data))
             env['RYUPY_CPYTHON_REPORT'] = str(work/f'{case}-report.json')
             env['DOTNET_TieredCompilation'] = '0' if case == 'borrowed-receiver' else '1'

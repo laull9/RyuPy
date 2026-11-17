@@ -22,7 +22,35 @@ pub struct ParsedModule {
 /// 返回值总是包含 AST；`diagnostics` 非空时 AST 中可能含有错误恢复节点。
 pub fn parse(file: FileId, source: &str) -> (ParsedModule, Vec<Diagnostic>) {
     let parsed = ruff_python_parser::parse_unchecked_source(source, ast::PySourceType::Python);
+    finish(file, parsed)
+}
 
+/// 按实际目标版本解析源码或接口声明；保留容错AST与版本诊断供调用方审计覆盖范围。
+/// `.pyi`的声明消费者与普通编译器共用此入口，解析器选项只在语法层构造。
+pub fn parse_for_version(
+    file: FileId,
+    source: &str,
+    source_type: ast::PySourceType,
+    version: ast::PythonVersion,
+) -> (ParsedModule, Vec<Diagnostic>) {
+    let options = ruff_python_parser::ParseOptions::from(source_type).with_target_version(version);
+    if let Some(parsed) = ruff_python_parser::parse_unchecked(source, options).try_into_module() {
+        return finish(file, parsed);
+    }
+    // 所有PySourceType都是模块模式；仍以Diagnostic处理解析器合同异常，避免panic。
+    let (module, mut diagnostics) = parse(file, source);
+    diagnostics.push(
+        Diagnostic::error(Span::new(file, Default::default()), "解析器未返回模块AST")
+            .with_code("E0001")
+            .with_deferred_failure(ryupy_base::diagnostic::DeferredFailure::ParseRejected),
+    );
+    (module, diagnostics)
+}
+
+fn finish(
+    file: FileId,
+    parsed: ruff_python_parser::Parsed<ast::ModModule>,
+) -> (ParsedModule, Vec<Diagnostic>) {
     let mut diagnostics: Vec<Diagnostic> = parsed
         .errors()
         .iter()
@@ -66,5 +94,34 @@ mod tests {
         let file = db.add("t.py", src);
         let (_, diags) = parse(file, src);
         assert!(!diags.is_empty());
+    }
+
+    #[test]
+    fn interface_and_source_use_the_requested_grammar_version() {
+        let source = "type Items[T] = list[T]\ndef identity[T](x: T, /) -> T: ...\n";
+        for kind in [ast::PySourceType::Python, ast::PySourceType::Stub] {
+            let mut db = SourceDb::default();
+            let file = db.add("generic_interface.pyi", source);
+            let (module, diagnostics) =
+                parse_for_version(file, source, kind, ast::PythonVersion::PY312);
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            assert_eq!(module.module.body.len(), 2);
+            let (_, diagnostics) = parse_for_version(file, source, kind, ast::PythonVersion::PY311);
+            assert!(diagnostics.iter().any(|d| d.code == Some("E0002")));
+        }
+    }
+
+    #[test]
+    fn invalid_interface_still_returns_ast_and_diagnostics() {
+        let source = "def broken(: ...\n";
+        let mut db = SourceDb::default();
+        let file = db.add("broken.pyi", source);
+        let (_, diagnostics) = parse_for_version(
+            file,
+            source,
+            ast::PySourceType::Stub,
+            ast::PythonVersion::PY313,
+        );
+        assert!(diagnostics.iter().any(|d| d.code == Some("E0001")));
     }
 }

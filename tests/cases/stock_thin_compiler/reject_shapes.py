@@ -10,9 +10,9 @@ def f(x: int):
 @print
 def f(x):
     return x
-# case: expression
+# case: matrix_expression
 def f(x):
-    return x + 1
+    return x @ x
 # case: closure
 def f(x):
     def inner():

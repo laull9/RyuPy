@@ -30,7 +30,7 @@ public sealed partial class CPythonHost
     private ContainerTransfer[] ActiveTransfers()
     {
         var result = new List<ContainerTransfer>();
-        transferIndex.RemoveAll(weak => !weak.TryGetTarget(out _));
+        transferIndex.RemoveAll(weak => !weak.TryGetTarget(out var transfer) || transfer.Owner.IsDisposed);
         foreach (WeakReference<ContainerTransfer> weak in transferIndex)
             if (weak.TryGetTarget(out ContainerTransfer? transfer)) result.Add(transfer);
         return [.. result];
@@ -43,7 +43,7 @@ public sealed partial class CPythonHost
         var transfer = new ContainerTransfer(value, owner);
         transfers.Add(value, transfer); transferIndex.Add(new(transfer)); reverse.Add(value, new ManagedReference(0, pointer, owner)); objects[pointer] = new(value);
         // 先登记身份后填充，嵌套对象和自引用会命中同一指针。
-        try { PushContainer(transfer); }
+        try { PushContainer(transfer); RetainStockProgramContainer(value); }
         catch { transfers.Remove(value); reverse.Remove(value); objects.Remove(pointer); owner.Dispose(); throw; }
         return Native.rp_incref(pointer);
     }
@@ -146,6 +146,7 @@ public sealed partial class CPythonHost
             finally { Native.rp_decref(nativeKey); Native.rp_decref(nativeValue); }
         }
         transfer.DictSnapshot = entries;
+        RetainStockProgramContainer(transfer.Value);
     }
     private void PullContainer(ContainerTransfer transfer)
     {
@@ -161,6 +162,7 @@ public sealed partial class CPythonHost
             }
             if (!SameReferences(values, transfer.ListSnapshot)) { list.Items.Clear(); list.Items.AddRange(values); }
             transfer.ListSnapshot = values;
+            RetainStockProgramContainer(transfer.Value);
             return;
         }
         var dict = (PyDict)transfer.Value;
@@ -191,6 +193,7 @@ public sealed partial class CPythonHost
         foreach ((object? key, object? value) in entries)
             if (!dict.TryGet(key, out object? prior) || !ReferenceEquals(prior, value)) dict.Set(key, value);
         transfer.DictSnapshot = [.. entries];
+        RetainStockProgramContainer(transfer.Value);
     }
     private static void ValidateGraph(object? value, HashSet<object> seen)
     {

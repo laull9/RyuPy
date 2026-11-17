@@ -47,7 +47,8 @@ Standalone 的公开入口经原生映像校验，OneFile 私有解包目录在�
 
 本切片不增加冷 ABI。`StockThinLoadGlobal` 独占 lease 借用能力，其余准入助手仅为
 `DynNone`、`IsSame`、`DynTruthy`、`LoadChecked` 和 `MakeUnbound`；静态 body 的
-局部/分支直接发射到 PE。算术、调用、属性、容器构造、循环和业务 closure 均明确诊断。
+局部/分支直接发射到 PE。上一切片验收时，算术、调用、属性、容器构造、循环和
+业务 closure 均明确诊断；下一节登记通用表达式和值调用的扩围。
 
 三个手写输入：`local_identity` 验证别名、参数重绑定、身份选择/早返回和隐式 None；
 `local_unbound` 验证赋值前读取与未走分支局部的 `UnboundLocalError`；
@@ -70,3 +71,28 @@ oracle一致，共 120 次静态 core 调用、54 个 owner 析构；各报告�
 `stock-thin-compiler-3.13.3-all-20261117T074017.515461Z.log`。
 首次 JIT 的 `20261117T073741.152920Z` 日志保留缺失 `NameError.name` 的完整失败；
 修复后保留原断言，并扩充 Unicode 名称及异常参数的现场对照。
+
+## 通用表达式和值调用扩围
+
+沿用显式 flag 和固定 `def f(x)` ABI，表达式新增 `int/float/bool/str` 字面量、
+`+ - * / // % ** & | ^ << >>`、一元 `+ - ~ not`，以及普通可调用值的纯位置参数调用。
+`if/elif/else` 和条件表达式接受上述任何值，按 Python 真值协议求值；表达式语句
+保留运算和回调副作用。关键字、`*`/`**`、`@`、属性/下标、容器构造、闭包及循环
+仍由薄体资格检查明确诊断。模块入口沿用既有合同。
+
+二元/一元表达式保留动态 MIR，交给已有 PIC 与 Python 运算协议，包含大整数、反射
+方法及异常；调用先求得实际 callee，再按源序求实参。零至三参调用复用静态 PIC，
+更多位置参数走已有中性 `CallValue` 数组入口。零参 helper 只借实际首参槽和缺失类源，
+不取得模块 Context 或 lease；lease 仍只借给冻结名称的 `StockThinLoadGlobal`。
+所有 body 和 adapter 继续直接发射静态 CIL，不执行 Python 业务函数源码。
+
+两个独立应用输入是 `numeric_pipeline`（动态数值/序列变换）与 `call_pipeline`
+（文本处理、可调用值、零参/多参、嵌套调用及 callee 重绑定）。第三项
+`operator_protocol` 用 `type` 组装类型，魔术方法本身全部是编译薄体，检查
+`NotImplemented`、子类反射优先级、返回身份、原异常和 `__bool__/__len__` 正常/失败路径。
+实现没有第三方包名、符号名或项目路径分派。
+
+```bash
+python3 -B tests/cpython/stock_thin_compiler.py --python /absolute/path/python3.12 --mode all \
+  --case numeric_pipeline --case call_pipeline --case operator_protocol
+```

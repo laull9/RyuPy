@@ -527,8 +527,11 @@ impl FunctionChecker<'_> {
             }
             ExprKind::FString(parts) => {
                 for part in parts {
-                    if let ryupy_hir::FStringPart::Value { value, .. } = part {
+                    if let ryupy_hir::FStringPart::Value { value, spec, .. } = part {
                         self.check_expr(*value);
+                        if let Some(ryupy_hir::FStringSpec::Dynamic(spec)) = spec {
+                            self.check_expr(*spec);
+                        }
                     }
                 }
                 Ty::Str

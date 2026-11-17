@@ -19,6 +19,7 @@ internal static class ProgramLifecycle
     private static WeakReference? releasedDuringPause;
     private static WeakReference? borrowedReceiver;
     private static Exception? receiverError;
+    private static PyList? escapedValues;
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static int ReenterBorrowedReceiver()
@@ -67,6 +68,20 @@ internal static class ProgramLifecycle
     private static object? Echo(IPyStockThinEnvironment env, object? value) => value;
     private static object? Self(IPyStockThinEnvironment env, object? value) => env.LoadGlobal("f");
     private static object? Global(IPyStockThinEnvironment env, object? value) => env.LoadGlobal("marker");
+    private static object? Repeat(IPyStockThinEnvironment env, object? value) => PyOps.Binary(PyOps.Mul, value!, 2L);
+    private static object? Chain(IPyStockThinEnvironment env, object? value)
+    {
+        var inner = (StockThinFunctionHandle)env.LoadGlobal("repeat")!;
+        object? result = inner.Invoke(value);
+        GC.Collect(); GC.WaitForPendingFinalizers(); host.DrainReferences();
+        return PyOps.Binary(PyOps.Add, result!, env.LoadGlobal("offset")!);
+    }
+    private static object? RaiseAfterAppend(IPyStockThinEnvironment env, object? value)
+    {
+        object? opaque = PyOps.CallValue(env.LoadGlobal("object")!, [], [], []);
+        ((PyList)env.LoadGlobal("events")!).Items.Add(opaque);
+        throw new PyValueError("callback-after-append");
+    }
     private static object? ConstantString(IPyStockThinEnvironment env, object? value) => constantString;
     private static object? ConstantInteger(IPyStockThinEnvironment env, object? value) => constantInteger;
     private static object? AtExit(IPyStockThinEnvironment env, object? value)
@@ -126,6 +141,22 @@ internal static class ProgramLifecycle
         Run("assert f(marker) is marker\nassert global_f(None) is marker\nassert global_self(None) is f\n");
         // 活全局缺失经CP→CIL→CP返回，保留真实NameError的name/args/str；恢复后继续用同一F。
         Run("saved_marker=marker\ndel marker\ntry:\n global_f(None)\nexcept NameError as error:\n assert type(error) is NameError and not isinstance(error, UnboundLocalError)\n assert error.name=='marker'\n assert error.args==(\"name 'marker' is not defined\",)\n assert str(error)==error.args[0]\nelse:\n raise AssertionError('缺失全局必须抛错')\nmarker=saved_marker\ndel saved_marker\nassert global_f(None) is marker\n");
+        if (mode == "callback-result")
+        {
+            module.SetAttr("offset", new PyList([3L]));
+            escapedValues = new PyList(); module.SetAttr("events", escapedValues);
+            Define("repeat", Repeat); Define("chain", Chain); Define("raise_after_append", RaiseAfterAppend);
+            var chain = (StockThinFunctionHandle)module.GetAttr("chain")!;
+            var source = new PyList([1L, 2L]);
+            Require(PyRepr.Repr(chain.Invoke(source)) == "[1, 2, 1, 2, 3]", "嵌套callback结果在GC和外层同步后仍可组合");
+            Require(PyRepr.Repr(source) == "[1, 2]", "原列表别名不变");
+            var raise = (StockThinFunctionHandle)module.GetAttr("raise_after_append")!;
+            try { raise.Invoke(PyNone.Instance); throw new Exception("应抛原ValueError"); }
+            catch (PyValueError) { }
+            GC.Collect(); GC.WaitForPendingFinalizers(); host.DrainReferences();
+            Require(escapedValues.Items[0] is PythonObject { IsDisposed: false } saved && saved.TypeName == "object",
+                "异常前保存到同步容器的opaque保持owned且可用");
+        }
         // 同一CLR常量反复导出；每次丢弃CP结果后再次调用，覆盖retired reverse旧地址复用。
         Run("for _ in range(1000):\n assert constant_str(None)=='恒定CIL字符串:重复导出:0123456789'\n assert constant_int(None)==123456789012345\n");
         if (mode == "external-callback")
@@ -257,7 +288,7 @@ atexit.register(check_exit)
             && result.OwnedHandles == 0 && stats.Handles == 0 && stats.PendingReleases == 0 && stats.LateReleases == 0
             && post == 0 && ProgramObserver.program_lowlevel_live() == 0
             && (empty ? exits+dels+errors+unraisables == 0 : exits == 1 && dels == 1 && errors == 3 && unraisables == 1);
-        GC.KeepAlive(module); GC.KeepAlive(d); GC.KeepAlive(entryContext);
+        GC.KeepAlive(module); GC.KeepAlive(d); GC.KeepAlive(entryContext); GC.KeepAlive(escapedValues);
         return ok ? 0 : 2;
     }
 }

@@ -19,6 +19,40 @@ impl FunctionChecker<'_> {
         }
     }
 
+    /// 递归检查各层叶目标；嵌套绑定与平坦解包采用相同动态槽合同。
+    fn check_sequence_targets(&mut self, items: &[ryupy_hir::SequenceItem]) {
+        use ryupy_hir::{Binding, SequenceItem, SequenceTarget};
+        for item in items {
+            let target = match item {
+                SequenceItem::One(t) | SequenceItem::Rest(t) => t,
+            };
+            match target {
+                SequenceTarget::Sequence(children) => self.check_sequence_targets(children),
+                SequenceTarget::Attribute { base, .. } => {
+                    self.check_expr(*base);
+                }
+                SequenceTarget::Subscript { base, index } => {
+                    self.check_expr(*base);
+                    self.check_expr(*index);
+                }
+                SequenceTarget::Binding(Binding::Local(local)) => {
+                    let inferred = self.local_vars[*local].clone();
+                    if self
+                        .infer
+                        .unify(&inferred, &InferTy::Known(Ty::Dynamic))
+                        .is_err()
+                    {
+                        self.soft_demote = true;
+                        self.infer.force(&inferred, Ty::Dynamic);
+                    }
+                }
+                SequenceTarget::Binding(Binding::Free(_) | Binding::ModuleVar(_)) => {
+                    self.soft_demote = true
+                }
+            }
+        }
+    }
+
     pub(crate) fn check_stmt(&mut self, stmt_id: ryupy_hir::StmtId) {
         let stmt = &self.func.body.stmts[stmt_id];
         match &stmt.kind {
@@ -76,39 +110,7 @@ impl FunctionChecker<'_> {
                         self.soft_demote = true;
                     }
                     AssignTarget::Sequence(items) => {
-                        for item in items {
-                            let target = match item {
-                                ryupy_hir::SequenceItem::One(target)
-                                | ryupy_hir::SequenceItem::Rest(target) => target,
-                            };
-                            let binding = match target {
-                                ryupy_hir::SequenceTarget::Binding(binding) => *binding,
-                                ryupy_hir::SequenceTarget::Attribute { base, .. } => {
-                                    self.check_expr(*base);
-                                    continue;
-                                }
-                                ryupy_hir::SequenceTarget::Subscript { base, index } => {
-                                    self.check_expr(*base);
-                                    self.check_expr(*index);
-                                    continue;
-                                }
-                            };
-                            match binding {
-                                ryupy_hir::Binding::Free(_) => self.soft_demote = true,
-                                ryupy_hir::Binding::Local(local) => {
-                                    let loc_infer = self.local_vars[local].clone();
-                                    if self
-                                        .infer
-                                        .unify(&loc_infer, &InferTy::Known(Ty::Dynamic))
-                                        .is_err()
-                                    {
-                                        self.soft_demote = true;
-                                        self.infer.force(&loc_infer, Ty::Dynamic);
-                                    }
-                                }
-                                ryupy_hir::Binding::ModuleVar(_) => self.soft_demote = true,
-                            }
-                        }
+                        self.check_sequence_targets(items);
                         self.soft_demote = true;
                     }
                     AssignTarget::Attribute { base, name } => {

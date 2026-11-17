@@ -144,9 +144,16 @@ pub enum FStringPart {
         value: ExprId,
         /// `!s` / `!r` / `!a` 的字节；没有转换时为 0。
         conversion: u8,
-        /// 格式说明符；目前只支持纯字面量（含嵌套插值的规格暂不支持）。
-        spec: Option<Box<str>>,
+        /// 静态规格保留常量，动态规格保存待求值的f-string表达式。
+        spec: Option<FStringSpec>,
     },
+}
+
+/// 格式说明符的编译期形态；只在动态规格实际出现时构建表达式。
+#[derive(Clone, Debug, PartialEq)]
+pub enum FStringSpec {
+    Literal(Box<str>),
+    Dynamic(ExprId),
 }
 
 #[derive(Clone, Debug, PartialEq)]

@@ -362,6 +362,7 @@ pub fn resolve_builtin(name: &str) -> Option<Builtin> {
         "len" => Builtin::Dynamic("len"),
         "ord" => Builtin::Dynamic("ord"),
         "chr" => Builtin::Dynamic("chr"),
+        "oct" => Builtin::Dynamic("oct"),
         "list" => Builtin::Dynamic("list"),
         "tuple" => Builtin::Dynamic("tuple"),
         "dict" => Builtin::Dynamic("dict"),

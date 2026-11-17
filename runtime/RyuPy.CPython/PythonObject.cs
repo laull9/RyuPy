@@ -81,6 +81,7 @@ internal sealed class PythonObject : PyNativeObject, IPyForeignObject, IDisposab
     });
     public object? Invoke(object?[] args, string[] names, object?[] values) => Host.PythonCall(() =>
     {
+        if (Host.TryInvokeStockFrameBuiltin(this, args, names, values, out object? guarded)) return guarded;
         nint tuple = Host.MakeTuple(args), kwargs = 0;
         try
         {

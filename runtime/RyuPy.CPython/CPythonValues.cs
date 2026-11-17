@@ -169,6 +169,11 @@ public sealed partial class CPythonHost
         {
             reverse.Remove(value);
             objects.Remove(pointer);
+            if (transfers.TryGetValue(value, out var transfer) && ReferenceEquals(transfer.Owner, owner))
+            {
+                transfers.Remove(value);
+                transferIndex.RemoveAll(weak => !weak.TryGetTarget(out var candidate) || ReferenceEquals(candidate, transfer));
+            }
         }
         else if (ReferenceEquals(value, owner)) objects.Remove(pointer);
     }

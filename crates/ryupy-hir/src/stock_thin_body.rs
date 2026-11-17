@@ -1,5 +1,5 @@
-//! 薄函数局部绑定与身份选择的封闭AST合同；递归审查不可达分支和所有子表达式。
-//! 值仅来自名称、None、身份比较和条件选择，赋值只写单个局部，不引入动态业务回退。
+//! 薄函数通用值表达式的封闭AST合同；递归审查不可达分支和所有子表达式。
+//! 普通运算与位置值调用复用现有Python协议，赋值只写单个局部，不引入业务源码回退。
 use ryupy_base::{Diagnostic, FileId, Ranged, Span};
 use ryupy_syntax::ast;
 
@@ -22,7 +22,7 @@ impl Check {
         self.errors.push(
             Diagnostic::error(
                 Span::new(self.file, node.range()),
-                format!("薄函数体只支持局部名称绑定、None和身份条件选择：{detail}"),
+                format!("薄函数体只支持局部绑定、通用值表达式和条件选择：{detail}"),
             )
             .with_code("E0100"),
         );
@@ -36,6 +36,7 @@ impl Check {
                         self.value(value);
                     }
                 }
+                ast::Stmt::Expr(expression) => self.value(&expression.value),
                 ast::Stmt::Assign(assign) => {
                     // 单目标避免提前承诺拆包或链式写入的求值/所有权合同。
                     if let [ast::Expr::Name(target)] = assign.targets.as_slice() {
@@ -46,11 +47,11 @@ impl Check {
                     self.value(&assign.value);
                 }
                 ast::Stmt::If(branch) => {
-                    self.condition(&branch.test);
+                    self.value(&branch.test);
                     self.suite(&branch.body);
                     for clause in &branch.elif_else_clauses {
                         if let Some(test) = &clause.test {
-                            self.condition(test);
+                            self.value(test);
                         }
                         self.suite(&clause.body);
                     }
@@ -68,20 +69,29 @@ impl Check {
         }
     }
 
-    fn condition(&mut self, expr: &ast::Expr) {
-        if matches!(expr, ast::Expr::Compare(cmp)
-            if cmp.ops.len() == 1 && matches!(cmp.ops[0], ast::CmpOp::Is | ast::CmpOp::IsNot))
-        {
-            self.value(expr);
-        } else {
-            self.reject(expr, "条件必须是单个is/is not比较");
-        }
-    }
-
     fn value(&mut self, expr: &ast::Expr) {
         match expr {
             ast::Expr::Name(name) => self.name(name),
-            ast::Expr::NoneLiteral(_) => {}
+            ast::Expr::NoneLiteral(_)
+            | ast::Expr::StringLiteral(_)
+            | ast::Expr::BooleanLiteral(_) => {}
+            ast::Expr::NumberLiteral(number)
+                if matches!(number.value, ast::Number::Int(_) | ast::Number::Float(_)) => {}
+            ast::Expr::BinOp(binary) if binary.op != ast::Operator::MatMult => {
+                self.value(&binary.left);
+                self.value(&binary.right);
+            }
+            ast::Expr::UnaryOp(unary) => self.value(&unary.operand),
+            ast::Expr::Call(call) => {
+                self.value(&call.func);
+                if !call.arguments.keywords.is_empty() {
+                    self.reject(expr, "值调用暂不接关键字或双星号参数");
+                }
+                for argument in &call.arguments.args {
+                    // Starred不在value白名单，任何位置的展开均明确拒绝。
+                    self.value(argument);
+                }
+            }
             ast::Expr::Compare(cmp)
                 if cmp.ops.len() == 1
                     && matches!(cmp.ops[0], ast::CmpOp::Is | ast::CmpOp::IsNot) =>
@@ -91,7 +101,7 @@ impl Check {
                 }
             }
             ast::Expr::If(choice) => {
-                self.condition(&choice.test);
+                self.value(&choice.test);
                 self.value(&choice.body);
                 self.value(&choice.orelse);
             }

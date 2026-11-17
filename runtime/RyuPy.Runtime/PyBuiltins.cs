@@ -32,6 +32,7 @@ public static partial class PyOps
         "pow" => PyPowerBuiltin.Invoke(args, kwNames, kwValues),
         "ord" => WithKeywords(name, args, kwNames, () => UnicodeOrd(Single(name, args))),
         "chr" => WithKeywords(name, args, kwNames, () => UnicodeChr(Single(name, args))),
+        "oct" => PyOctBuiltin.Invoke(args, kwNames),
         "list" => BuiltinSequenceConstruct(args, kwNames, static items => new PyList(items)),
         "tuple" => BuiltinSequenceConstruct(args, kwNames, static items => new PyTuple(items)),
         "set" => BuiltinSequenceConstruct(args, kwNames, static items => new PySet(items)),

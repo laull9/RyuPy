@@ -1,4 +1,4 @@
-//! 链式赋值用一个动态隐藏槽保对象身份，目标仍逐条晚求值；类体及嵌套解包不偷偷扩范围。
+//! 链式赋值用一个动态隐藏槽保对象身份，目标仍逐条晚求值；类体边界保留，递归解包共享同一冻结值。
 use ryupy_driver::{Session, Stage};
 mod support;
 use support::dump;
@@ -77,16 +77,11 @@ fn snapshot_shared_value_and_suspended_target_order() {
 }
 
 #[test]
-fn class_chains_and_nested_unpacking_remain_explicitly_unsupported() {
+fn class_chains_remain_explicitly_unsupported() {
     let path = std::env::temp_dir().join("ryupy_m3_7_chain_unsupported.py");
-    for source in [
-        "class C:\n    a = b = 1\n",
-        "whole = a, (b, c) = [1, [2, 3]]\n",
-    ] {
-        std::fs::write(&path, source).unwrap();
-        let mut session = Session::default();
-        assert!(dump(&mut session, &path, Stage::Mir).is_err());
-        assert!(session.diagnostics.iter().any(|d| d.code == Some("E0100")));
-    }
+    std::fs::write(&path, "class C:\n    a = b = 1\n").unwrap();
+    let mut session = Session::default();
+    assert!(dump(&mut session, &path, Stage::Mir).is_err());
+    assert!(session.diagnostics.iter().any(|d| d.code == Some("E0100")));
     std::fs::remove_file(path).unwrap();
 }

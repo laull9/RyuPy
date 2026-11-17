@@ -431,11 +431,23 @@ impl<'a> ExprBuilder<'a> {
                     let op = self.build_expr(*value);
                     let ty = self.ty_of(*value);
                     let boxed = self.coerce(op, &ty, &MirType::Dynamic);
+                    // Python先求值主体，再求规格，最后执行conversion与__format__。
+                    let specification = match spec {
+                        None => Operand::Const(Constant::Str(String::new())),
+                        Some(ryupy_hir::FStringSpec::Literal(text)) => {
+                            Operand::Const(Constant::Str(text.to_string()))
+                        }
+                        Some(ryupy_hir::FStringSpec::Dynamic(expr)) => {
+                            let value = self.build_expr(*expr);
+                            let ty = self.ty_of(*expr);
+                            self.coerce(value, &ty, &MirType::Str)
+                        }
+                    };
                     self.runtime_call(
                         RuntimeFn::FormatValue,
                         vec![
                             boxed,
-                            Operand::Const(Constant::Str(spec.as_deref().unwrap_or("").to_owned())),
+                            specification,
                             Operand::Const(Constant::I64(*conversion as i64)),
                         ],
                         MirType::Str,

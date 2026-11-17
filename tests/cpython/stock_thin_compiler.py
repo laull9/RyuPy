@@ -20,10 +20,14 @@ from onefile_support import audit_onefile_output
 
 
 CASES = ('identity', 'global_rebinding', 'builtin_and_function', 'shutdown',
-         'local_identity', 'local_unbound', 'identity_order')
+         'local_identity', 'local_unbound', 'identity_order',
+         'numeric_pipeline', 'call_pipeline', 'operator_protocol')
+NEGATIVE_CASES = ('frame_boundaries',)
 # 手写输入中的调用（包括抛错路径）和顶层定义数，防止只验输出漏掉静态core调度。
 EXPECTED_THIN = {'shutdown': (1, 1), 'local_identity': (9, 4),
-                 'local_unbound': (3, 2), 'identity_order': (8, 3)}
+                 'local_unbound': (3, 2), 'identity_order': (8, 3),
+                 'numeric_pipeline': (32, 10), 'call_pipeline': (22, 14),
+                 'operator_protocol': (26, 11), 'frame_boundaries': (6, 4)}
 
 
 class Recorder:
@@ -59,7 +63,7 @@ def require_success(result, label):
     return result
 
 
-def validate_case(args, log, version, mode, case, workspace):
+def validate_case(args, log, version, mode, case, workspace, negative=False):
     work = workspace/(mode+'-'+case)
     inputs, output = work/'private input', work/'build output'
     inputs.mkdir(parents=True)
@@ -105,8 +109,19 @@ def validate_case(args, log, version, mode, case, workspace):
     run_env['TMPDIR'] = str(runtime_temp)
     execution = [shutil.which('dotnet'), executable] if mode == 'jit' else [executable]
     actual = log.run(execution, work, run_env)
-    if (actual.returncode, actual.stdout, actual.stderr) != (oracle.returncode, oracle.stdout, oracle.stderr):
-        raise RuntimeError(f'{version}/{mode}/{case} 三流或退出码不同，见完整日志')
+    expected_stdout = oracle.stdout
+    if negative:
+        # 负合同只接受明确NI，不能悄悄返回glue的locals或用错误scope解释业务源码。
+        if expected_stdout.count(b'real-scope\n') != 4 or b'blocked\n' in expected_stdout:
+            raise RuntimeError('frame oracle没有验证四项真实scope能力')
+        log.stream.write('NEGATIVE_CONTRACT CPython支持真实scope；候选必须明确拒绝，单列负合同\n')
+        expected_stdout = expected_stdout.replace(b'real-scope\n', b'blocked\n')
+    if (actual.returncode, actual.stdout, actual.stderr) != (oracle.returncode, expected_stdout, oracle.stderr):
+        if report.is_file():
+            log.stream.write('FAILED_HOST_REPORT\n'+report.read_text()+'\n')
+            log.stream.flush()
+        label = '负合同拒绝路径不匹配' if negative else 'CPython三流或退出码不同'
+        raise RuntimeError(f'{version}/{mode}/{case} {label}，见完整日志')
     report_root = relocated
     if mode == 'onefile':
         raw = json.loads(report.read_text())
@@ -132,7 +147,8 @@ def validate_case(args, log, version, mode, case, workspace):
         expected_calls, expected_destroyed = EXPECTED_THIN[case]
         if (thin['native_calls'], thin['destroyed']) != (expected_calls, expected_destroyed):
             raise RuntimeError(f'{case} 静态core调用或owner析构次数与手写输入不同')
-    print(f'PASS {version} {mode} {case}', flush=True)
+    status = 'PASS-NEGATIVE' if negative else 'PASS'
+    print(f'{status} {version} {mode} {case}', flush=True)
 
 
 def main():
@@ -141,6 +157,7 @@ def main():
     parser.add_argument('--cli', type=Path, default=ROOT/'target/debug/ryupy')
     parser.add_argument('--mode', choices=('jit', 'standalone', 'onefile', 'all'), default='jit')
     parser.add_argument('--case', action='append', choices=CASES)
+    parser.add_argument('--negative-case', action='append', choices=NEGATIVE_CASES)
     args = parser.parse_args()
     args.python = args.python.resolve()
     args.cli = args.cli.resolve()
@@ -160,8 +177,11 @@ def main():
             modes = ('jit', 'standalone', 'onefile') if args.mode == 'all' else (args.mode,)
             try:
                 for mode in modes:
-                    for case in args.case or CASES:
+                    cases = args.case or (() if args.negative_case else CASES)
+                    for case in cases:
                         validate_case(args, Recorder(stream), version, mode, case, workspace)
+                    for case in args.negative_case or ():
+                        validate_case(args, Recorder(stream), version, mode, case, workspace, True)
             finally:
                 stream.write('CLEANING '+str(workspace)+'\n')
         stream.write('CLEANED\n')

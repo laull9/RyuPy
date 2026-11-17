@@ -574,6 +574,18 @@ fn sequence_target_name(
     target: &crate::hir::SequenceTarget,
 ) -> String {
     match target {
+        crate::hir::SequenceTarget::Sequence(items) => format!(
+            "({})",
+            items
+                .iter()
+                .map(|item| match item {
+                    crate::hir::SequenceItem::One(t) => sequence_target_name(module, body, t),
+                    crate::hir::SequenceItem::Rest(t) =>
+                        format!("*{}", sequence_target_name(module, body, t)),
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
         crate::hir::SequenceTarget::Binding(binding) => binding_name(module, body, *binding),
         crate::hir::SequenceTarget::Attribute { base, name } => {
             format!("{}.{}", dump_expr(module, body, *base), name)

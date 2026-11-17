@@ -49,6 +49,10 @@ impl ExprBuilder<'_> {
         call: ryupy_hir::ExprId,
         callee: ryupy_hir::ExprId,
     ) -> Option<Operand> {
+        // 薄体没有Context；普通值调用借真实F的活动Python帧读取原D，禁止把lease送旧helper。
+        if self.hir.info.stock_thin_functions && self.current_hir_fn != self.hir.main {
+            return None;
+        }
         if !self.hir.info.instance_capabilities.direct_globals
             || !self.hir.functions[self.current_hir_fn]
                 .body
