@@ -17,7 +17,7 @@ import tempfile
 import threading
 import time
 
-from support import ROOT, audit_native_paths, environment, rid, standalone_layout
+from support import built_product, ROOT, audit_native_paths, environment, rid, standalone_layout
 from stock_thin_compiler import Recorder, require_success
 
 
@@ -69,8 +69,10 @@ def build(args, recorder, work, env, label, runtime, control):
         command = [relocated/layout.native.name]
         shutil.rmtree(output)
     else:
+        public = built_product(result.stderr, output, 'entry', 'jit')
+        filename = public.entry.name
         shutil.move(output, relocated)
-        command = [shutil.which('dotnet'), relocated/'entry.dll']
+        command = [relocated/filename]
     shutil.rmtree(source)
     audit_native_paths(relocated)
     return command

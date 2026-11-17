@@ -72,7 +72,11 @@ pub fn build_onefile(
     ));
     std::fs::create_dir(&attempt)?;
     let result = (|| -> Result<Artifacts> {
-        let mut artifacts = crate::build_configured(sess, &opts, resources, binding)?;
+        let prior_layout = sess.legacy_onefile_layout;
+        sess.legacy_onefile_layout = true;
+        let built = crate::build_configured(sess, &opts, resources, binding);
+        sess.legacy_onefile_layout = prior_layout;
+        let mut artifacts = built?;
         let native = artifacts
             .native_exe
             .as_ref()

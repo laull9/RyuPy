@@ -9,7 +9,7 @@ namespace RyuPy.Runtime;
 /// <summary>由 Microsoft.Data.Sqlite 承载的 Python 连接。</summary>
 internal sealed class PySqliteConnection : PyNativeObject
 {
-    private static readonly Lazy<bool> Provider = new(() => { Batteries_V2.Init(); return true; });
+    private static readonly Lazy<bool> Provider = new(() => { PyApplicationLayout.InstallSqliteResolver(); Batteries_V2.Init(); return true; });
     private readonly SqliteConnection connection;
     private readonly List<WeakReference<PySqliteCursor>> cursors = new();
     private readonly int ownerThread = Environment.CurrentManagedThreadId;
@@ -38,7 +38,7 @@ internal sealed class PySqliteConnection : PyNativeObject
         try { _ = Provider.Value; }
         catch (Exception error) when (error is DllNotFoundException or TypeInitializationException or BadImageFormatException)
         {
-            throw new PyImportError("sqlite3 requires the matching SQLitePCLRaw e_sqlite3 native library beside the application: " + error.Message);
+            throw new PyImportError("sqlite3 requires the matching SQLitePCLRaw e_sqlite3 native library in the application's dependency root: " + error.Message);
         }
         connection = new SqliteConnection(new SqliteConnectionStringBuilder
         {

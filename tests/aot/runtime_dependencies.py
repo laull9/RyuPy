@@ -1,5 +1,6 @@
 """SQLite 固定 provider 的发布角色与完整 JIT 随包合同；不读取普通文件内容或计算摘要。"""
 from manifest_files import ManifestError
+from application_layout import canonical_artifacts
 
 RUNTIME_ROLES = {'runtime_native_dependency', 'runtime_managed_dependency',
                  'runtime_dependency_contract', 'runtime_dependency_license'}
@@ -19,5 +20,7 @@ def validate_runtime_dependencies(artifacts, rid):
     if any(role in {'runtime_managed_dependency', 'runtime_dependency_contract'} for role in selected.values()):
         expected.update({name: 'runtime_managed_dependency' for name in MANAGED})
         expected['RuntimeDependencies.props'] = 'runtime_dependency_contract'
+    if canonical_artifacts(artifacts):
+        expected = {'internal/' + name: role for name, role in expected.items()}
     if selected != expected:
         raise ManifestError('运行时随包依赖的文件名、RID、角色或完整性不符')

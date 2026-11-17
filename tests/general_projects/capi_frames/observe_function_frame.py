@@ -59,16 +59,20 @@ def main():
         command = [args.cli, '--cpython-provider', 'auto', '--experimental-stock-module-namespaces', 'build', inputs/'entry.py', '-o', output]
         if args.aot: command.append('--aot')
         built = run('build', command)
+        sys.path.insert(0, str(source.parents[1]/'cpython'))
+        from support import built_product
         if args.aot:
             sys.path.insert(0, str(source.parents[1]/'cpython'))
-            from support import standalone_layout, rid
+            from support import built_product, standalone_layout, rid
             layout = standalone_layout(built.stderr.encode(), output, 'entry', rid())
             bundle, filename = layout.dist, layout.native.name
-        else: bundle, filename = output, 'entry.dll'
+        else:
+            layout = built_product(built.stderr, output, 'entry', 'jit')
+            bundle, filename = layout.root, layout.entry.name
         moved = root/'moved'; shutil.move(bundle,moved); shutil.rmtree(inputs); wheel.unlink(); extension.unlink()
         if output.exists(): shutil.rmtree(output)
         report = root/'host.json'; env = dict(os.environ, RYUPY_CPYTHON_REPORT=str(report), PATH='', PYTHONHOME='/missing', PYTHONPATH='/missing')
-        command = [moved/filename] if args.aot else [shutil.which('dotnet'), moved/filename]
+        command = [moved/filename]
         actual = run('candidate', command, env=env, required=False)
         assert report.exists(), '候选必须生成实际Host报告'
         shutil.copy2(report,logs/'host.json')

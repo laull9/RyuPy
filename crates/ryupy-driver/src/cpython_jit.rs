@@ -1,4 +1,4 @@
-//! 显式 provider 的 JIT 候选事务：编译及完整依赖冻结成功之后才替换本工具拥有的输出目录。
+//! JIT应用候选事务：官方apphost与唯一internal依赖根完整冻结后才替换工具拥有的输出目录。
 use crate::{Artifacts, BuildOptions};
 use anyhow::{Context, Result, ensure};
 use std::path::{Path, PathBuf};
@@ -25,8 +25,10 @@ pub(super) fn build(
     if target.exists() {
         ensure!(
             std::fs::symlink_metadata(&target)?.is_dir()
-                && target.join(super::cpython_provider::CONFIG).is_file(),
-            "CPython JIT 只替换自己已有的完整输出目录，请选择新的 --out-dir"
+                && (crate::application_layout::is_canonical(&target)?
+                    || target.join(super::cpython_provider::CONFIG).is_file()
+                    || std::fs::read_dir(&target)?.next().is_none()),
+            "JIT只替换自己已有的完整输出目录，请选择新的 --out-dir"
         );
     }
     let (candidate, backup) = unique(parent)?;
@@ -34,12 +36,22 @@ pub(super) fn build(
     let mut inner = opts.clone();
     inner.out_dir = candidate.clone();
     let artifacts = compile(&inner)?;
-    let dll = artifacts.dll.strip_prefix(&candidate)?.to_path_buf();
+    artifacts.dll.strip_prefix(&candidate).context("JIT产物不属于本次候选")?;
+    let source = artifacts.dll.parent().context("JIT程序集缺少目录")?.to_path_buf();
+    let dll_name = artifacts.dll.file_name().context("JIT程序集缺少文件名")?;
+    let manifest_bytes = artifacts.manifest.as_ref().map(std::fs::read).transpose()?;
+    if let Some(path) = &artifacts.manifest { std::fs::remove_file(path)?; }
+    let apphost = crate::jit_apphost::create(&source, &artifacts.dll)?;
+    crate::application_layout::canonicalize(&source, &apphost, "apphost")?;
+    let manifest = if let Some(bytes) = manifest_bytes {
+        Some(crate::application_layout::finish_jit_manifest(&source, &apphost, &bytes)?)
+    } else { None };
+    let entry = apphost.file_name().context("JIT入口缺少文件名")?.to_owned();
     let previous = target.exists();
     if previous {
         std::fs::rename(&target, &backup).context("无法移开上一份完整 CPython JIT 输出")?;
     }
-    if let Err(error) = std::fs::rename(&candidate, &target) {
+    if let Err(error) = std::fs::rename(&source, &target) {
         if previous {
             std::fs::rename(&backup, &target)
                 .context("CPython JIT 发布失败且恢复上一份输出失败")?;
@@ -51,9 +63,9 @@ pub(super) fn build(
         std::fs::remove_dir_all(&backup).context("新 CPython JIT 输出已安装，但旧目录清理失败")?;
     }
     Ok(Artifacts {
-        dll: target.join(dll),
-        native_exe: None,
-        manifest: None,
+        dll: target.join(crate::application_layout::DIRECTORY).join(dll_name),
+        native_exe: Some(target.join(entry)),
+        manifest: manifest.map(|_| crate::application_layout::manifest_path(&target)).transpose()?,
     })
 }
 fn unique(parent: &Path) -> Result<(PathBuf, PathBuf)> {

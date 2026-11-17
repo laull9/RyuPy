@@ -2,6 +2,7 @@
 from __future__ import annotations
 import json
 import os
+from support import built_product
 from pathlib import Path
 import shutil
 import subprocess
@@ -66,9 +67,9 @@ def run_priority_matrix(cli: Path, python: Path, workspace: Path, env: dict):
         if name == "path":
             selected.pop("VIRTUAL_ENV", None)
         output = workspace / ("priority-output-" + name)
-        run([cli, "--cpython-provider", "auto", "build", entry, "--out-dir", output], cwd=project, env=selected)
+        built = run([cli, "--cpython-provider", "auto", "build", entry, "--out-dir", output], cwd=project, env=selected)
         expected = run([venv_python(environments[name]), "-I", "-X", "utf8", entry], cwd=workspace, env=env)
-        actual = run([shutil.which("dotnet"), output / "priority.dll"], cwd=workspace, env=env)
+        actual = run([built_product(built.stderr, output, entry.stem, "jit").entry], cwd=workspace, env=env)
         assert_result(actual, expected)
         assert actual.stdout == (name + os.linesep).encode()
         shutil.rmtree(output)

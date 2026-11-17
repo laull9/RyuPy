@@ -1,6 +1,6 @@
 //! 调用 .NET SDK。
 //!
-//! 先用子进程方式（`dotnet x.dll`）跑通，简单可靠；`netcorehost` 进程内托管留到确有性能需要时再引入。
+//! 托管程序集通过dotnet执行；应用交付通过官方apphost或NativeAOT入口执行，共用完整进程参数合同。
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -45,7 +45,17 @@ pub fn run_dll(dll: &Path) -> Result<Output> {
 /// 带参数 / 环境 / 工作目录 / 标准输入地运行程序集。
 pub fn run_dll_with(dll: &Path, opts: &RunOptions) -> Result<Output> {
     let mut cmd = Command::new(dotnet_exe());
-    cmd.arg(dll).args(&opts.args);
+    cmd.arg(dll);
+    run_command_with(cmd, dll, opts)
+}
+
+/// 执行应用公开入口，保留JIT apphost与NativeAOT相同的参数、环境和标准输入行为。
+pub fn run_executable_with(executable: &Path, opts: &RunOptions) -> Result<Output> {
+    run_command_with(Command::new(executable), executable, opts)
+}
+
+fn run_command_with(mut cmd: Command, entry: &Path, opts: &RunOptions) -> Result<Output> {
+    cmd.args(&opts.args);
     if let Some(cwd) = &opts.cwd {
         cmd.current_dir(cwd);
     }
@@ -59,7 +69,7 @@ pub fn run_dll_with(dll: &Path, opts: &RunOptions) -> Result<Output> {
 
     let mut child = cmd
         .spawn()
-        .with_context(|| format!("无法启动 dotnet 运行 {}", dll.display()))?;
+        .with_context(|| format!("无法启动应用 {}", entry.display()))?;
     if let Some(text) = &opts.stdin {
         if let Some(mut stdin) = child.stdin.take() {
             // 子进程提前退出时写入会失败，此时以子进程输出为准。
@@ -68,7 +78,7 @@ pub fn run_dll_with(dll: &Path, opts: &RunOptions) -> Result<Output> {
     }
     child
         .wait_with_output()
-        .with_context(|| format!("等待 dotnet 进程失败 {}", dll.display()))
+        .with_context(|| format!("等待应用进程失败 {}", entry.display()))
 }
 
 /// Native AOT 发布：生成薄宿主并返回本次独立 publish 目录内的真实可执行文件。

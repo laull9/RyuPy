@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+from support import built_product
 from pathlib import Path
 import shutil
 import sys
@@ -54,17 +55,18 @@ def main():
         assert json.loads(oracle.stdout)["python"] == version
         build_env = activated(venv, env)
         jit = workspace / "jit"
-        run([cli, "--cpython-provider", "auto", "build", entry, "--out-dir", jit], cwd=project, env=build_env)
+        jit_build = run([cli, "--cpython-provider", "auto", "build", entry, "--out-dir", jit], cwd=project, env=build_env)
         jit_cwd = workspace / "run-jit"
         jit_cwd.mkdir()
-        actual = run([shutil.which("dotnet"), jit / "版本应用.dll"], cwd=jit_cwd, env=env)
+        actual = run([built_product(jit_build.stderr, jit, entry.stem, "jit").entry], cwd=jit_cwd, env=env)
         assert_result(actual, oracle)
         assert (jit_cwd / "版本 业务副作用.txt").read_bytes() == expected_effect
         print(f"[version] Python {tag} 自动探测、JIT三流和副作用通过", flush=True)
         output = workspace / "aot"
-        run([cli, "--cpython-provider", "auto", "build", entry, "--aot", "--out-dir", output], cwd=project, env=build_env)
-        dist = output / "版本应用.dist"
-        config = json.loads((dist / "ryupy-cpython.json").read_text(encoding="utf-8"))
+        aot_build = run([cli, "--cpython-provider", "auto", "build", entry, "--aot", "--out-dir", output], cwd=project, env=build_env)
+        layout = built_product(aot_build.stderr, output, entry.stem, "aot")
+        dist = layout.root
+        config = json.loads(layout.provider_config.read_text(encoding="utf-8"))
         assert config["python_version"] == ".".join(map(str, version)), config
         relocated = workspace / "搬迁 空格目录"
         shutil.move(dist, relocated)
@@ -77,7 +79,7 @@ def main():
         polluted = make_polluted_env(empty)
         cwd = workspace / "run-aot"
         cwd.mkdir()
-        executable_name = "版本应用.exe" if sys.platform == "win32" else "版本应用"
+        executable_name = layout.entry.name
         actual = run([relocated / executable_name], cwd=cwd, env=polluted)
         assert_result(actual, oracle)
         assert (cwd / "版本 业务副作用.txt").read_bytes() == expected_effect

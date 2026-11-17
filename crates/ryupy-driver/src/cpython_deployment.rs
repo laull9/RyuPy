@@ -160,6 +160,7 @@ pub(super) fn stage(plan: &Plan, output: &Path) -> Result<()> {
         "entry_provider": if delegated_entry { "cpython_delegated_source" } else { "ryupy_compiled_source" },
         "entry_script": entry_script,
         "files": files,
+        "file_path_base": "provider_configuration_directory",
         "native_architecture_convergence": architecture_convergence,
         "dependency_collection": plan.dependency_report,
         "interface_catalog": crate::interface_catalog::analyze(plan, output, &files)?,

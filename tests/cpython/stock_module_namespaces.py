@@ -8,13 +8,13 @@ import shutil
 import subprocess
 import tempfile
 
-from support import ROOT, environment, audit_native_paths, inspect_host_report, standalone_layout, rid
+from support import ROOT, environment, audit_native_paths, inspect_host_report, standalone_layout, rid, built_product, product_layout
 
 CASES = ('eager', 'annotations', 'harbor_pair', 'frost_pair', 'generators', 'courier_hooks', 'marsh_hooks', 'sunrise_context', 'quartz_context', 'inlet_handlers', 'quarry_handlers')
 
 
 def audit_sources(bundle, count, version):
-    report = json.loads((bundle / 'cpython-provider.json').read_text())
+    report = json.loads((product_layout(bundle).provider_report).read_text())
     assert report['python_version'] == version
     assert report['execution'] == 'ryupy_compiled_entry'
     assert report['entry_provider'] == 'ryupy_compiled_source'
@@ -79,7 +79,8 @@ def main():
                         layout = standalone_layout(built.stderr, output, 'entry', rid())
                         bundle, filename = layout.dist, layout.native.name
                     else:
-                        bundle, filename = output, 'entry.dll'
+                        layout = built_product(built.stderr, output, 'entry', 'jit')
+                        bundle, filename = layout.root, layout.entry.name
                     source_record = audit_sources(bundle, len(list(fixture.rglob('*.py'))), version)
                     moved = work / '已搬迁 产品'
                     shutil.move(bundle, moved)
@@ -90,7 +91,7 @@ def main():
                     process_env = environment()
                     process_env.update(PATH='', PYTHONHOME='/missing-home', PYTHONPATH='/missing-path',
                                        RYUPY_CPYTHON_REPORT=str(report))
-                    actual = run(label + '-relocated', [dotnet, moved / filename] if mode == 'jit' else [moved / filename],
+                    actual = run(label + '-relocated', [moved / filename],
                                  work, process_env, check=False)
                     if report.exists():
                         observed = json.loads(report.read_text())

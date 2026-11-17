@@ -14,7 +14,7 @@ import tempfile
 from fixtures import CASES, prepare
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT))
-from tests.cpython.support import private_distribution, declaration, audit_native_paths
+from tests.cpython.support import private_distribution, declaration, audit_native_paths, built_product, provider_data
 
 
 def run(command, cwd, env, log, success=True):
@@ -178,8 +178,10 @@ def main():
                     continue
                 executable = [Path(line[len('已生成 '):]) for line in built.stderr.decode().splitlines()
                               if line.startswith('已生成 ')][-1]
-                reports = list(output.rglob('cpython-provider.json'))
-                report_path = next((p for p in reports if p.parent.name.endswith('.dist')), reports[0])
+                data = provider_data(output, entry.stem, mode)
+                report_path = data / 'cpython-provider.json'
+                if mode != 'onefile':
+                    assert built_product(built.stderr, output, entry.stem, mode).entry == executable
                 report = json.loads(report_path.read_text())
                 assert report['entry_provider'] == 'ryupy_compiled_source'
                 assert report['delegated_local_modules'] == []
@@ -189,7 +191,7 @@ def main():
                 omitted = [f for f in selection['files'] if not f['selected']]
                 assert len(omitted) == 1 and omitted[0]['image']['dependencies']
                 assert '/unavailable/dependency/' in omitted[0]['image']['dependencies'][0]['install_name']
-                site = report_path.parent / 'python/lib/python3.12/site-packages'
+                site = data / 'python/lib/python3.12/site-packages'
                 assert not (site / omitted[0]['destination']).exists()
                 assert (site / case['destination']).is_file()
                 if case['custom']:
@@ -209,9 +211,8 @@ def main():
             assert component['components'][0]['libraries'][0]['install_name'] in identity
         shutil.rmtree(inputs)
         empty = work / 'empty-path'; empty.mkdir()
-        dotnet = shutil.which('dotnet')
         for name, mode, executable, oracle in products:
-            command = [dotnet, executable] if mode == 'jit' else [executable]
+            command = [executable]
             actual = run(command, empty, dict(env, PATH=str(empty), PYTHONHOME='/missing-python', PYTHONPATH='/missing-site'),
                          evidence / (name + '-run.log'))
             assert (actual.returncode, actual.stdout, actual.stderr) == (oracle.returncode, oracle.stdout, oracle.stderr)

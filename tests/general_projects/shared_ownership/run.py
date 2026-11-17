@@ -13,6 +13,8 @@ import tempfile
 from fixtures import prepare, wheel
 
 ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT/'tests/cpython'))
+from support import built_product, product_layout, provider_data
 
 
 def invoke(command, cwd, env, log, success=True):
@@ -143,10 +145,11 @@ def main():
                 assert len(generated) == 1, built.stderr
                 executable = generated[0]
                 # onefile的同一构建也生成完整目录发布，可在删除所有输入前审计其清单。
-                report_paths = list(output.rglob('cpython-provider.json'))
-                reports = [(p, json.loads(p.read_text())) for p in report_paths]
-                matching = [(p, r) for p, r in reports if p.parent.name.endswith('.dist')]
-                report_path, report = matching[0] if matching else reports[0]
+                data = provider_data(output, entry.stem, mode)
+                report_path = data / 'cpython-provider.json'
+                report = json.loads(report_path.read_text())
+                if mode != 'onefile':
+                    assert built_product(built.stderr, output, entry.stem, mode).entry == executable
                 collection = report['dependency_collection']
                 owners = {owner.replace('_', '-') for owner in case['owners']}
                 distributions = {d['name']: d for d in collection['distributions']}
@@ -158,7 +161,7 @@ def main():
                     assert all(target in distributions[owner]['files'] for owner in owners)
                 assert all(distributions[owner]['licenses'] for owner in owners)
                 for target in shared:
-                    staged = report_path.parent / 'python/lib/python3.12/site-packages' / target
+                    staged = data / 'python/lib/python3.12/site-packages' / target
                     assert staged.is_file() and not staged.is_symlink(), staged
                 shutil.copy2(report_path, evidence / (name + '-provider.json'))
                 relocated = work / ('搬迁 空格 ' + name)
@@ -177,11 +180,11 @@ def main():
         for name, mode, executable, oracle, case in products:
             cwd = work / ('run-' + name)
             cwd.mkdir()
-            command = [shutil.which('dotnet'), executable] if mode == 'jit' else [executable]
+            command = [executable]
             actual = invoke(command, cwd, polluted, evidence / (name + '-run.log'))
             assert (actual.returncode, actual.stdout, actual.stderr) == (oracle.returncode, oracle.stdout, oracle.stderr)
             if mode != 'onefile':
-                package = executable.parent / 'python/lib/python3.12/site-packages' / case['module']
+                package = product_layout(executable.parent).data / 'python/lib/python3.12/site-packages' / case['module']
                 missing = next(package.glob('_pulse*.so')) if case['id'] == 'native' else package / 'assets/data.bin'
                 content = missing.read_bytes()
                 try:

@@ -44,7 +44,7 @@ def configuration(python, root, env, run):
 def entitlements(run, path, root, env, label):
     result = run(['codesign', '-d', '--entitlements', '-', '--xml', path], root, env, label)
     # codesign状态写stderr，XML/DER解码后的plist在stdout。
-    return plistlib.loads(result.stdout)
+    return plistlib.loads(result.stdout) if result.stdout.strip() else {}
 
 
 def prepare(root, python, env, run):
@@ -82,7 +82,7 @@ def prepare(root, python, env, run):
         # 无扩展名沿原collector的fat32拥有入口；不借收敛步骤扩大fat64资源准入。
         make_fat(helper_slices[0],helper_slices[1],helper,False)
         run(['codesign','--force','--sign','-','--identifier','org.ryupy.fixture.helper.'+case['id'],
-             '--options','runtime','--entitlements',plist,helper],root,env,case['id']+'-helper-sign')
+             '--options','runtime',helper],root,env,case['id']+'-helper-sign')
         directory = case['directory']
         files = {case['package']+'/__init__.py':'"""实际双架构CP扩展，业务回调由CIL执行。"""\n',
                  directory+'/'+extension.name:extension.read_bytes(), directory+'/native_helper':helper.read_bytes(), directory+'/'+case['extension']+'.pyi':(HERE/case['stub']).read_bytes(),
@@ -104,3 +104,35 @@ def prepare(root, python, env, run):
     raw = root/RESOURCE
     make_fat(thin[0], thin[1], raw, True)
     return packages
+
+
+def signature_metadata(path):
+    """只读CodeDirectory的identifier/flags；不读取或计算页摘要。"""
+    with path.open('rb') as file:
+        header=file.read(8);base=0
+        if header[:4] in (bytes.fromhex('cafebabe'),bytes.fromhex('cafebabf')):
+            wide=header[:4]==bytes.fromhex('cafebabf')
+            entries=[]
+            for _ in range(struct.unpack('>I',header[4:])[0]):
+                row=file.read(32 if wide else 20)
+                values=struct.unpack('>IIQQII' if wide else '>IIIII',row)
+                entries.append(values)
+            base=next(row[2] for row in entries if row[0]==0x100000c and row[1]==0)
+        file.seek(base);header=file.read(32);assert header[:4]==bytes.fromhex('cffaedfe')
+        ncmds,size=struct.unpack_from('<II',header,16);commands=file.read(size);at=0;signature=None
+        for _ in range(ncmds):
+            command,length=struct.unpack_from('<II',commands,at)
+            if command==0x1d:signature=base+struct.unpack_from('<I',commands,at+8)[0]
+            at+=length
+        assert signature is not None
+        file.seek(signature);magic,length,count=struct.unpack('>III',file.read(12));assert magic==0xfade0cc0
+        slots=[struct.unpack('>II',file.read(8)) for _ in range(count)]
+        directory=signature+next(offset for kind,offset in slots if kind==0)
+        file.seek(directory);head=file.read(24);assert struct.unpack_from('>I',head)[0]==0xfade0c02
+        flags=struct.unpack_from('>I',head,12)[0];identifier=struct.unpack_from('>I',head,20)[0]
+        file.seek(directory+identifier);name=bytearray()
+        for _ in range(256):
+            value=file.read(1)
+            if value==b'\0':break
+            assert value;name.extend(value)
+        return {'flags':flags,'identifier':name.decode()}

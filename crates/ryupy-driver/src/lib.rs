@@ -69,6 +69,8 @@ mod stock_module_namespaces;
 mod stock_thin;
 pub use source_probe::probe_sources;
 mod source_deployment;
+mod application_layout;
+mod jit_apphost;
 pub use session::Session;
 
 /// 编译因用户代码错误而中止（诊断已存入 [`Session`]）。区别于 IO 等内部错误。
@@ -311,7 +313,7 @@ pub fn build_configured(
                 binding_build::build_in_attempt(sess, inner, path, resources, owned)
             })
         } else {
-            binding_build::build(sess, opts, path)
+            cpython_jit::build(opts, |inner| binding_build::build(sess, inner, path))
         };
     }
     build_with_resources(sess, opts, resources)
@@ -333,12 +335,9 @@ pub fn build_with_resources(
             build_with_resources_inner(sess, inner, resource_request, Some(owned))
         });
     }
-    if sess.cpython_provider.is_some() {
-        return cpython_jit::build(opts, |inner| {
-            build_with_resources_inner(sess, inner, resource_request, None)
-        });
-    }
-    build_with_resources_inner(sess, opts, resource_request, None)
+    cpython_jit::build(opts, |inner| {
+        build_with_resources_inner(sess, inner, resource_request, None)
+    })
 }
 
 fn build_with_resources_inner(
@@ -425,6 +424,7 @@ fn build_with_resources_inner(
             &context,
             resource_plan.as_ref(),
             owned,
+            !sess.legacy_onefile_layout,
         )?;
         (Some(published.executable), Some(published.manifest))
     } else {

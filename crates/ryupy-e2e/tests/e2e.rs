@@ -143,7 +143,7 @@ fn run_case(root: &Path, case: &CaseSpec, python_only: bool) -> Result<(), Faile
         return Ok(());
     }
 
-    // 2. 实际结果：RyuPy 编译 + dotnet 运行
+    // 2. 实际结果：RyuPy编译后走实际公开入口；纯托管输出继续走dotnet。
     let mut sess = Session {
         instance_modules: case.instance_modules.clone(),
         ..Session::default()
@@ -168,7 +168,11 @@ fn run_case(root: &Path, case: &CaseSpec, python_only: bool) -> Result<(), Faile
         cwd: Some(cwd),
         stdin: case.stdin.clone(),
     };
-    let actual = dotnet::run_dll_with(&artifacts.dll, &run_opts).map_err(|e| format!("{e:#}"))?;
+    let actual = match &artifacts.native_exe {
+        Some(entry) => dotnet::run_executable_with(entry, &run_opts),
+        None => dotnet::run_dll_with(&artifacts.dll, &run_opts),
+    }
+    .map_err(|e| format!("{e:#}"))?;
 
     // 3. 比较
     let mut failures = Vec::new();

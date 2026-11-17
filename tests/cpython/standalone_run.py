@@ -10,6 +10,7 @@ import csv
 import io
 import json
 import os
+from support import built_product, product_layout
 from pathlib import Path
 import shutil
 import subprocess
@@ -288,14 +289,11 @@ def main():
             "--aot",
         ]
         print(f"[standalone] 执行 NativeAOT 构建: {' '.join(build_cmd)}")
-        run_cmd(build_cmd, cwd=workspace, env=env)
+        built = run_cmd(build_cmd, cwd=workspace, env=env)
 
-        # 定位生成的发布目录 (.dist)
-        configs = [p for p in aot_out.rglob("ryupy-cpython.json") if p.parent.name.endswith(".dist")]
-        assert len(configs) == 1, f"未找到唯一发布目录产物: {configs}"
-        product_dir = configs[0].parent
-
-        report = json.loads((product_dir / "cpython-provider.json").read_text(encoding="utf-8"))
+        layout = built_product(built.stderr, aot_out, app_entry.stem, 'aot')
+        product_dir = layout.root
+        report = json.loads(layout.provider_report.read_text(encoding="utf-8"))
         dist_names = {d["name"] for d in report["dependency_collection"]["distributions"]}
         assert "standalone-pkg" in dist_names, f"依赖收集缺少 standalone-pkg: {dist_names}"
 
@@ -314,7 +312,7 @@ def main():
         # 8. 在清洁 PATH 与受污染 PYTHONHOME/PYTHONPATH 环境下直接执行 NativeAOT 入口
         run_cwd = workspace / "run-aot"
         run_cwd.mkdir()
-        binary_name = "项目 入口.exe" if sys.platform == "win32" else "项目 入口"
+        binary_name = layout.entry.name
         binary_path = relocated_dir / binary_name
         assert binary_path.is_file(), f"未找到 NativeAOT 入口程序: {binary_path}"
 
@@ -370,11 +368,11 @@ def main():
         # 10. 缺失关键组件运行负例验证
         # 10.1 缺 libpython
         if sys.platform == "win32":
-            py_lib = relocated_dir / "python/python312.dll"
+            py_lib = product_layout(relocated_dir).data / "python/python312.dll"
         elif sys.platform == "darwin":
-            py_lib = relocated_dir / "python/lib/libpython3.12.dylib"
+            py_lib = product_layout(relocated_dir).data / "python/lib/libpython3.12.dylib"
         else:
-            py_lib = relocated_dir / "python/lib/libpython3.12.so.1.0"
+            py_lib = product_layout(relocated_dir).data / "python/lib/libpython3.12.so.1.0"
         assert py_lib.is_file(), f"未在产物中找到 libpython: {py_lib}"
 
         py_lib_bak = py_lib.with_suffix(".bak")
@@ -387,11 +385,11 @@ def main():
 
         # 10.2 缺 shim
         if sys.platform == "win32":
-            shim_lib = relocated_dir / "ryupy_cpython.dll"
+            shim_lib = product_layout(relocated_dir).data / "ryupy_cpython.dll"
         elif sys.platform == "darwin":
-            shim_lib = relocated_dir / "libryupy_cpython.dylib"
+            shim_lib = product_layout(relocated_dir).data / "libryupy_cpython.dylib"
         else:
-            shim_lib = relocated_dir / "libryupy_cpython.so"
+            shim_lib = product_layout(relocated_dir).data / "libryupy_cpython.so"
         assert shim_lib.is_file(), f"未在产物中找到 shim: {shim_lib}"
 
         shim_lib_bak = shim_lib.with_suffix(".bak")
@@ -404,9 +402,9 @@ def main():
 
         # 10.3 缺包资源
         if sys.platform == "win32":
-            res_file = relocated_dir / "python/Lib/site-packages/standalone_pkg/资源.txt"
+            res_file = product_layout(relocated_dir).data / "python/Lib/site-packages/standalone_pkg/资源.txt"
         else:
-            res_file = relocated_dir / "python/lib/python3.12/site-packages/standalone_pkg/资源.txt"
+            res_file = product_layout(relocated_dir).data / "python/lib/python3.12/site-packages/standalone_pkg/资源.txt"
         assert res_file.is_file(), f"未在产物中找到第三方包资源文件: {res_file}"
 
         res_file_bak = res_file.with_suffix(".bak")

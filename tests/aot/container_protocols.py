@@ -9,7 +9,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tests/cpython'))
-from support import environment, standalone_layout
+from support import environment, standalone_layout, built_product, product_layout
 from stock_thin_compiler import Recorder, require_success, rid
 from onefile_support import audit_onefile_output
 
@@ -47,6 +47,11 @@ def main():
                 built = require_success(recorder.run(command, root, env, 600), 'build')
                 if mode == 'standalone':
                     layout = standalone_layout(built.stderr, output, 'entry', rid())
+                    from aot_layout import reported_aot
+                    from manifest_verify import verify_manifest, read_sdk_version
+                    detailed = reported_aot(built.stderr, output, 'entry', rid())
+                    verify_manifest(detailed.dist, detailed.native, rid(),
+                                    read_sdk_version(detailed.host / 'sdk.version'))
                     shutil.move(layout.dist, relocated)
                     executable = relocated / layout.native.name
                 elif mode == 'onefile':
@@ -55,13 +60,16 @@ def main():
                     shutil.move(executable, relocated / executable.name)
                     executable = relocated / executable.name
                 else:
+                    layout = built_product(built.stderr, output, 'entry', mode)
                     shutil.move(output, relocated)
-                    executable = relocated / 'entry.dll'
+                    executable = relocated / layout.entry.name
+                if mode != 'onefile':
+                    product_layout(relocated)
                 shutil.rmtree(source)
                 if output.exists(): shutil.rmtree(output)
                 private = root / '临时解包'; private.mkdir()
                 env.update(PATH='', PYTHONHOME='/missing-python', PYTHONPATH='/missing-site', TMPDIR=str(private))
-                command = [shutil.which('dotnet'), executable] if mode == 'jit' else [executable]
+                command = [executable]
                 actual = recorder.run(command, root, env)
                 assert (actual.returncode, actual.stdout, actual.stderr) == (oracle.returncode, oracle.stdout, oracle.stderr), (case, mode)
                 assert not list(private.iterdir()), '退出后解包目录未清理'

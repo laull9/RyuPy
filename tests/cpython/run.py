@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+from support import built_product
 from pathlib import Path
 import shutil
 import sys
@@ -215,13 +216,11 @@ def main():
                 if args.mode in ('jit', 'all'):
                     jit = root / (case.stem + '-jit')
                     build = run(case.stem + '-jit-build', common + ['-o', jit])
-                    dlls = [Path(line.removeprefix('已生成 ')) for line in build.stderr.decode().splitlines()
-                            if line.startswith('已生成 ')]
-                    assert len(dlls) == 1, dlls
+                    public = built_product(build.stderr, jit, 'app', 'jit')
                     jit_cwd = root / (case.stem + '-jit-cwd')
                     jit_cwd.mkdir()
                     jit_env = dict(env, RYUPY_CPYTHON_REPORT=str(jit_cwd / 'host.json'))
-                    matching(run(case.stem + '-jit', [shutil.which('dotnet'), dlls[0]] + application_args, cwd=jit_cwd, env=jit_env, check=False), expected, case.stem)
+                    matching(run(case.stem + '-jit', [public.entry] + application_args, cwd=jit_cwd, env=jit_env, check=False), expected, case.stem)
                     provider_report(jit, MODULES)
                     inspect_host_report(jit_cwd / 'host.json', jit)
                     if args.audit_import_hooks:

@@ -12,8 +12,12 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+import sys
 
 from inspect_sources import CACHE, CATALOG, REPO, analyze
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / 'tests/cpython'))
+from support import provider_data
 
 
 def main():
@@ -72,10 +76,8 @@ def main():
                 except subprocess.TimeoutExpired:
                     code = 124
             if code == 0:
-                reports = list((work / mode).rglob('cpython-provider.json'))
-                selected_report = next((p for p in reports if p.parent.name.endswith('.dist')), reports[0] if reports else None)
-                if selected_report is not None:
-                    shutil.copy2(selected_report, evidence / (mode + '-provider.json'))
+                selected_report = provider_data(work / mode, Path(project['entry']).stem, mode) / 'cpython-provider.json'
+                shutil.copy2(selected_report, evidence / (mode + '-provider.json'))
             rows = (evidence / (mode + '-build.log')).read_text(errors='replace').splitlines()
             first = next((line for line in rows if '[E' in line or line.startswith('error:')), '')
             item = {'project': args.project, 'mode': mode, 'build_exit': code,

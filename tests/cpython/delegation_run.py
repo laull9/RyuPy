@@ -2,6 +2,7 @@
 import argparse
 import json
 import os
+from support import built_product, product_layout
 from pathlib import Path
 import shutil
 import sys
@@ -87,14 +88,15 @@ def test_compiled_entry_with_delegated_module(cli, python, workspace, env):
 
     # JIT 验证
     jit_out = workspace / 'case1-jit'
-    checked(execute([cli, entry, '--mode', 'jit', '--cpython-module', 'async_svc', '-o', jit_out],
+    jit_build = checked(execute([cli, entry, '--mode', 'jit', '--cpython-module', 'async_svc', '-o', jit_out],
                     cwd=project, env=env), 'case1 jit build')
-    report = json.loads((jit_out / 'cpython-provider.json').read_text(encoding='utf-8'))
+    layout = built_product(jit_build.stderr, jit_out, 'app', 'jit')
+    report = json.loads(layout.provider_report.read_text(encoding='utf-8'))
     assert report['execution'] == 'ryupy_compiled_entry'
     assert report['entry_provider'] == 'ryupy_compiled_source'
     assert report['delegated_local_modules'] == ['async_svc']
     assert report['modules']['async_svc']['reason'] == 'explicit_local_delegation'
-    jit_run = checked(execute([shutil.which('dotnet'), jit_out / 'app.dll'], cwd=workspace, env=env), 'case1 jit run')
+    jit_run = checked(execute([layout.entry], cwd=workspace, env=env), 'case1 jit run')
     assert (jit_run.stdout, jit_run.stderr) == (oracle.stdout, oracle.stderr)
 
     # Onefile + 删除全部输入 + 搬迁中文空格路径 + 污染环境
@@ -192,13 +194,14 @@ def test_delegated_entry_and_exit_contracts(cli, python, workspace, env):
 
     # Standalone 构建与验证
     dist_root = workspace / 'case2-standalone'
-    checked(execute([cli, entry, '--mode', 'standalone', '--cpython-entry', '--cpython-module', 'routes',
+    standalone_build = checked(execute([cli, entry, '--mode', 'standalone', '--cpython-entry', '--cpython-module', 'routes',
                      '-o', dist_root], cwd=project, env=env), 'case2 standalone build')
-    dist_dir = dist_root / 'probe_entry.dist'
-    cfg = json.loads((dist_dir / 'ryupy-cpython.json').read_text(encoding='utf-8'))
+    public = built_product(standalone_build.stderr, dist_root, 'probe_entry', 'standalone')
+    dist_dir = public.root
+    cfg = json.loads(public.provider_config.read_text(encoding='utf-8'))
     assert cfg['entry_script'] == 'python/ryupy_entry/probe_entry.py', cfg
     assert cfg['search_paths'][0] == 'python/ryupy_delegated', cfg
-    report = json.loads((dist_dir / 'cpython-provider.json').read_text(encoding='utf-8'))
+    report = json.loads(public.provider_report.read_text(encoding='utf-8'))
     assert report['execution'] == 'cpython_delegated_entry'
     assert report['entry_provider'] == 'cpython_delegated_source'
     assert report['delegated_local_modules'] == ['routes']
@@ -208,7 +211,7 @@ def test_delegated_entry_and_exit_contracts(cli, python, workspace, env):
     shutil.move(dist_dir, relocated)
     shutil.rmtree(dist_root)
     shutil.rmtree(project)
-    exe = relocated / ('probe_entry.exe' if sys.platform == 'win32' else 'probe_entry')
+    exe = relocated / public.entry.name
     empty = workspace / 'empty2'
     empty.mkdir()
     polluted = make_polluted_env(empty)
@@ -225,7 +228,7 @@ def test_delegated_entry_and_exit_contracts(cli, python, workspace, env):
     assert b'ValueError: delegated boom' in boom.stderr, boom.stderr
 
     # 负例 4：缺失随包入口脚本时必须明确失败
-    entry_file = relocated / 'python/ryupy_entry/probe_entry.py'
+    entry_file = product_layout(relocated).data / 'python/ryupy_entry/probe_entry.py'
     saved = entry_file.read_bytes()
     try:
         entry_file.unlink()

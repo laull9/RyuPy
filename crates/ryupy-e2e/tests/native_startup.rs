@@ -105,15 +105,19 @@ fn differential(files: &[&str], includes: &[&str], instance: bool, aot: bool, in
     std::fs::remove_dir_all(input).unwrap();
     let actual = if let Some(executable) = artifacts.native_exe {
         // 读取真实ILC对象符号，不依赖代码文本或整个文件摘要；删除构建树前完成裁图断言。
-        let (count, found) = object_evidence(&product);
-        assert!(
-            count > 0,
-            "必须读取当次真实ILC对象，不能把缺对象当作裁剪成功"
-        );
-        assert_eq!(found, inspect);
+        if aot {
+            let (count, found) = object_evidence(&product);
+            assert!(
+                count > 0,
+                "必须读取当次真实ILC对象，不能把缺对象当作裁剪成功"
+            );
+            assert_eq!(found, inspect);
+        }
         let moved = root.0.join("中文 空格搬迁");
         std::fs::rename(executable.parent().unwrap(), &moved).unwrap();
-        std::fs::remove_dir_all(product).unwrap();
+        if product.exists() {
+            std::fs::remove_dir_all(product).unwrap();
+        }
         Command::new(moved.join(executable.file_name().unwrap()))
             .current_dir(&moved)
             .output()

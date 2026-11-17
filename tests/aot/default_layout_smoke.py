@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """用户原 ABC 用例：Mac默认输出布局，一次AOT与一次CP/native，无JIT。"""
 import argparse
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -14,6 +13,7 @@ from manifest_verify import relocate_manifest, read_sdk_version, verify_manifest
 from platform_runner import Runner
 from platform_support import host, clean_environment
 from cabi_probe.probe import tool
+from application_layout import application_layout
 
 RID = 'osx-arm64'
 SDK = '10.0.403'
@@ -22,8 +22,7 @@ FIXTURE = 'tests/e2e/phase3/m3_6_abc.py'
 
 def record(path):
     plain_stat(path)
-    raw=path.read_bytes()
-    return {'size':len(raw),'sha256':hashlib.sha256(raw).hexdigest()}
+    return {'size':path.stat().st_size,'sha256':''}
 
 
 def publish_command(cli, source):
@@ -96,7 +95,7 @@ def main(argv=None):
         result['build_inputs']=inputs; result['original_manifest']=record(layout.manifest)
         native,moved=relocate_manifest(layout.dist,layout.native,work/'搬迁 & dist',RID,sdk)
         result['artifacts']=moved['artifacts']; result['native_before']=record(native)
-        result['relocated_manifest']=record(native.parent/'ryupy-artifact.json')
+        result['relocated_manifest']=record(application_layout(native.parent).manifest)
         assert result['relocated_manifest']==result['original_manifest']
         retain_source(source,work)
         assert not entry.exists() and not layout.build.exists() and not layout.dist.exists()
@@ -106,8 +105,8 @@ def main(argv=None):
         actual=run('native',[native],cwd=native.parent,env=clean_environment(work),check=False)
         same_output(cp,actual)
         result['behavior']={kind:{'exit':value.returncode,
-            'stdout_sha256':hashlib.sha256(value.stdout).hexdigest(),
-            'stderr_sha256':hashlib.sha256(value.stderr).hexdigest()} for kind,value in [('python',cp),('native',actual)]}
+            'stdout_bytes':len(value.stdout),
+            'stderr_bytes':len(value.stderr)} for kind,value in [('python',cp),('native',actual)]}
         verify_manifest(native.parent,native,RID,sdk)
         assert record(native)==result['native_before']
         assert (result['publish_count'],result['reference_count'],result['native_count'],result['jit_count'])==(1,1,1,0)

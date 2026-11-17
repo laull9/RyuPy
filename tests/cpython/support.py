@@ -14,15 +14,84 @@ VERSION = '3.12.13'
 NUMPY_VERSION = '2.3.5'
 
 
+class ProductLayout(NamedTuple):
+    """公开入口与唯一数据锚点；严格消费marker，不从后缀或递归搜索猜测产物根。"""
+    entry: Path
+    root: Path
+    data: Path
+    kind: str
+
+    @property
+    def provider_report(self):
+        return self.data / 'cpython-provider.json'
+
+    @property
+    def provider_config(self):
+        return self.data / 'ryupy-cpython.json'
+
+
+def generated_entry(stderr):
+    """CLI唯一生成记录必须指向实际公开入口，JIT也通过apphost直接启动。"""
+    generated = [Path(line[len('已生成 '):]) for line in (stderr.decode('utf-8') if isinstance(stderr, bytes) else stderr).splitlines()
+                 if line.startswith('已生成 ')]
+    assert len(generated) == 1, ('公开入口报告不是唯一记录', generated)
+    return generated[0].resolve()
+
+
+def product_layout(root):
+    """严格canonical-v1门：根仅入口/internal，所有依赖及配置留在同一真实internal。"""
+    root = Path(root).resolve()
+    data = root / 'internal'
+    marker = data / '.ryupy-layout.json'
+    assert root.is_dir() and not data.is_symlink() and data.is_dir(), ('缺少exact internal目录', root)
+    assert marker.is_file() and not marker.is_symlink(), ('缺少canonical布局marker', marker)
+    value = json.loads(marker.read_text(encoding='utf-8'))
+    assert set(value) == {'schema_version', 'kind', 'payload_mode', 'entry', 'entry_kind'}, value
+    assert type(value['schema_version']) is int and value['schema_version'] == 1, value
+    assert value['kind'] == 'ryupy-application-layout' and value['payload_mode'] == 'canonical-v1', value
+    name = value['entry']
+    assert isinstance(name, str) and name not in ('', '.', '..', 'internal') and '/' not in name and '\\' not in name, value
+    entry = root / name
+    assert entry.is_file() and not entry.is_symlink(), ('marker入口不是普通文件', entry)
+    assert value['entry_kind'] in ('apphost', 'native_aot'), value
+    assert {path.name for path in root.iterdir()} == {name, 'internal'}, ('公开根含额外依赖/遗留flat文件', root)
+    return ProductLayout(entry, root, data, value['entry_kind'])
+
+
+def built_product(stderr, output, stem, mode):
+    """本次非OneFile实际构建的公开目录，校验CLI记录与marker为同一入口。"""
+    assert mode in ('jit', 'standalone', 'aot'), mode
+    root = Path(output) if mode == 'jit' else Path(output) / (stem + '.dist')
+    layout = product_layout(root)
+    assert layout.kind == ('apphost' if mode == 'jit' else 'native_aot'), layout
+    assert generated_entry(stderr) == layout.entry, ('CLI入口与marker不一致', layout)
+    return layout
+
+
+def provider_data(output, stem, mode):
+    """OneFile私有AOT树本轮明确flat/no marker；其它应用必须消费canonical marker。"""
+    if mode == 'onefile':
+        root = Path(output) / (stem + '.dist')
+        assert not (root / 'internal/.ryupy-layout.json').exists(), ('OneFile私有布局合同已变化', root)
+        assert (root / 'cpython-provider.json').is_file(), root
+        return root
+    root = Path(output) if mode == 'jit' else Path(output) / (stem + '.dist')
+    return product_layout(root).data
+
+
 class StandaloneLayout(NamedTuple):
-    """现代 CLI 公开的原生入口，以及本次构建和目录发布根。"""
+    """现代CLI公开原生入口及构建/发布根；数据目录由marker严格确定。"""
     native: Path
     build: Path
     dist: Path
 
+    @property
+    def data(self):
+        return self.dist / 'internal'
+
 
 def standalone_layout(stderr, output, stem, target_rid):
-    """只接受本次发布的唯一入口；托管中间产物属于构建细节。"""
+    """只接受本次发布唯一入口；托管中间产物属于构建细节。"""
     aot_tools = str(ROOT / 'tests/aot')
     if aot_tools not in sys.path:
         sys.path.insert(0, aot_tools)
@@ -32,14 +101,10 @@ def standalone_layout(stderr, output, stem, target_rid):
     build, dist = output / (stem + '.build'), output / (stem + '.dist')
     for directory in (output, build, dist):
         plain_stat(directory, directory=True)
-    name = stem + ('.exe' if target_rid.startswith('win-') else '')
-    expected = dist / name
-    generated = [Path(line[len('已生成 '):]) for line in stderr.decode('utf-8').splitlines()
-                 if line.startswith('已生成 ')]
-    assert generated == [expected], ('原生入口报告与本次目录发布不一致', generated, expected)
-    plain_stat(expected)
-    image_header(expected, target_rid)
-    return StandaloneLayout(expected, build, dist)
+    layout = built_product(stderr, output, stem, 'standalone')
+    plain_stat(layout.entry)
+    image_header(layout.entry, target_rid)
+    return StandaloneLayout(layout.entry, build, dist)
 
 
 def execute(command, *, cwd, env, timeout=240):

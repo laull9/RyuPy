@@ -14,17 +14,22 @@ import shlex
 import shutil
 import subprocess
 import tempfile
+import sys
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parents[2] / 'tests/cpython'))
+from support import built_product, provider_data
+
 ROOT = HERE.parents[2]
 
 
-def app_bundle(path, identifier, engine, command, environment, evidence):
+def app_bundle(path, identifier, engine, command, environment, evidence, product_entry=None):
     macos = path / 'Contents/MacOS'
     macos.mkdir(parents=True, exist_ok=True)
-    binary = 'dotnet' if engine.name == 'dotnet' else 'engine'
-    shutil.copy2(engine, macos / binary)
-    if binary == 'dotnet':
+    binary = str(product_entry) if product_entry is not None else ('dotnet' if engine.name == 'dotnet' else 'engine')
+    if product_entry is None:
+        shutil.copy2(engine, macos / binary)
+    if product_entry is None and binary == 'dotnet':
         # JIT仍消费已安装的官方.NET共享运行时；AOT/onefile完全不加这些外部入口。
         for name in ('host', 'shared'):
             (macos / name).symlink_to(engine.parent / name, target_is_directory=True)
@@ -95,8 +100,9 @@ def main():
         generated = [Path(line[4:]) for line in result.stderr.decode().splitlines() if line.startswith('已生成 ')]
         assert len(generated) == 1
         executable = generated[0]
-        report_path = next((path for path in output.rglob('cpython-provider.json') if path.parent.name.endswith('.dist')),
-                           next(output.rglob('cpython-provider.json')))
+        report_path = provider_data(output, 'entry', args.mode) / 'cpython-provider.json'
+        if args.mode != 'onefile':
+            assert built_product(result.stderr, output, 'entry', args.mode).entry == executable.resolve()
         report = json.loads(report_path.read_text())
         assert report['entry_provider'] == 'ryupy_compiled_source' and not report['delegated_local_modules']
         shutil.copy2(report_path, evidence / 'cpython-provider.json')
@@ -106,16 +112,14 @@ def main():
         if args.mode == 'onefile':
             shutil.copy2(executable, macos / executable.name)
         else:
-            shutil.copytree(executable.parent, macos, dirs_exist_ok=True)
+            shutil.copytree(executable.parent, macos / 'product')
         flags = {'PATH': '', 'PYTHONHOME': '/missing-home', 'PYTHONPATH': '/missing-site',
                  'QT_QPA_PLATFORM': 'cocoa', 'HOME': product / 'profile',
                  'RYUPY_CPYTHON_REPORT': product / 'host.json'}
-        engine = Path(shutil.which('dotnet')).resolve() if args.mode == 'jit' else macos / executable.name
-        if args.mode == 'jit':
-            flags['DOTNET_ROOT'] = engine.parent
-        command = ('"$ryupy_appdir/' + executable.name + '" ' if args.mode == 'jit' else '')
-        command += shlex.quote(str(product / 'profile')) + ' ' + shlex.quote(str(product))
-        app_bundle(app, 'dev.ryupy.validation.product.' + stamp.lower(), engine, command, flags, product)
+        relative_entry = Path(executable.name) if args.mode == 'onefile' else Path('product') / executable.name
+        command = shlex.quote(str(product / 'profile')) + ' ' + shlex.quote(str(product))
+        app_bundle(app, 'dev.ryupy.validation.product.' + stamp.lower(), macos / relative_entry,
+                   command, flags, product, product_entry=relative_entry)
         shutil.rmtree(inputs)
         shutil.rmtree(output)
     prepared = {'mode': args.mode, 'oracle_app': str(oracle_app), 'product_app': str(app),

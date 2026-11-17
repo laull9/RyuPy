@@ -8,9 +8,12 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+import sys
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT / 'tests/cpython'))
+from support import built_product, product_layout
 
 
 def run(command, cwd, env, success=True):
@@ -149,11 +152,10 @@ def main():
             command = [args.ryupy, '--cpython-provider', declaration, 'build', entry, '--out-dir', output]
             if aot:
                 command.append('--aot')
-            run(command, work, env)
-            configs = [p for p in output.rglob('ryupy-cpython.json') if not aot or p.parent.name.endswith('.dist')]
-            assert len(configs) == 1, configs
-            product = configs[0].parent
-            report = json.loads((product / 'cpython-provider.json').read_text())
+            built = run(command, work, env)
+            layout = built_product(built.stderr, output, entry.stem, 'aot' if aot else 'jit')
+            product = layout.root
+            report = json.loads(layout.provider_report.read_text())
             names = {d['name'] for d in report['dependency_collection']['distributions']}
             assert names == {'closure-alpha', 'closure-beta', 'closure-gamma', 'closure-plugin', 'numpy'}, names
             gamma_report = next(d for d in report['dependency_collection']['distributions']
@@ -161,28 +163,28 @@ def main():
             assert gamma_report['build_headers'] == [header_record]
             assert header_record not in gamma_report['files']
             assert not list(product.rglob('gamma.h')), '构建头文件误入运行期载荷'
-            assert not (product / 'python/lib/python3.12/site-packages/packaging').exists()
+            assert not (layout.data / 'python/lib/python3.12/site-packages/packaging').exists()
             assert 'unselected_development' not in report['modules']
-            assert not (product / 'python/lib/python3.12/site-packages/unselected_development.py').exists()
+            assert not (layout.data / 'python/lib/python3.12/site-packages/unselected_development.py').exists()
             destination = work / ('搬迁 AOT' if aot else '搬迁 JIT')
             shutil.move(product, destination)
-            products.append((aot, destination))
+            products.append((aot, destination, layout.entry.name))
             if output.exists():
                 shutil.rmtree(output)
         assert not hook_marker.exists(), '构建执行了site启动钩子'
         # 搬迁前移走项目、venv、wheel、基础发行输入，执行臂不能读取构建环境。
         inputs.rename(work / '不可访问 输入')
         shutil.rmtree(work / '不可访问 输入')
-        for aot, destination in products:
+        for aot, destination, filename in products:
             cwd = work / ('run-aot' if aot else 'run-jit')
             cwd.mkdir()
             polluted = dict(env, PYTHONHOME='/不可访问 Python', PYTHONPATH='/不可访问 包')
-            command = [destination / '项目 入口'] if aot else [shutil.which('dotnet'), destination / '项目 入口.dll']
+            command = [destination / filename]
             actual = run(command, cwd, polluted)
             assert (actual.returncode, actual.stdout, actual.stderr) == (oracle.returncode, oracle.stdout, oracle.stderr), (actual.stdout, actual.stderr)
             assert (cwd / '业务 副作用.txt').read_bytes() == (oracle_cwd / '业务 副作用.txt').read_bytes()
             # 运行真实应用验证缺资源和缺原生扩展均能失败，随后恢复载荷。
-            package_root = destination / 'python/lib/python3.12/site-packages'
+            package_root = product_layout(destination).data / 'python/lib/python3.12/site-packages'
             resource = package_root / 'closure_beta/数据.txt'
             native = next((package_root / 'numpy/_core').glob('_multiarray_umath*.so'))
             for missing, expected in [(resource, b'FileNotFoundError'), (native, b'numpy')]:

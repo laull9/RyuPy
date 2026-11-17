@@ -15,7 +15,7 @@ import signal
 import subprocess
 import tempfile
 
-from support import ROOT, audit_native_paths, environment, inspect_host_report, rid, standalone_layout
+from support import built_product, product_layout, ROOT, audit_native_paths, environment, inspect_host_report, rid, standalone_layout
 from onefile_support import audit_onefile_output
 
 
@@ -94,8 +94,10 @@ def validate_case(args, log, version, mode, case, workspace, negative=False):
         shutil.move(executable, relocated/executable.name)
         executable = relocated/executable.name
     else:
+        public = built_product(built.stderr, output, 'entry', 'jit')
+        filename = public.entry.name
         shutil.move(output, relocated)
-        executable = relocated/'entry.dll'
+        executable = relocated/filename
     shutil.rmtree(inputs)
     if output.exists():
         shutil.rmtree(output)
@@ -108,7 +110,7 @@ def validate_case(args, log, version, mode, case, workspace, negative=False):
     runtime_temp = work/'private runtime temp'
     runtime_temp.mkdir()
     run_env['TMPDIR'] = str(runtime_temp)
-    execution = [shutil.which('dotnet'), executable] if mode == 'jit' else [executable]
+    execution = [executable]
     actual = log.run(execution, work, run_env)
     expected_stdout = oracle.stdout
     if negative:

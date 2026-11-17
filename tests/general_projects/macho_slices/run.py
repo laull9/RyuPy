@@ -12,12 +12,12 @@ import sys
 import tempfile
 
 sys.dont_write_bytecode = True
-from fat_fixtures import HERE, prepare, RESOURCE, entitlements
+from fat_fixtures import HERE, prepare, RESOURCE, entitlements, signature_metadata
 
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT/'tests/cpython'))
 from stock_thin_compiler import Recorder, require_success
-from support import audit_native_paths, environment, inspect_host_report, rid, standalone_layout
+from support import built_product, provider_data, audit_native_paths, environment, inspect_host_report, rid, standalone_layout
 from onefile_support import audit_onefile_output
 
 
@@ -98,11 +98,17 @@ def audit_convergence(report,case):
     return audit
 
 
+def dependency_root(root):
+    """provider的相对路径以实际config/report目录为锚，canonical时为exact internal。"""
+    candidate=root/'internal'
+    return candidate if (candidate/'ryupy-cpython.json').is_file() else root
+
+
 def audit_signatures(recorder,case,root,work,env):
     """真正codesign验签、授权元数据与部署头；loader/回调随后由实际搬迁进程消费。"""
     def run(command,cwd,run_env,label):
         return require_success(recorder.run(command,cwd,run_env),label)
-    directory=root/'python/lib/python3.12/site-packages'/case['directory']
+    directory=dependency_root(root)/'python/lib/python3.12/site-packages'/case['directory']
     binaries=[*directory.glob('*.so'),directory/'native_helper']
     assert len(binaries)==3,binaries
     for binary in binaries:
@@ -110,9 +116,13 @@ def audit_signatures(recorder,case,root,work,env):
         assert header[:4]==bytes.fromhex('cffaedfe')
         assert int.from_bytes(header[4:8],'little')==0x100000c and int.from_bytes(header[8:12],'little')==0
         run(['codesign','--verify','--strict',binary],work,env,'deployed-signature')
-        expected={'org.ryupy.fixture':case['id'],'com.apple.security.cs.disable-library-validation':True}
+        helper=binary.name=='native_helper'
+        expected={} if helper else {'org.ryupy.fixture':case['id'],'com.apple.security.cs.disable-library-validation':True}
+        metadata=signature_metadata(binary)
+        assert metadata['flags']&0x10000
+        assert metadata['identifier']=='org.ryupy.fixture.'+('helper.' if helper else '')+case['id']
         assert entitlements(run,binary,work,env,'deployed-entitlements')==expected
-    wheel=list((root/'python/lib/python3.12/site-packages').glob(case['distribution']+'-*.dist-info/WHEEL'))
+    wheel=list((dependency_root(root)/'python/lib/python3.12/site-packages').glob(case['distribution']+'-*.dist-info/WHEEL'))
     assert len(wheel)==1 and 'universal2' in wheel[0].read_text()
 
 
@@ -177,13 +187,11 @@ if len(sys.argv)>1:
                         resource_list.write_text(json.dumps({'schema_version':1,'modules':[{'module':'__main__','files':[RESOURCE]}]}))
                         command.extend(['--resources',resource_list])
                     built = run(command, work, env, label+'-build')
-                    reports = list(output.rglob('cpython-provider.json'))
-                    reports.sort(key=lambda path: (not path.parent.name.endswith('.dist'), len(path.parts)))
-                    assert reports, output
-                    report = json.loads(reports[0].read_text())
+                    data = provider_data(output, entry.stem, mode)
+                    report = json.loads((data/'cpython-provider.json').read_text())
                     if args.expect_unconverged:
                         assert 'native_architecture_convergence' not in report
-                        binary=next((output/'python/lib/python3.12/site-packages'/case['directory']).glob(case['extension']+'*.so'))
+                        binary=next((data/'python/lib/python3.12/site-packages'/case['directory']).glob(case['extension']+'*.so'))
                         assert binary.read_bytes()[:4] in (bytes.fromhex('cafebabe'),bytes.fromhex('cafebabf'))
                         print('EXPECTED_OLD_UNCONVERGED',label,flush=True)
                         continue
@@ -203,10 +211,12 @@ if len(sys.argv)>1:
                         relocated.mkdir(); shutil.move(executable, relocated/executable.name)
                         executable = relocated/executable.name
                     else:
-                        shutil.move(output, relocated); executable = relocated/(case['id']+'.dll')
+                        public = built_product(built.stderr, output, entry.stem, 'jit')
+                        filename = public.entry.name
+                        shutil.move(output, relocated); executable = relocated/filename
                     if output.exists(): shutil.rmtree(output)
                     if mode != 'onefile': audit_native_paths(relocated)
-                    if mode!='onefile': audit_signatures(recorder,case,relocated,work,env)
+                    if mode!='onefile': audit_signatures(recorder,case,product_layout(relocated).data,work,env)
                     products.append((label, mode, executable, oracle, application_args))
             # 所有模式都完成后物理删除原C源码副本、wheel、venv与应用输入，再执行已搬迁产品。
             shutil.rmtree(inputs)
@@ -217,7 +227,7 @@ if len(sys.argv)>1:
                 run_env = environment()
                 run_env.update(PATH='', PYTHONHOME='/missing-python-home', PYTHONPATH='/missing-python-path',
                                TMPDIR=str(runtime_temp), RYUPY_CPYTHON_REPORT=str(report))
-                command = [shutil.which('dotnet'), executable] if mode == 'jit' else [executable]
+                command = [executable]
                 actual = recorder.run([*command,*application_args], work, run_env)
                 if report.exists(): shutil.copy2(report, evidence/(label+'-host.json'))
                 assert (actual.returncode, actual.stdout, actual.stderr) == (oracle.returncode, oracle.stdout, oracle.stderr), label

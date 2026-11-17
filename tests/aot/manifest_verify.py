@@ -8,6 +8,7 @@ import shutil
 import struct
 from manifest_files import ManifestError, check_artifacts, plain_stat, relative_path
 from runtime_dependencies import RUNTIME_ROLES, validate_runtime_dependencies
+from application_layout import application_layout, canonical_artifacts
 
 MANIFEST_NAME = 'ryupy-artifact.json'
 TARGETS = {'linux-x64': ('ELF', 'x64'), 'osx-arm64': ('Mach-O', 'arm64'), 'win-x64': ('PE', 'x64')}
@@ -64,7 +65,12 @@ def validate_schema(data, expected_rid, expected_sdk, *, expected_instance_modul
     version = data.get('schema_version')
     require(type(version) is int and version in (1, 2), '未知schema')
     keys = 'schema_version kind compiler target toolchain entry sources modules emitted_delegate_references build_inputs artifacts scope'
-    shape(data, keys + (' module_locations resources' if version == 2 else ''))
+    canonical = canonical_artifacts(data.get('artifacts', []))
+    shape(data, keys + (' module_locations resources' if version == 2 else '')
+          + (' application_layout' if canonical else ''))
+    if canonical:
+        require(data['application_layout'] == {'schema_version':1, 'dependency_root':'internal',
+            'marker':'internal/.ryupy-layout.json', 'artifact_paths':'product_root'}, '应用布局清单合同不符')
     require(data['kind'] == 'ryupy-native-aot-artifact', '错误清单kind')
     compiler = data['compiler']
     shape(compiler, 'package_version build_revision codegen_report_version options')
@@ -114,7 +120,7 @@ def validate_schema(data, expected_rid, expected_sdk, *, expected_instance_modul
         module_names.add(source['module_name'])
         sources[source['module_id']] = source
         # 当前普通schema1生产者明确不登记源码摘要；其它协议保持原严格合同。
-        if not (version == 1 and source['compiled_text_sha256'] == ''):
+        if not ((version == 1 or canonical) and source['compiled_text_sha256'] == ''):
             digest_text(source['compiled_text_sha256'])
     require(set(sources) == set(range(len(sources))), '模块编号不连续')
     modules = {}
@@ -162,11 +168,11 @@ def validate_schema(data, expected_rid, expected_sdk, *, expected_instance_modul
                 integer(reference[name])
         require(reference['module_id'] is None or reference['module_id'] in modules, '引用模块不存在')
     for entry in data['build_inputs'] + data['artifacts']:
-        file_entry(entry, allow_omitted=version == 1)
+        file_entry(entry, allow_omitted=version == 1 or canonical)
     require({(x['relative_path'], x['role']) for x in data['build_inputs']} ==
             {('managed-entry.dll','compiled_managed_input'), ('RyuPy.Runtime.dll','runtime_managed_input')}
             and len(data['build_inputs']) == 2, '托管输入名称/角色不符')
-    roles = {'native_executable', 'unclassified_sidecar'} | RUNTIME_ROLES | ({'declared_resource'} if version == 2 else set())
+    roles = {'native_executable', 'unclassified_sidecar', 'application_layout'} | RUNTIME_ROLES | ({'declared_resource'} if version == 2 else set())
     require(all(x['role'] in roles for x in data['artifacts']), '未知发布角色')
     validate_runtime_dependencies(data['artifacts'], expected_rid)
     require(sum(x['role'] == 'native_executable' for x in data['artifacts']) == 1, '需要唯一native')
@@ -218,26 +224,31 @@ def read_sdk_version(path):
 def verify_manifest(publish, native, rid, sdk_version, *, expected_instance_modules=None):
     publish, native = Path(publish).absolute(), Path(native).absolute()
     plain_stat(publish, directory=True)
-    manifest = publish/MANIFEST_NAME
+    layout = application_layout(publish)
+    manifest = layout.manifest
     plain_stat(manifest)
     data = json.loads(manifest.read_text(encoding='utf-8'), object_pairs_hook=no_duplicate_keys)
     validate_schema(data, rid, sdk_version, expected_instance_modules=expected_instance_modules)
-    actual = check_artifacts(publish, data['artifacts'], MANIFEST_NAME, windows=rid == 'win-x64',
-                             allow_omitted=data['schema_version'] == 1)
+    layout.check_artifact_paths(data['artifacts'])
+    actual = check_artifacts(publish, data['artifacts'], layout.relative_manifest, windows=rid == 'win-x64',
+                             allow_omitted=data['schema_version'] == 1 or layout.canonical)
     entry = next(x for x in data['artifacts'] if x['role'] == 'native_executable')
     expected = actual[entry['relative_path']]
     require(native.is_file() and native.samefile(expected) and native.parent.samefile(expected.parent)
             and native.name == expected.name, 'CLI native不等于清单唯一native')
     image_header(expected, rid)
+    if layout.canonical:
+        layout.check_public_root(expected)
     return data
 
 
 def published_manifest(stderr, native):
     names = [line.removeprefix('AOT 清单：') for line in stderr.decode('utf-8', errors='strict').splitlines()
              if line.startswith('AOT 清单：')]
-    require(len(names) == 1, 'CLI必须明确报告唯一AOT清单')
-    path = Path(names[0])
-    expected = Path(native).parent/MANIFEST_NAME
+    layout = application_layout(Path(native).parent)
+    require(len(names) == 1 or not names and layout.canonical, 'CLI必须报告清单或提供明确布局标记')
+    path = Path(names[0]) if names else layout.manifest
+    expected = layout.manifest
     require(path.is_absolute() and path.is_file() and path.samefile(expected), 'CLI清单不属于同次publish')
     plain_stat(path)
     return path
@@ -263,7 +274,10 @@ def relocate_manifest(publish, native, destination, rid, sdk_version, *, expecte
         target = destination/entry['relative_path']
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(publish/entry['relative_path'], target)
-    shutil.copy2(publish/MANIFEST_NAME, destination/MANIFEST_NAME)
+    relative_manifest = application_layout(publish).relative_manifest
+    manifest_target = destination/relative_manifest
+    manifest_target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(publish/relative_manifest, manifest_target)
     name = next(x['relative_path'] for x in data['artifacts'] if x['role'] == 'native_executable')
     relocated_native = destination/name
     verify_manifest(destination, relocated_native, rid, sdk_version, **options)

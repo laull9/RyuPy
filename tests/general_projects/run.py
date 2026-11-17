@@ -13,6 +13,10 @@ import tempfile
 
 from oracle import ROOT, copy_project
 
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tests/cpython'))
+from support import built_product
+
 
 def invoke(command, cwd, env, timeout=600):
     result = subprocess.run(list(map(str, command)), cwd=cwd, env=env,
@@ -85,9 +89,15 @@ def main():
                         if line.startswith('已生成 ')]
             assert reported, result.stderr.decode()
             executable = reported[-1]
+            if mode != 'onefile':
+                assert built_product(result.stderr, output, entry.stem, mode).entry == executable.resolve()
             relocated = work / ('搬迁 空格 ' + mode)
-            # 原生目录与 JIT 的执行依赖均位于所报告入口同目录。
-            shutil.copytree(executable.parent, relocated, symlinks=True)
+            # OneFile只搬唯一入口；公开目录产品搬整个marker根，保留internal相对关系。
+            if mode == 'onefile':
+                relocated.mkdir()
+                shutil.copy2(executable, relocated / executable.name)
+            else:
+                shutil.copytree(executable.parent, relocated, symlinks=True)
             products.append((mode, relocated / executable.name))
             shutil.rmtree(output)
         shutil.rmtree(inputs)
@@ -95,11 +105,10 @@ def main():
         empty_path.mkdir()
         product_env = dict(env, PYTHONHOME='/missing-python-home',
                            PYTHONPATH='/missing-python-path', PATH=str(empty_path))
-        dotnet = shutil.which('dotnet')
         for mode, executable in products:
             cwd = work / ('cwd-' + mode)
             cwd.mkdir()
-            command = [dotnet, executable] if mode == 'jit' else [executable]
+            command = [executable]
             actual = invoke(command, cwd, product_env, timeout=90)
             assert actual.stdout == expected.stdout, (mode, actual.stdout, expected.stdout)
             assert stderr_contract(actual.stderr) == stderr_contract(expected.stderr), (

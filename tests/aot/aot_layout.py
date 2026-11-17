@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 from manifest_files import plain_stat
 from manifest_verify import MANIFEST_NAME
+from application_layout import application_layout
 
 
 @dataclass(frozen=True)
@@ -27,21 +28,28 @@ def reported_aot(stderr, output, stem, rid):
     output=Path(output); plain_stat(output,directory=True)
     lines=stderr.decode('utf-8',errors='strict').splitlines()
     generated=[Path(line[len('已生成 '):]) for line in lines if line.startswith('已生成 ')]
-    assert len(generated)==2, '必须报告唯一 managed/native'
-    managed=[p for p in generated if p.name==stem+'.dll']
-    native=[p for p in generated if p.name==stem+('.exe' if rid=='win-x64' else '')]
+    intermediate=[Path(line[len('CIL 中间产物：'):]) for line in lines if line.startswith('CIL 中间产物：')]
+    # 新CLI只报告一个公开入口；中间输入显式列出，旧冻结报告保留独立解析。
+    assert (len(generated),len(intermediate)) in ((1,1),(2,0)), '必须报告唯一入口与明确CIL输入'
+    managed=[p for p in intermediate or generated if p.name==stem+'.dll']
+    entry_name = stem + ('.exe' if rid == 'win-x64' else '.bin' if stem.lower() == 'internal' else '')
+    native=[p for p in generated if p.name==entry_name]
     assert len(managed)==len(native)==1 and managed[0]!=native[0]
     managed,native=managed[0],native[0]
     manifests=[Path(line[len('AOT 清单：'):]) for line in lines if line.startswith('AOT 清单：')]
-    assert len(manifests)==1
-    manifest=manifests[0]
+    assert len(manifests)<=1
+    # 无诊断选项时，标记协议已明确清单位置；不递归搜索或挑选历史attempt。
+    manifest=manifests[0] if manifests else application_layout(
+        output/(stem+'.dist'), require_canonical=True).manifest
     for path in (managed,native,manifest):
         assert path.is_absolute(); plain_stat(path)
     build=output/(stem+'.build'); dist=output/(stem+'.dist')
     for directory in (build,dist): plain_stat(directory,directory=True)
-    assert native.name==stem+('.exe' if rid=='win-x64' else '')
+    assert native.name==entry_name
     assert os.path.samefile(native.parent,dist)
-    assert manifest.name==MANIFEST_NAME and os.path.samefile(manifest.parent,dist)
+    layout=application_layout(dist, require_canonical=True)
+    layout.check_public_root(native)
+    assert manifest.name==MANIFEST_NAME and os.path.samefile(manifest,layout.manifest)
     assert managed.name==stem+'.dll'
     # 按真实父目录身份向上核归属，不裁剪 Windows 扩展前缀，也不挑旧 attempt。
     current=managed.parent; chain=[]

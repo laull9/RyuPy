@@ -191,7 +191,7 @@ pub(super) fn copy_tree(source: &Path, target: &Path) -> Result<()> {
 }
 /// 原清单在SDK阶段已验证；这里再次严格核全部文件集合/长度/路径，绝不忽略未分类旁件。
 pub(super) fn verify_manifest(root: &Path) -> Result<serde_json::Value> {
-    let path = root.join(files::MANIFEST_NAME);
+    let path = crate::application_layout::manifest_path(root)?;
     let value: serde_json::Value = serde_json::from_slice(&read_json(&path)?)?;
     ensure!(
         value["kind"] == "ryupy-native-aot-artifact"
@@ -215,7 +215,7 @@ pub(super) fn verify_manifest(root: &Path) -> Result<serde_json::Value> {
         let name = item["relative_path"].as_str().context("产物缺路径")?;
         files::safe_relative(name)?;
         ensure!(
-            name != files::MANIFEST_NAME && expected.insert(name.to_owned()),
+            root.join(name) != path && expected.insert(name.to_owned()),
             "清单重复/自引用产物"
         );
         let size = item["size"].as_u64().context("产物缺size")?;
@@ -225,7 +225,7 @@ pub(super) fn verify_manifest(root: &Path) -> Result<serde_json::Value> {
             native += 1;
         }
     }
-    expected.insert(files::MANIFEST_NAME.into());
+    expected.insert(path.strip_prefix(root)?.to_string_lossy().replace('\\', "/"));
     let actual: std::collections::BTreeSet<_> = snapshot
         .into_iter()
         .filter(|n| !n.directory)
@@ -269,6 +269,12 @@ pub(super) fn relocate(root: &Path, old: &str, new: &str) -> Result<()> {
         std::fs::rename(root.join(old), root.join(new))?;
         entry["relative_path"] = new.into();
     }
+    if crate::application_layout::is_canonical(root)? {
+        let size = crate::application_layout::relocate_entry(root, new)?;
+        let marker = entries.iter_mut().find(|v| v["role"] == "application_layout")
+            .context("canonical清单缺marker artifact")?;
+        marker["size"] = size.into();
+    }
     entries.sort_by(|a, b| {
         a["relative_path"]
             .as_str()
@@ -277,7 +283,7 @@ pub(super) fn relocate(root: &Path, old: &str, new: &str) -> Result<()> {
     let mut bytes = serde_json::to_vec_pretty(&value)?;
     bytes.push(b'\n');
     // 仅本轮独占候选副本；原publish清单和旧dist完全不动。
-    std::fs::write(root.join(files::MANIFEST_NAME), bytes)?;
+    std::fs::write(crate::application_layout::manifest_path(root)?, bytes)?;
     verify_manifest(root)?;
     Ok(())
 }
@@ -341,7 +347,7 @@ fn validate_resource_names(value: &serde_json::Value, nodes: &[Node]) -> Result<
     let mut names = std::collections::BTreeSet::new();
     for node in nodes {
         if node.path != native || node.directory {
-            crate::resources::validate_layout_artifact_path(&node.path)?;
+            crate::resources::validate_layout_artifact_path(&crate::application_layout::logical_path(&node.path))?;
         }
         ensure!(
             names.insert(node.path.to_ascii_lowercase()),

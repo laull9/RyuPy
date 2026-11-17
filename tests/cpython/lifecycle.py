@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """在已生成分发上独立运行生命周期门；每个测试使用全新进程与临时目录。"""
 import argparse
+from support import product_layout
 from pathlib import Path
 import shutil
 import sys
@@ -34,7 +35,7 @@ def main():
         for case in ('steady-state', 'exception-release', 'numpy-lifetime', 'disposal', 'late-release', 'mixed-limit'):
             cwd = root / case
             cwd.mkdir()
-            result = execute([dotnet, output / 'Lifecycle.dll', distribution / 'ryupy-cpython.json', case], cwd=cwd, env=env)
+            result = execute([dotnet, output / 'Lifecycle.dll', product_layout(distribution).provider_config, case], cwd=cwd, env=env)
             print(case, result.returncode, result.stdout.decode(), result.stderr.decode(), flush=True)
             if result.returncode != 0:
                 failures.append(case)

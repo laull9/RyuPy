@@ -17,8 +17,12 @@ import traceback
 
 from inspect_sources import CACHE, CATALOG, REPO, analyze
 import tempfile
+import sys
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parents[2] / 'tests/cpython'))
+from support import built_product, provider_data
+
 
 
 def execute(command, cwd, env, evidence, label, timeout=900):
@@ -123,8 +127,9 @@ def product(args, project, evidence):
                      if line.startswith('已生成 ')]
         assert len(generated) == 1, built.stderr
         executable = generated[0]
-        reports = list(output.rglob('cpython-provider.json'))
-        report_path = next((p for p in reports if p.parent.name.endswith('.dist')), reports[0])
+        report_path = provider_data(output, entry.stem, args.mode) / 'cpython-provider.json'
+        if args.mode != 'onefile':
+            assert built_product(built.stderr, output, entry.stem, args.mode).entry == executable.resolve()
         report = json.loads(report_path.read_text())
         assert report['delegated_local_modules'] == [], report['delegated_local_modules']
         assert report['entry_provider'] == 'ryupy_compiled_source', report['entry_provider']
@@ -138,7 +143,6 @@ def product(args, project, evidence):
             shutil.copy2(executable, relocated / executable.name)
         else:
             shutil.copytree(executable.parent, relocated)
-        dotnet = shutil.which('dotnet')
         shutil.rmtree(inputs)
         shutil.rmtree(output)
         empty_path, cwd = work / 'empty-path', work / 'empty-cwd'
@@ -146,7 +150,7 @@ def product(args, project, evidence):
         cwd.mkdir()
         polluted = dict(runtime_env('product'), PATH=str(empty_path),
                         PYTHONHOME='/missing-python', PYTHONPATH='/missing-site')
-        command = [dotnet, relocated / executable.name] if args.mode == 'jit' else [relocated / executable.name]
+        command = [relocated / executable.name]
         actual = checked(execute([*command, profiles['product'], evidence / 'product'], cwd,
                                  polluted, evidence, 'product', timeout=150), '搬迁Cocoa原业务')
         assert normalize(actual.stdout, profiles['product']) == normalize(oracle.stdout, profiles['oracle'])

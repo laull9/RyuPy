@@ -16,7 +16,7 @@ from fixtures import HERE, prepare
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT/'tests/cpython'))
 from stock_thin_compiler import Recorder, require_success
-from support import audit_native_paths, environment, inspect_host_report, rid, standalone_layout
+from support import built_product, provider_data, audit_native_paths, environment, inspect_host_report, rid, standalone_layout
 from onefile_support import audit_onefile_output
 
 
@@ -123,10 +123,8 @@ def main():
                                'build', entry, '--out-dir', output]
                     if mode != 'jit': command.append('--aot' if mode == 'standalone' else '--onefile')
                     built = run(command, work, env, label+'-build')
-                    reports = list(output.rglob('cpython-provider.json'))
-                    reports.sort(key=lambda path: (not path.parent.name.endswith('.dist'), len(path.parts)))
-                    assert reports, output
-                    report = json.loads(reports[0].read_text())
+                    data = provider_data(output, entry.stem, mode)
+                    report = json.loads((data/'cpython-provider.json').read_text())
                     catalog = audit_catalog(report, case)
                     (evidence/(label+'-catalog.json')).write_text(json.dumps(catalog, ensure_ascii=False, indent=2)+'\n')
                     relocated = work/('已搬迁 产品 '+label)
@@ -138,7 +136,9 @@ def main():
                         relocated.mkdir(); shutil.move(executable, relocated/executable.name)
                         executable = relocated/executable.name
                     else:
-                        shutil.move(output, relocated); executable = relocated/(case['id']+'.dll')
+                        public = built_product(built.stderr, output, entry.stem, 'jit')
+                        filename = public.entry.name
+                        shutil.move(output, relocated); executable = relocated/filename
                     if output.exists(): shutil.rmtree(output)
                     if mode != 'onefile': audit_native_paths(relocated)
                     products.append((label, mode, executable, oracle))
@@ -151,7 +151,7 @@ def main():
                 run_env = environment()
                 run_env.update(PATH='', PYTHONHOME='/missing-python-home', PYTHONPATH='/missing-python-path',
                                TMPDIR=str(runtime_temp), RYUPY_CPYTHON_REPORT=str(report))
-                command = [shutil.which('dotnet'), executable] if mode == 'jit' else [executable]
+                command = [executable]
                 actual = recorder.run(command, work, run_env)
                 if report.exists(): shutil.copy2(report, evidence/(label+'-host.json'))
                 assert (actual.returncode, actual.stdout, actual.stderr) == (oracle.returncode, oracle.stdout, oracle.stderr), label

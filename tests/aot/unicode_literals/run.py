@@ -12,7 +12,8 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / 'tests/cpython'))
-from support import environment, standalone_layout, rid, audit_native_paths, inspect_host_report
+from support import (environment, standalone_layout, rid, audit_native_paths, inspect_host_report,
+                     built_product, product_layout)
 
 
 def main():
@@ -26,8 +27,6 @@ def main():
     log = destination / (datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ') + '.json')
     record = {'status': 'failed', 'steps': []}
     env = environment()
-    dotnet = shutil.which('dotnet')
-    assert dotnet
 
     with tempfile.TemporaryDirectory(prefix='ryupy-unicode-') as temporary:
         work = Path(temporary)
@@ -61,9 +60,11 @@ def main():
                         layout = standalone_layout(built.stderr, output, 'entry', rid())
                         bundle, name = layout.dist, layout.native.name
                     else:
-                        bundle, name = output, 'entry.dll'
+                        layout = built_product(built.stderr, output, 'entry', mode)
+                        bundle, name = layout.root, layout.entry.name
                     moved = work / ('已搬迁 ' + label)
                     shutil.move(bundle, moved)
+                    product_layout(moved)
                     shutil.rmtree(inputs)
                     if output.exists(): shutil.rmtree(output)
                     if family == 'bridge': audit_native_paths(moved)
@@ -71,7 +72,7 @@ def main():
                     report = work / (label + '-host.json')
                     run_env.update(PATH='', PYTHONHOME='/missing-python-home', PYTHONPATH='/missing-python-path',
                                    RYUPY_CPYTHON_REPORT=str(report))
-                    actual = run(label + '-relocated', [moved / name] if mode == 'aot' else [dotnet, moved / name],
+                    actual = run(label + '-relocated', [moved / name],
                                  process_env=run_env)
                     assert (actual.returncode, actual.stdout, actual.stderr) == (oracle.returncode, oracle.stdout, oracle.stderr), label
                     if family == 'bridge':

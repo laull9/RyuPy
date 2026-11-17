@@ -144,6 +144,7 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
                 native_binding.as_deref(),
             )?;
             if let Some(exe) = artifacts.native_exe {
+                eprintln!("CIL 中间产物：{}", artifacts.dll.display());
                 eprintln!("已生成 {}", exe.display());
             } else {
                 eprintln!("已生成 {}", artifacts.dll.display());
@@ -185,14 +186,15 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
                     search_paths,
                 },
             )?;
-            let status = std::process::Command::new(dotnet::dotnet_exe())
-                .arg(&artifacts.dll)
-                .status()?;
-            Ok(if status.success() {
-                ExitCode::SUCCESS
+            // 公开run与交付使用同一apphost；继承终端stdin/stdout，保留真实退出码。
+            let mut command = if let Some(executable) = artifacts.native_exe {
+                std::process::Command::new(executable)
             } else {
-                ExitCode::FAILURE
-            })
+                let mut command = std::process::Command::new(dotnet::dotnet_exe());
+                command.arg(&artifacts.dll); command
+            };
+            let status = command.status()?;
+            Ok(ExitCode::from(status.code().unwrap_or(1) as u8))
         }
         Command::Dump { input, emit } => {
             if !sess.cpython_modules.is_empty()
