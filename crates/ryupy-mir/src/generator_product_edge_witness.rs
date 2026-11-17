@@ -36,7 +36,7 @@ fn operand(value: &Operand) -> String {
             Constant::I64(_) => "const(i64,redacted)".into(),
             Constant::F64(_) => "const(f64,redacted)".into(),
             Constant::Bool(value) => format!("const(bool,{value})"),
-            Constant::Str(_) => "const(str,redacted)".into(),
+            Constant::Str(_) | Constant::Unicode(_) => "const(str,redacted)".into(),
             Constant::BigInt(_) => "const(bigint,redacted)".into(),
             Constant::Null => "const(null)".into(),
             Constant::None => "const(none)".into(),

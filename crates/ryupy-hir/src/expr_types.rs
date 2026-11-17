@@ -113,8 +113,10 @@ pub enum ExprKind {
     Tuple(Vec<ExprId>),
     /// `{a, b}`。
     Set(Vec<ExprId>),
-    /// `{k: v}`；`**mapping` 暂不支持。
+    /// `{k: v}`；没有解包的字面量保留原批量求值路径。
     Dict(Vec<(ExprId, ExprId)>),
+    /// 含`**mapping`的字典，显式保存逐源顺序，不伪造key/value哨兵。
+    DictUnpack(Vec<DictItem>),
     /// `b"..."`：源码里的字节串已经是字节序列，不需要再做编码。
     Bytes(Box<[u8]>),
     /// f-string：字面量与插值段交替。
@@ -134,19 +136,46 @@ pub enum ExprKind {
     Starred(ExprId),
 }
 
+/// 混合字典字面量的一项；Pair连续块具有独立BUILD_MAP求值/插入顺序。
+#[derive(Clone, Copy, Debug)]
+pub enum DictItem {
+    Pair(ExprId, ExprId),
+    Unpack(ExprId),
+}
+
+impl DictItem {
+    pub fn expressions(&self) -> impl Iterator<Item = ExprId> {
+        match self {
+            Self::Pair(key, value) => [Some(*key), Some(*value)],
+            Self::Unpack(value) => [Some(*value), None],
+        }
+        .into_iter()
+        .flatten()
+    }
+}
+
 /// f-string 的一段。
 #[derive(Clone, Debug, PartialEq)]
 pub enum FStringPart {
     /// 原样输出的字面量（`{{` / `}}` 已由解析器还原成单个花括号）。
     Literal(Box<str>),
+    /// 字面片段的精确Unicode码点。
+    Unicode(Box<[u32]>),
     /// `{expr}` / `{expr!r}` / `{expr:spec}`。
     Value {
         value: ExprId,
         /// `!s` / `!r` / `!a` 的字节；没有转换时为 0。
         conversion: u8,
-        /// 格式说明符；目前只支持纯字面量（含嵌套插值的规格暂不支持）。
-        spec: Option<Box<str>>,
+        /// 静态规格保留常量，动态规格保存待求值的f-string表达式。
+        spec: Option<FStringSpec>,
     },
+}
+
+/// 格式说明符的编译期形态；只在动态规格实际出现时构建表达式。
+#[derive(Clone, Debug, PartialEq)]
+pub enum FStringSpec {
+    Literal(Box<str>),
+    Dynamic(ExprId),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -159,6 +188,8 @@ pub enum Literal {
     Float(f64),
     Bool(bool),
     Str(Box<str>),
+    /// 含代理码点的精确Unicode序列；Rust str无法表示这些合法Python字符。
+    Unicode(Box<[u32]>),
     None,
 }
 

@@ -32,9 +32,10 @@ pub enum SequenceItem {
     Rest(SequenceTarget),
 }
 
-/// 平坦解包的叶目标；对象与下标表达式在轮到写入时才执行。
+/// 递归解包目标；对象、下标和下一层解包在轮到该目标时才执行。
 #[derive(Clone, Debug)]
 pub enum SequenceTarget {
+    Sequence(Vec<SequenceItem>),
     Binding(Binding),
     Attribute { base: ExprId, name: Name },
     Subscript { base: ExprId, index: ExprId },

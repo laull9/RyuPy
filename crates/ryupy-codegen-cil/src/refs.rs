@@ -107,9 +107,8 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
     let empty_array = res.push_method_reference(method_ref! {
         static object[] @pyops_type::EmptyArray()
     });
-    let dyn_from_decimal = res.push_method_reference(
-        method_ref! { static object @pyops_type::FromDecimalString(string) },
-    );
+    let (unicode_from_codepoints, dyn_from_decimal) =
+        crate::refs_text::literal_factories(res, &pyops_type);
     let dyn_to_int =
         res.push_method_reference(method_ref! { static object @pyops_type::ToIntValue(object) });
     let dyn_to_float =
@@ -415,6 +414,9 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
     let dict_set_scalar_key = res.push_method_reference(
         method_ref! { static void @pyops_type::DictSetScalarKey(object, object, object) },
     );
+    let dict_unpack_mapping = res.push_method_reference(
+        method_ref! { static void @pyops_type::DictUnpackMapping(object, object) },
+    );
     let runtime_refs = RuntimeRefs {
         trace_product: None,
         deletions: None,
@@ -424,6 +426,7 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         owned_functions: None,
         stock_thin: None,
         dict_set_scalar_key,
+        dict_unpack_mapping,
         enum_create,
         classes: crate::class_refs::ClassRefs::build(res, ryupy_runtime),
         typed_dict: crate::typed_dict_refs::TypedDictRefs::build(res, ryupy_runtime),
@@ -472,6 +475,7 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         box_i64,
         empty_array,
         literal_fields: FxHashMap::default(),
+        unicode_from_codepoints,
         dyn_from_decimal,
         dyn_to_int,
         dyn_to_float,

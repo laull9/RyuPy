@@ -11,6 +11,8 @@ pub struct Session {
     pub experimental_stock_thin_functions: bool,
     /// 显式冻结 CPython 执行域及基础发行；不从环境或系统解释器隐式选择。
     pub cpython_provider: Option<PathBuf>,
+    /// 显式原生组件来源、许可证与ABI声明；不自动加载宿主开发库。
+    pub cpython_native_components: Option<PathBuf>,
     #[doc(hidden)]
     pub cpython_provider_state: crate::CPythonProviderState,
     /// 显式委派给随包 CPython 解释执行的本地整模块/包名列表（顶层名）；禁止静默回退。
@@ -64,6 +66,27 @@ pub struct Session {
 }
 
 impl Session {
+    /// 使用本次已冻结的Python版本解析；未选择provider的历史编译入口保持原版本合同。
+    pub(crate) fn parse_python(
+        &self,
+        file: FileId,
+        source: &str,
+    ) -> Result<(ryupy_syntax::ParsedModule, Vec<ryupy_base::Diagnostic>)> {
+        if let Some(plan) = &self.cpython_provider_state.plan {
+            let version = ryupy_syntax::ast::PythonVersion::from((
+                u8::try_from(plan.version.major).context("Python主版本越界")?,
+                u8::try_from(plan.version.minor).context("Python次版本越界")?,
+            ));
+            return Ok(ryupy_syntax::parse_for_version(
+                file,
+                source,
+                ryupy_syntax::ast::PySourceType::Python,
+                version,
+            ));
+        }
+        Ok(ryupy_syntax::parse(file, source))
+    }
+
     pub fn load_file(&mut self, path: &Path) -> Result<FileId> {
         let text = std::fs::read_to_string(path)
             .with_context(|| format!("无法读取源文件 {}", path.display()))?;

@@ -121,7 +121,13 @@ impl<'a> ExprLowerCtx<'a> {
                 ExprKind::Builtin(crate::hir::Builtin::Dynamic("Ellipsis"))
             }
             ast::Expr::NoneLiteral(_) => ExprKind::Literal(Literal::None),
-            ast::Expr::StringLiteral(s) => ExprKind::Literal(Literal::Str(s.value.to_str().into())),
+            ast::Expr::StringLiteral(s) => ExprKind::Literal(
+                ryupy_syntax::string_codepoints(&s.value, &self.global_scope.source_text)
+                    .map_or_else(
+                        || Literal::Str(s.value.to_str().into()),
+                        |points| Literal::Unicode(points.into_boxed_slice()),
+                    ),
+            ),
             ast::Expr::Name(name_expr) => self.lower_name(name_expr),
             ast::Expr::BinOp(bin) => {
                 if let Some(op) = map_bin_op(bin.op) {
@@ -225,17 +231,23 @@ impl<'a> ExprLowerCtx<'a> {
     fn lower_dict(&mut self, dict: &ast::ExprDict) -> ExprKind {
         // >17项的动态键交给MIR逐对插入的精确标量守卫；用户键仍明确运行时拒绝。
         // 不能按类型标注猜测键安全，也不删除未执行分支中的整个字典表达式。
+        if dict.items.iter().any(|item| item.key.is_none()) {
+            let mut items = Vec::new();
+            for item in &dict.items {
+                items.push(if let Some(key) = &item.key {
+                    let key = self.lower_expr(key);
+                    let value = self.lower_expr(&item.value);
+                    crate::DictItem::Pair(key, value)
+                } else {
+                    crate::DictItem::Unpack(self.lower_expr(&item.value))
+                });
+            }
+            return ExprKind::DictUnpack(items);
+        }
         let mut pairs = Vec::new();
         for item in &dict.items {
             let Some(key) = &item.key else {
-                self.diagnostics.push(
-                    Diagnostic::error(
-                        Span::new(self.file, item.value.range()),
-                        "暂不支持在字典字面量里使用 `**`",
-                    )
-                    .with_code("E0100")
-                    .with_primary_label("不支持字典解包"),
-                );
+                // 已在上方按是否含解包分支；错误恢复仍继续，绝不panic。
                 continue;
             };
             let key_id = self.lower_expr(key);
@@ -407,60 +419,6 @@ impl<'a> ExprLowerCtx<'a> {
             });
         }
         self.body.exprs[cur].kind.clone()
-    }
-
-    /// f-string → 字面量 / 插值段序列。
-    ///
-    /// 格式说明符本身也可以包含插值（`f"{x:{width}}"`），这需要运行时构造规格字符串；
-    /// 当前只支持纯字面量的规格，遇到嵌套插值报诊断。
-    fn lower_fstring(&mut self, fstring: &ast::ExprFString) -> ExprKind {
-        use crate::hir::FStringPart;
-
-        let mut parts = Vec::new();
-        for element in fstring.value.elements() {
-            match element {
-                ast::InterpolatedStringElement::Literal(literal) => {
-                    parts.push(FStringPart::Literal(literal.value.clone()));
-                }
-                ast::InterpolatedStringElement::Interpolation(item) => {
-                    let value = self.lower_expr(&item.expression);
-                    let spec = match &item.format_spec {
-                        None => None,
-                        Some(spec) => {
-                            let mut text = String::new();
-                            let mut ok = true;
-                            for part in spec.elements.iter() {
-                                match part {
-                                    ast::InterpolatedStringElement::Literal(literal) => {
-                                        text.push_str(&literal.value);
-                                    }
-                                    ast::InterpolatedStringElement::Interpolation(_) => {
-                                        ok = false;
-                                    }
-                                }
-                            }
-                            if !ok {
-                                self.diagnostics.push(
-                                    Diagnostic::error(
-                                        Span::new(self.file, spec.range),
-                                        "f-string 的格式说明符暂不支持嵌套插值",
-                                    )
-                                    .with_code("E0100")
-                                    .with_primary_label("不支持嵌套插值"),
-                                );
-                            }
-                            Some(text.into_boxed_str())
-                        }
-                    };
-                    parts.push(FStringPart::Value {
-                        value,
-                        conversion: item.conversion.to_byte().unwrap_or(0),
-                        spec,
-                    });
-                }
-            }
-        }
-        ExprKind::FString(parts)
     }
 
     /// 调用实参完整保留四种形态：位置、`*args`、关键字、`**kwargs`。

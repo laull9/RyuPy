@@ -1,5 +1,7 @@
 //! 真实HIR→MIR薄函数合同：读名、lease、真实体、工厂和超域诊断均检查结构。
 use crate::*;
+#[path = "stock_thin_expression_tests.rs"]
+mod expressions;
 fn compile(source: &str) -> (Program, Vec<ModuleExport>) {
     let mut db = ryupy_base::SourceDb::default();
     let file = db.add("thin.py", source);
@@ -173,15 +175,22 @@ fn stock_thin_rejects_each_shape_before_lowering() {
             "def f[T](x):\n    return x\n",
             "if True:\n    def f(x):\n        return x\n",
             "f = lambda x: x\n",
-            "def f(x):\n    if x:\n        return x\n",
-            "def f(x):\n    if x is None:\n        return x\n    else:\n        return x + 1\n",
-            "def f(x):\n    alias = x()\n    return alias\n",
+            "def f(x):\n    if x.attr:\n        return x\n",
+            "def f(x):\n    if x is None:\n        return x\n    else:\n        return x @ x\n",
+            "def f(x):\n    alias = x(value=x)\n    return alias\n",
             "def f(x):\n    return x if x is None else __debug__\n",
             "def f(x):\n    if x is None:\n        return x\n    elif __debug__ is x:\n        return x\n",
             "def f(x):\n    return x is None is x\n",
             "def f(x):\n    x.attr = x\n    return x\n",
             "def f(x):\n    global value\n    value = x\n    return value\n",
             "def f(x):\n    return x\n    while x is None:\n        pass\n",
+            "def f(x):\n    return x(*x)\n",
+            "def f(x):\n    return x(**x)\n",
+            "def f(x):\n    return x(unknown=x)\n",
+            "def f(x):\n    x += x\n    return x\n",
+            "def f(x):\n    return 1j\n",
+            "def f(x):\n    return b'bytes'\n",
+            "def f(x):\n    return (value := x)\n",
         ]
         .map(str::to_string),
     );

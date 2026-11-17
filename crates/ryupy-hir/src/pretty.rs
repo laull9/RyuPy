@@ -418,6 +418,7 @@ pub(crate) fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String
             Literal::Float(v) => format!("{v:?}"),
             Literal::Bool(b) => (if *b { "True" } else { "False" }).to_string(),
             Literal::Str(s) => format!("{s:?}"),
+            Literal::Unicode(points) => format!("unicode_points {points:x?}"),
             Literal::None => "None".to_string(),
         },
         ExprKind::Local(loc_id) => body.locals[*loc_id].name.as_str().to_string(),
@@ -441,19 +442,8 @@ pub(crate) fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String
         ExprKind::List(items) => format!("[{}]", dump_list(module, body, items)),
         ExprKind::Tuple(items) => format!("({})", dump_list(module, body, items)),
         ExprKind::Set(items) => format!("{{{}}}", dump_list(module, body, items)),
-        ExprKind::Dict(pairs) => {
-            let parts: Vec<String> = pairs
-                .iter()
-                .map(|(k, v)| {
-                    format!(
-                        "{}: {}",
-                        dump_expr(module, body, *k),
-                        dump_expr(module, body, *v)
-                    )
-                })
-                .collect();
-            format!("{{{}}}", parts.join(", "))
-        }
+        ExprKind::Dict(pairs) => dict_unpack::dump_plain(module, body, pairs),
+        ExprKind::DictUnpack(items) => dict_unpack::dump(module, body, items),
         ExprKind::Bytes(bytes) => format!("b{:?}", bytes),
         ExprKind::Subscript { base, index } => {
             format!(
@@ -544,6 +534,7 @@ pub(crate) fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String
                 .iter()
                 .map(|part| match part {
                     crate::hir::FStringPart::Literal(text) => text.to_string(),
+                    crate::hir::FStringPart::Unicode(points) => format!("unicode{points:x?}"),
                     crate::hir::FStringPart::Value { value, .. } => {
                         format!("{{{}}}", dump_expr(module, body, *value))
                     }
@@ -574,6 +565,18 @@ fn sequence_target_name(
     target: &crate::hir::SequenceTarget,
 ) -> String {
     match target {
+        crate::hir::SequenceTarget::Sequence(items) => format!(
+            "({})",
+            items
+                .iter()
+                .map(|item| match item {
+                    crate::hir::SequenceItem::One(t) => sequence_target_name(module, body, t),
+                    crate::hir::SequenceItem::Rest(t) =>
+                        format!("*{}", sequence_target_name(module, body, t)),
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
         crate::hir::SequenceTarget::Binding(binding) => binding_name(module, body, *binding),
         crate::hir::SequenceTarget::Attribute { base, name } => {
             format!("{}.{}", dump_expr(module, body, *base), name)
@@ -585,3 +588,6 @@ fn sequence_target_name(
         ),
     }
 }
+
+#[path = "pretty_dict_unpack.rs"]
+mod dict_unpack;

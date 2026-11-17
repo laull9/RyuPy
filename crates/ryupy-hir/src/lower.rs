@@ -72,6 +72,7 @@ pub fn lower_module_with_native_exceptions(
     let mut functions = Arena::default();
     let mut classes = Arena::default();
     let mut global_scope = GlobalScope {
+        source_text: source.to_owned(),
         instance_globals: info.instance_globals,
         foreign_class_construction: info.foreign_class_construction,
         deleted_names: crate::module_deletions::collect(&parsed.module.body),

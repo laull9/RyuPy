@@ -308,7 +308,7 @@ pub(crate) fn operand_type(
             Constant::I64(_) => MirType::I64,
             Constant::F64(_) => MirType::F64,
             Constant::Bool(_) => MirType::Bool,
-            Constant::Str(_) => MirType::Str,
+            Constant::Str(_) | Constant::Unicode(_) => MirType::Str,
             // 大整数与 None 只出现在动态路径
             Constant::BigInt(_) | Constant::None | Constant::Null => MirType::Dynamic,
         }),

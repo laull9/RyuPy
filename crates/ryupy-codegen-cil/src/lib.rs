@@ -50,6 +50,7 @@ mod origin_refs;
 mod owned_function_refs;
 mod provider_refs;
 mod refs;
+mod refs_text;
 pub mod runtimeconfig;
 mod source_provenance;
 mod stock_thin;

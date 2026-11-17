@@ -137,7 +137,13 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
 
     let docstring = match body_stmts.first() {
         Some(ast::Stmt::Expr(statement)) => match statement.value.as_ref() {
-            ast::Expr::StringLiteral(text) => Some(text.value.to_str().to_owned()),
+            ast::Expr::StringLiteral(text) => Some(
+                ryupy_syntax::string_codepoints(&text.value, &global_scope.source_text)
+                    .map_or_else(
+                        || crate::hir::FunctionDocstring::Text(text.value.to_str().into()),
+                        |points| crate::hir::FunctionDocstring::Unicode(points.into_boxed_slice()),
+                    ),
+            ),
             _ => None,
         },
         _ => None,

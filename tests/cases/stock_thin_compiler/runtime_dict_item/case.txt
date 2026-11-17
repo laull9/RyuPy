@@ -1,0 +1,2 @@
+# 同一手写输入额外验证默认Runtime路径；薄函数显式产品门独立运行该输入。
+entry = ../dict_item_method.py

@@ -1,4 +1,4 @@
-//! 薄体lease的封闭使用合同：仅LoadGlobal借用；局部绑定/身份选择只用中性值操作。
+//! 薄体lease的封闭使用合同：仅LoadGlobal借用；值运算/调用只消费中性业务对象。
 use crate::*;
 pub(crate) fn validate(program: &Program, errors: &mut Vec<String>) {
     for (_, function) in program.functions.iter() {
@@ -77,13 +77,41 @@ pub(crate) fn validate(program: &Program, errors: &mut Vec<String>) {
 fn neutral_value(value: &Rvalue) -> bool {
     match value {
         Rvalue::Use(_) | Rvalue::Box { .. } | Rvalue::DynTruthy { .. } => true,
+        Rvalue::DynBinary {
+            op, inplace: false, ..
+        } => matches!(
+            op,
+            DynOp::Add
+                | DynOp::Sub
+                | DynOp::Mul
+                | DynOp::TrueDiv
+                | DynOp::FloorDiv
+                | DynOp::Mod
+                | DynOp::Pow
+                | DynOp::BitAnd
+                | DynOp::BitOr
+                | DynOp::BitXor
+                | DynOp::LShift
+                | DynOp::RShift
+        ),
+        Rvalue::DynUnary { op, .. } => {
+            matches!(op, DynOp::Neg | DynOp::Pos | DynOp::Not | DynOp::Invert)
+        }
+        Rvalue::DynCallValue { args, .. } => args.len() <= 3,
+        // 既有零参helper只接显式的首参槽和Missing类源，不取得Context、闭包或lease。
+        Rvalue::InstanceZeroCall { frame, .. } => frame.class == SuperClassSource::Missing,
         Rvalue::Unary {
             op: UnaryOp::Not, ..
         } => true,
         Rvalue::Call { callee, args } => match callee {
             Callee::Runtime(RuntimeFn::DynNone | RuntimeFn::MakeUnbound) => args.is_empty(),
             Callee::Runtime(RuntimeFn::IsSame) => args.len() == 2,
-            // 动态函数中的身份比较结果先装箱，控制流复用既有bool真值入口。
+            Callee::Runtime(RuntimeFn::DynFromDecimal) => {
+                matches!(args.as_slice(), [Operand::Const(Constant::Str(_))])
+            }
+            Callee::Runtime(RuntimeFn::CallValue) => matches!(args.as_slice(),
+                [_, Operand::Array(_), Operand::Array(names), Operand::Array(values)] if names.is_empty() && values.is_empty()),
+            // 通用条件保持Python真值协议；身份比较装箱的bool也复用此入口。
             Callee::Runtime(RuntimeFn::DynTruthy) => args.len() == 1,
             Callee::Runtime(RuntimeFn::LoadChecked) => {
                 matches!(args.as_slice(), [_, Operand::Const(Constant::Str(_))])

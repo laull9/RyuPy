@@ -179,12 +179,13 @@ fn literal_fast_paths_and_shared_unpack_structure_remain_bounded() {
         6,
         "{mir}"
     );
-    let invalid = root.0.join("nested.py");
+    let nested = root.0.join("nested.py");
     for source in ["a, (b, c) = [1, [2, 3]]\n", "a, *(b, c) = [1, 2, 3]\n"] {
-        std::fs::write(&invalid, source).unwrap();
+        std::fs::write(&nested, source).unwrap();
         let mut session = Session::default();
-        assert!(ryupy_driver::dump(&mut session, &invalid, Stage::Mir).is_err());
-        assert!(session.diagnostics.iter().any(|d| d.code == Some("E0100")));
+        let mir = ryupy_driver::dump(&mut session, &nested, Stage::Mir).expect("递归解包应成功");
+        assert!(session.diagnostics.is_empty());
+        assert!(mir.contains("RuntimeFn::UnpackSequence("));
     }
 }
 

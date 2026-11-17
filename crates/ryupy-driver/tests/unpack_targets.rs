@@ -1,4 +1,4 @@
-//! 平坦属性/下标解包的 HIR、动态类型与 MIR 顺序回归；嵌套解包仍明确拒绝。
+//! 平坦属性/下标解包的 HIR、动态类型与 MIR 顺序回归；递归解包逐层准备。
 use ryupy_driver::{Session, Stage};
 mod support;
 use support::dump;
@@ -68,17 +68,17 @@ fn snapshot_unpack_before_ordered_leaf_stores() {
 }
 
 #[test]
-fn recursive_targets_remain_diagnostic() {
+fn recursive_targets_prepare_each_layer() {
     let path = std::env::temp_dir().join("ryupy_m3_7_nested_unpack.py");
     for source in ["a, (b, c) = [1, [2, 3]]\n", "a, *(b, c) = [1, 2, 3]\n"] {
         std::fs::write(&path, source).unwrap();
         let mut session = Session::default();
-        assert!(dump(&mut session, &path, Stage::Mir).is_err());
-        assert!(
-            session
-                .diagnostics
-                .iter()
-                .any(|diagnostic| diagnostic.code == Some("E0100"))
+        let mir = dump(&mut session, &path, Stage::Mir).expect("递归目标必须按层降级");
+        assert!(session.diagnostics.is_empty());
+        assert_eq!(
+            mir.matches("RuntimeFn::UnpackSequence(").count(),
+            1,
+            "{mir}"
         );
     }
     std::fs::remove_file(path).unwrap();

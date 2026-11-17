@@ -139,7 +139,8 @@ pub(crate) fn analyze(
             let bytes = crate::source_deployment::read(path, 4 * 1024 * 1024)?;
             let text = std::str::from_utf8(&bytes)?;
             let package = crate::modules::module_package(&name, path);
-            let (scan, diagnostics) = scan_detected(text, &path.display().to_string(), &package);
+            let (scan, diagnostics) =
+                scan_detected(sess, text, &path.display().to_string(), &package)?;
             record["syntax_diagnostics"] = diagnostics.into();
             Some(scan)
         } else if !blocked_parent && record["status"] == "catalog_unavailable" {
@@ -147,10 +148,11 @@ pub(crate) fn analyze(
             let bytes = source_catalog::source(&name)?.context("版本事实缺少内嵌源码")?;
             let text = std::str::from_utf8(bytes)?;
             let (scan, diagnostics) = scan_detected(
+                sess,
                 text,
                 &format!("catalog/{name}"),
                 name.rsplit_once('.').map_or("", |pair| pair.0),
-            );
+            )?;
             record["syntax_diagnostics"] = diagnostics.into();
             Some(scan)
         } else {
@@ -247,17 +249,22 @@ pub(crate) fn analyze(
 }
 
 /// 探测数据库与编译会话分开，不生成权限令牌或活动模块注册。
-fn scan_detected(text: &str, path: &str, package: &str) -> (source_scan::Scan, Vec<String>) {
+fn scan_detected(
+    sess: &Session,
+    text: &str,
+    path: &str,
+    package: &str,
+) -> Result<(source_scan::Scan, Vec<String>)> {
     let mut db = ryupy_base::SourceDb::default();
     let file = db.add(path, text);
-    let (parsed, diagnostics) = ryupy_syntax::parse(file, text);
-    (
+    let (parsed, diagnostics) = sess.parse_python(file, text)?;
+    Ok((
         source_scan::collect(&parsed, package),
         diagnostics
             .iter()
             .map(|diagnostic| format!("{diagnostic:?}"))
             .collect(),
-    )
+    ))
 }
 
 /// 从完整 C# 编译源生成的字面注册事实；动态注册仍须另行登记覆盖。

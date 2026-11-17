@@ -224,7 +224,7 @@ fn read_module_internal(
 ) -> Result<SourceModule> {
     let file = sess.load_file(path)?;
     let text = sess.sources.get(file).text.clone();
-    let (parsed, diags) = ryupy_syntax::parse(file, &text);
+    let (parsed, diags) = sess.parse_python(file, &text)?;
     let parse_diagnostics = if report_parse_diagnostics {
         sess.diagnostics.extend(diags);
         Vec::new()

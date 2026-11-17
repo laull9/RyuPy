@@ -329,6 +329,21 @@ impl<'a> ExprBuilder<'a> {
             );
         }
 
+        if *lhs_ty == Ty::Str && *rhs_ty == Ty::Str {
+            // 文本比较是码点值语义，不能发CLR引用ceq或UTF16次序的clt。
+            lhs_op = self.coerce(lhs_op, lhs_ty, &MirType::Dynamic);
+            rhs_op = self.coerce(rhs_op, rhs_ty, &MirType::Dynamic);
+            return self.runtime_call(
+                RuntimeFn::DynCompare,
+                vec![
+                    Operand::Const(Constant::I64(i64::from(dyn_cmp_op(op).code()))),
+                    lhs_op,
+                    rhs_op,
+                ],
+                MirType::Bool,
+            );
+        }
+
         if *lhs_ty == Ty::Int && *rhs_ty == Ty::Float {
             lhs_op = self.cast_i64_to_f64(lhs_op);
         } else if *lhs_ty == Ty::Float && *rhs_ty == Ty::Int {

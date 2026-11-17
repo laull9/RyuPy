@@ -223,6 +223,9 @@ fn assign_target_writes_local(target: &AssignTarget, local_id: LocalId) -> bool 
 fn sequence_item_writes_local(item: &SequenceItem, local_id: LocalId) -> bool {
     match item {
         SequenceItem::One(target) | SequenceItem::Rest(target) => match target {
+            SequenceTarget::Sequence(items) => items
+                .iter()
+                .any(|item| sequence_item_writes_local(item, local_id)),
             SequenceTarget::Binding(binding) => binding_writes_local(binding, local_id),
             SequenceTarget::Attribute { .. } | SequenceTarget::Subscript { .. } => false,
         },

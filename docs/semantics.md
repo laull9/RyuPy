@@ -70,7 +70,7 @@
 | 列表 / 字典 / 元组 / 集合 / frozenset / bytes / bytearray / slice | ✅ M2.3 | 容器表达式统一降级为 `Dynamic`，由运行时 `PyList` / `PyDict` / `PySet` / `PyFrozenSet` / `PyBytes` / `PyByteArray` / `PySlice` 承载 |
 | `x[i]` / `x[i:j:k]` / `del x[i]` / `x[i] = v` | ✅ M2.3 | `RuntimeFn::GetItem` / `SetItem` / `DelItem`；切片对象 `PySlice`，负值索引与越界按 Python 规则处理 |
 | `a in b` / `a not in b`、`a is b` / `a is not b` | ✅ M2.3 | `RuntimeFn::Contains` / `IsSame` |
-| 平坦序列解包赋值（含 `a, *b, c = x`）、`for x in 容器` | ✅ M2.3；一般非星号 iterator 有限修复通过 | 受控直接 tuple/list 字面量保 `UnpackCheck` 长度校验；一般非星号源新增 `UnpackSequence` 有界迭代准备。一般星号有限修复使用 UnpackEx 双iter/hint准备（ADR0068，专项及完整门禁通过），直接无展开字面量保旧结构；嵌套解包目标报 E0100。for 的迭代源沿用 `IterStart` / `IterNextOk` / `IterValue` |
+| 递归序列解包赋值（含 `a, *b, c = x`）、`for x in 容器` | ✅ M2.3；一般非星号 iterator 有限修复通过 | 受控直接 tuple/list 字面量保 `UnpackCheck` 长度校验；一般非星号源新增 `UnpackSequence` 有界迭代准备。一般星号有限修复使用 UnpackEx 双iter/hint准备（ADR0068，专项及完整门禁通过），直接无展开字面量保旧结构；嵌套目标逐层准备值并按序写入，深层失败保留已有写入。for 的迭代源沿用 `IterStart` / `IterNextOk` / `IterValue` |
 | 模块顶层 `del name`、函数显式 `global` 删除 | ✅ 有限 | 默认 typed 绑定位/动态哨兵、显式实例真实字典删键；删除不查 builtin，读取才回退。默认元数据/自定义 builtins 等边界见[合同](module-deletion.md)；局部/cell/class namespace 不由此行扩域 |
 | 嵌套 `def`、闭包、lambda | ✅ M3.0 | 定义位置创建 `PyFunction`；按 free 列表捕获共享 cell，保持 late binding 与函数逃逸 |
 | list / dict / set 推导式（多层 for / if、解包、闭包） | ✅ M3.1 | 独立隐式函数作用域；最左 iterable 在外层取得迭代器 |
@@ -82,7 +82,7 @@
 | `assert cond[, msg]` | ✅ M2.2 | 去糖为 `if not cond: raise AssertionError(msg)` |
 | `try` / `except` / `except (A, B)` / `else` / `finally` / `except … as e` | ✅ M2.2 | CIL 类型化 catch + `finally` 状态机；详见 §4.1 |
 | `str(x)` / `type(x)` / 动态属性读取 | ✅ M2.2 | `PyRepr.StrValue` / `PyObject.TypeOf` / `PyObject.GetAttr`（当前覆盖异常与类型对象） |
-| f-string（字面量、`!r` / `!s` / `!a`、格式说明符） | ✅ M2.4 | `PyOps.FormatValue`；嵌套格式说明符暂不支持 |
+| f-string（字面量、`!r` / `!s` / `!a`、格式说明符） | ✅ M2.4 | `PyOps.FormatValue`；动态规格按主体、规格、转换、格式化顺序执行 |
 | 字符串方法 `split` / `join` / `strip` / `replace` / `find` 等 | ✅ M2.4 | `PyOps.CallMethod`；返回值下标按码点计算 |
 | 内建 `len` / `range` / `enumerate` / `zip` / `reversed` / `sum` / `min` / `max` / `any` / `all` / `round` / `sorted` / `isinstance` / `id` / `getattr` / `hasattr` | ✅ M2.4 | `PyOps.CallBuiltin`；`sorted` / `list.sort` 支持 `key` 与 `reverse`，排序稳定 |
 | 内建 `ord` / `chr` 直接调用 | ✅ Phase 3 项目驱动 | Unicode码点/单字节、chr整数与`__index__`，范围和参数错误；一等内建函数值已接共享身份与动态调用（M3.3） |
@@ -202,7 +202,8 @@ CPython 一致的消息。
   类 `__name__/__qualname__` 修改、类/实例 `__dict__` 与实例 `__class__` 修改仍明确拒绝。
 - `encoding/errors` 解码构造尚未实现；合法解码域明确 `NotImplementedError`，不假作普通
   `str(object)`。路径、正则、JSON 等其它 consumer 没有随本切统一接入，不宣称接受子类载体。
-- 排序统一沿现精确字符串的 UTF-16 ordinal；非 BMP 与 BMP 混合排序不等于 CPython 码点序。
+- 排序在2026-11-17接入中央码点比较，精确字符串与str子类根slot共用规则；真实补充平面
+  字符与独立代理码点保留区别，方法新建结果的剩余传播范围见ADR-0235。
   `tests/fixtures/str_subclass/unicode_order.py.pending` 与 `custom_new.py.pending` 保完整合法
   CP 期待，不计通过；不把旧排序差异改写成错误的 CP 期待。
 
@@ -265,6 +266,14 @@ NaN/Inf/±0短结果保符号规则，非零有限值复用固定.NET10显式有
 - `a and b` / `a or b`：Python 返回**操作数本身**而非 `bool`。Phase 1 要求两侧类型相同，结果类型即该类型。
 
 ## 4. 语义陷阱清单
+
+### 递归赋值与动态格式（2026-11-17）
+
+每层解包先准备本层值，再逐目标写入，内层仅在轮到该目标时解包。数量/协议失败保留
+此前已完成写入，尚未写入的局部仍报UnboundLocalError；目标求值中的yield恢复复用
+已准备引用。动态格式规格在值求出后、conversion及__format__之前执行。普通实例
+采用类型级__format__协议，原生布局保留其已有格式能力，见[ADR-0233](adr/0233-recursive-unpack-and-dynamic-format.md)。
+
 
 显式内部 stock 薄函数候选（ADR-0226/0227）采用真实 `f(x)` closure 胶水与 GC owner，
 保留 CP binder/活元数据，globals 未命中时查 F 定义时捕获的 builtins。
@@ -350,7 +359,7 @@ closure cell 写入保留 CP 行为，H 调用验证当前 P 绑定，失效时�
 | 34 | 指数 / 移位量上限（RyuPy 偏差） | 任意大的指数会尝试构造巨大整数 | — | `PyInt.MaxBitShift = 1_000_000`：超过时报 `OverflowError`，避免一次运算耗尽内存；`2 ** 100`、`1 << 100` 等常用规模不受影响 |
 | 35 | 参数绑定错误 | 运行时 `TypeError`：缺少 / 过多 / 重复绑定 / 未知关键字 / 位置-only 当关键字 | — | `PyBinder` 按 CPython 规则绑定并生成相同措辞的消息；编译期只判断能否走静态快路径，**不**把绑定错误变成编译错误 |
 | 36 | 默认值求值时机 | 在 `def` 执行时于模块作用域求值、只求值一次；可变默认值跨调用共享 | — | 默认值在定义位置（`FunctionDefaults` 语句）写进模块静态数组；`def f(x=[])` 的所有调用共享同一个 list |
-| 37 | f-string 格式说明符 | 支持嵌套插值（`f"{x:{width}}"`） | — | 当前只支持纯字面量规格；嵌套插值报 `E0100`。格式子集：宽度 / 对齐 / 补零 / 精度 / 进制 / 百分比 |
+| 37 | f-string 格式说明符 | 支持嵌套插值（`f"{x:{width}}"`） | — | 动态规格已接入递归HIR与MIR，保留暂停、异常和转换时序；纯字面量保持常量快路。格式子集：宽度 / 对齐 / 补零 / 精度 / 进制 / 百分比 |
 | 38 | `id(x)` | 返回对象地址（CPython 内部细节） | — | 返回运行时的稳定身份哈希；不伪造地址，登记为 D002 的内部观测差异 |
 | 39 | 序列拼接与重复 | `[1] + [2]`、`(1,) + (2,)`、`"ab" * 3`、`3 * [0]`；只允许同类拼接，次数 ≤ 0 得空序列 | — | M2.12：`PySequenceOps` 实现 list / tuple / str / bytes / bytearray 的 `+` / `*`，错误消息按 CPython（`can only concatenate list (not "tuple") to list`、`can't multiply sequence by non-int of type 'float'`） |
 | 40 | 增量赋值的原地语义 | `a += b` 对 list 原地 `extend`，别名可见、`a is` 原对象；对 int / str / tuple 生成新对象 | 去糖成 `a = a + b` 会丢失别名 | M2.12：HIR `Binary { inplace }` → 操作码标记位 → `PyOps.InPlaceBinary`；覆盖 list / bytearray / set（`\|= &= -= ^=`）/ `__iadd__` 等，错误消息写 `+=` |
@@ -553,9 +562,10 @@ v3 声明的 utf8 参数严格编码实际字符串，嵌入 NUL 原样保留，
 输入包含孤立 UTF16 代理项时抛 UnicodeEncodeError。`"a" + chr(0xd800) + "b"`
 在真实 JIT/NativeAOT ABI 测试中均走到该错误路径。
 
-本轮发现源码字面量 `"a\ud800b"` 经过现有字符串常量生成链后成为替代字符，
-与 CPython 保留孤立代理项的行为有差异。该缺口属于源码常量链，后续需单独保真修复并追加
-普通 Python 字符串差分，ABI 封送层继续拒绝实际非法代理项，禁止替换编码回退。
+2026-11-17真实ABI产品发现源码字面量 `"a\ud800b"` 经Ruff常量链后成为替代字符。
+现由[ADR-0235](adr/0235-unicode-codepoint-constants.md)的源码码点旁表与专用常量工厂修复，
+普通串、隐式拼接、f-string片段/规格和对象桥保留原码点。原始字面量已在两份独立C ABI
+声明的JIT/NativeAOT四产品重验，严格编码继续报UnicodeEncodeError，早期失败日志保留。
 
 ### 4.11 zlib/gzip 原生容器与有界解压（ADR0176）
 
@@ -798,9 +808,11 @@ ADR0072 候选严格区分：用户 __hash__ 返回实际整数，fits-i64保原
 
 ### Unicode内建的表示边界
 
-ord/chr支持普通码点、补充平面和单独代理项；但两个独立代理项拼接后当前UTF-16表示会合并为代理对，
-`ord(chr(0xD800)+chr(0xDC00))`与CPython不一致。D009及`m3_builtins_surrogate_pair.py`记录为待修，
-不将它算作完整代理字符串兼容，也不作为已接受性能取舍。
+2026-11-17核心表示已修复D009的独立代理拼接：`ord(chr(0xD800)+chr(0xDC00))`
+按两个码点报TypeError，旧最小输入`m3_builtins_surrogate_pair.py`已差分通过并转正。
+字面量、核心索引/切片/迭代、比较/键、拼接/重复和对象桥共同保留码点边界；方法新建
+结果逐项迁移，`m3_8_surrogate_replace_pending.py`记录replace结果传播的剩余差异。
+历史D009专项的原验收范围继续保留，完整方法生态见ADR-0235。
 
 ### 4.9 装饰器与元数据（M3.3）
 

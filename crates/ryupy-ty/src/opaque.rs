@@ -64,11 +64,21 @@ pub(crate) fn safe_uses(function: &Function, facts: &TypeckResults) -> bool {
                 operands: items, ..
             } => items.clone(),
             ExprKind::Dict(items) => items.iter().flat_map(|(a, b)| [*a, *b]).collect(),
+            ExprKind::DictUnpack(items) => items
+                .iter()
+                .flat_map(ryupy_hir::DictItem::expressions)
+                .collect(),
             ExprKind::FString(parts) => parts
                 .iter()
-                .filter_map(|p| match p {
-                    FStringPart::Value { value, .. } => Some(*value),
-                    _ => None,
+                .flat_map(|p| match p {
+                    FStringPart::Value { value, spec, .. } => {
+                        let mut inputs = vec![*value];
+                        if let Some(ryupy_hir::FStringSpec::Dynamic(spec)) = spec {
+                            inputs.push(*spec);
+                        }
+                        inputs
+                    }
+                    _ => vec![],
                 })
                 .collect(),
             ExprKind::Subscript { base, index } => vec![*base, *index],

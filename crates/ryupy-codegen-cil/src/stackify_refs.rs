@@ -25,6 +25,7 @@ pub struct RuntimeRefs {
     pub(crate) numeric_list: crate::numeric_list_refs::NumericListRefs,
     pub(crate) typed_dict: crate::typed_dict_refs::TypedDictRefs,
     pub dict_set_scalar_key: MethodRefIndex,
+    pub dict_unpack_mapping: MethodRefIndex,
     pub(crate) accumulator: crate::accumulator_refs::AccumulatorRefs,
     pub(crate) system: crate::system_refs::SystemRefs,
     pub(crate) function_objects: crate::function_refs::FunctionRefs,
@@ -69,6 +70,8 @@ pub struct RuntimeRefs {
     pub empty_array: MethodRefIndex,
     /// 动态数值字面量池：`Rvalue::Box` 直接复用静态字段里的装箱对象。
     pub literal_fields: FxHashMap<String, FieldIndex>,
+    /// 精确Python Unicode码点工厂；输入为每码点两个UTF16单元的静态数据。
+    pub unicode_from_codepoints: MethodRefIndex,
     pub dyn_from_decimal: MethodRefIndex,
     pub dyn_to_int: MethodRefIndex,
     pub dyn_to_float: MethodRefIndex,

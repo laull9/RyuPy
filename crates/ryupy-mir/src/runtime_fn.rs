@@ -152,6 +152,8 @@ pub enum RuntimeFn {
     DynNone,
     /// `PyOps.FromDecimalString(string)`。
     DynFromDecimal,
+    /// 精确Unicode码点常量工厂；静态UTF32双单元输入，不重新解析Python源码。
+    UnicodeFromCodePoints,
     /// `PyOps.ToIntValue` / `ToFloatValue` / `AbsValue`。
     DynToInt,
     DynToFloat,
@@ -393,6 +395,8 @@ pub enum RuntimeFn {
     ValidateOrdinaryBase,
     /// 大字典逐对插入：先拒绝非精确标量键，不调用用户hash/eq。
     DictSetScalarKey,
+    /// `PyOps.DictUnpackMapping(object, object)`：字面量mapping-only合并。
+    DictUnpackMapping,
     ApplyDataclass,
     /// `PyOps.ArgError(int, string) -> object`：绑定失败时抛 `TypeError`（永不返回）。
     ArgError,

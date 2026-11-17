@@ -48,12 +48,6 @@ impl FunctionBuilder<'_> {
             .expr_builder()
             .coerce(seq_op, &seq_ty, &MirType::Dynamic);
 
-        let star_index = items
-            .iter()
-            .position(|item| matches!(item, SequenceItem::Rest(_)));
-        let before = star_index.unwrap_or(items.len());
-        let after = items.len() - before - if star_index.is_some() { 1 } else { 0 };
-
         // 只有直接构造且无展开的字面量保留旧同块结构，使 tuple_scalar 继续消分配。
         // 注解、名字或用户可覆写的构造调用都不能证明源是精确容器。
         let body = &self.hir.functions[self.current_hir_fn].body;
@@ -63,6 +57,22 @@ impl FunctionBuilder<'_> {
                 .all(|id| !matches!(body.exprs[*id].kind, ExprKind::Starred(_))),
             _ => false,
         };
+        self.build_sequence_value(items, seq, controlled_literal);
+    }
+
+    /// 递归层只能在轮到目标时解包；不能提前耗尽内层迭代器或跨过前一目标的副作用。
+    fn build_sequence_value(
+        &mut self,
+        items: &[SequenceItem],
+        seq: Operand,
+        controlled_literal: bool,
+    ) {
+        let star_index = items
+            .iter()
+            .position(|item| matches!(item, SequenceItem::Rest(_)));
+        let before = star_index.unwrap_or(items.len());
+        let after = items.len() - before - if star_index.is_some() { 1 } else { 0 };
+
         if star_index.is_some() && !controlled_literal {
             // 星号 helper 完成两阶段迭代、提示与余量校验；原源不能再求长度或切片。
             let unpacked = self.expr_builder().runtime_call(
@@ -305,8 +315,23 @@ impl FunctionBuilder<'_> {
     /// 此处才求目标对象与下标；失败保留此前已经完成的目标写入。
     fn store_sequence_target(&mut self, target: &SequenceTarget, value: Operand) {
         match target {
+            SequenceTarget::Sequence(items) => self.build_sequence_value(items, value, false),
             SequenceTarget::Binding(binding) => {
-                self.store_binding(*binding, value, &MirType::Dynamic)
+                // 保护区内任意层都可能在此写入前抛错；成功路径的新赋值事实不能泄漏到handler。
+                // 槽值仍按实际写入保留，后继LoadChecked负责区分已完成的部分写入与未绑定。
+                let fresh = match binding {
+                    Binding::Local(local)
+                        if !self.protected_stack.is_empty()
+                            && !self.assigned_locals.contains(local) =>
+                    {
+                        Some(*local)
+                    }
+                    _ => None,
+                };
+                self.store_binding(*binding, value, &MirType::Dynamic);
+                if let Some(local) = fresh {
+                    self.assigned_locals.remove(&local);
+                }
             }
             SequenceTarget::Attribute { base, name } => {
                 let object = self.sequence_target_expr(*base);
@@ -338,9 +363,17 @@ impl FunctionBuilder<'_> {
 
     /// 记录解包目标已赋值（供确定赋值分析使用）。
     pub(crate) fn mark_sequence_targets(&mut self, items: &[SequenceItem]) {
+        // 同时覆盖平坦/嵌套解包；异常边没有经过所有目标，不能统一标记完成。
+        if !self.protected_stack.is_empty() {
+            return;
+        }
         for item in items {
-            if let SequenceTarget::Binding(Binding::Local(local)) = sequence_target(item) {
-                self.assigned_locals.insert(*local);
+            match sequence_target(item) {
+                SequenceTarget::Binding(Binding::Local(local)) => {
+                    self.assigned_locals.insert(*local);
+                }
+                SequenceTarget::Sequence(children) => self.mark_sequence_targets(children),
+                _ => {}
             }
         }
     }

@@ -82,7 +82,6 @@ pub(crate) fn unsupported_builtin(name: &str) -> bool {
             | "ascii"
             | "bin"
             | "hex"
-            | "oct"
             | "slice"
             | "Ellipsis"
             | "__debug__"

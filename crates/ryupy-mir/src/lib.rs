@@ -137,6 +137,7 @@ mod yield_expr;
 mod prepared_call;
 
 mod container_literals;
+mod dict_unpack;
 
 #[cfg(test)]
 mod print_tests;
@@ -308,3 +309,6 @@ mod coroutines;
 mod stock_thin_tests;
 
 mod stock_thin_contract;
+
+#[cfg(test)]
+mod unicode_literal_tests;

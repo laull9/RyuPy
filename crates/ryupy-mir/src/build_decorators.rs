@@ -168,7 +168,14 @@ impl FunctionBuilder<'_> {
             values.push(self.freeze_expression(annotation));
         }
         let doc = doc
-            .map(|s| Operand::Const(Constant::Str(s)))
+            .map(|s| match s {
+                ryupy_hir::FunctionDocstring::Text(text) => {
+                    Operand::Const(Constant::Str(text.to_string()))
+                }
+                ryupy_hir::FunctionDocstring::Unicode(points) => {
+                    Operand::Const(Constant::Unicode(points.to_vec()))
+                }
+            })
             .unwrap_or(Operand::Const(Constant::Null));
         Some(PreparedFunctionMetadata { doc, names, values })
     }

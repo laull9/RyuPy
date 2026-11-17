@@ -53,7 +53,7 @@ impl Solver<'_> {
                 h::Literal::Bool(_) => Primitive::Bool,
                 h::Literal::Int(_) | h::Literal::BigInt(_) => Primitive::Integer,
                 h::Literal::Float(_) => Primitive::Float,
-                h::Literal::Str(_) => Primitive::String,
+                h::Literal::Str(_) | h::Literal::Unicode(_) => Primitive::String,
             })),
             h::ExprKind::Func(id) => Values::one(Atom::Function(id)),
             h::ExprKind::Class(id) => Values::one(Atom::Class(id)),
