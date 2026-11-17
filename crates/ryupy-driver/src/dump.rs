@@ -9,6 +9,7 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
     accumulator_options::validate(sess)?;
     sess.module_environment_report.clear();
     let module = modules::load_single(sess, input)?;
+    stock_thin::validate(sess, std::slice::from_ref(&module))?;
     let mut invalid_selection = false;
     for name in &sess.instance_modules {
         if name != &module.name {
@@ -34,6 +35,7 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
     trace_product::graph(sess, module.parsed.file, 1, 0, false)?;
     let plan = module_environments::plan(sess, &module, false);
     let info = ryupy_hir::ModuleInfo {
+        stock_thin_functions: sess.experimental_stock_thin_functions,
         foreign_class_construction: sess.cpython_provider.is_some(),
         introspection_profile: crate::instance_modules::inspect_profile(sess),
         instance_globals: plan.instance_globals(),

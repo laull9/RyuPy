@@ -303,3 +303,8 @@ mod records_increment_plan;
 pub use records_increment_guard::{RecordsIncrementExperiment, apply_records_increment_experiment};
 
 mod coroutines;
+
+#[cfg(test)]
+mod stock_thin_tests;
+
+mod stock_thin_contract;

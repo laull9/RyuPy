@@ -15,6 +15,14 @@
 函数/code/frame 布局等边界逐项定义。C0 已完成；C1–C3 分切实现与回归，C4 独立内核原型已通过源码构建和零字节码探针。
 完整阶段完成门继续单列，现有兼容性矩阵保持原记录。
 
+## stock 薄函数 Host 首切（2026-11-17）
+
+[ADR-0226](adr/0226-stock-thin-function-product-contract.md) 的内部显式 factory 在 macOS
+arm64、stock 3.12.13/3.13.3 各完成 JIT/NativeAOT 四个独立 Host 进程；普通调用、元数据、
+真实 importlib 事务、GC owner 回收、Python finalizer 复活与关闭拒绝通过。静态 C# body
+用于验证 ABI；实际 Python body 的编译器接线、产品搬迁和性能继续待办。默认路径保持关闭。
+普通 provider 3.9+ 兼容基线保留，新 profile 的执行资格按精确版本/平台逐项扩围。
+
 ## .NET 宿主最低版本（2026-11-16）
 
 构建机 SDK 与托管运行环境最低为 .NET 10，允许已安装的正式主版本 11 及以上。

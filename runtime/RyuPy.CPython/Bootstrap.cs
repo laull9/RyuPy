@@ -23,6 +23,18 @@ public static class Bootstrap
         host = CPythonHost.Start(configPath, args);
         PyProvider.Install(host);
     }
+    /// <summary>仅显式编译资格调用：安装既有宿主后启用 stock 薄函数能力。</summary>
+    public static void StartStockThin(string configPath, string[] args)
+    {
+        Start(configPath, args);
+        try { Host.EnableStockThinFunctions(); }
+        catch (Exception startup)
+        {
+            try { Stop(); }
+            catch (Exception cleanup) { throw new AggregateException("stock 薄函数启动和回滚均失败", startup, cleanup); }
+            throw;
+        }
+    }
     /// <summary>统一退出路径；标准流/运行时退出失败也会执行解释器关闭。</summary>
     public static int Finish(int code)
     {

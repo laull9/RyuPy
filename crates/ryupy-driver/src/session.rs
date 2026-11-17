@@ -7,6 +7,8 @@ use std::path::{Path, PathBuf};
 /// 一次编译会话。诊断累积在这里，由调用方（CLI / 测试）决定如何打印。
 #[derive(Default)]
 pub struct Session {
+    /// 候选薄函数静态竖切；默认关闭，必须显式冻结stock provider。
+    pub experimental_stock_thin_functions: bool,
     /// 显式冻结 CPython 执行域及基础发行；不从环境或系统解释器隐式选择。
     pub cpython_provider: Option<PathBuf>,
     #[doc(hidden)]

@@ -36,6 +36,7 @@ fn validate_stage(
     crate::source_handler_contract::validate_functions(&program.functions, &mut errors);
     crate::direct_globals_contract::validate_functions(&program.functions, &mut errors);
     crate::validate_instance_module::validate(program, &mut errors);
+    crate::stock_thin_contract::validate(program, &mut errors);
     crate::validate_class_cells::validate(program, &mut errors);
     crate::validate_lexical_super::validate(program, &mut errors);
     crate::validate_identities::validate(program, &mut errors);
@@ -366,6 +367,17 @@ fn validate_rvalue(
                 }
             }
         }
+        Rvalue::MakeStockThinFunction {
+            func: target,
+            module_context,
+        } => crate::stock_thin_contract::validate_factory(
+            program,
+            func,
+            block_id,
+            *target,
+            module_context,
+            errors,
+        ),
         Rvalue::MakeFunction {
             instance_context,
             func: target,

@@ -20,6 +20,10 @@ internal static class StockThinProviderRunner
     { bodies++; return env.LoadGlobal("offset"); }
     private static object? ReadBuiltin(IStockThinFunctionLease env, object? argument)
     { bodies++; return env.LoadGlobal("marker"); }
+    private static object? NeutralRead(IPyStockThinEnvironment env, object? argument)
+    { bodies++; return PyStockThinFunctions.LoadGlobal(env, "answer"); }
+    private static object? NeutralEcho(IPyStockThinEnvironment env, object? argument)
+    { bodies++; return argument; }
     private static object? Echo(IStockThinFunctionLease env, object? argument)
     { bodies++; return argument; }
     private static object? Fail(IStockThinFunctionLease env, object? argument)
@@ -270,6 +274,23 @@ internal static class StockThinProviderRunner
         f.Dispose(); d.Dispose(); Run(host, "del d");
     }
 
+    // 使用生成程序集将调用的 public 中性 ABI，不通过内部业务委托或捕获 context 的适配器。
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void NeutralCompiledApi(CPythonHost host)
+    {
+        Run(host, "neutral_d={'__name__':'neutral_subject', 'answer':[]}");
+        var dictionary = (PythonObject)Get(host, "neutral_d")!;
+        var read = PyStockThinFunctions.Create(dictionary,
+            new("neutral:read", "neutral_subject", "neutral_read", "neutral_subject.py", 2), NeutralRead);
+        var echo = PyStockThinFunctions.Create(dictionary,
+            new("neutral:echo", "neutral_subject", "neutral_echo", "neutral_subject.py", 5), NeutralEcho);
+        Put(host, "neutral_read", read); Put(host, "neutral_echo", echo);
+        Run(host, "assert neutral_read.__globals__ is neutral_d\nassert neutral_read.__name__=='neutral_read'\nassert neutral_read.__module__=='neutral_subject'\nassert neutral_read(0) is neutral_d['answer']\nneutral_d['answer']={}\nassert neutral_read(x=0) is neutral_d['answer']\nassert neutral_echo(neutral_d) is neutral_d\ndel neutral_read,neutral_echo,neutral_d");
+        object value = new PyList([]);
+        Require(ReferenceEquals(value, PyOps.CallValue(echo, [value], [], [])), "public CIL body/H 保留 CLR 输入身份");
+        host.ReleaseObject(read); host.ReleaseObject(echo); dictionary.Dispose();
+    }
+
     public static int Main(string[] args)
     {
         Require(RuntimeFeature.IsDynamicCodeSupported == (Environment.GetEnvironmentVariable("RYUPY_STOCK_THIN_MODE") != "aot"), "真实 JIT/NativeAOT 运行模式");
@@ -292,6 +313,13 @@ internal static class StockThinProviderRunner
         // 禁止隐式默认启用。
         Throws<PyNotImplementedError>(() => host.CreateStockThinFunction(1L, Definition("disabled"), Echo));
         host.EnableStockThinFunctions();
+        if (args.Length > 1 && args[1] == "neutral")
+        {
+            PyProvider.Install(host);
+            try { NeutralCompiledApi(host); Baseline(host, 2); host.Dispose(); }
+            finally { PyProvider.Remove(host); }
+            Console.WriteLine("PASS neutral-compiled-ABI finalize=0"); return 0;
+        }
         if (args.Length > 1 && args[1] == "resurrect")
         {
             Resurrection(host); Baseline(host, 3); host.Dispose();

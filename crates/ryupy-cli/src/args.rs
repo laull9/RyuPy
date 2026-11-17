@@ -39,6 +39,9 @@ pub(super) struct Cli {
     /// 实验：受守卫纯叶调用内联（默认关闭，不保证更快）
     #[arg(long, global = true, hide = true)]
     pub(super) experimental_leaf_inline: bool,
+    /// 候选：单源码入口的静态薄函数。
+    #[arg(long, global = true)]
+    pub(super) experimental_stock_thin_functions: bool,
     /// 诊断：保SLP守卫/物化，以标量运算作为packed SIMD的公平控制组
     #[arg(
         long,

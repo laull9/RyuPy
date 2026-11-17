@@ -29,7 +29,11 @@ impl ExprBuilder<'_> {
     pub(crate) fn load_instance_name(&mut self, var: ryupy_hir::ModuleVarId) -> Option<Operand> {
         let state = self.module_state?;
         Some(self.runtime_call(
-            RuntimeFn::InstanceLoadName,
+            if self.hir.info.stock_thin_functions && self.current_hir_fn != self.hir.main {
+                RuntimeFn::StockThinLoadGlobal
+            } else {
+                RuntimeFn::InstanceLoadName
+            },
             vec![
                 Operand::Local(state),
                 Operand::Const(Constant::Str(self.hir.vars[var].name.to_string())),

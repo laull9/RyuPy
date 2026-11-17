@@ -2,7 +2,7 @@
 
 - 日期：2026-11-17。
 - 状态：A closure＋直接 GC owner 的内部 Host 候选两版通过，统一审查与完整检查已完成；
-  产品 NativeAOT、编译器资格、正式性能及默认晋升继续验收。候选默认关闭。
+  Host NativeAOT 已验，编译器资格、产品搬迁、正式性能及默认晋升继续验收。候选默认关闭。
 - 接续：[ADR-0208](0208-cil-execution-libpython-kernel.md)、
   [ADR-0223](0223-stock-libpython-bounded-glue.md)、
   [ADR-0224](0224-cpython-thin-function-core-handles.md)、
@@ -107,6 +107,21 @@ Rust/fmt/clippy 与 Python 基线通过；297 包含本候选两组 pending。�
 被源码外输出规则拒绝，环境修正后完整重跑，失败日志保留。
 
 独立双 GC proof 两版各 JIT/NativeAOT 通过（52 owner 析构、172 CIL 调用）；产品 Host
-NativeAOT 正在独立验证。真实产品删除输入搬迁、正式性能与三平台扩围继续待办。
+NativeAOT 已独立验证。真实产品删除输入搬迁、正式性能与三平台扩围继续待办。
 此前 attrs 入口首切的固定二十项目 60/60、FastAPI/SanBudget 六产品成绩归属已发布
 ADR-0225，新的薄函数默认晋升与旧执行路径退出分别验收。
+
+
+### Host NativeAOT 收口
+
+独立 Runner 增加显式 `--aot`，用 `dotnet publish -r osx-arm64 -p:PublishAot=true`，
+provider/Runner 与 ILC/ILLink 告警视为错误；Runtime 仅复制已验 DLL，不重建。
+Main 在 Host.Start 前核对 `RuntimeFeature.IsDynamicCodeSupported == false`，发布后
+直接运行原生程序。两版各 ordinary/blocked/watcher-full/resurrect 四进程退出零、
+stderr 为空，普通矩阵均 18 析构/41 native calls/40 CIL body 计数，全部回收门归零。
+默认 JIT 四门复验通过；附加 xUnit 仍明确属于 JIT。
+
+驱动源码与命令见 [StockThinProvider](../../runtime/RyuPy.CPython.Tests/StockThinProvider/README.md)。
+日志逐条保留命令/三流/退出码和实际模式，成功失败超时均清理仓外构建。
+该 Runner 使用手写静态 C# body，原版 libpython/stdlib 使用固定发行路径；编译器实际
+Python body 的静态接线及完整发布闭包继续是下一独立切片。

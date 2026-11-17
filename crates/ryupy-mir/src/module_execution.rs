@@ -12,7 +12,12 @@ pub enum ModuleExecutionKind {
 pub enum InstanceStateSource {
     ModuleEntryParameter,
     FunctionParameter,
-    GeneratorFrame { frame: crate::LocalId, slot: usize },
+    /// 静态薄函数只借provider给出的environment lease，禁止保存Context或旧owner。
+    StockThinLease,
+    GeneratorFrame {
+        frame: crate::LocalId,
+        slot: usize,
+    },
 }
 
 impl InstanceStateSource {

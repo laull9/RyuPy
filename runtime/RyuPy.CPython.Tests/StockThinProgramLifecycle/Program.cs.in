@@ -1,0 +1,153 @@
+// 手写真实 Host 驱动：静态 C# 业务体与固定 Python 协议控制胶水分离。
+// 入口 F 留在真实 __main__.md_dict；持有 CLR module/cache/D，退出由 stock 自己清模块。
+using RyuPy.CPython;
+using RyuPy.Runtime;
+namespace RyuPy.CPython.Tests;
+internal static class ProgramLifecycle
+{
+    private static int exits, dels, errors, unraisables;
+    private static CPythonHost host = null!;
+    private static PyModule module = null!;
+    private static object entryContext = null!;
+    private static void Entry(object context)
+    {
+        entryContext = context;
+        Require(PyModules.TryCached("__main__", out var current), "执行前已发布 Runtime Cache");
+        // 独立 bootstrap 冷操作：在创建 F 前安装 canonical builtins，避免把业务交给 Python。
+        using var lease = host.Enter();
+        if (ProgramNative.program_canonical_builtins(((PythonObject)current!.ForeignObject!).Pointer) < 0) host.ThrowError();
+    }
+    private static void Require(bool ok, string text) { if (!ok) throw new InvalidOperationException(text); }
+    private static void Run(string text)
+    {
+        using var lease = host.Enter();
+        if (Native.rp_run_entry("<0228-protocol-control>", text) < 0) host.ThrowError();
+    }
+    private static void Refused(Action action)
+    {
+        try { action(); } catch (InvalidOperationException e)
+        { Require(host.Statistics.State == "running", "拒绝后仍 running"); Console.WriteLine("REFUSED " + e.Message); return; }
+        throw new InvalidOperationException("关闭本应拒绝");
+    }
+    private static object? Echo(IStockThinFunctionLease env, object? value) => value;
+    private static object? Global(IStockThinFunctionLease env, object? value) => env.LoadGlobal("marker");
+    private static object? AtExit(IStockThinFunctionLease env, object? value)
+    {
+        exits++; Console.WriteLine("EVENT atexit-cil");
+        Require(ReferenceEquals(env.LoadGlobal("marker"), value), "atexit 原 D 身份");
+        Require(env.LoadGlobal("len") is not null, "atexit 原 builtins");
+        var f = (StockThinFunctionHandle)env.LoadGlobal("f")!;
+        Require(ReferenceEquals(f.Invoke(value), value), "atexit 临时 H 可调用并保留身份");
+        // 活动回调内尝试终止仍拒绝；state 是 committing 而非可恢复 running。
+        try { host.FinishProgramForProbe(true); throw new Exception("活动关闭未拒绝"); }
+        catch (InvalidOperationException) { }
+        return value;
+    }
+    private static object? Del(IStockThinFunctionLease env, object? value)
+    { dels++; Console.WriteLine("EVENT del-cil"); Require(ReferenceEquals(value, env.LoadGlobal("marker")), "__del__ 原 D"); return value; }
+    private static object? Fail(IStockThinFunctionLease env, object? value)
+    { errors++; throw (PyBaseException)value!; }
+    private static object? Unraisable(IStockThinFunctionLease env, object? value)
+    {
+        unraisables++; Console.WriteLine("EVENT unraisable-cil");
+        Require(ReferenceEquals(value, env.LoadGlobal("del_error")), "unraisable 原异常身份");
+        return value;
+    }
+    private static void Define(PythonObject d, string name, StockThinFunctionBody body)
+    {
+        using var f = host.CreateStockThinFunction(d, new("0228:"+name, "__main__", name, "fixed-cil-body.cs", 1), body);
+        module.SetAttr(name, f); // 发布后立即交还临时 H 的 owned F；普通源码无须 del f。
+    }
+    public static int Main(string[] args)
+    {
+        string mode = args[1];
+        host = CPythonHost.Start(args[0], ["0228-program"]);
+        PyProvider.Install(host);
+        host.EnableProgramProbe(mode != "unscoped");
+        host.BeginProgramEntry();
+        // 真正经过 Runtime instance factory、States、Cache 和 Publish，而非手造 CLR 模块。
+        PyModules.RegisterStockEntrySourceLocated("__main__", "", "fixed-cil-body.cs", 1,
+            Path.GetFullPath("fixed-cil-body.cs"), false, Entry);
+        module = PyModules.Import("__main__");
+        Require(PyModules.TryCached("__main__", out var cached) && ReferenceEquals(module, cached), "真实 Runtime Cache");
+        Require(ReferenceEquals(module, host.Import("__main__")), "真实 Host imported cache");
+        var d = (PythonObject)module.GetAttr("__dict__")!;
+        // 只用控制胶水建 identity 哨兵与退出协议，不委派业务体。
+        Run("import gc, atexit, sys\ngc.disable()\nmarker=object()\n");
+        Define(d, "f", Echo); Define(d, "global_f", Global);
+        Define(d, "onexit", AtExit); Define(d, "ondel", Del); Define(d, "fail", Fail);
+        Define(d, "onunraisable", Unraisable);
+        Run("assert f(marker) is marker\nassert global_f(None) is marker\n");
+        host.RegisterProgramOwners(module);
+        // 普通 Dispose 的 nativeLive 拒绝必须保留可用宿主。
+        Refused(host.Dispose);
+        if (mode == "external")
+        {
+            var h = (StockThinFunctionHandle)module.GetAttr("f")!;
+            Refused(() => host.FinishProgramForProbe(true));
+            object input = 42L;
+            Require(ReferenceEquals(h.Invoke(input), input), "外部 H 拒绝后仍可调用");
+            host.ReleaseObject(input); h.Dispose(); host.DrainReferences();
+        }
+        if (mode == "external-d")
+        {
+            PythonObject extra;
+            using (host.Enter()) extra = new PythonObject(host, Native.rp_incref(d.Pointer));
+            Refused(() => host.FinishProgramForProbe(true)); extra.Dispose(); host.DrainReferences();
+        }
+        using (host.Enter())
+        {
+            try { host.FinishProgramForProbe(true); throw new Exception("租约内关闭未拒绝"); }
+            catch (InvalidOperationException) { Console.WriteLine("REFUSED active-lease"); }
+        }
+        // 另一个线程已持有合法租约时，关闭立即拒绝，随后仍可释放重试。
+        using (var entered = new ManualResetEventSlim())
+        using (var leave = new ManualResetEventSlim())
+        {
+            var worker = new Thread(() => { using var lease = host.Enter(); entered.Set(); leave.Wait(); });
+            worker.Start(); entered.Wait();
+            Refused(() => host.FinishProgramForProbe(true));
+            leave.Set(); worker.Join();
+        }
+        Run("""
+del_error=ValueError('unraisable-original')
+def unraisable_hook(info, cb=onunraisable, err=del_error):
+ assert info.exc_value is err
+ assert cb(info.exc_value) is err
+sys.unraisablehook=unraisable_hook
+class Finalizer:
+ def __init__(self, cb=ondel, bad=fail, m=marker, err=del_error): self.cb,self.bad,self.m,self.err=cb,bad,m,err
+ def __del__(self):
+  assert self.cb(self.m) is self.m
+  e=ValueError('del-original')
+  try: self.bad(e)
+  except ValueError as got: assert got is e
+  else: raise AssertionError('未传播原异常')
+  self.bad(self.err)
+# 环只在 stock 的退出 GC 阶段成为垃圾；这里没有手动 collect/del。
+victim=Finalizer()
+victim.cycle=victim
+victim=None
+def check_exit(cb=onexit, bad=fail, m=marker):
+ assert sys.modules['__main__'].__dict__ is globals()
+ assert f(m) is m and global_f(None) is m
+ assert cb(m) is m
+ e=ValueError('exit-original')
+ try: bad(e)
+ except ValueError as got: assert got is e
+ else: raise AssertionError('未传播原异常')
+atexit.register(check_exit)
+""");
+        Console.WriteLine($"BEFORE mode={mode} handles={host.Statistics.Handles} native={host.StockThinStatistics.NativeLive} H={CPythonHost.StockThinOwnedHandles}");
+        int result = host.FinishProgramForProbe(mode != "keep-owned");
+        GC.Collect(); GC.WaitForPendingFinalizers();
+        host.ReadProgramCounts(out long live, out long destroyed, out long calls, out long dec, out long post);
+        var stats = host.Statistics;
+        Console.WriteLine($"AFTER mode={mode} finalize={result} native={live} destroyed={destroyed} roots={CPythonHost.ProgramCoreRoots} H={CPythonHost.StockThinOwnedHandles} ledger={stats.Handles} queue={stats.PendingReleases} late={stats.LateReleases} decrefs={dec} postFinalizeDecref={post} lowlevelNative={CPythonHost.ProgramLowlevelLive} atexit={exits} del={dels} errors={errors} unraisable={unraisables} calls={calls}");
+        bool success = result == 0 && live == 0 && CPythonHost.ProgramCoreRoots == 0
+            && CPythonHost.StockThinOwnedHandles == 0 && stats.Handles == 0 && stats.PendingReleases == 0
+            && CPythonHost.ProgramLowlevelLive == 0 && CPythonHost.ProgramLowlevelLive == 0 && stats.ManagedRoots == 0 && stats.LateReleases == 0 && post == 0 && exits == 1 && dels == 1 && errors == 3 && unraisables == 1;
+        GC.KeepAlive(module); GC.KeepAlive(d); GC.KeepAlive(entryContext);
+        return success ? 0 : 2;
+    }
+}

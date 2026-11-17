@@ -130,6 +130,8 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 - [0223：原版 libpython、受控必要胶水与性能验收](0223-stock-libpython-bounded-glue.md)（方向已接受；胶水清单产品化与性能门待验）
 - [0224：真实 CP 薄函数与独立 core/handle 的回收首证](0224-cpython-thin-function-core-handles.md)（独立 JIT/AOT 首证已验；产品接入与元数据扩围待办）
 - [0225：stock 编译入口的真实模块字典](0225-stock-entry-live-module-namespace.md)（无自定义 callable 的有限入口已验；完整函数所有权继续待办）
-- [0226：显式 stock 普通函数的 core/handle 接线合同](0226-stock-thin-function-product-contract.md)（A closure＋直接 GC owner 两版 Host JIT 已验；AOT、编译资格与性能继续推进）
+- [0226：显式 stock 普通函数的 core/handle 接线合同](0226-stock-thin-function-product-contract.md)（A closure＋直接 GC owner 两版 Host JIT/AOT 已验；编译资格、搬迁与性能继续推进）
 
 - [0227：stock 薄函数 closure/GC owner 与有限元数据合同](0227-stock-thin-function-metadata-probe.md)（淘汰 raw witness/B 常量环；普通复活与 clear 期原生边界分列）
+
+- [0229：真实薄函数编译的中性冷 ABI](0229-stock-thin-compiler-cold-abi.md)（冷接口两版 Host JIT/AOT 已验；Rust 接线与正常程序结束实施中）

@@ -1,5 +1,5 @@
 /* 独立双 GC 探针：公开 CPython API 管理真实薄函数、GC 可见 owner 与 capsule 生命周期。
- * capsule 仅强持 CLR core token；owner 的 F 强边由 CP GC 遍历，core 不持 CP 环境。
+ * owner context 仅强持 CLR core token；owner 的 F 强边由 CP GC 遍历，core 不持 CP 环境。
  * 所有导出函数及析构在主解释器 GIL 下调用；禁止关闭后调用。
  */
 #include <Python.h>
@@ -111,7 +111,7 @@ static PyObject *make_function(PyObject *d, intptr_t token, int failure) {
         PyErr_SetString(PyExc_RuntimeError, "注入创建失败"); Py_DECREF(closure); return NULL;
     }
     PyObject *f = PyFunction_New(glue_code, d);
-    /* 初始化弱环境前不向 GC 对象枚举发布 F；所有组装使用公开 C API。 */
+    /* 初始化 owner 强环境前不向 GC 对象枚举发布 F；所有组装使用公开 C API。 */
     if (f) PyObject_GC_UnTrack(f);
     if (f && PyFunction_SetClosure(f, closure) < 0) {
         /* stock func_dealloc 无条件解除跟踪；销毁半成品前必须恢复 GC 跟踪。 */

@@ -1,7 +1,7 @@
 # ADR-0227：stock 薄函数的 closure、GC owner 与有限元数据合同
 
 - 日期：2026-11-17。
-- 状态：独立探针两版及 JIT/NativeAOT 回收通过；Host 候选两版通过，统一审查与集成验收中。
+- 状态：独立探针两版及 JIT/NativeAOT 回收通过；Host 候选两版通过，Host 两版 JIT/NativeAOT 与完整检查已验；编译器资格、产品搬迁和性能继续待办。
 - 接续：[ADR-0223](0223-stock-libpython-bounded-glue.md)、
   [ADR-0224](0224-cpython-thin-function-core-handles.md)、
   [ADR-0226](0226-stock-thin-function-product-contract.md)。
@@ -98,5 +98,5 @@ cell 写入/恢复、Python finalizer 复活和上述 clear 期 stock oracle。�
 产品 Host 两版各四个独立 JIT 进程及六项托管测试通过：普通矩阵、audit 安装拒绝、
 外部 watcher 槽耗尽仍能启用、普通 finalizer 复活；精确状态见 ADR-0226。
 
-这些测试未修改默认资格或 Bootstrap，候选继续默认关闭；产品 NativeAOT/搬迁、完整
-make check、正式性能与三平台扩围继续独立验收。所有构建产物仓外清理。
+这些测试未修改默认资格或 Bootstrap，候选继续默认关闭；产品 Host NativeAOT 与完整
+make check 已完成；编译器实际 body、产品搬迁、正式性能与三平台扩围继续独立验收。所有构建产物仓外清理。

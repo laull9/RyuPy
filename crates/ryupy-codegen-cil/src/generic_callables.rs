@@ -124,6 +124,18 @@ pub(crate) fn emit_all_thunks(
         rustc_hash::FxHashMap::default();
     let mut thunk_index = 0usize;
     for (fn_id, func) in program.functions.iter() {
+        if func.module_state_source == Some(ryupy_mir::InstanceStateSource::StockThinLease) {
+            let adapter = crate::stock_thin::adapter(
+                res,
+                module_class,
+                fn_indices[&fn_id],
+                runtime_refs.stock_thin.as_ref().expect("薄函数ABI"),
+                thunk_index,
+            );
+            thunks.insert(fn_id, adapter);
+            thunk_index += 1;
+            continue;
+        }
         if func.signature_global.is_none() {
             continue;
         }

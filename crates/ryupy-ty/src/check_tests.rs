@@ -29,6 +29,7 @@ p.x = 3.0
     let (hir, diags) = lower_module(
         &parsed,
         &ryupy_hir::ModuleInfo {
+            stock_thin_functions: false,
             foreign_class_construction: false,
             introspection_profile: false,
             instance_capabilities: Default::default(),
@@ -67,6 +68,7 @@ v.x = 10
     let (hir, diags) = lower_module(
         &parsed,
         &ryupy_hir::ModuleInfo {
+            stock_thin_functions: false,
             foreign_class_construction: false,
             introspection_profile: false,
             instance_capabilities: Default::default(),
@@ -96,6 +98,7 @@ fn check(src: &str) -> (crate::ModuleTypes, Vec<ryupy_base::Diagnostic>) {
     let (hir, diags) = lower_module(
         &parsed,
         &ryupy_hir::ModuleInfo {
+            stock_thin_functions: false,
             foreign_class_construction: false,
             introspection_profile: false,
             instance_capabilities: Default::default(),

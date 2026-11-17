@@ -14,12 +14,11 @@ internal delegate object? StockThinFunctionBody(IStockThinFunctionLease environm
 
 // 实现仅在 provider 中：活动期间持 GIL、独立保活真实 F；D/builtins 从该 F 读取。
 // 返回的值必须完成 owned 转换；绝不能把 borrowed CP 指针跨到用户回调之后。
-internal interface IStockThinFunctionLease : IDisposable
+internal interface IStockThinFunctionLease : IPyStockThinEnvironment, IDisposable
 {
     // 每次进入都验证宿主开放、F/core/glue/closure/默认值形状；失败抛明确能力异常。
     // 读取 __name__/__qualname__/__module__/annotations 等反射值时仍从 F 读取，不缓存副本。
     void Validate(StockThinFunctionDefinition definition);
-    object? LoadGlobal(string name);
 }
 
 // owner 是 H 私有的 owned F；终结器只把引用交给宿主释放队列，不调用 C API。
@@ -33,19 +32,24 @@ internal interface IStockThinFunctionOwner
 internal sealed class StockThinFunctionCore
 {
     internal StockThinFunctionDefinition Definition { get; }
-    private readonly StockThinFunctionBody body;
+    private readonly Delegate body;
     private WeakReference<StockThinFunctionHandle>? publicHandle;
 
     internal StockThinFunctionCore(StockThinFunctionDefinition definition, StockThinFunctionBody body)
+        : this(definition, (Delegate)body) { }
+
+    private StockThinFunctionCore(StockThinFunctionDefinition definition, Delegate body)
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(body);
-        // 单一无捕获静态目标：连无状态实例方法和多播委托也不接纳，防止隐藏 owner 强回边。
+        // 两类静态 ABI 共用所有权检查；没有捕获模块 context 的适配委托。
         if (body.Target is not null || !body.Method.IsStatic || body.GetInvocationList().Length != 1)
             throw new ArgumentException("薄函数 core 只接受单一静态 CIL 目标", nameof(body));
         Definition = definition;
         this.body = body;
     }
+    internal static StockThinFunctionCore CreateCompiled(StockThinFunctionDefinition definition, PyStockThinBody body) =>
+        new(definition, (Delegate)body);
 
     // 调用者必须在同一解释器 GIL 下完成原生 F 身份核验后进入；不以可复用地址作缓存键。
     // factory 只在缓存失效时消费一份新 owned F；命中路径不分配第二个 owner。
@@ -60,7 +64,8 @@ internal sealed class StockThinFunctionCore
     internal object? Invoke(IStockThinFunctionLease environment, object? argument)
     {
         environment.Validate(Definition);
-        return body(environment, argument);
+        return body is PyStockThinBody compiled ? compiled(environment, argument)
+            : ((StockThinFunctionBody)body)(environment, argument);
     }
 }
 

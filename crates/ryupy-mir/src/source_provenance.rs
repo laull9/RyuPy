@@ -61,6 +61,7 @@ pub(crate) fn allocate(
                 .iter()
                 .filter_map(|(id, f)| {
                     (f.signature_global.is_some()
+                        || (hir.info.stock_thin_functions && id != functions[&hir.main])
                         || matches!(f.core, FunctionCore::GenericCompanion { .. }))
                     .then_some(id)
                 })
@@ -200,6 +201,8 @@ fn validate(functions: &Arena<Function>, globals: &Arena<GlobalDecl>, errors: &m
             if owners.insert(*id, global_id).is_some()
                 || (*id == *entry)
                     != (function.signature_global.is_none()
+                        && function.module_state_source
+                            != Some(InstanceStateSource::StockThinLease)
                         && !matches!(function.core, FunctionCore::GenericCompanion { .. }))
             {
                 errors.push("代码来源的入口/signature分区不完整或重复".into());
@@ -223,6 +226,7 @@ fn validate(functions: &Arena<Function>, globals: &Arena<GlobalDecl>, errors: &m
     for (id, function) in functions.iter() {
         if has_sources
             && (function.signature_global.is_some()
+                || function.module_state_source == Some(InstanceStateSource::StockThinLease)
                 || matches!(function.core, FunctionCore::GenericCompanion { .. }))
             && !owners.contains_key(&id)
         {
@@ -335,6 +339,10 @@ fn check_frame(
     errors: &mut Vec<String>,
 ) {
     let function = &functions[id];
+    // 薄体使用薄工厂的冷定义来源；静态核心禁止旧owner压帧和Context辅助调用。
+    if function.module_state_source == Some(InstanceStateSource::StockThinLease) {
+        return;
+    }
     let GlobalStorage::CodeSource { entry, .. } = &globals[source].storage else {
         return;
     };
@@ -458,6 +466,7 @@ pub(crate) fn operands(value: &Rvalue) -> Vec<&Operand> {
             .chain(std::iter::once(obj))
             .chain(args)
             .collect(),
+        Rvalue::MakeStockThinFunction { module_context, .. } => vec![module_context],
         Rvalue::MakeFunction {
             env,
             defaults,

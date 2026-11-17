@@ -6,7 +6,7 @@ using RyuPy.Runtime;
 
 namespace RyuPy.CPython;
 
-public sealed partial class CPythonHost
+public sealed partial class CPythonHost : IPyStockThinFunctionProvider
 {
     private bool stockThinEnabled;
     private List<WeakReference<StockThinFunctionCore>>? stockThinCores;
@@ -77,6 +77,21 @@ public sealed partial class CPythonHost
         if (!stockThinEnabled) throw new PyNotImplementedError("stock 薄函数候选尚未显式启用");
         // 在分配 GCHandle 前核验静态目标和 globals 转换，失败没有移交责任。
         var core = new StockThinFunctionCore(definition, body);
+        return CreateStockThinFunctionCore(globals, core, failure);
+    });
+
+    object IPyStockThinFunctionProvider.CreateStockThinFunction(object globals,
+        PyStockThinDefinition definition, PyStockThinBody body) => PythonCall(() =>
+    {
+        if (!stockThinEnabled) throw new PyNotImplementedError("stock 薄函数候选尚未显式启用");
+        var source = new StockThinFunctionDefinition(definition.EntryId, definition.Module,
+            definition.Name, definition.SourcePath, definition.SourceLine);
+        return CreateStockThinFunctionCore(globals, StockThinFunctionCore.CreateCompiled(source, body), 0);
+    });
+
+    private StockThinFunctionHandle CreateStockThinFunctionCore(object globals, StockThinFunctionCore core, int failure)
+    {
+        StockThinFunctionDefinition definition = core.Definition;
         // 仅候选创建时分配弱观察表；移除已死项，避免诊断记录随运行次数无限增长。
         stockThinCores ??= [];
         stockThinCores.RemoveAll(static weak => !weak.TryGetTarget(out _));
@@ -103,7 +118,7 @@ public sealed partial class CPythonHost
             finally { Native.rp_decref(f); }
         }
         finally { Native.rp_decref(dictionary); }
-    });
+    }
 
     // 从真实 F 查 owner 的 owned 身份，不向普通 objects/reverse/Roots 强根表登记 H。
     private bool TryFromStockThinOwned(nint pointer, out object? result)

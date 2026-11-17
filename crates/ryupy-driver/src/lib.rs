@@ -64,6 +64,7 @@ mod session;
 mod source_catalog;
 mod source_probe;
 mod source_scan;
+mod stock_thin;
 pub use source_probe::probe_sources;
 mod source_deployment;
 pub use session::Session;
@@ -130,6 +131,7 @@ fn compile_module(
     generic_defaults: bool,
 ) -> Result<CompiledModule> {
     let info = ryupy_hir::ModuleInfo {
+        stock_thin_functions: sess.experimental_stock_thin_functions,
         foreign_class_construction: sess.cpython_provider.is_some(),
         introspection_profile: crate::instance_modules::inspect_profile(sess),
         instance_globals: plan.instance_globals(),
@@ -476,3 +478,6 @@ mod test_temp;
 
 #[cfg(test)]
 mod records_options_tests;
+
+#[cfg(test)]
+mod stock_thin_tests;

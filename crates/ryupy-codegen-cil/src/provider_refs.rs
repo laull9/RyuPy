@@ -9,7 +9,20 @@ impl ProviderRefs {
         res: &mut Resolution<'static>,
         program: &ryupy_mir::LinkedProgram,
     ) -> Option<Self> {
-        program.external_provider.as_ref().map(|_| Self::build(res))
+        program.external_provider.as_ref().map(|_| {
+            let mut refs = Self::build(res);
+            if program.functions.iter().any(|(_, f)| {
+                f.module_state_source == Some(ryupy_mir::InstanceStateSource::StockThinLease)
+            }) {
+                let parent = res[refs.start].parent.clone();
+                refs.start = res.push_method_reference(ExternalMethodReference::new(
+                    parent,
+                    "StartStockThin",
+                    msig! { static void (string, string[]) },
+                ));
+            }
+            refs
+        })
     }
     pub(crate) fn build(res: &mut Resolution<'static>) -> Self {
         let mut assembly = ExternalAssemblyReference::new("RyuPy.CPython");

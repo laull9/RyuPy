@@ -19,6 +19,9 @@ pub(crate) fn plain_definitions(hir: &Module) -> FxHashSet<FuncId> {
 
 impl FunctionBuilder<'_> {
     pub(crate) fn add_dynamic_owner(&mut self, params: &mut Vec<LocalId>) {
+        if self.hir.info.stock_thin_functions {
+            return;
+        }
         if self.hir.functions[self.current_hir_fn].kind == FunctionKind::ModuleMain
             || self.types.mode(self.current_hir_fn) != FuncMode::Dynamic
         {
