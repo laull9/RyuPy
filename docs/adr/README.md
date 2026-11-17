@@ -134,4 +134,6 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 
 - [0227：stock 薄函数 closure/GC owner 与有限元数据合同](0227-stock-thin-function-metadata-probe.md)（淘汰 raw witness/B 常量环；普通复活与 clear 期原生边界分列）
 
-- [0229：真实薄函数编译的中性冷 ABI](0229-stock-thin-compiler-cold-abi.md)（冷接口两版 Host JIT/AOT 已验；Rust 接线与正常程序结束实施中）
+- [0229：真实薄函数编译的中性冷 ABI](0229-stock-thin-compiler-cold-abi.md)（Rust接线、正常结束和三形态产品已验；完整闭包继续实施）
+- [0230：薄函数局部身份分支与入口弱登记](0230-stock-thin-local-identity.md)（显式CIL扩围18产品、56生命周期和完整门禁通过；默认关闭）
+- [0231：可选导入的依赖闭包](0231-optional-import-dependency-closure.md)（四产品搬迁、三负例及完整门禁通过）

@@ -22,8 +22,14 @@ arm64、stock 3.12.13/3.13.3 各完成 JIT/NativeAOT 四个独立 Host 进程；
 真实 importlib 事务、GC owner 回收、Python finalizer 复活与关闭拒绝通过。静态 C# body
 用于验证 ABI；后续真实 Python 单源码同步 return-name 首切已贯穿 Rust 编译器，
 两版 JIT/NativeAOT/OneFile 删除输入搬迁共24/24通过（ADR-0229）。入口临时引用存储、
-性能保护及完整函数体/模块闭包继续开发。默认路径保持关闭。
+完整函数体/模块闭包继续开发。后续局部绑定、None及身份条件分支已在两版三形态18/18
+删除输入搬迁通过；未绑定局部和NameError.name精确属性通过。入口弱登记另有56生命周期
+门及三规模RSS证据，详见[第四轮验收](cil-execution-fourth-slices-validation.md)。默认路径保持关闭。
 普通 provider 3.9+ 兼容基线保留，新 profile 的执行资格按精确版本/平台逐项扩围。
+
+分发器现在识别明确 `try/except ImportError` 的缺席可选依赖；已装依赖仍收齐，必需出现、
+显式声明和已装无metadata继续报错。四项JIT/NativeAOT搬迁与原FastAPI/SanBudget各一项
+NativeAOT回归通过，执行归属见[ADR-0231](adr/0231-optional-import-dependency-closure.md)。
 
 ## .NET 宿主最低版本（2026-11-16）
 

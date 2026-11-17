@@ -1,7 +1,7 @@
 # ADR-0229：真实薄函数编译的中性冷 ABI
 
 - 日期：2026-11-17。
-- 状态：显式 Rust 竖切和正常结束已接；两版真实 CLI 的 JIT/NativeAOT/OneFile 搬迁 24/24 通过，入口存储与性能继续收敛。
+- 状态：显式 Rust 竖切和正常结束已接；原24产品与后续局部身份分支18产品通过，入口弱登记已验，默认关闭。
 - 接续：[ADR-0226](0226-stock-thin-function-product-contract.md)、
   [ADR-0227](0227-stock-thin-function-metadata-probe.md)。
 - 上游关闭合同与证据由 ADR-0228 独立登记，禁止用源码手动删函数替代正常退出。
@@ -102,4 +102,6 @@ post-finalize DECREF 全零。固定二十项目用冻结 CLI 另行回归，pro
 
 入口强 owned 登记的 RSS 诊断暴露长循环保留临时标量的问题；原始负面数据保留在仓外。
 下一切片采用入口 token 弱登记、短 callback 强 scope、Release 精确退账和终态强快照。
-当前没有吞吐或内存性能晋升结论。
+后续弱登记已完成56生命周期与双版JIT/NativeAOT三规模RSS对照；局部身份分支18产品通过，
+精确范围与正式耗时见[ADR-0230](0230-stock-thin-local-identity.md)及
+[第四轮验收](../cil-execution-fourth-slices-validation.md)。完整函数体、模块闭包及默认晋升继续待办。

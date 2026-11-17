@@ -66,13 +66,18 @@ CLR H 自己另有 owned F。运行期只有外部根消失以后，跨堆回收
 
 ## 4. 精确的 owned 时序
 
-1. 编译入口开始内部创建事务。PythonObject constructor 登记强 owner；薄函数 holder constructor
-   另登记 IDisposable holder。临时 H 与模块/D/元数据 owned 边分别记录。
+1. 编译入口开始内部创建事务。PythonObject constructor 按准确 owned token 登记弱 owner；
+   薄函数 holder constructor 另附弱 holder。临时 H 与模块/D/元数据 owned 边分别记录。
+   ledger 只能由真实 Release 退账，弱目标消失本身不删除 token；入口强登记的线性临时保留
+   由 [ADR-0230](0230-stock-thin-local-identity.md) 收敛。短 callback 仍采用强 scope。
    外部嵌入调用与任意第三方回调不具备这项事务权限。
 2. `def` 创建真实 F，写入原 D。创建时临时 H 在定义冷 API 的 finally 或入口作用域结束时 Dispose。
    对 `return global_f`，CP→CIL 导入也可能重建临时 H；入口作用域同样负责它。
    交还 CLR H 的 owned F 后，D 内 F 保持原身份。全程没有源码 `del f`。
-3. 内部执行作用域结束，冻结模块资源登记；从此通过 Host 外部 getter 获取的 H/opaque 属于外部所有权。
+3. 内部执行作用域结束，停止新入口登记，在无 GIL、无 gate 时等待托管 finalizer；随后在
+   GIL 内释放存活内部 H、Drain，再持 gate 冻结合法 owner 强快照与原登记 token。
+   未退账的弱项保留并使终态预检可恢复拒绝；暂停登记期间的 Release 仍更新稳定登记表。
+   从此通过 Host 外部 getter 获取的 H/opaque 属于外部所有权。
    终态预检要求初始化线程、leaseDepth=0、active=0、ownedH=0，ledger token 集合精确等于登记集合，
    普通 managed proxy Roots 为零。Drain 排空已经合法提交的释放。
    活 H、P/self/cell、独立 D 引用、容器 transfer owner 任一存在，都恢复 running 并拒绝。

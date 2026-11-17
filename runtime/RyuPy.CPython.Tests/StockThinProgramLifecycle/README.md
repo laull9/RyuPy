@@ -14,9 +14,10 @@ python3 runtime/RyuPy.CPython.Tests/StockThinProgramLifecycle/run.py \
   --python ~/.local/share/uv/python/cpython-3.13.3-macos-aarch64-none/bin/python3
 ```
 
-默认每版十三个进程，可用 `--case scoped` 等选定单门。C# 输入使用 `.cs.in`，避免进入共享 xUnit glob。
+默认每版十四个进程，可用 `--case scoped` 等选定单门；添加 `--aot` 发布真实NativeAOT。
+C# 输入使用 `.cs.in`，避免进入共享 xUnit glob。
 每个进程只初始化/终止一次解释器；业务体使用 Runtime public 中性 ABI 的静态 C#。
-当前驱动针对 macOS arm64 JIT；日志在 `~/.cache/ryupy/validation/adr0228/` 逐次独立保存，
+当前驱动针对 macOS arm64 JIT/NativeAOT；日志在 `~/.cache/ryupy/validation/adr0228/` 逐次独立保存，
 仓外临时 DLL/shim/观察库/配置/报告随 TemporaryDirectory 清理。
 
 - `scoped`：Runtime 真 module/cache/context 和原 CP D；普通源码保留九个 F，内部临时 H 由产品入口作用域交还。
@@ -52,3 +53,8 @@ python3 runtime/RyuPy.CPython.Tests/StockThinProgramLifecycle/run.py \
 `~/.cache/ryupy/validation/adr0208-20261117/stock-thin-provider-jit-cpython-3.12.13-macos-aarch64-none-20261117T060735.709271Z-24396.log`、
 `~/.cache/ryupy/validation/adr0208-20261117/stock-thin-provider-jit-cpython-3.13.3-macos-aarch64-none-20261117T060857.408873Z-25141.log`。
 实际 CLI/JIT/NativeAOT/onefile 的统一产品证明由主控另行执行，本驱动只验上述程序集门。
+
+2026-11-17后续弱登记切片：两版JIT/NativeAOT共56/56通过，增加borrowed receiver GC、
+暂停入口登记时finalizer退账、零F普通Dispose拒绝及NameError精确属性门。
+最终日志为 `20261117T073953.*` 四份；精确文件名与独立长循环RSS见
+[第四轮验收](../../../docs/cil-execution-fourth-slices-validation.md)。

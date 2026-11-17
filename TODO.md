@@ -87,6 +87,13 @@ CreateSuper 历史 Object 返回公共 ABI 已恢复，真实 `5d36db1e` 的 184
   provider 直接静态委托已接，两版 JIT/NativeAOT public ABI 门通过；Rust 显式资格、
   HIR/MIR/PE 静态发射与正常保留模块函数退出已接；两版 JIT/NativeAOT/OneFile 删除输入搬迁24/24，
   完整检查3424 Runtime/503 e2e通过。入口临时owned有界化、性能及函数体扩围继续实施，默认保持关闭。
+- [x] **薄函数后续子合同（2026-11-17）**：入口 token 弱登记与正常关闭56门、局部身份分支
+  静态编译两版三形态18产品通过；修复NameError.name并保精确异常属性。完整检查3424 Runtime/
+  503 e2e通过；长循环RSS与正式耗时分列，见[第四轮验收](docs/cil-execution-fourth-slices-validation.md)。
+- [x] **可选依赖通用收集**：词法ImportError保护、必需优先与已装无metadata拒绝；四项
+  JIT/NativeAOT搬迁、三负例、六组边界及FastAPI/SanBudget各一项真实NativeAOT回归通过。
+- [ ] **大型项目下一阻塞**：FBA解析目标/PEP695及后续泛型异步合同；ExplorerPro的Qt发行
+  同真实文件多owner与资源分发。两原入口已真实构建，业务CIL与产品搬迁继续待办。
 - [ ] **可选严格内核研究（ADR-0221）**：Host Slice 1/2 源码完整保存在远端 WIP，已撤出
   stock 主线工作树；最终内核与十二项 Host 子进程门尚未完成，暂停扩展。
   已有 22 内核/10 stock 探针保留原快照范围。
