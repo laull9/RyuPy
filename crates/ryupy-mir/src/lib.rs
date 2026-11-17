@@ -218,6 +218,10 @@ mod class_cell_tests;
 mod relative_import_tests;
 
 mod source_handler_contract;
+mod generator_source_handlers;
+mod generator_handler_frame;
+#[cfg(test)]
+mod generator_source_handler_tests;
 pub use source_handler_contract::SourceHandlerContract;
 #[cfg(test)]
 mod instance_handler_tests;

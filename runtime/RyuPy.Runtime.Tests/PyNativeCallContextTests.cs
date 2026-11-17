@@ -145,5 +145,6 @@ public partial class PyTraceStateArtifactTests
             || item.StartsWith("M:RyuPy.Runtime.PyCompiledExecutionRequest:get_Builtins:", StringComparison.Ordinal)
             || item.StartsWith("P:RyuPy.Runtime.PyCompiledExecutionRequest:Builtins:", StringComparison.Ordinal)).ToArray();
         Assert.Equal(4, actual.Length); Assert.Equal(expected.Order(StringComparer.Ordinal), actual.Order(StringComparer.Ordinal));
+        Assert.False(typeof(PyCompiledExecutionRequest).GetProperty("Builtins")!.CanWrite);
     }
 }

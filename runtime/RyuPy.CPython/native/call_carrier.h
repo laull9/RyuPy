@@ -10,7 +10,7 @@ typedef struct RpCallCarrier {
     intptr_t token;
     rp_carrier_invoke_fn invoke;
     rp_carrier_release_fn release;
-    PyObject *target, *args, *kwargs;
+    PyObject *target, *args, *kwargs, *captured_builtins;
     PyObject *code; /* 仅活动eval期间借用，栈上code强保活；失效时清空，不能被地址复用伪装。 */
     int state; /* 1未调用，2活动，3完成，0失效。 */
 } RpCallCarrier;
@@ -35,7 +35,7 @@ static void rp_carrier_close(RpCallCarrier *context) {
     rp_carrier_unregister(context); context->state = 0;
     intptr_t token = context->token; context->token = 0;
     if (token) context->release(token);
-    Py_CLEAR(context->target); Py_CLEAR(context->args); Py_CLEAR(context->kwargs);
+    Py_CLEAR(context->target); Py_CLEAR(context->args); Py_CLEAR(context->kwargs); Py_CLEAR(context->captured_builtins);
 }
 static void rp_carrier_destroy(PyObject *capsule) {
     RpCallCarrier *context = PyCapsule_GetPointer(capsule, "ryupy.call-carrier.v1");
@@ -60,7 +60,7 @@ static PyObject *rp_carrier_dispatch(PyObject *capsule, PyObject *unused) {
 static PyMethodDef rp_carrier_method = {"_ryupy_call_carrier", rp_carrier_dispatch, METH_NOARGS, NULL};
 static PyObject *rp_carrier_run(RpCallCarrier *context, PyObject *globals, PyObject *filename) {
     PyObject *capsule = NULL, *thunk = NULL, *template = NULL, *constants = NULL;
-    PyObject *replace = NULL, *empty = NULL, *keywords = NULL, *code = NULL, *result = NULL;
+    PyObject *replace = NULL, *empty = NULL, *keywords = NULL, *code = NULL, *function = NULL, *result = NULL;
     int own_arguments = 0;
     if (!PyDict_CheckExact(globals) || !PyUnicode_Check(filename)) {
         PyErr_SetString(PyExc_TypeError, "call carrier requires exact globals dict and source filename"); goto done;
@@ -92,13 +92,23 @@ static PyObject *rp_carrier_run(RpCallCarrier *context, PyObject *globals, PyObj
         || PyDict_SetItemString(keywords, "co_filename", filename) < 0) goto done;
     code = PyObject_Call(replace, empty, keywords);
     if (code) { PyObject *tagged = rp_code_origin_attach(code, 2); Py_DECREF(code); code = tagged; }
-    if (code) { rp_carrier_register(context, code, globals); result = PyEval_EvalCode(code, globals, globals); }
+    if (code) function = PyFunction_New(code, globals);
+    if (function && context->captured_builtins) {
+#if PY_VERSION_HEX >= 0x030a0000
+        /* 完整目标CPython头的owned字段；新函数尚未执行/特化，定义点builtin视图不写回业务D。 */
+        Py_SETREF(((PyFunctionObject *)function)->func_builtins, Py_NewRef(context->captured_builtins));
+#else
+        PyErr_SetString(PyExc_NotImplementedError, "captured builtins carrier requires CPython 3.10+");
+        Py_CLEAR(function);
+#endif
+    }
+    if (function) { rp_carrier_register(context, code, globals); result = PyObject_CallNoArgs(function); }
 done:
     {
         PyObject *type, *value, *trace; PyErr_Fetch(&type, &value, &trace);
         /* 先失效再DECREF：析构/回调重入也不能重复执行或触及已free token。 */
         rp_carrier_close(context);
-        Py_XDECREF(code); Py_XDECREF(keywords); Py_XDECREF(empty); Py_XDECREF(replace);
+        Py_XDECREF(function); Py_XDECREF(code); Py_XDECREF(keywords); Py_XDECREF(empty); Py_XDECREF(replace);
         Py_XDECREF(constants); Py_XDECREF(template); Py_XDECREF(thunk);
         if (own_arguments) { Py_DECREF(globals); Py_DECREF(filename); }
         if (capsule) Py_DECREF(capsule); else { PyMem_Free(context); rp_carrier_live--; }
@@ -107,13 +117,19 @@ done:
     return result;
 }
 /* 无论成功失败均消费token；托管端不在native释放后再次Free。 */
-API PyObject *rp_execute_carrier(PyObject *globals, PyObject *filename, intptr_t token,
+API PyObject *rp_execute_carrier_builtins(PyObject *globals, PyObject *builtins, PyObject *filename, intptr_t token,
     rp_carrier_invoke_fn invoke, rp_carrier_release_fn release) {
     RpCallCarrier *context = PyMem_Calloc(1, sizeof(*context));
     if (!context) { release(token); return PyErr_NoMemory(); }
     rp_carrier_live++; context->state = 1;
     context->token = token; context->invoke = invoke; context->release = release;
+    context->captured_builtins = Py_XNewRef(builtins);
     return rp_carrier_run(context, globals, filename);
+}
+/* 旧内部ABI继续按D创建时捕获builtins，新Runtime明确提供定义点视图。 */
+API PyObject *rp_execute_carrier(PyObject *globals, PyObject *filename, intptr_t token,
+    rp_carrier_invoke_fn invoke, rp_carrier_release_fn release) {
+    return rp_execute_carrier_builtins(globals, NULL, filename, token, invoke, release);
 }
 /* 外部Host没有Python frame时复用真实__main__ D；现有Python调用现场始终保留。 */
 API PyObject *rp_call_with_frame(PyObject *target, PyObject *args, PyObject *kwargs) {
@@ -136,8 +152,8 @@ API PyObject *rp_call_with_frame(PyObject *target, PyObject *args, PyObject *kwa
 API void rp_carrier_stats(int64_t *live, int64_t *calls) { *live = rp_carrier_live; *calls = rp_carrier_calls; }
 
 /* 返回0=无frame，1=真实Python frame，2=本桥活动carrier；只有2才供CIL跨模块切换现场。 */
-API int rp_carrier_frame_context(PyObject **globals) {
-    *globals = NULL;
+API int rp_carrier_frame_context_builtins(PyObject **globals, PyObject **builtins) {
+    *globals = NULL; *builtins = NULL;
     PyFrameObject *frame = PyEval_GetFrame();
     if (!frame) return 0;
     if (!rp_carrier_active) return 1;
@@ -155,8 +171,20 @@ API int rp_carrier_frame_context(PyObject **globals) {
 #endif
     if (!actual) return -1;
     int kind = actual == found->globals ? 2 : 1;
-    if (kind == 2) *globals = actual; else Py_DECREF(actual);
+    if (kind == 2) {
+        *globals = actual;
+#if PY_VERSION_HEX >= 0x030b0000
+        *builtins = PyFrame_GetBuiltins(frame);
+#else
+        *builtins = PyObject_GetAttrString((PyObject *)frame, "f_builtins");
+#endif
+        if (!*builtins) { Py_CLEAR(*globals); return -1; }
+    } else Py_DECREF(actual);
     return kind;
+}
+API int rp_carrier_frame_context(PyObject **globals) {
+    PyObject *builtins = NULL; int result = rp_carrier_frame_context_builtins(globals, &builtins);
+    Py_XDECREF(builtins); return result;
 }
 API PyObject *rp_execute_external_carrier(intptr_t token, rp_carrier_invoke_fn invoke, rp_carrier_release_fn release) {
     PyObject *module = PyDict_GetItemString(PyImport_GetModuleDict(), "__main__");

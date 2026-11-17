@@ -214,7 +214,7 @@ impl<'a> Visitor<'a> for Check {
 
     fn visit_except_handler(&mut self, handler: &'a ast::ExceptHandler) {
         let ast::ExceptHandler::ExceptHandler(except) = handler;
-        if self.generator || matches!(self.scope, crate::module_deletions::DeleteScope::Class) {
+        if (self.generator && !self.provider_namespace) || matches!(self.scope, crate::module_deletions::DeleteScope::Class) {
             self.reject(handler.range(), "生成器或类体源码except handler");
         } else if except.type_.as_ref().is_some_and(|target| {
             !matches!(target.as_ref(), ast::Expr::Name(_))

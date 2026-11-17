@@ -77,7 +77,7 @@ mod tests {
                 "非Name/bare",
             ),
             (
-                "def source():\n    try:\n        yield 1\n    except ValueError:\n        yield 2\n",
+                "class Source:\n    try:\n        pass\n    except ValueError:\n        pass\n",
                 "生成器或类体",
             ),
             ("async def source():\n    yield 1\n", "异步函数"),

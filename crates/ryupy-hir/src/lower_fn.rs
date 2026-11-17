@@ -456,8 +456,8 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
         for (_, handler) in body.handlers.iter() {
             let legacy_dynamic = !global_scope.instance_globals
                 && handler.semantics == crate::HandlerSemantics::SourceDynamic;
-            if (handler.type_expr.is_some() && !legacy_dynamic)
-                || handler.semantics == crate::HandlerSemantics::InstanceNameDynamic
+            if !global_scope.provider_namespace && ((handler.type_expr.is_some() && !legacy_dynamic)
+                || handler.semantics == crate::HandlerSemantics::InstanceNameDynamic)
             {
                 diagnostics.push(
                     Diagnostic::error(
