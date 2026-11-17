@@ -32,7 +32,8 @@ CP 循环 GC 释放 P/capsule，真实 capsule 析构回调解除 GCHandle，随
 UnmanagedCallersOnly 回调，checked Int64 加法由 C# 静态方法完成；C 仅提取/转换参数。
 
 固定胶水来源为 `bridge.c/ch_init` 内嵌 `_factory` 与其嵌套 `f`，精确代码为
-`f(x): return p(x)`。每个函数创建执行一次 factory，每次 CP 调用执行一次 f。
+`f(x): return p(x)`。初始化仅取得模板的嵌套 code；每个函数由公开 PyFunction_New、
+PyFunction_SetClosure 组装，绑定弱环境后才重新进入 GC 跟踪；每次 CP 调用执行一次 f。
 F 的真实 `__code__`、`co_filename=<string>`、closure 与 frame 属于胶水，业务计算属于
 `Core.Leaf`。测试驱动、模块 loader 和 oracle Python 均是测试控制面，和候选胶水分开。
 产品逐函数三阶段清单及全帧审计继续按 ADR-0223 接入。
@@ -94,3 +95,7 @@ RuntimeFeature.IsDynamicCodeSupported，确认两种运行模式。
 offset，并在转换完成后释放，避免 globals 被改写后使用已释放的借用值。新增 int 子类
 析构哨兵和重入参数验证，四组合各十二次回归通过，CIL 调用累计为 168；运行 stderr
 为空。此项复验仍限独立所有权首证，产品接入及关闭期边界继续按前节推进。
+
+独立复核发现 factory 的 return trace 可提前观察半初始化 F；主代理取消创建期的 factory
+执行，直接组装函数与 closure，并补创建期 sys.settrace 回归：factory return 不触发，
+发布后的正常 f 调用仍被 trace 观察。两版 JIT/AOT 四组合最终复验通过，回收终态保持一致。

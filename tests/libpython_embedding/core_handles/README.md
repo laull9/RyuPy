@@ -45,3 +45,6 @@ F.__code__ 真实来自 `<string>` 胶水，真正加法在 C# 静态 `Core.Leaf
 
 主代理复核后增加参数 `__index__` 重入改写 globals 的回归：转换期间强持 offset，
 确保旧值在本次调用结束前保持存活。两版 JIT/AOT 四组合复验通过，执行 stderr 必须为空。
+
+创建阶段通过公开函数/closure API 直接组装，弱环境建立后恢复 GC 跟踪；
+创建期 trace 回归验证半初始化函数不会从 factory return 暴露，正常调用仍可被 trace 观察。

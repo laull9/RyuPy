@@ -12,7 +12,7 @@ typedef struct { intptr_t token; PyObject *weak_f; } CoreLink;
 static invoke_fn invoke_core;
 static release_fn release_core;
 static long live_links, destroyed_links;
-static PyObject *main_dict, *factory_code, *glue_code;
+static PyObject *main_dict, *glue_code;
 static const char *capsule_name = "ryupy.proof.core";
 
 static void destroy_link(PyObject *capsule) {
@@ -28,6 +28,10 @@ static void destroy_link(PyObject *capsule) {
 static PyObject *dispatch(PyObject *capsule, PyObject *arg) {
     CoreLink *link = PyCapsule_GetPointer(capsule, capsule_name);
     if (!link) return NULL;
+    if (!link->weak_f) {
+        PyErr_SetString(PyExc_RuntimeError, "执行 core 尚未发布");
+        return NULL;
+    }
     PyObject *f = PyWeakref_GetObject(link->weak_f); /* GIL 保护 borrowed F。 */
     if (!f || f == Py_None) {
         PyErr_SetString(PyExc_RuntimeError, "执行 core 的函数环境已释放");
@@ -73,8 +77,18 @@ int ch_init(const char *home, invoke_fn invoke, release_fn release) {
     main_dict = PyModule_GetDict(PyImport_AddModule("__main__"));
     /* 固定胶水只有转调，无业务计算。code/frame 如实属于该源码。 */
     if (ch_run("def _factory(p):\n def f(x):\n  return p(x)\n return f\n")) return -1;
-    factory_code = PyObject_GetAttrString(PyDict_GetItemString(main_dict, "_factory"), "__code__");
-    return factory_code ? 0 : -1;
+    PyObject *factory_code = PyObject_GetAttrString(PyDict_GetItemString(main_dict, "_factory"), "__code__");
+    PyObject *constants = factory_code ? PyObject_GetAttrString(factory_code, "co_consts") : NULL;
+    Py_XDECREF(factory_code);
+    if (!constants) return -1;
+    /* 只取得固定模板的嵌套 code，不执行 factory，避免 trace return 暴露半初始化 F。 */
+    for (Py_ssize_t i = 0; i < PyTuple_Size(constants); i++) {
+        PyObject *value = PyTuple_GetItem(constants, i);
+        if (PyCode_Check(value)) { glue_code = value; Py_INCREF(glue_code); break; }
+    }
+    Py_DECREF(constants);
+    if (!glue_code) { PyErr_SetString(PyExc_RuntimeError, "缺少固定胶水 code"); return -1; }
+    return 0;
 }
 PyObject *ch_eval(const char *expression) {
     PyObject *result = PyRun_String(expression, Py_eval_input, main_dict, main_dict);
@@ -92,14 +106,20 @@ PyObject *ch_make(PyObject *d, intptr_t token) {
     PyObject *p = PyCFunction_New(&dispatch_def, capsule);
     Py_DECREF(capsule);
     if (!p) return NULL;
-    PyObject *factory = PyFunction_New(factory_code, d);
-    PyObject *f = factory ? PyObject_CallFunctionObjArgs(factory, p, NULL) : NULL;
-    Py_XDECREF(factory);
+    PyObject *cell = PyCell_New(p);
+    PyObject *closure = cell ? PyTuple_Pack(1, cell) : NULL;
+    Py_XDECREF(cell);
     Py_DECREF(p);
+    if (!closure) return NULL;
+    PyObject *f = PyFunction_New(glue_code, d);
+    /* 初始化弱环境前不向 GC 对象枚举发布 F；所有组装使用公开 C API。 */
+    if (f) PyObject_GC_UnTrack(f);
+    if (f && PyFunction_SetClosure(f, closure) < 0) { Py_DECREF(f); f = NULL; }
+    Py_DECREF(closure);
     if (!f) return NULL;
-    if (!glue_code) { glue_code = PyFunction_GetCode(f); Py_INCREF(glue_code); }
     link->weak_f = PyWeakref_NewRef(f, NULL);
     if (!link->weak_f) { Py_DECREF(f); return NULL; }
+    PyObject_GC_Track(f);
     return f;
 }
 intptr_t ch_token(PyObject *f) {
@@ -123,7 +143,7 @@ void ch_inc(PyObject *p) { Py_INCREF(p); }
 void ch_dec(PyObject *p) { Py_DECREF(p); }
 long ch_live(void) { return live_links; }
 long ch_destroyed(void) { return destroyed_links; }
-int ch_finish(void) { Py_CLEAR(glue_code); Py_CLEAR(factory_code); return Py_FinalizeEx(); }
+int ch_finish(void) { Py_CLEAR(glue_code); return Py_FinalizeEx(); }
 int ch_call(PyObject *f, int64_t x, int64_t *result) {
     PyObject *arg = PyLong_FromLongLong(x);
     PyObject *value = arg ? PyObject_CallFunctionObjArgs(f, arg, NULL) : NULL;

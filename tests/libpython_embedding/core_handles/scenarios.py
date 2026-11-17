@@ -9,6 +9,28 @@ import weakref
 
 gc.disable()  # 明确由测试循环触发收集，避免阈值造成时序漂移。
 watches = []
+creation_trace = {"factory_returns": 0, "calls": 0}
+
+
+def begin_creation_trace():
+    """旧 factory 的 return hook 会提前调用 F，回归锁住初始化期间的发布顺序。"""
+    creation_trace.update(factory_returns=0, calls=0)
+
+    def trace(frame, event, arg):
+        if frame.f_code.co_name == "_factory" and event == "return":
+            creation_trace["factory_returns"] += 1
+            arg(1)
+        if frame.f_code.co_name == "f" and event == "call":
+            creation_trace["calls"] += 1
+        return trace
+
+    sys.settrace(trace)
+
+
+def end_creation_trace():
+    sys.settrace(None)
+    assert creation_trace["factory_returns"] == 0
+    assert creation_trace["calls"] > 0, "创建期 trace 必须实际观察到发布后的 F"
 
 
 class Sentinel:

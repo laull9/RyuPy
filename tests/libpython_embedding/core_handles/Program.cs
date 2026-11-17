@@ -81,6 +81,7 @@ static unsafe class Program
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static Handle Create(int offset)
     {
+        Run("begin_creation_trace()");
         Run($"prepare({offset})");
         nint d = Eval("d");
         nint f = Native.ch_make(d, NewRoot());
@@ -89,7 +90,7 @@ static unsafe class Program
         Handle handle = Acquire(f);
         Native.ch_dec(f);
         Native.ch_dec(d);
-        Run("observe(); publish(); del d, m");
+        Run("observe(); publish(); del d, m; end_creation_trace()");
         return handle;
     }
     [MethodImpl(MethodImplOptions.NoInlining)]

@@ -16,11 +16,16 @@ pub fn stock_entry_capabilities() -> InstanceCapabilities {
 
 /// 旧typed/普通原生路径保持原资格；新域无解释执行、失败重编或业务委派。
 pub fn stock_entry_supported(parsed: &ParsedModule) -> bool {
-    let mut scan = Scan { supported: true };
+    let mut scan = Scan {
+        supported: true,
+        needs_namespace: false,
+        loop_depth: 0,
+    };
     for statement in &parsed.module.body {
         scan.visit_stmt(statement);
     }
     scan.supported
+        && scan.needs_namespace
         && crate::instance_globals::validate(
             &parsed.module.body,
             parsed.file,
@@ -31,18 +36,33 @@ pub fn stock_entry_supported(parsed: &ParsedModule) -> bool {
 
 struct Scan {
     supported: bool,
+    needs_namespace: bool,
+    loop_depth: usize,
 }
 impl<'a> Visitor<'a> for Scan {
     fn visit_stmt(&mut self, statement: &'a ast::Stmt) {
         match statement {
             ast::Stmt::FunctionDef(_) => self.supported = false,
-            ast::Stmt::ClassDef(class)
-                if class
-                    .arguments
-                    .as_ref()
-                    .is_some_and(|args| !args.keywords.is_empty() || args.args.len() > 1) =>
-            {
-                self.supported = false
+            ast::Stmt::ClassDef(class) => {
+                // 首切仅迁移隐式 object 布局。显式基类可能要求 list/dict/str 或异常
+                // 的专用布局，须继续交给原路径，不能先准入再在 Runtime 拒绝。
+                if self.loop_depth != 0
+                    || class
+                        .arguments
+                        .as_ref()
+                        .is_some_and(|args| !args.keywords.is_empty() || !args.args.is_empty())
+                {
+                    self.supported = false;
+                }
+                self.needs_namespace |= !class.decorator_list.is_empty();
+            }
+            ast::Stmt::For(_) | ast::Stmt::While(_) => {
+                // 循环建类可经迭代器等普通对象形成跨堆强环；所有权合同完成前
+                // 保留旧域，连循环内不可达的类声明也不自动迁移。
+                self.loop_depth += 1;
+                walk_stmt(self, statement);
+                self.loop_depth -= 1;
+                return;
             }
             _ => {}
         }
@@ -51,6 +71,15 @@ impl<'a> Visitor<'a> for Scan {
     fn visit_expr(&mut self, expression: &'a ast::Expr) {
         if matches!(expression, ast::Expr::Lambda(_)) {
             self.supported = false;
+        }
+        if let ast::Expr::Call(call) = expression
+            && let ast::Expr::Name(name) = call.func.as_ref()
+            && matches!(name.id.as_str(), "globals" | "locals" | "vars")
+            && call.arguments.args.is_empty()
+            && call.arguments.keywords.is_empty()
+        {
+            // 有真实 namespace 需求才支付动态字典成本；普通数值脚本继续 typed。
+            self.needs_namespace = true;
         }
         walk_expr(self, expression);
     }
@@ -97,5 +126,32 @@ mod tests {
         ] {
             assert!(!super::stock_entry_supported(&parsed(source)), "{source}");
         }
+    }
+
+    #[test]
+    fn stock_entry_preserves_special_layouts_and_loop_class_ownership() {
+        for base in ["list", "dict", "str", "ValueError", "object", "Other"] {
+            let source = format!("namespace = globals()\nclass C({base}):\n    pass\n");
+            assert!(!super::stock_entry_supported(&parsed(&source)), "{source}");
+        }
+        for source in [
+            "namespace = globals()\nfor i in range(2):\n    class C:\n        pass\n    C.keep = iter((C,))\n",
+            "namespace = globals()\nwhile False:\n    if False:\n        class C:\n            pass\n",
+        ] {
+            assert!(!super::stock_entry_supported(&parsed(source)), "{source}");
+        }
+    }
+
+    #[test]
+    fn stock_entry_requires_namespace_demand_to_preserve_typed_globals() {
+        for source in [
+            "import ssl\ntotal = 0\nfor i in range(50000):\n    total += i\nprint(total)\n",
+            "import ssl\nclass C:\n    pass\nprint(C)\n",
+        ] {
+            assert!(!super::stock_entry_supported(&parsed(source)), "{source}");
+        }
+        assert!(super::stock_entry_supported(&parsed(
+            "namespace = globals()\nprint(namespace is globals())\n"
+        )));
     }
 }
