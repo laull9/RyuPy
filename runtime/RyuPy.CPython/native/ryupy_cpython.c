@@ -595,3 +595,4 @@ API PyObject *rp_borrowed_type(PyObject *value) { return value ? (PyObject *)Py_
 
 #include "module_namespace.h"
 #include "exact_scalar.h"
+#include "unicode_codepoints.h"

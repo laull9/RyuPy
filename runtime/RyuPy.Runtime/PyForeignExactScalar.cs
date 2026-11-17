@@ -59,15 +59,7 @@ internal static class PyForeignScalarKey
 
     internal static string UnicodePoints(string text)
     {
-        var points = new System.Text.StringBuilder(text.Length * 2);
-        for (int index = 0; index < text.Length; index++)
-        {
-            int scalar = text[index];
-            if (char.IsHighSurrogate(text[index]) && index + 1 < text.Length && char.IsLowSurrogate(text[index + 1]))
-                scalar = char.ConvertToUtf32(text[index], text[++index]);
-            points.Append((char)(scalar >> 16)).Append((char)scalar);
-        }
-        return points.ToString();
+        return PyUnicodePoints.Points(text);
     }
 
     internal static object? Canonical(object? key) => TryRead(key, out object scalar) ? scalar : key;

@@ -92,8 +92,9 @@ CreateSuper 历史 Object 返回公共 ABI 已恢复，真实 `5d36db1e` 的 184
   503 e2e通过；长循环RSS与正式耗时分列，见[第四轮验收](docs/cil-execution-fourth-slices-validation.md)。
 - [x] **可选依赖通用收集**：词法ImportError保护、必需优先与已装无metadata拒绝；四项
   JIT/NativeAOT搬迁、三负例、六组边界及FastAPI/SanBudget各一项真实NativeAOT回归通过。
-- [ ] **大型项目下一阻塞**：FBA解析目标/PEP695及后续泛型异步合同；ExplorerPro的Qt发行
-  同真实文件多owner与资源分发。两原入口已真实构建，业务CIL与产品搬迁继续待办。
+- [ ] **大型项目下一阻塞**：FBA已按冻结Python版本解析并越过PEP695误诊，当前需要模块
+  活globals合同；ExplorerPro已越过共享归属、递归解包、动态格式、oct与字典解包，当前
+  验证原生插件依赖闭包和显式部署选择。完整原入口、隔离GUI业务与发布搬迁分别验收。
 - [~] **第三方通用接口与分发（2026-11-17）**：共享目标保留多owner、实际原生导出与pyi接口
   目录、跨命名/布局/原生扩展场景及AOT搬迁；禁止第三方库名特判，允许有依据并经测试的ABI推导。
 - [~] **薄函数通用值表达式**：复用运算和调用协议，覆盖任意值、反射方法、重入与求值顺序；

@@ -421,6 +421,7 @@ impl<'a> ExprBuilder<'a> {
         let mut acc: Option<Operand> = None;
         for part in parts {
             let piece = match part {
+                FStringPart::Unicode(points) => Operand::Const(Constant::Unicode(points.to_vec())),
                 FStringPart::Literal(text) => {
                     Operand::Const(Constant::Str(text.as_ref().to_owned()))
                 }

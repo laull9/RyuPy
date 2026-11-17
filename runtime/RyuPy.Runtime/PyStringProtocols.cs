@@ -18,7 +18,7 @@ internal static class PyStringProtocols
         string text = PyStringLayout.RequireRaw(self);
         if (!PyStringLayout.TryGet(other, out string right))
             throw Own(new PyTypeError($"can only concatenate str (not \"{PyRepr.TypeName(other)}\") to str"));
-        return string.Concat(text, right);
+        return PyUnicodePoints.Concat(text, right);
     }
     internal static object Repeat(object self, object? count)
     {

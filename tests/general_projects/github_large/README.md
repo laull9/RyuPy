@@ -261,16 +261,41 @@ python3 -B tests/general_projects/github_large/build_project.py \
   --ryupy /absolute/path/to/ryupy
 ```
 
-本轮完整构建首错：fba 已完成 provider 依赖收集，随后语法前端以目标 Python 3.11
-拒绝原 PEP 695 type parameters/type alias，涉及 response_schema.py、lifespan.py 和
-queue.py。原依赖环境为 CPython 3.12.13，语法目标版本联动及后续语言能力仍待开发。
+最新完整入口结果：fba 的语法目标现已按 provider 精确版本联动，原 PEP 695 语法
+已通过；真实首阻塞是 `backend/__init__.py:10/11` 的 `globals` 内建，证据为
+`~/.cache/ryupy/validation/github-large-build/fba-20261117T084437.106342Z/`。
 
-ExplorerPro 首先重现可选 PyPDF2 被当作必需包。通用可选导入修复后越过该首错，
-继续在原 PySide6 6.9.2 三发行共归属 `PySide6/Qt3DAnimation.pyi` 的 RECORD 规则
-处停止；当前收集器严格拒绝重复归属。后续可研究同一安装环境中同一真实源文件的
-多发行归属审计及单次部署，保持不同源目标冲突拒绝。本轮保持该规则。
+ExplorerPro 经通用可选导入、同源多发行 RECORD 共归属、嵌套解包、动态 f-string、
+`oct`、mapping `**`、原生组件与 LC_RPATH 解析修复后，完整原入口 JIT 构建已通过：
+`~/.cache/ryupy/validation/github-large-build/explorerpro-20261117T095900.504075Z/`。
+固定原源码及本地业务 CIL 请求保持，零本地业务委派。
 
-精确结果分别保存在仓外
-`~/.cache/ryupy/validation/github-large-build/fba-20261117T073759.899077Z/` 与
-`~/.cache/ryupy/validation/github-large-build/explorerpro-20261117T073819.456518Z/`。
-两项目完整 RyuPy 运行、NativeAOT 与搬迁均继续待验；原 CPython 基线记录保持原范围。
+默认完整原生闭包保留实际缺库诊断：iODBC 由官方3.52.16私有构建、PostgreSQL18.3
+客户端及OpenSSL/Kerberos完整闭包由现装来源复制仓外，真实ABI通过后继续在Mimer
+客户端缺失处停止，证据
+`~/.cache/ryupy/validation/github-large-build/explorerpro-20261117T094237.139792Z/`。
+客户端官方下载需要邮件链接，本门未提交邮箱、未安装系统、未伪造库。
+
+`explorerpro-native-selection.json` 是明确的Cocoa/SQLite发布能力数据：固定6.9.2
+sqldrivers目录完整成员清单，只部署SQLite驱动；未选三插件及其全部加载边仍进入
+provider审计。其它插件、源码、资源、metadata与许可证保持部署，默认不启用此选择。
+
+```sh
+python3 -B tests/general_projects/github_large/explorerpro_products.py \
+  --python /absolute/path/to/explorerpro-venv/bin/python \
+  --ryupy /absolute/path/to/ryupy --mode jit \
+  --native-components tests/general_projects/github_large/explorerpro-native-selection.json
+```
+
+`explorerpro_products.py` 同次运行真正Cocoa CPython oracle，再构建CIL probe，删除全部
+源码/venv/组件输入/构建目录后，在中文空格路径、空PATH及污染Python环境执行。完整
+stdout/stderr/退出码比较仅归一私有profile和Qt字体别名初始化耗时；双流实时写仓外。
+默认使用原隔离业务probe，可通过 `--probe-entry explorerpro_native_smoke.py` 使用
+同形空argv的最小Cocoa窗口辅助定位C API现场。
+
+首次真实CIL搬迁运行在 `QApplication([])` 发生SIGSEGV：官方Shiboken6.9.2 helper.cpp
+第495行直接把 `PyEval_GetGlobals()` 交给 `PyDict_GetItem`，直接CIL→C扩展调用缺少
+Python frame，得到NULL。证据
+`~/.cache/ryupy/validation/explorerpro-products/20261117T095900.521068Z/`
+包含同次CP成功结果、构建/实际运行命令、完整双流、官方固定源码与原生崩溃栈。
+保留空argv和原业务调用形态；通用C API现场修复后继续原业务JIT/AOT/OneFile搬迁门。

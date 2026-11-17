@@ -148,11 +148,11 @@ public static partial class PyOps
                 }
                 if (a is string left && b is string right)
                 {
-                    return string.Concat(left, right);
+                    return PyUnicodePoints.Concat(left, right);
                 }
                 if ((a is PyStringInstance || b is PyStringInstance)
                     && PyStringLayout.TryGet(a, out string subleft) && PyStringLayout.TryGet(b, out string subright))
-                    return string.Concat(subleft, subright);
+                    return PyUnicodePoints.Concat(subleft, subright);
                 if (TryConcat(a, b, out object? concatenated))
                 {
                     return concatenated!;
@@ -308,11 +308,11 @@ public static partial class PyOps
         }
         if (a is string sa && b is string sb)
         {
-            return CompareOrdered(op, Math.Sign(string.CompareOrdinal(sa, sb)));
+            return CompareOrdered(op, Math.Sign(PyUnicodePoints.Compare(sa, sb)));
         }
         if ((a is PyStringInstance || b is PyStringInstance)
             && PyStringLayout.TryGet(a, out string subleft) && PyStringLayout.TryGet(b, out string subright))
-            return CompareOrdered(op, Math.Sign(string.CompareOrdinal(subleft, subright)));
+            return CompareOrdered(op, Math.Sign(PyUnicodePoints.Compare(subleft, subright)));
         if (op is Eq or Ne && (a is PyOrderedDict or PyOrderedDictView || b is PyOrderedDict or PyOrderedDictView))
             return PyOrderedDictComparison.Expression(op, a, b);
         if (a is PyDictView { UseLayoutProtocol: true } || b is PyDictView { UseLayoutProtocol: true })

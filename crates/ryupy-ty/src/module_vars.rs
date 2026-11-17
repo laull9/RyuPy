@@ -260,7 +260,7 @@ pub(crate) fn expr_hint(
             Literal::BigInt(_) => Ty::Dynamic,
             Literal::Float(_) => Ty::Float,
             Literal::Bool(_) => Ty::Bool,
-            Literal::Str(_) => Ty::Str,
+            Literal::Str(_) | Literal::Unicode(_) => Ty::Str,
             Literal::None => Ty::None,
         }),
         ExprKind::ModuleVar(var) => hints.get(*var).cloned().flatten(),

@@ -159,6 +159,8 @@ impl DictItem {
 pub enum FStringPart {
     /// 原样输出的字面量（`{{` / `}}` 已由解析器还原成单个花括号）。
     Literal(Box<str>),
+    /// 字面片段的精确Unicode码点。
+    Unicode(Box<[u32]>),
     /// `{expr}` / `{expr!r}` / `{expr:spec}`。
     Value {
         value: ExprId,
@@ -186,6 +188,8 @@ pub enum Literal {
     Float(f64),
     Bool(bool),
     Str(Box<str>),
+    /// 含代理码点的精确Unicode序列；Rust str无法表示这些合法Python字符。
+    Unicode(Box<[u32]>),
     None,
 }
 

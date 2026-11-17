@@ -9,6 +9,8 @@ use ryupy_base::{Diagnostic, FileId, Span};
 
 /// 下游使用的 AST 类型，统一从这里拿。
 pub use ruff_python_ast as ast;
+mod string_codepoints;
+pub use string_codepoints::{fstring_codepoints, string_codepoints};
 
 /// 一个解析完成的模块。
 #[derive(Debug)]

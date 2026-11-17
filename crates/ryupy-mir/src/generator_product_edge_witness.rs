@@ -40,6 +40,7 @@ fn operand(value: &Operand) -> String {
             Constant::BigInt(_) => "const(bigint,redacted)".into(),
             Constant::Null => "const(null)".into(),
             Constant::None => "const(none)".into(),
+            Constant::Unicode(points) => format!("unicode({points:x?})"),
         },
     }
 }

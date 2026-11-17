@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "components": [],
+  "payload_selection": [
+    {
+      "name": "explorerpro-cocoa-sqlite-product",
+      "scope": "PySide6/Qt/plugins/sqldrivers",
+      "members": [
+        "PySide6/Qt/plugins/sqldrivers/libqsqlite.dylib",
+        "PySide6/Qt/plugins/sqldrivers/libqsqlmimer.dylib",
+        "PySide6/Qt/plugins/sqldrivers/libqsqlodbc.dylib",
+        "PySide6/Qt/plugins/sqldrivers/libqsqlpsql.dylib"
+      ],
+      "selected": [
+        "PySide6/Qt/plugins/sqldrivers/libqsqlite.dylib"
+      ],
+      "reason": "固定PySide6 6.9.2的隔离Cocoa/SQLite产品合同。只部署此产品明确声明的SQLite数据库驱动，其它三种外部数据库能力未部署；完整原入口默认闭包缺Mimer客户端证据另存，所有未选插件及其加载依赖仍写入审计。"
+    }
+  ]
+}

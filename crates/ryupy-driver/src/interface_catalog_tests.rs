@@ -132,6 +132,39 @@ fn interface_catalog_uses_selected_staged_files_and_stub_never_grants_execution(
             });
         }
     }
+    // 同basename stub与普通共享库没有Python初始化导出，不能组合成执行provider。
+    let ordinary_relative = site.join("stubonly.so").to_string_lossy().into_owned();
+    tree.write("ordinary.c", "int ordinary_add(int a,int b){return a+b;}\n");
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    {
+        let mut command = std::process::Command::new("cc");
+        command.args(if cfg!(target_os = "macos") {
+            vec!["-dynamiclib"]
+        } else {
+            vec!["-shared", "-fPIC"]
+        });
+        let result = command
+            .arg(tree.0.join("ordinary.c"))
+            .arg("-o")
+            .arg(tree.0.join(&ordinary_relative))
+            .output()
+            .unwrap();
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+    tree.write(
+        &ordinary_relative,
+        "invalid native image cannot grant provider",
+    );
+    files.push(json!({"path":ordinary_relative}));
+    payloads.push(Payload {
+        source: tree.0.join(&ordinary_relative),
+        destination: "stubonly.so".into(),
+    });
     let compiled = "python/ryupy_compiled/__main__.py";
     tree.write(compiled, "raise RuntimeError('源码仅审计不得执行')\n");
     files.push(json!({"path":compiled}));
@@ -183,7 +216,7 @@ fn interface_catalog_uses_selected_staged_files_and_stub_never_grants_execution(
     assert!(earlier.iter().any(|d| d.code == Some("E0002")));
     let report = analyze(&plan, &tree.0, &files).unwrap();
     assert_eq!(report["schema"], 1);
-    assert_eq!(report["files"].as_array().unwrap().len(), 5);
+    assert_eq!(report["files"].as_array().unwrap().len(), 6);
     assert_eq!(report["modules"]["__main__"]["execution_provider"], "cil");
     assert_eq!(
         report["modules"]["engine"]["execution_provider"],

@@ -121,7 +121,13 @@ impl<'a> ExprLowerCtx<'a> {
                 ExprKind::Builtin(crate::hir::Builtin::Dynamic("Ellipsis"))
             }
             ast::Expr::NoneLiteral(_) => ExprKind::Literal(Literal::None),
-            ast::Expr::StringLiteral(s) => ExprKind::Literal(Literal::Str(s.value.to_str().into())),
+            ast::Expr::StringLiteral(s) => ExprKind::Literal(
+                ryupy_syntax::string_codepoints(&s.value, &self.global_scope.source_text)
+                    .map_or_else(
+                        || Literal::Str(s.value.to_str().into()),
+                        |points| Literal::Unicode(points.into_boxed_slice()),
+                    ),
+            ),
             ast::Expr::Name(name_expr) => self.lower_name(name_expr),
             ast::Expr::BinOp(bin) => {
                 if let Some(op) = map_bin_op(bin.op) {

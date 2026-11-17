@@ -160,6 +160,11 @@ pub(super) fn relocate_macos_with_components(
                 .and_then(|relative| image.parent().map(|parent| parent.join(relative)))
                 .and_then(|path| path.canonicalize().ok())
                 .filter(|path| path.starts_with(&output) && images.contains_key(path));
+            let runpath = if declared.is_empty() {
+                macho_identity::local_runpath(image, &info.rpaths, &dependency.name, &output)?
+            } else {
+                None
+            };
             let target = if let Some(alias) = declared.first() {
                 ensure!(
                     all.contains(&alias.target),
@@ -179,6 +184,13 @@ pub(super) fn relocate_macos_with_components(
             } else if let Some(ref local) = local {
                 // 加载边相对当前映像的位置先于全局候选；多个组件可携带同名不同ABI库。
                 local
+            } else if let Some(ref runpath) = runpath {
+                ensure!(
+                    images.contains_key(runpath),
+                    "Mach-O runpath目标未部署为原生映像：{}",
+                    runpath.display()
+                );
+                runpath
             } else {
                 // basename只作候选hint；真正替换前仍核实LC_ID身份、目标架构及版本。
                 let name = Path::new(&dependency.name)

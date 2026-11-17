@@ -50,8 +50,8 @@ public static partial class PyOps
     private static object? StringMethod(string text, string name, object?[] args) => name switch
     {
         "encode" => new PyBytes(PyEncoding.Encode(text, args.Length > 0 ? AsText(args[0]) : "utf-8")),
-        "upper" => text.ToUpperInvariant(),
-        "lower" => text.ToLowerInvariant(),
+        "upper" => PyUnicodePoints.Transfer(text, text.ToUpperInvariant()),
+        "lower" => PyUnicodePoints.Transfer(text, text.ToLowerInvariant()),
         "title" => PyTextProviderMethods.Title(text, args, [], []),
         "strip" => StripText(text, args, left: true, right: true),
         "lstrip" => StripText(text, args, left: true, right: false),
@@ -78,10 +78,10 @@ public static partial class PyOps
             if (text[index] is not ('\n' or '\r' or '\v' or '\f' or '\u001c' or '\u001d' or '\u001e' or '\u0085' or '\u2028' or '\u2029')) continue;
             int end = index;
             if (text[index] == '\r' && index + 1 < text.Length && text[index + 1] == '\n') index++;
-            result.Append(text[start..(keep ? index + 1 : end)]);
+            result.Append(PyUnicodePoints.Substring(text, start, (keep ? index + 1 : end) - start));
             start = index + 1;
         }
-        if (start < text.Length) result.Append(text[start..]);
+        if (start < text.Length) result.Append(PyUnicodePoints.Substring(text, start, text.Length - start));
         return result;
     }
 
@@ -105,7 +105,7 @@ public static partial class PyOps
                 end--;
             }
         }
-        return text[start..end];
+        return PyUnicodePoints.Substring(text, start, end - start);
     }
 
     private static bool IsStrippable(char ch, string? chars) =>
@@ -162,7 +162,7 @@ public static partial class PyOps
                 ? s : items[i] is PyStringInstance subtext ? subtext.Value
                 : throw new PyTypeError("sequence item: expected str instance");
         }
-        return string.Join(separator, parts);
+        return PyUnicodePoints.Join(separator, parts);
     }
 
     private static string AsText(object? value) =>

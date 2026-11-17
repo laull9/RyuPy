@@ -107,9 +107,8 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
     let empty_array = res.push_method_reference(method_ref! {
         static object[] @pyops_type::EmptyArray()
     });
-    let dyn_from_decimal = res.push_method_reference(
-        method_ref! { static object @pyops_type::FromDecimalString(string) },
-    );
+    let (unicode_from_codepoints, dyn_from_decimal) =
+        crate::refs_text::literal_factories(res, &pyops_type);
     let dyn_to_int =
         res.push_method_reference(method_ref! { static object @pyops_type::ToIntValue(object) });
     let dyn_to_float =
@@ -476,6 +475,7 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         box_i64,
         empty_array,
         literal_fields: FxHashMap::default(),
+        unicode_from_codepoints,
         dyn_from_decimal,
         dyn_to_int,
         dyn_to_float,

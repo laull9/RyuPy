@@ -251,6 +251,7 @@ impl Resolver<'_> {
                 Constant::None => Value::None,
                 Constant::Null => Value::Null,
                 Constant::Str(value) => Value::Text(value.clone()),
+                Constant::Unicode(_) => Value::Primitive(Primitive::String),
                 Constant::I64(value) => Value::Integer(*value),
                 Constant::Bool(_) => Value::Primitive(Primitive::Bool),
                 Constant::F64(_) => Value::Primitive(Primitive::Float),

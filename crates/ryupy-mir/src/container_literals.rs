@@ -139,6 +139,7 @@ impl ExprBuilder<'_> {
                             | ryupy_hir::Literal::BigInt(_)
                             | ryupy_hir::Literal::Float(_)
                             | ryupy_hir::Literal::Str(_)
+                            | ryupy_hir::Literal::Unicode(_)
                             | ryupy_hir::Literal::Bool(_)
                             | ryupy_hir::Literal::None
                     )

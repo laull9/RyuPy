@@ -208,6 +208,7 @@ fn format_operand(op: &Operand) -> String {
             Constant::I64(v) => format!("const {v}_i64"),
             Constant::F64(v) => format!("const {v}_f64"),
             Constant::Bool(b) => format!("const {b}"),
+            Constant::Unicode(points) => format!("unicode_points {points:x?}"),
             Constant::Str(s) => format!("const \"{s}\""),
             Constant::BigInt(s) => format!("const {s}_bigint"),
             Constant::None => "None".to_string(),

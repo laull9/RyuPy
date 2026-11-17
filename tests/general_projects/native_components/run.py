@@ -18,9 +18,12 @@ from tests.cpython.support import private_distribution, declaration, audit_nativ
 
 
 def run(command, cwd, env, log, success=True):
-    result = subprocess.run(list(map(str, command)), cwd=cwd, env=env,
+    command = list(map(str, command))
+    log.with_suffix('.command.json').write_text(json.dumps(command, ensure_ascii=False) + '\n')
+    result = subprocess.run(command, cwd=cwd, env=env,
                             capture_output=True, timeout=900)
     log.write_bytes(result.stdout + result.stderr)
+    log.with_suffix('.exit.json').write_text(json.dumps({'exit': result.returncode}) + '\n')
     if success and result.returncode:
         raise AssertionError((command, result.returncode, result.stderr.decode()))
     return result
@@ -50,13 +53,16 @@ def main():
     parser.add_argument('--python', type=Path, required=True)
     parser.add_argument('--distribution', type=Path, default=Path.home() / '.local/share/uv/python/cpython-3.12.13-macos-aarch64-none')
     parser.add_argument('--metadata', type=Path, default=Path.home() / '.cache/ryupy/cpython-provider/pbs-20260623-metadata/python')
-    parser.add_argument('--mode', choices=['jit', 'standalone'], action='append')
+    parser.add_argument('--expect-rpath-rejected', action='store_true', help='旧CLI真实RPATH歧义红证')
+    parser.add_argument('--mode', choices=['jit', 'standalone', 'onefile'], action='append')
     parser.add_argument('--evidence', type=Path, default=Path.home() / '.cache/ryupy/validation/native-components')
     args = parser.parse_args()
     assert sys.platform == 'darwin', '本竖切是Mach-O实际门；ELF/PE组件协议另验'
     evidence = args.evidence.expanduser().resolve() / datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ')
     assert not evidence.is_relative_to(ROOT)
     evidence.mkdir(parents=True)
+    for source in [Path(__file__), Path(__file__).with_name('fixtures.py'), Path(__file__).with_name('extension.c.in')]:
+        shutil.copy2(source, evidence / source.name)
     print(evidence, flush=True)
     env = {k: v for k, v in os.environ.items()
            if not k.startswith(('PYTHON', 'RYUPY_', 'LD_', 'DYLD_', 'VIRTUAL_ENV', 'CONDA'))}
@@ -109,58 +115,92 @@ def main():
                              'print("nan", len(nans), nans[n1], nans[n2], next(iter(nans)) is n1)\n')
             oracle = run([python, '-B', entry], work, dict(env, DYLD_LIBRARY_PATH=str(prefix / 'lib')),
                          evidence / (label + '-oracle.log'))
-            config = declaration(base, [{'source': str(installed), 'destination': extension.name}], [case['module']])
+            config = declaration(base, [{'source': str(installed), 'destination': extension.name},
+                {'source': str(installed.parent / case['decoy_target']), 'destination': case['decoy_target']}], [case['module']])
             provider = root / 'provider.json'
             provider.write_text(json.dumps(config))
             # 第二布局专门保护“只有native-components，无dependencies收集器”的旧显式provider。
             provider_flags = ['--cpython-provider', provider] if case['custom'] else []
             build_env = dict(env, VIRTUAL_ENV=str(venv))
-            def invoke(name, selected=component, expect=None, use_component=True):
+            def invoke(name, selected=component, expect=None, use_component=True, mode="jit"):
                 manifest.write_text(json.dumps(selected))
                 flags = ['--cpython-native-components', manifest] if use_component else []
-                result = run([args.ryupy.resolve(), entry, '--mode', 'jit', '-o', work / ('bad-' + label + '-' + name),
+                result = run([args.ryupy.resolve(), entry, '--mode', mode, '-o', work / ('bad-' + label + '-' + name),
                               *provider_flags, *flags], work, build_env, evidence / (label + '-' + name + '.log'), False)
                 assert result.returncode and expect.encode() in result.stderr, result.stderr
                 rows.append({'case': label, 'negative': name, 'status': 'rejected'})
-            invoke('undeclared', expect='未唯一收集', use_component=False)
-            def changed(): return json.loads(json.dumps(component))
-            bad = changed(); bad['components'][0]['libraries'][0]['path'] = 'lib/missing.dylib'
-            invoke('missing-source', bad, '文件缺失')
-            bad = changed(); bad['components'][0]['libraries'][0]['current_version'] = '0.0.0'
-            invoke('declared-version', bad, '声明版本')
-            bad = changed(); bad['components'][0]['libraries'][0]['destination'] = extension.name
-            invoke('destination-conflict', bad, '目标冲突')
-            bad = changed(); clone = json.loads(json.dumps(bad['components'][0])); clone['name'] += '_second'
-            clone['libraries'][0]['destination'] = 'another/' + clone['libraries'][0]['destination']
-            clone['licenses'][0]['destination'] = 'another/' + clone['licenses'][0]['destination']
-            bad['components'].append(clone)
-            invoke('load-name-conflict', bad, '加载名冲突')
-            bad = changed(); bad['components'][0]['licenses'] = []
-            invoke('missing-license', bad, '许可证')
-            original = installed.read_bytes()
-            try:
-                version_negative(installed, component['components'][0]['libraries'][0]['load_names'][0], case['major'])
-                invoke('actual-abi-version', component, '版本不兼容')
-            finally:
-                installed.write_bytes(original)
+            if not args.expect_rpath_rejected:
+                invoke('undeclared', expect='版本不兼容', use_component=False)
+                def changed(): return json.loads(json.dumps(component))
+                bad = changed(); bad.pop('payload_selection')
+                invoke('default-complete-closure', bad, '未唯一收集')
+                bad = changed(); bad['payload_selection'][0]['selected'] = []
+                invoke('omit-required-dependency', bad, '版本不兼容')
+                bad = changed(); bad['payload_selection'][0]['members'].pop()
+                invoke('stale-selection-members', bad, '实际成员与冻结全集不一致')
+                bad = changed(); bad['components'][0]['libraries'][0]['path'] = 'lib/missing.dylib'
+                invoke('missing-source', bad, '文件缺失')
+                bad = changed(); bad['components'][0]['libraries'][0]['current_version'] = '0.0.0'
+                invoke('declared-version', bad, '声明版本')
+                bad = changed(); bad['components'][0]['libraries'][0]['destination'] = extension.name
+                invoke('destination-conflict', bad, '目标冲突')
+                bad = changed(); clone = json.loads(json.dumps(bad['components'][0])); clone['name'] += '_second'
+                clone['libraries'][0]['destination'] = 'another/' + clone['libraries'][0]['destination']
+                clone['licenses'][0]['destination'] = 'another/' + clone['licenses'][0]['destination']
+                bad['components'].append(clone)
+                invoke('load-name-conflict', bad, '加载名冲突')
+                bad = changed(); bad['components'][0]['licenses'] = []
+                invoke('missing-license', bad, '许可证')
+                original = installed.read_bytes()
+                try:
+                    version_negative(installed, case['extension_load'], case['major'])
+                    invoke('actual-abi-version', component, '版本不兼容')
+                finally:
+                    installed.write_bytes(original)
+                try:
+                    subprocess.run(['install_name_tool', '-delete_rpath', '@loader_path/' + str(Path(case['destination']).parent),
+                                    '-add_rpath', '@executable_path/' + str(Path(case['destination']).parent), installed],
+                                   env=env, capture_output=True, timeout=30, check=True)
+                    for mode in ['jit', 'standalone']:
+                        invoke('host-context-' + mode, component, '需要明确host上下文', mode=mode)
+                finally:
+                    installed.write_bytes(original)
             manifest.write_text(json.dumps(component))
-            for mode in args.mode or ['jit', 'standalone']:
+            for mode in (['jit'] if args.expect_rpath_rejected else args.mode or ['jit', 'standalone', 'onefile']):
                 name = label + '-' + mode
                 output = work / ('build-' + name)
                 built = run([args.ryupy.resolve(), entry, '--mode', mode, '-o', output, *provider_flags,
-                             '--cpython-native-components', manifest], work, build_env, evidence / (name + '-build.log'))
+                             '--cpython-native-components', manifest], work, build_env, evidence / (name + '-build.log'), success=not args.expect_rpath_rejected)
+                if args.expect_rpath_rejected:
+                    assert built.returncode and '未唯一收集'.encode() in built.stderr, built.stderr
+                    rows.append({'case': name, 'status': 'old_global_candidate_ambiguity_reproduced'})
+                    print('RED', name, flush=True)
+                    continue
                 executable = [Path(line[len('已生成 '):]) for line in built.stderr.decode().splitlines()
                               if line.startswith('已生成 ')][-1]
-                report = json.loads((executable.parent / 'cpython-provider.json').read_text())
+                reports = list(output.rglob('cpython-provider.json'))
+                report_path = next((p for p in reports if p.parent.name.endswith('.dist')), reports[0])
+                report = json.loads(report_path.read_text())
                 collection = report['dependency_collection']
                 assert collection['native_components'][0]['licenses']
+                selection = collection['payload_selection'][0]
+                omitted = [f for f in selection['files'] if not f['selected']]
+                assert len(omitted) == 1 and omitted[0]['image']['dependencies']
+                assert '/unavailable/dependency/' in omitted[0]['image']['dependencies'][0]['install_name']
+                site = report_path.parent / 'python/lib/python3.12/site-packages'
+                assert not (site / omitted[0]['destination']).exists()
+                assert (site / case['destination']).is_file()
                 if case['custom']:
                     assert 'collector' not in collection
-                    assert (executable.parent / 'python/lib/python3.12/site-packages/retained_legacy_marker.py').is_file()
-                shutil.copy2(executable.parent / 'cpython-provider.json', evidence / (name + '-provider.json'))
-                audit_native_paths(executable.parent)
+                    assert (site / 'retained_legacy_marker.py').is_file()
+                shutil.copy2(report_path, evidence / (name + '-provider.json'))
+                audit_native_paths(report_path.parent)
                 relocated = work / ('搬迁 空格 ' + name)
-                shutil.copytree(executable.parent, relocated)
+                if mode == 'onefile':
+                    relocated.mkdir()
+                    shutil.copy2(executable, relocated / executable.name)
+                else:
+                    shutil.copytree(executable.parent, relocated)
                 products.append((name, mode, relocated / executable.name, oracle))
                 shutil.rmtree(output)
             identity = subprocess.check_output(['otool', '-D', prefix / 'lib' / Path(case['destination']).name], text=True)

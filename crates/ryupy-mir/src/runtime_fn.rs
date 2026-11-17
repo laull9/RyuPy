@@ -152,6 +152,8 @@ pub enum RuntimeFn {
     DynNone,
     /// `PyOps.FromDecimalString(string)`。
     DynFromDecimal,
+    /// 精确Unicode码点常量工厂；静态UTF32双单元输入，不重新解析Python源码。
+    UnicodeFromCodePoints,
     /// `PyOps.ToIntValue` / `ToFloatValue` / `AbsValue`。
     DynToInt,
     DynToFloat,

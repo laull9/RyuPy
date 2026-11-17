@@ -418,6 +418,7 @@ pub(crate) fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String
             Literal::Float(v) => format!("{v:?}"),
             Literal::Bool(b) => (if *b { "True" } else { "False" }).to_string(),
             Literal::Str(s) => format!("{s:?}"),
+            Literal::Unicode(points) => format!("unicode_points {points:x?}"),
             Literal::None => "None".to_string(),
         },
         ExprKind::Local(loc_id) => body.locals[*loc_id].name.as_str().to_string(),
@@ -533,6 +534,7 @@ pub(crate) fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String
                 .iter()
                 .map(|part| match part {
                     crate::hir::FStringPart::Literal(text) => text.to_string(),
+                    crate::hir::FStringPart::Unicode(points) => format!("unicode{points:x?}"),
                     crate::hir::FStringPart::Value { value, .. } => {
                         format!("{{{}}}", dump_expr(module, body, *value))
                     }

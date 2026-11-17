@@ -150,7 +150,7 @@ API int rp_thin_enable(rp_thin_invoke_fn invoke, rp_thin_release_fn release) {
         return -1;
     }
     if (rp_fo_start() < 0) { Py_DECREF(code); return -1; }
-    PyObject *guards = PyTuple_New(7);
+    PyObject *guards = PyTuple_New(8);
     if (!guards) { Py_DECREF(code); rp_fo_stop(); return -1; }
     PyObject *builtins = PyEval_GetBuiltins();
     for (int i = 0; i < 6; i++) {
@@ -167,6 +167,11 @@ API int rp_thin_enable(rp_thin_invoke_fn invoke, rp_thin_release_fn release) {
     Py_XDECREF(functools);
     if (!partial) { Py_DECREF(guards); Py_DECREF(code); rp_fo_stop(); return -1; }
     PyTuple_SET_ITEM(guards, 6, partial);
+    PyObject *ast_module = PyImport_ImportModule("_ast");
+    PyObject *ast_type = ast_module ? PyObject_GetAttrString(ast_module, "AST") : NULL;
+    Py_XDECREF(ast_module);
+    if (!ast_type) { Py_DECREF(guards); Py_DECREF(code); rp_fo_stop(); return -1; }
+    PyTuple_SET_ITEM(guards, 7, ast_type);
     rp_thin_frame_guards = guards;
     rp_thin_template = code;
     rp_thin_invoke = invoke; rp_thin_release = release; rp_thin_enabled = 1;

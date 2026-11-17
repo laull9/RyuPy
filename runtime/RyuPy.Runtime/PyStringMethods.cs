@@ -43,6 +43,6 @@ public static partial class PyOps
     {
         int times = RepeatCount(text, count);
         return times == 0 || text.Length == 0 ? string.Empty
-            : new System.Text.StringBuilder(text.Length * times).Insert(0, text, times).ToString();
+            : PyUnicodePoints.Repeat(text, times);
     }
 }

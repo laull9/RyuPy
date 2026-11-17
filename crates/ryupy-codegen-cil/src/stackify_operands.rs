@@ -57,6 +57,15 @@ pub(crate) fn lower_operand(
                 ins.push(Instruction::LoadConstantInt32(if *b { 1 } else { 0 }))
             }
             MirConstant::Str(s) => ins.push(Instruction::load_string(s)),
+            MirConstant::Unicode(points) => {
+                ins.push(Instruction::LoadString(
+                    points
+                        .iter()
+                        .flat_map(|point| [(*point >> 16) as u16, *point as u16])
+                        .collect(),
+                ));
+                ins.push(Instruction::call(refs.unicode_from_codepoints));
+            }
             MirConstant::BigInt(s) => {
                 ins.push(Instruction::load_string(s));
                 ins.push(Instruction::call(refs.dyn_from_decimal));

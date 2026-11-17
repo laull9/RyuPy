@@ -120,7 +120,7 @@ public static partial class PyPic
         }
         else if (a is string left && b is string right && baseOp == PyOps.Add && Enabled)
         {
-            return string.Concat(left, right);
+            return PyUnicodePoints.Concat(left, right);
         }
         return PyOps.Binary(op, a, b);
     }

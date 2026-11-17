@@ -42,6 +42,7 @@ pub(crate) struct Dylib {
 pub(crate) struct Image {
     pub identity: Option<Dylib>,
     pub dependencies: Vec<Dylib>,
+    pub rpaths: Vec<String>,
 }
 
 /// 调用者显式授权并已核验来源/ABI的旧加载名到部署目标映射。
@@ -66,8 +67,16 @@ pub(crate) fn read(path: &Path) -> Result<Image> {
         );
         Ok(String::from_utf8(output.stdout)?)
     };
-    parse(&query("-L")?, &query("-D")?)
-        .with_context(|| format!("Mach-O身份/版本损坏：{}", path.display()))
+    let mut image = parse(&query("-L")?, &query("-D")?)
+        .with_context(|| format!("Mach-O身份/版本损坏：{}", path.display()))?;
+    if image
+        .dependencies
+        .iter()
+        .any(|dependency| dependency.name.starts_with("@rpath/"))
+    {
+        image.rpaths = parse_rpaths(&query("-l")?)?;
+    }
+    Ok(image)
 }
 
 fn parse(dependencies: &str, identity: &str) -> Result<Image> {
@@ -79,6 +88,7 @@ fn parse(dependencies: &str, identity: &str) -> Result<Image> {
     let mut image = Image {
         identity: None,
         dependencies: Vec::new(),
+        rpaths: Vec::new(),
     };
     for line in dependencies.lines() {
         let Some((name, versions)) = line.trim().split_once(" (compatibility version ") else {
@@ -112,6 +122,65 @@ fn parse(dependencies: &str, identity: &str) -> Result<Image> {
     Ok(image)
 }
 
+/// 只提取LC_RPATH实际path字段并保留命令顺序；偏移/空格不能当路径内容。
+fn parse_rpaths(report: &str) -> Result<Vec<String>> {
+    let mut active = false;
+    let mut paths = Vec::new();
+    for line in report.lines().map(str::trim) {
+        if line.starts_with("cmd ") {
+            active = line == "cmd LC_RPATH";
+        }
+        if active && let Some(path) = line.strip_prefix("path ") {
+            let (path, _) = path
+                .rsplit_once(" (offset ")
+                .context("Mach-O LC_RPATH字段损坏")?;
+            paths.push(path.to_owned());
+            active = false;
+        }
+    }
+    Ok(paths)
+}
+
+/// 当前映像的loader相对runpath按dyld顺序精确命中；不汇集其它映像的runpath猜继承链。
+/// @executable_path需要发布入口/host上下文，当前合同明确拒绝，不能把dotnet目录冒充应用根。
+pub(crate) fn local_runpath(
+    image: &Path,
+    paths: &[String],
+    dependency: &str,
+    output: &Path,
+) -> Result<Option<PathBuf>> {
+    let Some(leaf) = dependency.strip_prefix("@rpath/") else {
+        return Ok(None);
+    };
+    for rpath in paths {
+        ensure!(
+            !rpath.starts_with("@executable_path"),
+            "Mach-O @executable_path需要明确host上下文，不能推定为产品根：{}",
+            image.display()
+        );
+        let root = if let Some(relative) = rpath.strip_prefix("@loader_path/") {
+            image.parent().context("Mach-O缺少父目录")?.join(relative)
+        } else if rpath == "@loader_path" {
+            image.parent().context("Mach-O缺少父目录")?.to_path_buf()
+        } else if Path::new(rpath).is_absolute() {
+            PathBuf::from(rpath)
+        } else {
+            continue;
+        };
+        let Ok(candidate) = root.join(leaf).canonicalize() else {
+            continue;
+        };
+        // 第一条存在的路径决定实际加载结果；不得越过错误/外部映像去挑后面的“可用”项。
+        ensure!(
+            candidate.starts_with(output),
+            "Mach-O runpath命中部署边界外：{}",
+            candidate.display()
+        );
+        return Ok(Some(candidate));
+    }
+    Ok(None)
+}
+
 pub(crate) fn require_compatible(dependency: &Dylib, candidate: &Dylib) -> Result<()> {
     ensure!(
         Path::new(&dependency.name).file_name() == Path::new(&candidate.name).file_name(),
@@ -134,6 +203,60 @@ pub(crate) fn require_compatible(dependency: &Dylib, candidate: &Dylib) -> Resul
 #[cfg(test)]
 mod tests {
     use super::*;
+    struct Root(PathBuf);
+    impl Root {
+        fn new() -> Self {
+            let token = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos();
+            let path = std::env::temp_dir().join(format!(
+                "ryupy-macho-runpath-{}-{token}",
+                std::process::id()
+            ));
+            std::fs::create_dir(&path).unwrap();
+            Self(path)
+        }
+    }
+    impl Drop for Root {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+    #[test]
+    fn runpath_order_and_host_boundary_do_not_use_global_guesses() {
+        for folder in ["copper/assets", "quartz/foreign/deep"] {
+            let root = Root::new();
+            let output = root.0.canonicalize().unwrap();
+            let parent = output.join(folder);
+            std::fs::create_dir_all(parent.join("first")).unwrap();
+            std::fs::create_dir_all(parent.join("second")).unwrap();
+            for place in ["first", "second"] {
+                std::fs::write(parent.join(place).join("libsample.3.dylib"), "fixture").unwrap();
+            }
+            let image = parent.join("plugin");
+            let paths = vec!["@loader_path/first".into(), "@loader_path/second".into()];
+            assert_eq!(
+                local_runpath(&image, &paths, "@rpath/libsample.3.dylib", &output).unwrap(),
+                Some(parent.join("first/libsample.3.dylib"))
+            );
+            assert!(
+                local_runpath(
+                    &image,
+                    &["@executable_path/first".into()],
+                    "@rpath/libsample.3.dylib",
+                    &output
+                )
+                .is_err()
+            );
+            assert!(
+                local_runpath(&image, &[], "@rpath/libsample.3.dylib", &output)
+                    .unwrap()
+                    .is_none()
+            );
+        }
+        assert_eq!(parse_rpaths("cmd LC_RPATH\ncmdsize 40\npath @loader_path/first path (offset 12)\ncmd LC_LOAD_DYLIB\npath ignored (offset 12)\ncmd LC_RPATH\npath @loader_path/second (offset 12)\n").unwrap(), ["@loader_path/first path", "@loader_path/second"]);
+    }
     #[test]
     fn parses_paths_with_spaces_and_only_real_load_commands() {
         let report = "app (architecture arm64):\n\t@rpath/a b/libsample.3.dylib (compatibility version 3.0.0, current version 3.7.0)\n";

@@ -57,7 +57,7 @@ public sealed class PyNativeCall : IDisposable
             if (kind == "bytes" && value is PyBytes bytes) return (byte[])bytes.Bytes.Clone();
             if (kind == "utf8" && value is string text)
             {
-                try { return StrictUtf8.GetBytes(text); }
+                try { PyUnicodePoints.ValidateUtf8(text); return StrictUtf8.GetBytes(text); }
                 catch (EncoderFallbackException)
                 { throw Error(new PyUnicodeEncodeError($"{label} contains an invalid Unicode surrogate")); }
             }

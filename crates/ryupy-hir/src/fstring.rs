@@ -5,18 +5,38 @@ use ryupy_syntax::ast;
 
 impl ExprLowerCtx<'_> {
     pub(crate) fn lower_fstring(&mut self, fstring: &ast::ExprFString) -> ExprKind {
-        ExprKind::FString(self.lower_format_parts(fstring.value.elements()))
+        let points = ryupy_syntax::fstring_codepoints(fstring, &self.global_scope.source_text);
+        let mut parts = Vec::new();
+        for part in &fstring.value {
+            match part {
+                ast::FStringPartRef::Literal(text) => {
+                    let value = ast::StringLiteralValue::single(text.clone());
+                    parts.push(
+                        ryupy_syntax::string_codepoints(&value, &self.global_scope.source_text)
+                            .map_or_else(
+                                || FStringPart::Literal(text.value.clone()),
+                                |points| FStringPart::Unicode(points.into_boxed_slice()),
+                            ),
+                    );
+                }
+                ast::FStringPartRef::FString(text) => {
+                    parts.extend(self.lower_format_parts(text.elements.iter(), &points))
+                }
+            }
+        }
+        ExprKind::FString(parts)
     }
 
     fn lower_format_parts<'e>(
         &mut self,
         elements: impl IntoIterator<Item = &'e ast::InterpolatedStringElement>,
+        points: &std::collections::HashMap<ryupy_base::TextRange, Vec<u32>>,
     ) -> Vec<FStringPart> {
         elements
             .into_iter()
             .map(|element| match element {
                 ast::InterpolatedStringElement::Literal(literal) => {
-                    FStringPart::Literal(literal.value.clone())
+                    points.get(&literal.range).map_or_else(|| FStringPart::Literal(literal.value.clone()), |value| FStringPart::Unicode(value.clone().into_boxed_slice()))
                 }
                 ast::InterpolatedStringElement::Interpolation(item) => {
                     let value = self.lower_expr(&item.expression);
@@ -24,7 +44,7 @@ impl ExprLowerCtx<'_> {
                         if spec
                             .elements
                             .iter()
-                            .all(|p| matches!(p, ast::InterpolatedStringElement::Literal(_)))
+                            .all(|p| matches!(p, ast::InterpolatedStringElement::Literal(value) if !points.contains_key(&value.range)))
                         {
                             let text: String = spec
                                 .elements
@@ -38,7 +58,7 @@ impl ExprLowerCtx<'_> {
                                 .collect();
                             FStringSpec::Literal(text.into_boxed_str())
                         } else {
-                            let parts = self.lower_format_parts(spec.elements.iter());
+                            let parts = self.lower_format_parts(spec.elements.iter(), points);
                             FStringSpec::Dynamic(self.body.exprs.alloc(Expr {
                                 kind: ExprKind::FString(parts),
                                 range: spec.range,

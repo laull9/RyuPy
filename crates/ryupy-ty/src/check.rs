@@ -397,7 +397,7 @@ impl FunctionChecker<'_> {
                 }
                 Literal::Float(_) => Ty::Float,
                 Literal::Bool(_) => Ty::Bool,
-                Literal::Str(_) => Ty::Str,
+                Literal::Str(_) | Literal::Unicode(_) => Ty::Str,
                 Literal::None => Ty::None,
             },
             ExprKind::Local(loc_id) => {

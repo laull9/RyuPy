@@ -25,22 +25,22 @@ def execute(command, cwd, env, evidence, label, timeout=900):
     """保存双流与退出码；超时只回收本次独立进程组，包含上游容量查询子进程。"""
     command = list(map(str, command))
     (evidence / (label + '-command.json')).write_text(json.dumps(command, ensure_ascii=False) + '\n')
-    process = subprocess.Popen(command, cwd=cwd, env=env, stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE, start_new_session=True)
-    try:
-        stdout, stderr = process.communicate(timeout=timeout)
-    except BaseException:
-        os.killpg(process.pid, signal.SIGTERM)
+    stdout_path, stderr_path = evidence / (label + '-stdout.log'), evidence / (label + '-stderr.log')
+    # 实际窗口与原生崩溃诊断需要实时双流，不能等全部业务结束才落盘。
+    with stdout_path.open('wb') as stdout_log, stderr_path.open('wb') as stderr_log:
+        process = subprocess.Popen(command, cwd=cwd, env=env, stdout=stdout_log,
+                                   stderr=stderr_log, start_new_session=True)
         try:
-            stdout, stderr = process.communicate(timeout=5)
-        except subprocess.TimeoutExpired:
-            os.killpg(process.pid, signal.SIGKILL)
-            stdout, stderr = process.communicate(timeout=5)
-        (evidence / (label + '-stdout.log')).write_bytes(stdout)
-        (evidence / (label + '-stderr.log')).write_bytes(stderr)
-        raise
-    (evidence / (label + '-stdout.log')).write_bytes(stdout)
-    (evidence / (label + '-stderr.log')).write_bytes(stderr)
+            process.wait(timeout=timeout)
+        except BaseException:
+            os.killpg(process.pid, signal.SIGTERM)
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGKILL)
+                process.wait(timeout=5)
+            raise
+    stdout, stderr = stdout_path.read_bytes(), stderr_path.read_bytes()
     (evidence / (label + '-exit.json')).write_text(json.dumps({'exit': process.returncode}))
     return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
 
@@ -84,7 +84,7 @@ def product(args, project, evidence):
         assert version.stdout.strip() == b'3.12.13', version.stdout
         checked(execute(['uv', 'pip', 'freeze', '--python', python], work, env, evidence, 'freeze'), '依赖freeze')
         entry = tree / 'explorerpro_contract.py'
-        shutil.copy2(HERE / 'explorerpro_probe.py', entry)
+        shutil.copy2(args.probe_entry, entry)
         shutil.copy2(entry, evidence / entry.name)
         profiles = {}
         for arm in ('oracle', 'product'):
@@ -159,6 +159,7 @@ def main():
     parser.add_argument('--cache', type=Path, default=CACHE)
     parser.add_argument('--mode', choices=['jit', 'standalone', 'onefile'], default='jit')
     parser.add_argument('--oracle-only', action='store_true')
+    parser.add_argument('--probe-entry', type=Path, default=HERE / 'explorerpro_probe.py', help='同次CP/CIL诊断入口，默认保持完整原业务合同')
     parser.add_argument('--native-components', type=Path)
     parser.add_argument('--evidence', type=Path, default=Path.home() / '.cache/ryupy/validation/explorerpro-products')
     args = parser.parse_args()

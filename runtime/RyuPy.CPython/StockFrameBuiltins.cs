@@ -29,6 +29,13 @@ public sealed partial class CPythonHost
             : new PyBytes(((PyMemoryView)args[0]!).CopyBuffer());
         return converted;
     }
+    internal object? PrepareStockFrameKeyword(PythonObject actual, string name, object? value)
+    {
+        if (name != "source" || value is not (PyByteArray or PyMemoryView) || ActiveStockBody is not { } body)
+            return value;
+        if (body.FrameTarget(actual.Pointer, out nint bound) != 5 || bound != 0) return value;
+        return value is PyByteArray array ? array.ToBytes() : new PyBytes(((PyMemoryView)value).CopyBuffer());
+    }
     internal bool TryInvokeStockFrameBuiltin(PythonObject actual, nint args, nint kwargs, out object? result)
     {
         result = null;

@@ -277,6 +277,9 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         RuntimeFn::DynUnary => ins.push(Instruction::call(ctx.runtime_refs.dyn_unary)),
         RuntimeFn::DynTruthy => ins.push(Instruction::call(ctx.runtime_refs.dyn_truthy)),
         RuntimeFn::DynNone => ins.push(Instruction::call(ctx.runtime_refs.dyn_none)),
+        RuntimeFn::UnicodeFromCodePoints => {
+            ins.push(Instruction::call(ctx.runtime_refs.unicode_from_codepoints))
+        }
         RuntimeFn::DynFromDecimal => ins.push(Instruction::call(ctx.runtime_refs.dyn_from_decimal)),
         RuntimeFn::DynToInt => ins.push(Instruction::call(ctx.runtime_refs.dyn_to_int)),
         RuntimeFn::DynToFloat => ins.push(Instruction::call(ctx.runtime_refs.dyn_to_float)),

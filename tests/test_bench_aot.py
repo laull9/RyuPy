@@ -252,12 +252,13 @@ class TestBenchAotArtifact(unittest.TestCase):
         from benchlib import report
 
         # 跨 backend 拦截
-        with self.assertRaises(ValueError):
-            report.validate_comparison("aot", True, {"backend": "jit", "native": True}, {})
+        with self.assertRaisesRegex(ValueError, "跨 backend"):
+            report.validate_comparison("aot", True, {"backend": "jit", "native": True, "measurement_protocol": "direct-wall-v3"}, {})
 
         # 跨 native 模式拦截
-        with self.assertRaises(ValueError):
-            report.validate_comparison("aot", True, {"backend": "aot", "native": False}, {})
+        with self.assertRaisesRegex(ValueError, "跨模式"):
+            report.validate_comparison("aot", True, {"backend": "aot", "native": False, "measurement_protocol": "direct-wall-v3"}, {})
+        report.validate_comparison("aot", True, {"backend": "aot", "native": True, "measurement_protocol": "direct-wall-v3"}, {})
 
 
 
@@ -265,7 +266,7 @@ class TestBenchAotArtifact(unittest.TestCase):
 
 
 class BenchAotTests(unittest.TestCase):
-    """保留原入口与采样回归合同，按直接脚本 v2 协议迁移断言。"""
+    """保留原入口与采样回归合同，验证逐轮轮换的直接脚本 v3 协议。"""
 
     def test_parse_aot_profile_rejected_before_work(self):
         import contextlib
@@ -316,7 +317,7 @@ class BenchAotTests(unittest.TestCase):
             self.assertEqual((error, status), ("full failure", "build-failed"))
             self.assertEqual(old.read_bytes(), b"old")
 
-    def test_native_direct_command_and_original_sampling(self):
+    def test_native_direct_command_and_rotated_sampling(self):
         from benchlib import measure
         bench = Benchmark("hello", Path("hello.py"))
         plan = measure.Plan(Path("."), "python", 1, 5, True, False, Path("unused"), "aot")
@@ -332,10 +333,41 @@ class BenchAotTests(unittest.TestCase):
         self.assertEqual(len(result.ryupy.wall_ms), 5)
         self.assertEqual(len(calls), 15)  # oracle + 6 pairs + 2 independent instrumented
         self.assertEqual(sum(stats is not None for _, stats in calls), 1)
-        for index in range(1, 13, 2):
-            self.assertEqual(calls[index], (["python", "-B", "hello.py"], None))
-            self.assertEqual(calls[index + 1], (["/owned/hello"], None))
+        measured = calls[3:13]  # oracle和独立预热之后的五个正式轮
+        cp = (["python", "-B", "hello.py"], None)
+        native = (["/owned/hello"], None)
+        self.assertEqual(measured, [cp, native, native, cp, cp, native, native, cp, cp, native])
+        self.assertEqual(result.sampling_order, [["cpython", "ryupy"], ["ryupy", "cpython"],
+                         ["cpython", "ryupy"], ["ryupy", "cpython"], ["cpython", "ryupy"]])
         self.assertEqual(result.ryupy.stats["alloc_bytes"], 4)
+
+    def test_three_implementations_balance_positions_and_keep_diagnostics_separate(self):
+        """变体也参加正式位置平衡；预热数量变化不会挪动正式起点。"""
+        from collections import Counter
+        from benchlib import measure, report
+        from benchlib.suite import Variant
+        bench = Benchmark("x", Path("x.py"), variants=[Variant("candidate", {"RYUPY_PIC": "0"})])
+        plan = measure.Plan(Path("."), "python", 2, 3, True, False, Path("unused"), "aot")
+        calls = []
+        def sample(command, env, cwd, stats_env):
+            label = "variant:candidate" if env.get("RYUPY_PIC") == "0" else (
+                "cpython" if command[0] == "python" else "ryupy")
+            calls.append((label, stats_env, str(measure.HARNESS) in command))
+            return measure.Sample(1, 2, {"main_ms": 3} if stats_env else {}, b"ok", b"", 0)
+        with patch.object(measure, "build_case", return_value=(Path("/owned/x"), 1, "", "ok")), \
+             patch.object(measure, "run_once", side_effect=sample):
+            result = measure.measure_bench(plan, Path("cli"), Path("target"), bench)
+        self.assertEqual(result.status, "ok")
+        positions = {label: Counter() for label in ("cpython", "ryupy", "variant:candidate")}
+        for order in result.sampling_order:
+            for index, label in enumerate(order): positions[label][index] += 1
+        self.assertTrue(all(counts == Counter({0: 1, 1: 1, 2: 1}) for counts in positions.values()))
+        self.assertEqual([item[0] for item in calls[7:16]], sum(result.sampling_order, []))
+        self.assertTrue(all(stats is None and not harness for _, stats, harness in calls[1:16]))
+        with tempfile.TemporaryDirectory() as temp:
+            saved = Path(temp) / "samples.json"
+            report.save(saved, {"measurement_protocol": "direct-wall-v3"}, [result])
+            self.assertEqual(report.load(saved)[1]["x"]["sampling_order"], result.sampling_order)
 
     def test_instrumented_failure_and_stderr_mismatch_rejected(self):
         from benchlib import measure

@@ -74,4 +74,4 @@ public static partial class Builtins
     public static void WriteNewline() => PySystem.WriteStdout("\n");
 
     /// <summary><c>str + str</c>。</summary>
-    public static string StrConcat(string a, string b) => string.Concat(a, b);}
+    public static string StrConcat(string a, string b) => PyUnicodePoints.Concat(a, b);}

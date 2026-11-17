@@ -343,6 +343,8 @@ pub enum Constant {
     F64(f64),
     Bool(bool),
     Str(String),
+    /// 精确Python码点，由静态发射恢复字符串及其码点边界。
+    Unicode(Vec<u32>),
     /// 超出 i64 的整数字面量，以十进制字符串携带，构造时由运行时转 BigInteger。
     BigInt(String),
     /// CIL `null` 引用：未绑定槽/内部缓存哨兵/占位；不是Python None单例。

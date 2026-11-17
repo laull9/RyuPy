@@ -10,7 +10,11 @@ API int rp_thin_frame_target(PyObject *f, PyObject *callable, intptr_t *bound) {
     RpThinLink *link = rp_thin_find(f);
     *bound = 0;
     PyObject *current = Py_NewRef(callable);
+    int depth = 0;
     while (rp_frame_partial(link, current)) {
+        if (++depth > Py_GetRecursionLimit()) {
+            Py_DECREF(current); PyErr_SetString(PyExc_RecursionError, "maximum recursion depth exceeded while calling a Python object"); return -2;
+        }
         PyObject *args = PyObject_GetAttrString(current, "args");
         PyObject *next = PyObject_GetAttrString(current, "func");
         Py_DECREF(current);
@@ -20,6 +24,12 @@ API int rp_thin_frame_target(PyObject *f, PyObject *callable, intptr_t *bound) {
     int kind = rp_thin_frame_builtin(f, current); Py_DECREF(current); return kind;
 }
 /* unknown关键字/重复绑定由真实builtin binder报错，绝不以frame诊断覆盖参数错误。 */
+static int rp_frame_plain_keywords(PyObject *kwargs) {
+    Py_ssize_t pos = 0; PyObject *key, *value;
+    while (PyDict_Next(kwargs, &pos, &key, &value))
+        if (!PyUnicode_CheckExact(key)) return 0;
+    return 1;
+}
 static int rp_frame_keywords(PyObject *kwargs, const char *const *allowed, int count) {
     if (!kwargs) return 1;
     Py_ssize_t pos = 0; PyObject *key, *value;
@@ -38,7 +48,7 @@ static int rp_frame_source_valid(PyObject *source) {
     /* 不获取用户buffer：守卫拒绝先于业务执行，公开memoryview查询不触发exporter协议。 */
     if (PyMemoryView_Check(source)) {
         PyObject *released = PyObject_GetAttrString(source, "obj");
-        if (!released) return -1;
+        if (!released) { PyErr_Clear(); return 0; }
         Py_DECREF(released);
     }
     return 1;
@@ -57,6 +67,9 @@ API int rp_thin_frame_call(PyObject *f, PyObject *callable, PyObject *args, PyOb
     while (rp_frame_partial(link, current)) {
         PyObject *stored = PyObject_GetAttrString(current, "args");
         PyObject *original = PyObject_GetAttrString(current, "keywords");
+        if (original && !rp_frame_plain_keywords(original)) {
+            Py_DECREF(original); Py_XDECREF(stored); goto done;
+        }
         PyObject *defaults = original ? PyDict_Copy(original) : NULL; Py_XDECREF(original);
         PyObject *next = PyObject_GetAttrString(current, "func");
         if (!stored || !defaults || !next) {
@@ -127,7 +140,8 @@ API int rp_thin_frame_call(PyObject *f, PyObject *callable, PyObject *args, PyOb
 
         if (inherit && inherit != Py_False && !PyLong_CheckExact(inherit)) { result = 7; goto done; }
         if (!inherit || inherit == Py_False || (PyLong_CheckExact(inherit) && PyObject_IsTrue(inherit) == 0)) {
-            int valid = rp_frame_source_valid(required[0]);
+            int valid = PyObject_TypeCheck(required[0], (PyTypeObject *)PyTuple_GET_ITEM(link->owner->frame_guards, 7))
+                ? 1 : rp_frame_source_valid(required[0]);
             if (valid < 0) result = -1; else if (valid) result = 6;
         }
     }

@@ -120,6 +120,22 @@ internal static class ProgramLifecycle
         throw new PyValueError("callback-after-append");
     }
     private static object? FrameInvoke(IPyStockThinEnvironment env, object? value) => PyOps.CallValue(value!, [], [], []);
+    private static object? FrameManagedBuffers(IPyStockThinEnvironment env, object? target)
+    {
+        var bytes = new PyByteArray(System.Text.Encoding.ASCII.GetBytes("value+1"));
+        object view = PyMemoryView.Create([bytes], [], []);
+        foreach (object source in new object[] { bytes, view })
+        {
+            Require(PyOps.CallValue(target!, [source, env.LoadGlobal("scope")], [], []) is 42L,
+                "CLR buffer显式环境保留");
+            try { PyOps.CallValue(target!, [source], [], []); throw new Exception("CLR buffer缺frame未诊断"); }
+            catch (PyNotImplementedError) { }
+        }
+        return PyNone.Instance;
+    }
+    private static object? FrameManagedCompile(IPyStockThinEnvironment env, object? target) =>
+        PyOps.CallValue(target!, [], ["source", "filename", "mode", "dont_inherit"],
+            [new PyByteArray(System.Text.Encoding.ASCII.GetBytes("1+2")), "<keyword-buffer>", "eval", true]);
     private static object? FrameImplicitEval(IPyStockThinEnvironment env, object? value) => PyOps.CallValue(value!, ["1+2"], [], []);
     private static object? FrameExplicitEval(IPyStockThinEnvironment env, object? value) => PyOps.CallValue(value!, ["value+1", env.LoadGlobal("scope")], [], []);
     private static object? FrameExplicitExec(IPyStockThinEnvironment env, object? value) => PyOps.CallValue(value!, ["result=value+2", env.LoadGlobal("scope")], [], []);
@@ -186,7 +202,7 @@ internal static class ProgramLifecycle
         Run("saved_marker=marker\ndel marker\ntry:\n global_f(None)\nexcept NameError as error:\n assert type(error) is NameError and not isinstance(error, UnboundLocalError)\n assert error.name=='marker'\n assert error.args==(\"name 'marker' is not defined\",)\n assert str(error)==error.args[0]\nelse:\n raise AssertionError('缺失全局必须抛错')\nmarker=saved_marker\ndel saved_marker\nassert global_f(None) is marker\n");
         if (mode == "frame-builtins")
         {
-            Define("frame_invoke", FrameInvoke); Define("frame_implicit_eval", FrameImplicitEval);
+            Define("frame_invoke", FrameInvoke); Define("frame_managed_buffers", FrameManagedBuffers); Define("frame_managed_compile", FrameManagedCompile); Define("frame_implicit_eval", FrameImplicitEval);
             Define("frame_explicit_eval", FrameExplicitEval); Define("frame_explicit_exec", FrameExplicitExec);
             Define("frame_implicit_compile", FrameImplicitCompile); Define("frame_explicit_compile", FrameExplicitCompile);
             Run("""
@@ -208,6 +224,61 @@ def check_frames(m=marker, d=globals(), canonical=tuple(getattr(builtins,n) for 
  except NotImplementedError as error: assert 'dont_inherit=True' in str(error)
  else: raise AssertionError('缺caller flags来源未诊断')
  assert frame_explicit_eval(e)==42
+ assert frame_managed_buffers(e) is None
+ assert type(frame_managed_compile(c)).__name__=='code'
+ import ast
+ parsed=ast.parse('1+2',mode='eval')
+ assert type(frame_invoke(partial(c,parsed,'<ast>','eval',dont_inherit=True))).__name__=='code'
+ try: frame_invoke(partial(c,parsed,'<ast>','eval'))
+ except NotImplementedError as error: assert 'caller flags' in str(error)
+ else: raise AssertionError('AST缺caller flags来源未诊断')
+ events=[]
+ class Indexed:
+  def __index__(self): events.append('index'); return 0
+ class BrokenIndex:
+  def __index__(self): events.append('broken'); raise LookupError('index-probe')
+ assert type(frame_invoke(partial(c,'1+2','<index>','eval',Indexed(),True))).__name__=='code'
+ assert events==['index']; events.clear()
+ try: frame_invoke(partial(c,'1+2','<index>','eval',BrokenIndex(),True))
+ except LookupError as error: assert str(error)=='index-probe'
+ else: raise AssertionError('flags异常丢失')
+ assert events==['broken']; events.clear()
+ class Inherit:
+  def __bool__(self): events.append('bool'); return False
+ for target in (partial(c,'1','<implicit>','eval',Indexed()),partial(c,'1','<implicit>','eval',0,Inherit())):
+  try: frame_invoke(target)
+  except NotImplementedError as error: assert 'parameter protocols' in str(error)
+  else: raise AssertionError('参数协议缺caller frame未诊断')
+ assert events==[]
+ for flags in (-1,1,1<<30):
+  def observe(call):
+   try: call()
+   except Exception as error: return type(error),error.args
+   raise AssertionError('非法flags应失败')
+  assert observe(partial(frame_invoke,partial(c,'1','<invalid>','eval',flags)))==observe(partial(c,'1','<invalid>','eval',flags))
+ original=partial(c,'1','<defaults>','eval',dont_inherit=False)
+ assert type(frame_invoke(partial(original,dont_inherit=True))).__name__=='code'
+ assert original.keywords=={'dont_inherit':False}
+ class Buffer:
+  def __buffer__(self, flags): events.append('buffer'); return memoryview(b'40+2')
+  def __release_buffer__(self, view): events.append('release')
+ assert frame_invoke(partial(e,Buffer(),scope))==42
+ assert events==['buffer','release']; events.clear()
+ try: frame_invoke(partial(e,Buffer()))
+ except NotImplementedError: pass
+ else: raise AssertionError('自定义buffer缺frame未诊断')
+ assert events==[]
+ released=memoryview(b'42'); released.release()
+ for target in (partial(e,released),partial(e,released,scope)):
+  try: frame_invoke(target)
+  except TypeError as error: assert str(error)=='eval() arg 1 must be a string, bytes or code object'
+  else: raise AssertionError('已释放buffer错误丢失')
+ class BrokenBuffer:
+  def __buffer__(self,flags): events.append('broken-buffer'); raise LookupError('buffer-probe')
+ try: frame_invoke(partial(e,BrokenBuffer(),scope))
+ except TypeError as error: assert str(error)=='eval() arg 1 must be a string, bytes or code object'
+ else: raise AssertionError('buffer异常丢失')
+ assert events==['broken-buffer']
  assert frame_invoke(partial(e,'value+1',scope))==42
  class Example: pass
  sample=Example()
@@ -302,6 +373,8 @@ atexit.register(check_frames)
         {
             Require(host.EnterDiagnosticScope(null!) is null, "空诊断请求不能授予内部scope");
             PyTraceback.Report(new PyValueError("expected-diagnostic-report"));
+            Require(PyTraceback.SystemExitCode(new PySystemExit("expected-diagnostic-system-exit")) == 1,
+                "SystemExit诊断保留原exitcode");
         }
         bool empty = mode is "zero" or "entry-fail";
         Require(CPythonHost.StockThinOwnedHandles == 0, "内部H已由入口作用域确定交还");

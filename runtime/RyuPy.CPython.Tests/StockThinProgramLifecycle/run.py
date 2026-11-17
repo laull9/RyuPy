@@ -130,7 +130,7 @@ def main():
                 ('finalize_result','native_live','core_roots','owned_h','ledger','queue','late_releases','post_finalize_decrefs','entry_final_records','internal_proxy_roots','terminal_proxy_owner_records'))
             if case == 'terminal-proxy':
                 assert 0 < terminal['terminal_proxy_peak_records'] < 32, '临时owned不能随1000次回调线性强保留'
-            expected_stderr = 'ValueError: expected-diagnostic-report\n' if case == 'entry-fail' else ''
+            expected_stderr = 'ValueError: expected-diagnostic-report\nexpected-diagnostic-system-exit\n' if case == 'entry-fail' else ''
             passed = result.returncode == expected and result.stderr == expected_stderr and diagnostic
             line = f'CASE python={cfg["version"]} case={case} exit={result.returncode} expected={expected} accepted={passed}\n'
             print(line, end='', flush=True); log.write(line); log.flush()

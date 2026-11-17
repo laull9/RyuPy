@@ -116,7 +116,7 @@ public static partial class PyHash
         }
         if (a is string sa0 && b is string sb0)
         {
-            return string.Equals(sa0, sb0, StringComparison.Ordinal);
+            return PyUnicodePoints.Equal(sa0, sb0);
         }
         // 精确tuple没有可覆盖的外层协议；元素仍逐个走身份/完整Equal，保留回调顺序。
         // 直接数组索引避免IReadOnlyList接口访问；派生tuple继续走下面的原协议路径。
@@ -125,7 +125,7 @@ public static partial class PyHash
             return ReferenceEquals(a, b) || ExactTupleEqual(exactLeft.Items, exactRight.Items);
         if ((a is PyStringInstance || b is PyStringInstance)
             && PyStringLayout.TryGet(a, out string subleft) && PyStringLayout.TryGet(b, out string subright))
-            return string.Equals(subleft, subright, StringComparison.Ordinal);
+            return PyUnicodePoints.Equal(subleft, subright);
         // NaN 必须排在身份判断之前：即使是同一个 nan 对象，Python 里 nan == nan 也是 False。
         // 字典/集合查询用的身份兜底单独放在 <see cref="PyKeyComparer"/> 里，与 CPython 一致。
         if (a is double na && double.IsNaN(na))

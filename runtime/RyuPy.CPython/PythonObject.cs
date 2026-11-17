@@ -89,7 +89,7 @@ internal sealed partial class PythonObject : PyNativeObject, IPyForeignObject, I
                 kwargs = Host.Check(Native.rp_op(16));
                 for (int i = 0; i < names.Length; i++)
                 {
-                    nint value = Host.ToPython(values[i]);
+                    nint value = Host.ToPython(Host.PrepareStockFrameKeyword(this, names[i], values[i]));
                     try { Native.rp_decref(Host.Check(Native.rp_op(17, kwargs, value, s: names[i]))); }
                     finally { Native.rp_decref(value); }
                 }

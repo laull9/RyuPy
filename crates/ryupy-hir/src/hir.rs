@@ -120,7 +120,7 @@ pub struct Function {
     /// async def 的独立协程身份；同时使用生成器式显式状态机。
     pub is_coroutine: bool,
     /// 首条字符串语句的文档内容；没有文档时为 None。
-    pub docstring: Option<String>,
+    pub docstring: Option<FunctionDocstring>,
     /// 定义位置求值的真实注解对象，与静态类型线索分开保存。
     pub annotation_values: Vec<(Name, ExprId)>,
 }
@@ -394,3 +394,10 @@ pub enum Binding {
 }
 
 pub use crate::assign_target::{AssignTarget, SequenceItem, SequenceTarget};
+
+/// 函数文档字符串保留精确码点，避免非字符串值进入定义元数据。
+#[derive(Clone, Debug)]
+pub enum FunctionDocstring {
+    Text(Box<str>),
+    Unicode(Box<[u32]>),
+}

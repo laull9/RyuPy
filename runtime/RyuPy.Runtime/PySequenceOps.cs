@@ -193,7 +193,7 @@ public static partial class PyOps
             case string text:
                 result = times == 0 || text.Length == 0
                     ? string.Empty
-                    : new StringBuilder(text.Length * times).Insert(0, text, times).ToString();
+                    : PyUnicodePoints.Repeat(text, times);
                 return true;
             case PyList list:
                 if (PyList.TryRepeatBoolean(list, times, out PyList? boolList))

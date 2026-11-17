@@ -28,6 +28,8 @@ pub enum Resolution {
 /// 模块级名字表：第一遍收集所有顶层 `def` / `class`，因此函数之间可以前向引用。
 #[derive(Debug, Default)]
 pub struct GlobalScope {
+    /// 原源码仅供syntax层恢复Ruff无法存储的代理码点，降级完成后不进入产品IR。
+    pub(crate) source_text: String,
     /// 真实名字从当前模块实例命名空间读取，内建也不可静态直达。
     pub instance_globals: bool,
     /// provider 类体允许 prepared mapping 注入任意裸名。
