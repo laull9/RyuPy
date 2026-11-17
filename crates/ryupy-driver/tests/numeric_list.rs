@@ -1,4 +1,6 @@
 //! 数值列表岛必须在真实矩阵生产/消费两端命中，不能用运行时单测代替编译器集成。
+#[path = "../src/test_temp.rs"]
+mod layout_temp;
 use ryupy_driver::{Session, Stage};
 mod support;
 
@@ -38,6 +40,7 @@ fn real_matrix_uses_identity_safe_numeric_producer_and_consumer() {
 
 #[test]
 fn numeric_list_observation_and_fallback_match_pinned_python() {
+    let _layout_temp = layout_temp::Root::new("driver-integration");
     let root = ryupy_driver::runtime::workspace_root();
     let input = root.join("tests/e2e/phase3/m3_10_numeric_list_island.py");
     let python = std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into());
@@ -82,13 +85,17 @@ fn numeric_list_observation_and_fallback_match_pinned_python() {
         &mut session,
         &ryupy_driver::BuildOptions {
             input,
-            out_dir: root.join("target/test_numeric_list"),
+            out_dir: _layout_temp.join("test_numeric_list"),
             aot: false,
             search_paths: vec![],
         },
     )
     .unwrap();
-    let actual = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
+    let actual = ryupy_driver::dotnet::run_executable_with(
+        artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+        &Default::default(),
+    )
+    .unwrap();
     assert_eq!(
         actual.status.code(),
         expected.status.code(),

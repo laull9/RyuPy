@@ -60,7 +60,11 @@ fn instance_exception_lexical_owner_and_cleanup_contract() {
             );
         }
         if explicit {
-            let actual = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
+            let actual = ryupy_driver::dotnet::run_executable_with(
+                artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+                &Default::default(),
+            )
+            .unwrap();
             std::fs::write(root.join("jit.stdout"), &actual.stdout).unwrap();
             std::fs::write(root.join("jit.stderr"), &actual.stderr).unwrap();
             assert!(

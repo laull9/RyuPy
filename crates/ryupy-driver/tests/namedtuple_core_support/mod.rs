@@ -202,7 +202,10 @@ fn checked_success(
         format!("dll={}\noptions={options:?}\n", artifact.dll.display()),
     )
     .unwrap();
-    let result = ryupy_driver::dotnet::run_dll_with(&artifact.dll, &options);
+    let result = ryupy_driver::dotnet::run_executable_with(
+        artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+        &options,
+    );
     let actual = match result {
         Ok(output) => output,
         Err(error) => {

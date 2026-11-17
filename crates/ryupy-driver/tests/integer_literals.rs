@@ -1,11 +1,14 @@
 //! 大整数字面量的真实HIR容量诊断；超过上限时不给运行时/宿主留下无界构造。
+#[path = "../src/test_temp.rs"]
+mod layout_temp;
 use ryupy_driver::{Session, Stage};
 mod support;
 use support::dump;
 
 #[test]
 fn significant_decimal_capacity_is_explicit_for_every_radix() {
-    let path = std::env::temp_dir().join("ryupy_integer_capacity.py");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let path = _layout_temp.join("ryupy_integer_capacity.py");
     for token in [
         "9".repeat(4301),
         format!("0x2{}", "0".repeat(3571)),
@@ -41,7 +44,8 @@ fn significant_decimal_capacity_is_explicit_for_every_radix() {
 
 #[test]
 fn snapshot_big_defaults_do_not_demote_unrelated_small_integer_function() {
-    let path = std::env::temp_dir().join("ryupy_big_integer_types.py");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let path = _layout_temp.join("ryupy_big_integer_types.py");
     std::fs::write(&path, "def huge(value: int = -184467440737095516160)->int:\n    return value\ndef small(value: int)->int:\n    return value + 3\nprint(huge(), small(4))\n").unwrap();
     for (stage, name) in [
         (Stage::Hir, "integer_literal_hir"),

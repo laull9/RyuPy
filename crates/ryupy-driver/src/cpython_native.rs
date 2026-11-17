@@ -274,3 +274,8 @@ mod tests {
         assert!(PlatformKind::LinuxX64.copy_directories().contains(&"lib"));
     }
 }
+
+// 真实目标RID门只在本模块注册；跨RID的独立源码include保持纯结构覆盖。
+#[cfg(all(test, target_os = "macos"))]
+#[path = "cpython_macho_relocation_production_tests.rs"]
+mod macho_relocation_production_tests;

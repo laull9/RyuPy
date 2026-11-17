@@ -1,11 +1,14 @@
 //! 叶内联必须真实命中身份/类型/溢出守卫；多模块公开重绑定与异常帧用执行结果验收。
+#[path = "../src/test_temp.rs"]
+mod layout_temp;
 use ryupy_driver::{Session, Stage};
 mod support;
 
 const SOURCE: &str = "def twice(value):\n    return value + value\nalias = twice\ndef invoke():\n    return alias(7)\nprint(invoke())\n";
 #[test]
 fn alias_call_has_guarded_inline_and_original_dynamic_fallback() {
-    let input = std::env::temp_dir().join("ryupy_leaf_inline.py");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let input = _layout_temp.join("ryupy_leaf_inline.py");
     std::fs::write(&input, SOURCE).unwrap();
     let mut session = Session {
         experimental_leaf_inline: true,
@@ -30,7 +33,8 @@ fn alias_call_has_guarded_inline_and_original_dynamic_fallback() {
 }
 #[test]
 fn identity_fallback_preserves_original_callable_error_frames() {
-    let root = ryupy_driver::runtime::workspace_root().join("target/test_leaf_inline_traceback");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let root = _layout_temp.join("test_leaf_inline_traceback");
     std::fs::create_dir_all(&root).unwrap();
     let input = root.join("source.py");
     std::fs::write(&input,"def twice(value):\n    return value + value\nalias = twice\ndef invoke():\n    return alias(7)\nclass Raises:\n    def __call__(self, value):\n        raise ValueError('leaf failure')\nalias = Raises()\ninvoke()\n").unwrap();
@@ -50,7 +54,11 @@ fn identity_fallback_preserves_original_callable_error_frames() {
         },
     )
     .unwrap();
-    let actual = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
+    let actual = ryupy_driver::dotnet::run_executable_with(
+        artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+        &Default::default(),
+    )
+    .unwrap();
     assert_eq!(actual.status.code(), Some(1));
     let error = String::from_utf8_lossy(&actual.stderr);
     for expected in [
@@ -64,6 +72,7 @@ fn identity_fallback_preserves_original_callable_error_frames() {
 }
 #[test]
 fn public_rebinding_and_argument_side_effects_match_pinned_python() {
+    let _layout_temp = layout_temp::Root::new("driver-integration");
     let root = ryupy_driver::runtime::workspace_root();
     let python = std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into());
     let version = std::process::Command::new(&python)
@@ -99,13 +108,17 @@ fn public_rebinding_and_argument_side_effects_match_pinned_python() {
                 &mut session,
                 &ryupy_driver::BuildOptions {
                     input: input.clone(),
-                    out_dir: root.join(format!("target/test_leaf_identity/{index}/{enabled}")),
+                    out_dir: _layout_temp.join(format!("test_leaf_identity/{index}/{enabled}")),
                     aot: false,
                     search_paths: vec![],
                 },
             )
             .unwrap();
-            let actual = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
+            let actual = ryupy_driver::dotnet::run_executable_with(
+                artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+                &Default::default(),
+            )
+            .unwrap();
             assert_eq!(
                 actual.status.code(),
                 expected.status.code(),
@@ -120,7 +133,8 @@ fn public_rebinding_and_argument_side_effects_match_pinned_python() {
 
 #[test]
 fn inlined_success_still_obeys_original_call_recursion_limit() {
-    let root = ryupy_driver::runtime::workspace_root().join("target/test_leaf_depth");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let root = _layout_temp.join("test_leaf_depth");
     std::fs::create_dir_all(&root).unwrap();
     let input = root.join("source.py");
     std::fs::write(&input, SOURCE).unwrap();
@@ -141,8 +155,8 @@ fn inlined_success_still_obeys_original_call_recursion_limit() {
     )
     .unwrap();
     for (limit, success) in [(2, false), (3, true)] {
-        let actual = ryupy_driver::dotnet::run_dll_with(
-            &artifact.dll,
+        let actual = ryupy_driver::dotnet::run_executable_with(
+            artifact.native_exe.as_ref().expect("应用必须有公开入口"),
             &ryupy_driver::dotnet::RunOptions {
                 env: vec![("RYUPY_RECURSION_LIMIT".into(), limit.to_string())],
                 ..Default::default()
@@ -170,7 +184,8 @@ fn inlined_success_still_obeys_original_call_recursion_limit() {
 
 #[test]
 fn unknown_arguments_and_mixed_boolean_join_are_not_specialized() {
-    let input = std::env::temp_dir().join("ryupy_leaf_unknown.py");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let input = _layout_temp.join("ryupy_leaf_unknown.py");
     std::fs::write(&input,"def twice(value):\n    return value + value\nalias = twice\ndef unknown(value):\n    return alias(value)\ndef mixed(flag):\n    if flag:\n        value = 7\n    else:\n        value = True\n    return alias(value)\ndef exact(flag):\n    if flag:\n        value = 7\n    else:\n        value = 9\n    return alias(value)\nprint(unknown(7), mixed(True), mixed(False), exact(False))\n").unwrap();
     let mut session = Session {
         experimental_leaf_inline: true,
@@ -206,7 +221,8 @@ fn unknown_arguments_and_mixed_boolean_join_are_not_specialized() {
 
 #[test]
 fn default_pipeline_keeps_original_dynamic_alias_call() {
-    let input = std::env::temp_dir().join("ryupy_default_leaf_inline.py");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let input = _layout_temp.join("ryupy_default_leaf_inline.py");
     std::fs::write(&input, SOURCE).unwrap();
     let mut session = Session::default();
     assert!(!session.experimental_leaf_inline);
@@ -222,7 +238,8 @@ fn default_pipeline_keeps_original_dynamic_alias_call() {
 
 #[test]
 fn both_experiments_preserve_exact_facts_and_real_result() {
-    let root = ryupy_driver::runtime::workspace_root().join("target/test_both_m3_9_experiments");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let root = _layout_temp.join("test_both_m3_9_experiments");
     std::fs::create_dir_all(&root).unwrap();
     let input = root.join("source.py");
     std::fs::write(&input,"def twice(value):\n    return value + value\nalias = twice\ndef sum_twice(n):\n    total = 0\n    for index in range(n):\n        total += alias(index)\n    return total\nprint(sum_twice(10))\n").unwrap();
@@ -248,7 +265,11 @@ fn both_experiments_preserve_exact_facts_and_real_result() {
         },
     )
     .unwrap();
-    let result = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
+    let result = ryupy_driver::dotnet::run_executable_with(
+        artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+        &Default::default(),
+    )
+    .unwrap();
     assert!(
         result.status.success(),
         "{}",

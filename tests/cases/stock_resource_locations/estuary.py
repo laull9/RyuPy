@@ -1,4 +1,4 @@
-# ryupy: pending
+# 显式stock薄函数+NativeAOT资源专项：不同入口名与子目录数据沿同一真实__file__解析。
 import os.path
 
 def anchor(x):

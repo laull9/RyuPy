@@ -1,7 +1,7 @@
 # ADR-0240：按冻结目标RID收敛原生Mach-O架构
 
 - 日期：2026-11-17。
-- 状态：结构与旧版红证已验；授权修复后的六产品签名门已绿，资源锚点修复后复验运行。
+- 状态：macOS arm64、CPython 3.12.13结构门与六产品搬迁门已通过；启动收益待正式测量。
 - 接续：[ADR-0239](0239-canonical-internal-application-layout.md)；签名保留候选见[ADR-0241](0241-minimal-macho-relocation-signature.md)。
 
 ## 问题与决定
@@ -61,9 +61,9 @@ provider顶层`file_path_base`采用同一锚点；central artifact manifest仍�
 使用真实arm64/x86_64 clang输出组成fat32/fat64。每个消费者还有普通无PyInit共享库
 与无扩展名原生helper。验收同时检查真实初始化导出、CIL回调、异常、身份、原WHEEL
 universal标签、签名identifier/runtime/entitlements、最终thin头及库存大小。
-固定v3曾在fat64 BUNDLE部署发现授权丢失；v4六产品构建、签名及闭包审计全部通过。
-删输入搬迁后legacy JIT已绿，AOT读显式资源暴露provider bundle位置优先于显式资源plan
-的独立锚点问题，正在按资源plan统一编译位置与真实D.__file__后复验。JIT、NativeAOT、OneFile验收要求各自删除源输入、wheel、虚拟环境及构建目录后搬迁执行，
+固定v3曾在fat64 BUNDLE部署发现授权丢失；v4签名修复后又在真实运行发现显式资源锚点
+被provider bundle位置覆盖。最终v5保留compiled_sources来源登记，让显式资源plan优先
+决定模块位置，Runtime把同一位置写入真实D.__file__；原资源读取断言保留并转绿。JIT、NativeAOT、OneFile验收要求各自删除源输入、wheel、虚拟环境及构建目录后搬迁执行，
 逐项与同次CPython三流比较。AOT/OneFile还真实读取集合外fat64资源的magic与长度。
 
 fat64源签名另有平台差异：本机codesign把fat64当generic数据，仅给外层签名；
@@ -77,6 +77,14 @@ entitlements丢失；独立thin重签实验也确认preserve-metadata命令会�
 SIGKILL。该红证完整保留；最终helper使用runtime且无entitlements，库继续保留真实
 entitlements并由加载与回调验收。平台验签和真实loader/exec均为独立必验项。
 
+最终固定CLI为`internal-layout-v5/ryupy`及其精确嵌入资产。两消费者×三形态六项全部
+通过：源码/wheel/venv/构建目录物理删除、任意cwd与空PATH启动、CPython三流相同、
+每项两次静态CIL回调与两次析构，所有Host终态计数为零，私有OneFile解包目录清理。
+集合外资源在发布后逐字节与源相等，业务运行也成功读取完整fat64 magic及长度。
+每消费者的三个真实原生映像由200208→101904字节、200784→102464字节，约减少49%。
+该数字只覆盖此处三个夹具映像，完整应用载荷另行测量。最终候选同时包含ADR-0241的
+重定位策略，本六项验证最终组合正确性；单变量启动对照使用独立冻结资产。
+
 本轮只登记尺寸和正确性事实。正式启动性能由同源码、同布局、同Runtime与同输入的
 单变量对照确定，旧flat与新canonical产品的墙钟不能归因于slice转换。首观察、平衡
 重复轮、诊断分段及RSS分别记录，最终收益数据在正式独占测量后补充。
@@ -84,7 +92,9 @@ entitlements并由加载与回调验收。平台验签和真实loader/exec均为
 ## 仓外证据
 
 `~/.cache/ryupy/validation/macho-slices/`保存源签名失败、旧版红证和六产品原始日志。
-旧版红证`20261117T150420.651259Z`、当前v3授权红证`20261117T150319.053428Z`
+最终六产品与逐项汇总位于`20261117T153001.854797Z/results.json`、
+`verified-summary.json`、`*-convergence.json`、`*-host.json`及`commands.log`。
+旧版红证`20261117T150420.651259Z`、v3授权红证`20261117T150319.053428Z`
 及`source-fat64-signature-facts.txt`分别记录上述事实。
 `/tmp/ryupy-macho-slice-unit.log`与`/tmp/ryupy-macho-slice-clippy.log`保存定向检查。
 仓库只保存手写C输入、fixture构建器、验收驱动与本文，生成产物清理，普通文件不计算摘要。

@@ -1,4 +1,6 @@
 //! 内层浮点累加必须真实命中；不以旧entry-holder或普通短链通过冒充跨迭代验证。
+#[path = "../src/test_temp.rs"]
+mod layout_temp;
 use ryupy_driver::{BuildOptions, Session, Stage};
 mod support;
 
@@ -42,6 +44,7 @@ fn real_matrix_and_nested_fixture_use_cross_iteration_float_state() {
 
 #[test]
 fn loop_identity_reentry_and_protocol_fixture_match_pinned_python() {
+    let _layout_temp = layout_temp::Root::new("driver-integration");
     let root = ryupy_driver::runtime::workspace_root();
     let input = root.join("tests/e2e/phase3/m3_10_float_loop.py");
     let python = std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into());
@@ -61,13 +64,17 @@ fn loop_identity_reentry_and_protocol_fixture_match_pinned_python() {
         &mut session,
         &BuildOptions {
             input,
-            out_dir: root.join("target/test_float_loop"),
+            out_dir: _layout_temp.join("test_float_loop"),
             aot: false,
             search_paths: vec![],
         },
     )
     .unwrap();
-    let actual = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
+    let actual = ryupy_driver::dotnet::run_executable_with(
+        artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+        &Default::default(),
+    )
+    .unwrap();
     assert_eq!(
         actual.status.code(),
         expected.status.code(),
@@ -80,8 +87,8 @@ fn loop_identity_reentry_and_protocol_fixture_match_pinned_python() {
 
 #[test]
 fn failed_protocol_observes_materialized_previous_sum_and_original_trace() {
-    let root = ryupy_driver::runtime::workspace_root();
-    let dir = root.join("target/test_float_loop_trace");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let dir = _layout_temp.join("test_float_loop_trace");
     std::fs::create_dir_all(&dir).unwrap();
     let input = dir.join("float_loop_error.py");
     std::fs::write(
@@ -102,7 +109,11 @@ fn failed_protocol_observes_materialized_previous_sum_and_original_trace() {
         },
     )
     .unwrap();
-    let actual = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
+    let actual = ryupy_driver::dotnet::run_executable_with(
+        artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+        &Default::default(),
+    )
+    .unwrap();
     assert_eq!(actual.status.code(), Some(1));
     assert_eq!(actual.stdout, b"1.25\n");
     let error = String::from_utf8_lossy(&actual.stderr);

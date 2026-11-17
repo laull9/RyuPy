@@ -167,7 +167,10 @@ pub(super) fn check(
         ),
     )
     .unwrap();
-    let actual = match ryupy_driver::dotnet::run_dll_with(&artifact.dll, &options) {
+    let actual = match ryupy_driver::dotnet::run_executable_with(
+        artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+        &options,
+    ) {
         Ok(output) => output,
         Err(error) => {
             std::fs::write(root.join("jit.launch-error"), format!("{error:#}\n")).unwrap();

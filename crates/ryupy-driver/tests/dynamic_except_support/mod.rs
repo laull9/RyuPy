@@ -136,7 +136,14 @@ pub(super) fn check(name: &str, entry: &str, expected_exit: i32) {
     let actual = run(
         &root.0,
         "jit",
-        command(ryupy_driver::dotnet::dotnet_exe().as_os_str(), &jit_cwd).arg(&artifact.dll),
+        &mut command(
+            artifact
+                .native_exe
+                .as_ref()
+                .expect("应用必须有公开入口")
+                .as_os_str(),
+            &jit_cwd,
+        ),
     );
     assert_eq!(actual.status.code(), expected.status.code());
     assert_eq!(actual.stdout, expected.stdout);

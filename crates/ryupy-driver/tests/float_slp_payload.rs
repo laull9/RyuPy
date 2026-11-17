@@ -1,12 +1,14 @@
 //! 比较真实编译packed与原scalar函数的逐bit结果，覆盖不同quiet-NaN payload而非nan==nan。
 //! 小C#宿主仅供测试注入位模式/读取结果；被测算术仍全部来自Python→MIR→CIL。
+#[path = "../src/test_temp.rs"]
+mod layout_temp;
 use ryupy_driver::{BuildOptions, Session, Stage};
 mod support;
 
 #[test]
 fn packed_lanes_preserve_scalar_payload_zero_and_operand_order() {
-    let root = ryupy_driver::runtime::workspace_root();
-    let dir = root.join("target/test_float_slp_payload");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let dir = _layout_temp.join("test_float_slp_payload");
     std::fs::create_dir_all(&dir).unwrap();
     let input = dir.join("payload.py");
     std::fs::write(&input, "def pair(a,b,c,d,e,f):\n    return [a*b+c,d*e+f]\ndef scalar(a,b,c):\n    return a*b+c\ndef pair_sub(a,b,c,d,e,f):\n    return [(a-b)*c,(d-e)*f]\ndef scalar_sub(a,b,c):\n    return (a-b)*c\n").unwrap();

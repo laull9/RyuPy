@@ -102,7 +102,11 @@ fn execute(source: &str, filename: &str, expected_exit: i32) -> (Root, Output, O
     )
     .unwrap();
     let artifact = result.unwrap();
-    let actual = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
+    let actual = ryupy_driver::dotnet::run_executable_with(
+        artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+        &Default::default(),
+    )
+    .unwrap();
     save_output(&root, "ryupy", &actual);
     (root, expected, actual)
 }

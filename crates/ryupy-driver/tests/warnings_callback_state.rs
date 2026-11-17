@@ -42,8 +42,7 @@ fn warning_callback_state_matches_pinned_python() {
     let actual = bounded(
         root.path(),
         "jit",
-        std::process::Command::new(std::env::var_os("DOTNET").unwrap_or_else(|| "dotnet".into()))
-            .arg(artifact.dll)
+        std::process::Command::new(artifact.native_exe.as_ref().expect("应用必须有公开入口"))
             .current_dir(jit_cwd)
             .env("LC_ALL", "C")
             .env("TZ", "UTC"),
@@ -102,13 +101,10 @@ fn swallowed_io_frames_do_not_pollute_next_exception_and_valueerror_frames_survi
         let actual = bounded(
             root.path(),
             "jit",
-            std::process::Command::new(
-                std::env::var_os("DOTNET").unwrap_or_else(|| "dotnet".into()),
-            )
-            .arg(artifact.dll)
-            .current_dir(jit_cwd)
-            .env("LC_ALL", "C")
-            .env("TZ", "UTC"),
+            std::process::Command::new(artifact.native_exe.as_ref().expect("应用必须有公开入口"))
+                .current_dir(jit_cwd)
+                .env("LC_ALL", "C")
+                .env("TZ", "UTC"),
             std::time::Duration::from_secs(60),
         )
         .unwrap();

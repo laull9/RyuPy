@@ -61,6 +61,10 @@ OneFile 私有解包载荷保持已有平铺布局，使用显式构建状态选
 声明、符号和 build_inputs 保留原值，旧 schema 的缺省字段保持缺省。
 provider 报告以配置所在目录为路径锚点。普通文件和产物不新增内容哈希。
 
+显式 ResourcePlan 的模块位置优先于 provider 编译源码副本位置，作为注册代码和真实模块
+字典 `__file__` 的同一锚点；provider 的 compiled_sources 来源库存仍完整登记。
+没有显式资源声明时保留原 bundle-relative 定位。薄函数的诊断 SourcePath 保持独立合同。
+
 ## 已验证范围
 
 macOS arm64、固定 CPython 3.12.13，即时三流差分。修正 v2 的两套独立 C ABI 声明

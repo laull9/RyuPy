@@ -96,8 +96,8 @@ fn run(label: &str, source: &str, expected: &str) {
     )
     .unwrap();
     let artifact = result.unwrap();
-    let result = ryupy_driver::dotnet::run_dll_with(
-        &artifact.dll,
+    let result = ryupy_driver::dotnet::run_executable_with(
+        artifact.native_exe.as_ref().expect("应用必须有公开入口"),
         &ryupy_driver::dotnet::RunOptions {
             cwd: Some(root.clone()),
             ..Default::default()

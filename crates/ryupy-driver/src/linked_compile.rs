@@ -243,7 +243,6 @@ pub(super) fn compile_linked_traced(
         };
         // 显式资源元数据是源码锚点权威；provider仍保源码部署/审计，但不能覆盖该位置。
         let location = if aot_locations
-            && !is_delegated_entry
             && (resource_request.is_some() || bundled_location.is_none())
             && let Some(relative) = resource_plan
                 .as_ref()

@@ -1,4 +1,6 @@
 //! io.UnsupportedOperation 仅承认稳定原生导入；双父catch与用户派生类均有真实e2e另验。
+#[path = "../src/test_temp.rs"]
+mod layout_temp;
 use ryupy_driver::{Session, Stage};
 mod support;
 use support::dump;
@@ -6,7 +8,8 @@ use support::dump;
 mod dynamic_support;
 #[test]
 fn stable_io_aliases_and_subclasses_lower_with_secondary_parent_handler() {
-    let path = std::env::temp_dir().join("ryupy_io_unsupported_static.py");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let path = _layout_temp.join("ryupy_io_unsupported_static.py");
     std::fs::write(&path, "import io as stream\nfrom io import UnsupportedOperation as Unsupported\nclass Child(Unsupported):\n    pass\ntry:\n    raise Child('x')\nexcept (ValueError, ValueError, stream.UnsupportedOperation):\n    print('caught')\n").unwrap();
     let mut session = Session::default();
     let output = dump(&mut session, &path, Stage::Mir).expect("稳定原生io异常应降级");
@@ -33,10 +36,8 @@ fn stable_io_aliases_and_subclasses_lower_with_secondary_parent_handler() {
 }
 #[test]
 fn rebinding_or_local_io_source_does_not_gain_static_exception_identity() {
-    let directory = std::env::temp_dir().join(format!(
-        "ryupy_io_unsupported_shadow_{}",
-        std::process::id()
-    ));
+    let _layout_temp = layout_temp::Root::new("io-shadow");
+    let directory = _layout_temp.join("shadow");
     std::fs::create_dir_all(&directory).unwrap();
     let path = directory.join("main.py");
     {
@@ -70,7 +71,11 @@ fn rebinding_or_local_io_source_does_not_gain_static_exception_identity() {
         },
     )
     .unwrap();
-    let result = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
+    let result = ryupy_driver::dotnet::run_executable_with(
+        artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+        &Default::default(),
+    )
+    .unwrap();
     assert!(
         result.status.success(),
         "{}",

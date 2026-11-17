@@ -1,4 +1,4 @@
-# ryupy: pending
+# 显式stock薄函数+NativeAOT资源专项：模块字典中的可写__file__采用声明锚点。
 from pathlib import Path
 
 def source_file(x):

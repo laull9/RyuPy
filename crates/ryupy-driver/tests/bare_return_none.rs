@@ -93,8 +93,7 @@ fn bare_explicit_and_implicit_none_match_pinned_python() {
     let actual = bounded(
         root.path(),
         "jit",
-        std::process::Command::new(std::env::var_os("DOTNET").unwrap_or_else(|| "dotnet".into()))
-            .arg(artifact.dll)
+        std::process::Command::new(artifact.native_exe.as_ref().expect("应用必须有公开入口"))
             .current_dir(jit_cwd)
             .env("LC_ALL", "C")
             .env("TZ", "UTC"),

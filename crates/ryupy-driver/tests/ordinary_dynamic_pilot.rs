@@ -69,7 +69,11 @@ fn compare(directory: &Path, entry: &str, selected: &[&str]) {
             session.module_environment_report_json().unwrap(),
         )
         .unwrap();
-        let actual = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
+        let actual = ryupy_driver::dotnet::run_executable_with(
+            artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+            &Default::default(),
+        )
+        .unwrap();
         let label = if explicit { "explicit" } else { "automatic" };
         std::fs::write(root.0.join(format!("{label}.stdout")), &actual.stdout).unwrap();
         std::fs::write(root.0.join(format!("{label}.stderr")), &actual.stderr).unwrap();
@@ -310,7 +314,11 @@ fn ordinary_dynamic_keeps_unopened_code_and_closure_reflection_boundaries() {
                 },
             )
             .unwrap();
-            let actual = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
+            let actual = ryupy_driver::dotnet::run_executable_with(
+                artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+                &Default::default(),
+            )
+            .unwrap();
             std::fs::write(root.0.join("actual.stdout"), &actual.stdout).unwrap();
             std::fs::write(root.0.join("actual.stderr"), &actual.stderr).unwrap();
             assert_eq!(actual.status.code(), Some(1));

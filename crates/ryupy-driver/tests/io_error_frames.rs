@@ -23,7 +23,11 @@ fn io_missing_file_preserves_python_caller_frames() {
         },
     )
     .unwrap();
-    let result = ryupy_driver::dotnet::run_dll(&artifacts.dll).unwrap();
+    let result = ryupy_driver::dotnet::run_executable_with(
+        artifacts.native_exe.as_ref().expect("应用必须有公开入口"),
+        &Default::default(),
+    )
+    .unwrap();
     let stderr = String::from_utf8_lossy(&result.stderr);
     assert_eq!(result.status.code(), Some(1), "{stderr}");
     let caller = stderr

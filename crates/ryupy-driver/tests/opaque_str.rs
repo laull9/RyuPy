@@ -71,7 +71,11 @@ fn compare(source: &str, expected_text: &str) {
         },
     )
     .unwrap();
-    let actual = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
+    let actual = ryupy_driver::dotnet::run_executable_with(
+        artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+        &Default::default(),
+    )
+    .unwrap();
     save(&root, "ryu", &actual);
     assert_eq!(expected.status.code(), Some(0));
     let fixed = if cfg!(windows) {

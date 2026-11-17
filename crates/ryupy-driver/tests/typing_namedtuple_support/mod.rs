@@ -189,7 +189,10 @@ fn check(filename: &str, source: &str, helpers: &[(&str, &str)], expected_labels
     )
     .unwrap();
     let start = std::time::Instant::now();
-    let result = ryupy_driver::dotnet::run_dll_with(&artifact.dll, &options);
+    let result = ryupy_driver::dotnet::run_executable_with(
+        artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+        &options,
+    );
     std::fs::write(
         root.path.join("jit.elapsed"),
         format!("{:?}\n", start.elapsed()),

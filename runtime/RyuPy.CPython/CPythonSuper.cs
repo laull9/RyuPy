@@ -47,21 +47,26 @@ public sealed partial class CPythonHost
     });
 
     /// <inheritdoc />
-    public bool IsInstance(IPyForeignObject value, PyClass target) => PythonCall(() =>
+    public bool IsInstance(IPyForeignObject value, PyClass target)
     {
-        if (value is not PythonObject instance || !ReferenceEquals(instance.Host, this)) return false;
-        // 即使目标尚无镜像，已释放的外部别名也必须先拒绝，保持对象生命周期合同。
-        nint pointer = instance.Pointer;
-        nint type = TryExistingTypePointer(target);
-        if (type == 0) return false;
-        try
+        // 存活检查是CLR宿主合同；先于carrier回调与无关镜像查询，保留原异常类型和副作用顺序。
+        if (value is PythonObject candidate && ReferenceEquals(candidate.Host, this)) _ = candidate.Pointer;
+        return PythonCall(() =>
         {
-            nint result = Check(Native.rp_op(27, pointer, type));
-            try { int truth = Native.rp_truth(result); ThrowIfError(); return truth != 0; }
-            finally { Native.rp_decref(result); }
-        }
-        finally { Native.rp_decref(type); }
-    });
+            if (value is not PythonObject instance || !ReferenceEquals(instance.Host, this)) return false;
+            // 进入域后仍核验当前状态；查询不相关类型也不能消费已失效的别名。
+            nint pointer = instance.Pointer;
+            nint type = TryExistingTypePointer(target);
+            if (type == 0) return false;
+            try
+            {
+                nint result = Check(Native.rp_op(27, pointer, type));
+                try { int truth = Native.rp_truth(result); ThrowIfError(); return truth != 0; }
+                finally { Native.rp_decref(result); }
+            }
+            finally { Native.rp_decref(type); }
+        });
+    }
 
     /// <inheritdoc />
     public object? GetSuperAttribute(object start, object? receiver, string name) => PythonCall(() =>

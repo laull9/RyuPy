@@ -1,11 +1,14 @@
 //! 链式赋值用一个动态隐藏槽保对象身份，目标仍逐条晚求值；类体边界保留，递归解包共享同一冻结值。
+#[path = "../src/test_temp.rs"]
+mod layout_temp;
 use ryupy_driver::{Session, Stage};
 mod support;
 use support::dump;
 
 #[test]
 fn snapshot_shared_value_and_suspended_target_order() {
-    let path = std::env::temp_dir().join("ryupy_m3_7_chain.py");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let path = _layout_temp.join("ryupy_m3_7_chain.py");
     std::fs::write(&path, "def bind(target, index):\n    target.value = target[index] = payload = []\n    return payload\ndef integers() -> bool:\n    a = b = 1000000\n    return a is b\ndef paused(target):\n    first = target[(yield 0)] = []\n    return first\n").unwrap();
     for (stage, name) in [
         (Stage::Hir, "m3_7_chain_hir"),
@@ -78,7 +81,8 @@ fn snapshot_shared_value_and_suspended_target_order() {
 
 #[test]
 fn class_chains_remain_explicitly_unsupported() {
-    let path = std::env::temp_dir().join("ryupy_m3_7_chain_unsupported.py");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let path = _layout_temp.join("ryupy_m3_7_chain_unsupported.py");
     std::fs::write(&path, "class C:\n    a = b = 1\n").unwrap();
     let mut session = Session::default();
     assert!(dump(&mut session, &path, Stage::Mir).is_err());

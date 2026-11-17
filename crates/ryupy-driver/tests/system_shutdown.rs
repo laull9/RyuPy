@@ -1,9 +1,11 @@
 //! M3.4 正常关闭阶段：重绑定stdout的缓冲必须刷新，刷新失败改为退出码120。
+#[path = "../src/test_temp.rs"]
+mod layout_temp;
 use ryupy_driver::{BuildOptions, Session};
 
 #[test]
 fn shutdown_flushes_redirected_file_and_reports_flush_failure() {
-    let directory = std::env::temp_dir().join(format!("ryupy_shutdown_{}", std::process::id()));
+    let directory = layout_temp::Root::new("system-shutdown");
     std::fs::create_dir_all(&directory).unwrap();
     let input = directory.join("shutdown.py");
     let output = directory.join("stdout.txt");
@@ -58,8 +60,7 @@ else:
     )
     .unwrap();
     let run = |args: &[&str]| {
-        std::process::Command::new(ryupy_driver::dotnet::dotnet_exe())
-            .arg(&artifact.dll)
+        std::process::Command::new(artifact.native_exe.as_ref().expect("应用必须有公开入口"))
             .args(args)
             .output()
             .unwrap()

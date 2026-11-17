@@ -66,8 +66,7 @@ pub(super) fn check(filename: &str, source: &str, labels: &[&str], failure: bool
         },
     )
     .unwrap_or_else(|error| panic!("编译失败：{error:#}\n{}", session.render_diagnostics(false)));
-    let actual = Command::new(ryupy_driver::dotnet::dotnet_exe())
-        .arg(&artifact.dll)
+    let actual = Command::new(artifact.native_exe.as_ref().expect("应用必须有公开入口"))
         .current_dir(&jit_cwd)
         .env_remove("PYTHONHOME")
         .env_remove("PYTHONPATH")

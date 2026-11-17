@@ -112,10 +112,13 @@ pub fn execute(
     )
     .unwrap();
     let artifact = result.unwrap();
-    let mut jit_command = Command::new(ryupy_driver::dotnet::dotnet_exe());
-    jit_command.arg(&artifact.dll);
+    let jit_command = Command::new(artifact.native_exe.as_ref().expect("应用必须有公开入口"));
     record_command(&root, "ryupy", &jit_command);
-    let actual = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
+    let actual = ryupy_driver::dotnet::run_executable_with(
+        artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+        &Default::default(),
+    )
+    .unwrap();
     save_output(&root, "ryupy", &actual);
     (root, expected, actual)
 }

@@ -346,7 +346,11 @@ print(fib_iter(100))
         search_paths: Vec::new(),
     };
     let artifacts = ryupy_driver::build(&mut sess, &opts).unwrap();
-    let res = ryupy_driver::dotnet::run_dll(&artifacts.dll).unwrap();
+    let res = ryupy_driver::dotnet::run_executable_with(
+        artifacts.native_exe.as_ref().expect("应用必须有公开入口"),
+        &Default::default(),
+    )
+    .unwrap();
     let _ = std::fs::remove_file(&py_path);
 
     assert!(!res.status.success(), "fib_iter(100) 应当因算术溢出失败");

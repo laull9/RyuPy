@@ -134,7 +134,11 @@ fn compare_module_calls(replacement: Option<&str>) {
         },
     )
     .unwrap();
-    let actual = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
+    let actual = ryupy_driver::dotnet::run_executable_with(
+        artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+        &Default::default(),
+    )
+    .unwrap();
     save_output(&root, "ryupy", &actual);
     assert_eq!(
         actual.status.code(),
