@@ -11,14 +11,14 @@ internal static class PyStringProtocols
         string text = PyStringLayout.RequireRaw(self);
         if (!PyStringLayout.TryGet(needle, out string part))
             throw Own(new PyTypeError($"'in <string>' requires string as left operand, not {PyRepr.TypeName(needle)}"));
-        return text.Contains(part, StringComparison.Ordinal);
+        return PyUnicodePoints.Contains(text, part);
     }
     internal static object Concat(object self, object? other)
     {
         string text = PyStringLayout.RequireRaw(self);
         if (!PyStringLayout.TryGet(other, out string right))
             throw Own(new PyTypeError($"can only concatenate str (not \"{PyRepr.TypeName(other)}\") to str"));
-        return string.Concat(text, right);
+        return PyUnicodePoints.Concat(text, right);
     }
     internal static object Repeat(object self, object? count)
     {
@@ -52,8 +52,8 @@ internal static class PyStringProtocols
     {
         string text = PyStringLayout.RequireRaw(self);
         if (!PyStringLayout.TryGet(other, out string right)) return PyNotImplemented.Instance;
-        // 与现精确文本比较保持同一UTF16序，码点排序旧边界单独保留正期望。
-        int order = string.CompareOrdinal(text, right);
+        // 根slot与精确str共用码点顺序，子类/foreign/local比较保持一致。
+        int order = PyUnicodePoints.Compare(text, right);
         return name switch
         {
             "__eq__" => order == 0, "__ne__" => order != 0, "__lt__" => order < 0,

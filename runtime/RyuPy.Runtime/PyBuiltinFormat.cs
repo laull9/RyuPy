@@ -6,6 +6,16 @@ namespace RyuPy.Runtime;
 
 internal static partial class PyBuiltinFormat
 {
+    // f-string只接本合同已覆盖的实例；其余原生布局继续保留原格式路径，避免收紧既有能力。
+    internal static bool HandlesFString(PyInstance instance)
+    {
+        if (instance.ForeignInstance is not null || instance.Class.TryLookup("__format__", out _, out _))
+            return true;
+        for (PyClass? type = instance.Class; type is not null; type = type.BaseClass)
+            if (type.HasEnumMetadata || type.IsNativeRuntimeClass || type.BuiltinBase is not null) return false;
+        return true;
+    }
+
     internal static object Invoke(object?[] args, string[] names)
     {
         if (names.Length != 0) throw Own(new PyTypeError("format() takes no keyword arguments"));

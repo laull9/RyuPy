@@ -37,8 +37,20 @@ pub(super) fn build(
     let result = (|| {
         for (name, source) in [
             (
+                "unicode_codepoints.h",
+                include_str!("../../../runtime/RyuPy.CPython/native/unicode_codepoints.h"),
+            ),
+            (
+                "exact_scalar.h",
+                include_str!("../../../runtime/RyuPy.CPython/native/exact_scalar.h"),
+            ),
+            (
                 "stock_function_owner.h",
                 include_str!("../../../runtime/RyuPy.CPython/native/stock_function_owner.h"),
+            ),
+            (
+                "stock_frame_call.h",
+                include_str!("../../../runtime/RyuPy.CPython/native/stock_frame_call.h"),
             ),
             (
                 "stock_thin_function.h",

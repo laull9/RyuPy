@@ -3,7 +3,7 @@ using RyuPy.Runtime;
 
 namespace RyuPy.CPython;
 
-internal sealed class PythonObject : PyNativeObject, IPyForeignObject, IDisposable
+internal sealed partial class PythonObject : PyNativeObject, IPyForeignObject, IPyForeignExactScalar, IDisposable
 {
     internal CPythonHost Host { get; }
     private readonly nint pointer;
@@ -81,7 +81,7 @@ internal sealed class PythonObject : PyNativeObject, IPyForeignObject, IDisposab
     });
     public object? Invoke(object?[] args, string[] names, object?[] values) => Host.PythonCall(() =>
     {
-        nint tuple = Host.MakeTuple(args), kwargs = 0;
+        nint tuple = Host.MakeTuple(Host.PrepareStockFrameArguments(this, args)), kwargs = 0;
         try
         {
             if (names.Length != 0)
@@ -89,11 +89,12 @@ internal sealed class PythonObject : PyNativeObject, IPyForeignObject, IDisposab
                 kwargs = Host.Check(Native.rp_op(16));
                 for (int i = 0; i < names.Length; i++)
                 {
-                    nint value = Host.ToPython(values[i]);
+                    nint value = Host.ToPython(Host.PrepareStockFrameKeyword(this, names[i], values[i]));
                     try { Native.rp_decref(Host.Check(Native.rp_op(17, kwargs, value, s: names[i]))); }
                     finally { Native.rp_decref(value); }
                 }
             }
+            if (Host.TryInvokeStockFrameBuiltin(this, tuple, kwargs, out object? guarded)) return guarded;
             return Host.FromOwned(Native.rp_op(5, Pointer, tuple, kwargs));
         }
         finally { Native.rp_decref(tuple); Native.rp_decref(kwargs); }

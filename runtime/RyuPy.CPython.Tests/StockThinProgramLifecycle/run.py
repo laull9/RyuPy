@@ -16,7 +16,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--python', type=Path, required=True)
     parser.add_argument('--aot', action='store_true', help='发布并直接运行真实NativeAOT runner')
-    parser.add_argument('--case', action='append', choices=['scoped', 'external', 'external-d', 'external-p', 'external-self', 'external-cell', 'external-container', 'zero', 'entry-fail', 'no-host', 'pre-entry-fail', 'scalar', 'external-callback', 'borrowed-receiver'])
+    parser.add_argument('--case', action='append', choices=['scoped', 'external', 'external-d', 'external-p', 'external-self', 'external-cell', 'external-container', 'zero', 'entry-fail', 'no-host', 'pre-entry-fail', 'scalar', 'external-callback', 'borrowed-receiver', 'callback-result', 'terminal-proxy', 'external-proxy', 'terminal-cycle', 'terminal-alias', 'frame-builtins'])
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[3]
     source = Path(__file__).resolve().parent
@@ -91,8 +91,8 @@ def main():
             search_paths=[str(Path(cfg['home'])/'lib'/f'python{series}'), str(Path(cfg['home'])/'lib'/f'python{series}'/'lib-dynload')],
             modules=['builtins', 'gc', 'sys', 'atexit'], container_transfer='proxy')
         failed = False
-        for case in args.case or ['scoped', 'external', 'external-d', 'external-p', 'external-self', 'external-cell', 'external-container', 'zero', 'entry-fail', 'no-host', 'pre-entry-fail', 'scalar', 'external-callback', 'borrowed-receiver']:
-            config_data['container_transfer'] = 'synchronized' if case == 'external-container' else 'proxy'
+        for case in args.case or ['scoped', 'external', 'external-d', 'external-p', 'external-self', 'external-cell', 'external-container', 'zero', 'entry-fail', 'no-host', 'pre-entry-fail', 'scalar', 'external-callback', 'borrowed-receiver', 'callback-result', 'terminal-proxy', 'external-proxy', 'terminal-cycle', 'terminal-alias', 'frame-builtins']:
+            config_data['container_transfer'] = 'synchronized' if case in ('external-container', 'callback-result') else 'proxy'
             config.write_text(json.dumps(config_data))
             env['RYUPY_CPYTHON_REPORT'] = str(work/f'{case}-report.json')
             env['DOTNET_TieredCompilation'] = '0' if case == 'borrowed-receiver' else '1'
@@ -107,6 +107,16 @@ def main():
                     assert 'stock_compiled_program' not in json.loads(report_path.read_text())
                 assert result.returncode == 0 and not result.stderr and 'PASS '+case in result.stdout
                 log.write('CASE '+case+' accepted=True\n'); continue
+            if case == 'terminal-cycle':
+                report = json.loads(Path(env['RYUPY_CPYTHON_REPORT']).read_text())
+                terminal = report['stock_compiled_program']
+                log.write('EXPECTED_CYCLE_REPORT '+json.dumps(report)+'\n')
+                assert result.returncode == 0 and 'EXPECTED_INVISIBLE_CYCLE' in result.stdout
+                assert 'stock程序终态owned/native引用未归零' in result.stderr
+                assert terminal['terminal'] and terminal['ledger'] > 0 and report['managed_roots'] > 0
+                assert terminal['post_finalize_decrefs'] == 0 and terminal['late_releases'] == 0
+                print('PASS negative invisible cycle retained', flush=True)
+                continue
             after = next((line for line in result.stdout.splitlines() if line.startswith('AFTER ')), '')
             fields = dict(item.split('=', 1) for item in after.split() if '=' in item)
             diagnostic = fields.get('finalize') == '0' and fields.get('postFinalizeDecref') == '0'
@@ -117,8 +127,11 @@ def main():
             terminal = report['stock_compiled_program']
             log.write('REPORT '+json.dumps(report)+'\n')
             diagnostic &= terminal['permission'] and terminal['terminal'] and all(terminal[key] == 0 for key in
-                ('finalize_result','native_live','core_roots','owned_h','ledger','queue','late_releases','post_finalize_decrefs','entry_final_records'))
-            passed = result.returncode == expected and not result.stderr and diagnostic
+                ('finalize_result','native_live','core_roots','owned_h','ledger','queue','late_releases','post_finalize_decrefs','entry_final_records','internal_proxy_roots','terminal_proxy_owner_records'))
+            if case == 'terminal-proxy':
+                assert 0 < terminal['terminal_proxy_peak_records'] < 32, '临时owned不能随1000次回调线性强保留'
+            expected_stderr = 'ValueError: expected-diagnostic-report\nexpected-diagnostic-system-exit\n' if case == 'entry-fail' else ''
+            passed = result.returncode == expected and result.stderr == expected_stderr and diagnostic
             line = f'CASE python={cfg["version"]} case={case} exit={result.returncode} expected={expected} accepted={passed}\n'
             print(line, end='', flush=True); log.write(line); log.flush()
             failed |= not passed

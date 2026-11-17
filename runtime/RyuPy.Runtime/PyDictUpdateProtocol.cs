@@ -122,10 +122,13 @@ public static partial class PyOps
 
     // PySequence_Fast 的精确 list/tuple 路径保 alias；generic 先 iter，再对游标 list.extend。
     // 第二次 iter 及游标长度提示可观察，必须完整消费后才检查 pair 长度。
-    private static object DictUpdateSequence(object? source)
+    private static object DictUpdateSequence(object? source, string? nonIterableMessage = null)
     {
         if (source is PyList || source is PyTuple && source.GetType() == typeof(PyTuple)) return source;
-        IPyIterator iterator = ListExtendIterator(source is PyInstanceIterator adapter ? adapter.Instance : source);
+        IPyIterator iterator;
+        try { iterator = ListExtendIterator(source is PyInstanceIterator adapter ? adapter.Instance : source); }
+        catch (PyTypeError) when (nonIterableMessage is not null)
+        { throw DictUpdateError(new PyTypeError(nonIterableMessage)); }
         var materialized = new PyList();
         ExtendList(materialized, iterator);
         return materialized;
@@ -135,9 +138,12 @@ public static partial class PyOps
         ? list.GetItem(index) : ((PyTuple)sequence).Items[index];
 
     // mapping 冷路径独立，raw exact/native 的提前返回不创建闭包或用户调用包装。
-    private static void DictUpdateMapping(PyDict target, object? source, object? keysMethod)
+    private static void DictUpdateMapping(PyDict target, object? source, object? keysMethod, bool literal = false)
     {
-        object sequence = DictUpdateSequence(DictUpdateMappingCall(keysMethod, null, invoke: true));
+        // keys正文错误原样传播；只有取得游标阶段的TypeError按CP mapping API重写。
+        object? keys = DictUpdateMappingCall(keysMethod, null, invoke: true);
+        object sequence = DictUpdateSequence(keys, literal
+            ? $"{PyRepr.TypeName(source)}.keys() returned a non-iterable (type {PyRepr.TypeName(keys)})" : null);
         var guard = new DictUpdateTargetGuard(target);
         for (int i = 0; i < DictUpdateCount(sequence); i++)
         {
@@ -173,6 +179,7 @@ public static partial class PyOps
     private static void DictUpdateRequireKey(object? key)
     {
         if (key is null or PyNone or string or long or int or bool or BigInteger or double) return;
+        if (PyForeignScalarKey.TryRead(key, out _)) return;
         if (!PyHash.IsHashable(key))
             throw DictUpdateError(new PyTypeError($"unhashable type: '{PyRepr.TypeName(key)}'"));
         throw DictUpdateError(new PyNotImplementedError("dict update protocol with custom keys is not supported"));

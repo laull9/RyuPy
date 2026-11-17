@@ -96,15 +96,21 @@ public static class PyText
         if (step == 1)
         {
             int last = OffsetOf(text, start + count);
-            return text.Substring(first, last - first);
+            return PyUnicodePoints.Substring(text, first, last - first);
         }
         var builder = new StringBuilder((int)Math.Min(count * 2, int.MaxValue));
         // 游标只沿原字符串移动一次；不能逐项 OffsetOf，否则反转长文本退化成 O(n²)。
         // 不建立码点偏移数组，保持额外空间仅为结果缓冲区。
         int offset = first;
+        System.Collections.Generic.List<int>? splits = null;
+        bool previousHigh = false;
         for (long i = 0; i < count; i++)
         {
-            builder.Append(text, offset, CodePointWidth(text, offset));
+            int width = CodePointWidth(text, offset);
+            if (previousHigh && width == 1 && char.IsLowSurrogate(text[offset]))
+                (splits ??= new()).Add(builder.Length - 1);
+            previousHigh = width == 1 && char.IsHighSurrogate(text[offset]);
+            builder.Append(text, offset, width);
             // 最后一项之后不再移动，避免巨大步长越界或不必要的扫描。
             if (i + 1 == count) break;
             if (step > 0)
@@ -119,11 +125,11 @@ public static class PyText
                     offset--;
                     // 只有原输入中相邻的高低代理项组成一个码点；孤立代理项不能被吞掉。
                     if (offset > 0 && char.IsLowSurrogate(text[offset])
-                        && char.IsHighSurrogate(text[offset - 1])) offset--;
+                        && char.IsHighSurrogate(text[offset - 1]) && !PyUnicodePoints.IsSplit(text, offset - 1)) offset--;
                 }
             }
         }
-        return builder.ToString();
+        return PyUnicodePoints.WithSplits(builder.ToString(), splits);
     }
 
     /// <summary>按码点拆成对象序列（迭代、<c>list(s)</c> 共用）。</summary>
@@ -166,12 +172,12 @@ public static class PyText
     /// 只有「高代理 + 低代理」这一种组合是 2；孤立代理项（前后不配对）按 1 处理，
     /// 这样切片与下标不会把两个不相干的字符粘在一起。
     /// </remarks>
-    private static int CodePointWidth(string text, int offset)
+    internal static int CodePointWidth(string text, int offset)
     {
         char ch = text[offset];
         if (char.IsHighSurrogate(ch) && offset + 1 < text.Length && char.IsLowSurrogate(text[offset + 1]))
         {
-            return 2;
+            return PyUnicodePoints.IsSplit(text, offset) ? 1 : 2;
         }
         return 1;
     }

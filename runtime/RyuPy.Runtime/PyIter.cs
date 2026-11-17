@@ -48,6 +48,23 @@ public interface IPyIterator
 public sealed class PyIter : IPyIterator
 {
     private readonly object _source;
+    // 类型身份从既有源和视图标记推导；冷错误/反射读取，无新实例字段或迭代热路分派。
+    internal string PythonTypeName => _source switch
+    {
+        PyList => "list_iterator",
+        PyTuple => "tuple_iterator",
+        PyDict => _viewKind switch
+        {
+            PyDictViewKind.Values => "dict_valueiterator",
+            PyDictViewKind.Items => "dict_itemiterator",
+            _ => "dict_keyiterator",
+        },
+        string => "str_iterator",
+        PyBytes => "bytes_iterator",
+        PyByteArray => "bytearray_iterator",
+        PyFrozenSet => "set_iterator",
+        _ => "iterator",
+    };
     private readonly long _version;
     /// <summary>集合 / frozenset 的确定快照；其它来源为 <c>null</c>。</summary>
     private readonly object?[]? _snapshot;

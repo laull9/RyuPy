@@ -58,11 +58,27 @@ public sealed partial class CPythonHost
     {
         if (!stockProgramAuthorized && !stockProgramExecuting) return;
         writer.WriteStartObject("stock_compiled_program");
+        if (stockCallbackFailure is not null) writer.WriteString("callback_failure", stockCallbackFailure);
+        KeyValuePair<long, string>[] origins;
+        lock (gate) origins = stockExternalOwnerOrigins.ToArray();
+        writer.WriteStartArray("external_owned_origins");
+        foreach (var origin in origins)
+        { writer.WriteStartObject(); writer.WriteNumber("token", origin.Key); writer.WriteString("trace", origin.Value); writer.WriteEndObject(); }
+        writer.WriteEndArray();
         writer.WriteBoolean("permission", stockProgramAuthorized);
         writer.WriteBoolean("terminal", stockProgramResult is not null);
         writer.WriteNumber("entry_peak_records", stockProgramEntryRegistry?.PeakCount ?? 0);
         writer.WriteNumber("entry_final_records", stockProgramEntryRegistry?.Count ?? 0);
         writer.WriteNumber("identity_cache_entries", objects.Count);
+        lock (gate)
+        {
+            writer.WriteNumber("internal_proxy_roots", stockProgramProxyRoots.Count);
+            writer.WriteNumber("terminal_proxy_owner_records", terminalOwnerRoots.Count);
+            writer.WriteNumber("terminal_proxy_peak_records", terminalProxyPeakRecords);
+        }
+        writer.WriteStartArray("managed_root_types");
+        foreach (object root in Roots.Values) writer.WriteStringValue(root.GetType().FullName);
+        writer.WriteEndArray();
         if (stockProgramResult is { } result)
         {
             writer.WriteNumber("finalize_result", result.FinalizeResult);

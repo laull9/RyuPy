@@ -19,6 +19,12 @@ public sealed partial class CPythonHost
     internal object? FromBorrowed(nint pointer) => pointer == 0 ? null : FromOwned(Native.rp_incref(pointer));
     internal object? FromOwned(nint pointer)
     {
+        object? value = FromOwnedCore(pointer);
+        ObserveTerminalProxyValue(value);
+        return value;
+    }
+    private object? FromOwnedCore(nint pointer)
+    {
         Check(pointer);
         if (TryFromStockThinOwned(pointer, out object? thinFunction)) return thinFunction;
         if (TryImportInspect(pointer, out object? inspected)) return inspected;
@@ -117,6 +123,11 @@ public sealed partial class CPythonHost
             case double number: return CacheScalar(Native.rp_float(number));
             case BigInteger number: return CacheScalar(Native.rp_op(21, s: number.ToString(System.Globalization.CultureInfo.InvariantCulture)));
             case string text:
+                if (text.AsSpan().IndexOfAnyInRange((char)0xd800, (char)0xdfff) >= 0)
+                {
+                    string points = PyOps.UnicodeCodePoints(text);
+                    fixed (char* units = points) return CacheScalar(Native.rp_text_codepoints(units, points.Length));
+                }
                 byte[] utf8 = Encoding.UTF8.GetBytes(text);
                 fixed (byte* bytes = utf8) return CacheScalar(Native.rp_text(bytes, utf8.Length));
             case PyBytes data:
@@ -148,6 +159,7 @@ public sealed partial class CPythonHost
         // 弱反向索引不钉住托管对象；C端代理存活期间Roots才是明确的强根。
         nint identity = (nint)Interlocked.Increment(ref nextRoot);
         Roots[identity] = value;
+        ObserveStockProgramProxy(identity);
         nint pointer;
         try
         {
@@ -155,7 +167,7 @@ public sealed partial class CPythonHost
             ValidateSetNameDescriptor(value);
             pointer = Check(descriptor ? Native.rp_managed_descriptor(identity) : Native.rp_managed(identity));
         }
-        catch { Roots.TryRemove(identity, out _); throw; }
+        catch { Roots.TryRemove(identity, out _); ReleaseStockProgramProxy(identity); throw; }
         reverse.Add(value, new ManagedReference(identity, pointer));
         return pointer;
     }
@@ -169,6 +181,11 @@ public sealed partial class CPythonHost
         {
             reverse.Remove(value);
             objects.Remove(pointer);
+            if (transfers.TryGetValue(value, out var transfer) && ReferenceEquals(transfer.Owner, owner))
+            {
+                transfers.Remove(value);
+                transferIndex.RemoveAll(weak => !weak.TryGetTarget(out var candidate) || ReferenceEquals(candidate, transfer));
+            }
         }
         else if (ReferenceEquals(value, owner)) objects.Remove(pointer);
     }
@@ -200,8 +217,10 @@ public sealed partial class CPythonHost
     }
     internal string ReadText(nint pointer)
     {
-        nint text = Native.rp_utf8(pointer, out long length); Check(text);
-        return Marshal.PtrToStringUTF8(text, checked((int)length))!;
+        nint text = Native.rp_utf8(pointer, out long length);
+        if (text != 0) return Marshal.PtrToStringUTF8(text, checked((int)length))!;
+        if (Native.rp_unicode_utf8_fallback() == 0) ThrowError();
+        return ReadUnicodeCodePoints(pointer);
     }
     internal string ReadTextOwned(nint pointer)
     {

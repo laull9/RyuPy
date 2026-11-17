@@ -96,6 +96,8 @@ public sealed partial class PyDict
     /// <param name="key">键。</param>
     public object? Get(object? key)
     {
+        // 空表也必须执行键的hash；先建立存储，TryGetValue仍只求值一次，并观察hash重入后的表。
+        if (Count == 0) _index.EnsureCapacity(1);
         if (key is PyInstance instance && Count == 0) PyHash.RequireOrdinaryHashable(instance);
         if (key is not null && _index.TryGetValue(key, out int slot))
         {

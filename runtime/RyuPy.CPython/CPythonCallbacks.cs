@@ -12,9 +12,17 @@ public sealed partial class CPythonHost
     {
         CPythonHost? host = Instance;
         if (host is null) { Native.rp_error_text("RuntimeError", "RyuPy host is closed"); return 0; }
+        if (identity == -2 && op == 30)
+        {
+            try { host.TryReleaseTerminalOwnerPool(); }
+            catch (Exception error) { host.stockCallbackFailure = error.ToString(); }
+            return 0;
+        }
         if (op == 0)
         {
             if (host.Roots.TryRemove(identity, out object? root)) host.reverse.Remove(root);
+            host.ReleaseStockProgramProxy(identity);
+            host.ReleaseTerminalProxyOwners(identity);
             return 0;
         }
         long callbackDepth = PyTraceback.CaptureDepth();
@@ -22,10 +30,15 @@ public sealed partial class CPythonHost
         CallbackScope? callback = null;
         ManagedHandledScope? handled = null;
         ProgramRegistrationPause? externalOwnership = null;
+        ProgramOwnedScope? terminalOwnership = null;
         try
         {
             lease = host.Enter(callback: true);
-            if (identity != -1) externalOwnership = host.PauseStockProgramRegistration();
+            if (identity != -1)
+            {
+                terminalOwnership = host.BeginTerminalProxyCallback(identity);
+                if (terminalOwnership is null) externalOwnership = host.PauseStockProgramRegistration();
+            }
             callback = new CallbackScope(true);
             handled = new ManagedHandledScope(host);
             if (identity == -1)
@@ -104,6 +117,7 @@ public sealed partial class CPythonHost
             // CLR异常展开越出编译函数时，CIL正常返回的PopTo不会执行；恢复入口深度，
             // cause已保存的帧保持不变，外层随后抛出的新异常只捕获仍活动的编译调用者。
             PyTraceback.PopTo(callbackDepth + 1);
+            if (terminalOwnership is not null) host.CompleteTerminalProxyCallback(terminalOwnership);
             externalOwnership?.Dispose(); lease?.Dispose();
         }
     }

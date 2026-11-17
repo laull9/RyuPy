@@ -51,11 +51,11 @@ public static partial class PyOps
         }
         if (a is string sa && b is string sb)
         {
-            return Math.Sign(string.CompareOrdinal(sa, sb));
+            return Math.Sign(PyUnicodePoints.Compare(sa, sb));
         }
         if ((a is PyStringInstance || b is PyStringInstance)
             && PyStringLayout.TryGet(a, out string subleft) && PyStringLayout.TryGet(b, out string subright))
-            return Math.Sign(string.CompareOrdinal(subleft, subright));
+            return Math.Sign(PyUnicodePoints.Compare(subleft, subright));
         SequenceKind? kindA = SequenceKindOf(a);
         SequenceKind? kindB = SequenceKindOf(b);
         if (kindA is { } ka && kindB is { } kb)

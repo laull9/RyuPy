@@ -193,7 +193,9 @@ public sealed partial class CPythonHost : IPyStockThinFunctionProvider
             environment = new StockThinFunctionCallLease(host, function);
             var core = (StockThinFunctionCore)GCHandle.FromIntPtr(token).Target!;
             host.PullContainers();
-            object? value = core.Invoke(environment, environment.ConvertBorrowed(argument));
+            object? value;
+            using (new StockBodyScope(environment))
+                value = core.Invoke(environment, environment.ConvertBorrowed(argument));
             host.PushContainers();
             result = environment.ExportResult(value);
         }
@@ -204,6 +206,7 @@ public sealed partial class CPythonHost : IPyStockThinFunctionProvider
         }
         catch (Exception error)
         {
+            if (host is not null) host.stockCallbackFailure = error.ToString();
             if (host is not null && lease is not null) host.RestoreCallbackError(PyErrors.FromClr(error));
             else Native.rp_error_text("RuntimeError", error.Message);
         }
@@ -272,6 +275,30 @@ internal sealed class StockThinFunctionCallLease : IStockThinFunctionLease
         this.host = host;
         lease = host.Enter(callback: true);
         this.function = Native.rp_incref(function);
+    }
+    internal int FrameBuiltinKind(nint value)
+    {
+        if (function == 0) throw new ObjectDisposedException("stock function lease");
+        int kind = Native.rp_thin_frame_builtin(function, value);
+        if (kind == -2) host.ThrowError();
+        return kind;
+    }
+    internal int FrameTarget(nint value, out nint bound)
+    {
+        int kind = Native.rp_thin_frame_target(function, value, out bound);
+        if (kind == -2) host.ThrowError();
+        return kind;
+    }
+    internal int FrameCall(nint callable, nint args, nint kwargs)
+    {
+        int action = Native.rp_thin_frame_call(function, callable, args, kwargs);
+        if (action < 0) host.ThrowError();
+        return action;
+    }
+    internal object GlobalsForBuiltin()
+    {
+        if (function == 0) throw new ObjectDisposedException("stock function lease");
+        return host.FromOwned(host.Check(Native.rp_op(2, function, s: "__globals__")))!;
     }
     public void Validate(StockThinFunctionDefinition definition)
     {

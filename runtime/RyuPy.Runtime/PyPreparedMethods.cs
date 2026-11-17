@@ -115,6 +115,9 @@ public static partial class PyOps
     /// <param name="name">方法属性名。</param>
     public static object? PrepareMethod(object? receiver, string name)
     {
+        // 精确dict的下标方法与dict根描述符共用绑定器，保存后仍读取原字典的活存储。
+        if (receiver is PyDict dictionary && name == "__getitem__")
+            return PyDictDescriptors.Bind(dictionary, name);
         if (receiver is PyUrlResult url && name is not ("count" or "index" or "__len__")) return url.Attribute(name);
         if (receiver is PyNamedTupleInstance || receiver is PyClass { NamedTupleLayout: not null })
             return CaptureModuleTarget(receiver, name);

@@ -12,6 +12,8 @@ public sealed partial class CPythonHost
     private PythonObject[] stockProgramOwners = [];
     private HashSet<long> stockProgramTokens = [];
     private StockProgramResult? stockProgramResult;
+    private string? stockCallbackFailure;
+    private readonly Dictionary<long, string> stockExternalOwnerOrigins = [];
 
     internal sealed record StockProgramResult(int FinalizeResult, long NativeLive, long Destroyed, long NativeCalls,
         int CoreRoots, int OwnedHandles, int Ledger, int Pending, long Late, long PostFinalizeDecrefs);
@@ -63,14 +65,20 @@ public sealed partial class CPythonHost
             using Lease lease = Enter();
             lock (gate)
             {
-                if (StockThinOwnedHandles != 0 || Roots.Count != 0
+                if (StockThinOwnedHandles != 0 || !Roots.Keys.ToHashSet().SetEquals(stockProgramProxyRoots)
                     || !handles.Keys.ToHashSet().SetEquals(stockProgramTokens)
                     || stockProgramEntryRegistry!.HasUnresolvedOwner())
                     throw new InvalidOperationException("stock程序仍有外部或未完成退账的owned引用，释放后重试结束");
             }
             if (Native.rp_thin_program_check() < 0) ThrowError();
         }
-        catch { lock (gate) state = 1; throw; }
+        catch
+        {
+            // 拒绝仍保持关闭门，先记录纯托管账本和CLR失败栈，再恢复可用宿主；观测失败不替换原异常。
+            try { WriteReport(); } catch { }
+            lock (gate) state = 1;
+            throw;
+        }
 
         // 提交后先执行Runtime退出钩子；module/D包装此时尚可用，异常报告保留原入口退出码。
         int code = 0, nativeResult = -1;
@@ -113,7 +121,8 @@ public sealed partial class CPythonHost
         WriteReport();
         StockProgramResult result = stockProgramResult!;
         if (result.NativeLive != 0 || result.CoreRoots != 0 || result.OwnedHandles != 0
-            || result.Ledger != 0 || result.Pending != 0 || result.Late != 0 || result.PostFinalizeDecrefs != 0 || Roots.Count != 0)
+            || result.Ledger != 0 || result.Pending != 0 || result.Late != 0 || result.PostFinalizeDecrefs != 0 || Roots.Count != 0
+            || stockProgramProxyRoots.Count != 0 || terminalOwnerRoots.Count != 0)
             throw new InvalidOperationException("stock程序终态owned/native引用未归零：" + result);
         if (error is not null) throw new InvalidOperationException("stock程序退出处理失败", error);
         if (nativeResult != 0) throw new InvalidOperationException("CPython关闭时标准流刷新失败");
@@ -125,7 +134,12 @@ public sealed partial class CPythonHost
     {
         if (Environment.CurrentManagedThreadId != ownerThread) return;
         if (stockProgramCallback is { } callback) callback.Add(owner);
-        else stockProgramEntry?.Add(owner, token);
+        else if (stockProgramEntry is { } entry) entry.Add(owner, token);
+        else if (stockProgramExecuting && !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RYUPY_CPYTHON_REPORT")))
+        {
+            string trace = Environment.StackTrace;
+            lock (gate) stockExternalOwnerOrigins[token] = trace;
+        }
         PruneStockProgramIdentities();
     }
     internal void ObserveStockProgramHandle(StockThinFunctionOwner owner)
@@ -159,6 +173,9 @@ public sealed partial class CPythonHost
 
     private sealed class ProgramOwnedScope(CPythonHost host, ProgramOwnedScope? previous = null) : IDisposable
     {
+        internal ProgramOwnedScope? Previous => previous;
+        internal nint ProxyIdentity;
+        internal void Detach() => host.stockProgramCallback = previous;
         internal readonly List<PythonObject> Owners = [];
         internal readonly List<StockThinFunctionOwner> Handles = [];
         internal void Add(PythonObject owner) => Owners.Add(owner);
@@ -185,6 +202,7 @@ public sealed partial class CPythonHost
             {
                 host.stockProgramCallback = previous;
                 if (raised != 0) { Native.rp_restore_error(raised); Native.rp_decref(raised); }
+                host.TryReleaseTerminalOwnerPool();
             }
         }
     }

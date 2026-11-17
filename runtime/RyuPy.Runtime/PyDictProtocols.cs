@@ -27,6 +27,8 @@ internal static class PyDictProtocols
     internal static object? Item(object self, object? key)
     {
         PyDict raw = PyDictLayout.RequireRaw(self);
+        // 精确dict保留既有任意hashable键协议；派生布局继续按自己的有限合同验证。
+        if (self is PyDict) return raw.Get(key ?? PyNone.Instance);
         RequireScalarKey(key);
         if (self is not PyDictInstance) RequireScalarContents(raw);
         if (raw.TryGet(key ?? PyNone.Instance, out object? value)) return value;
