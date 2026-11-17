@@ -6,4 +6,7 @@ internal static class ProgramObserver
     [DllImport("stock_program_observer")] internal static extern int program_check_missing_builtins();
     [DllImport("stock_program_observer")] internal static extern int program_install_observer();
     [DllImport("stock_program_observer")] internal static extern long program_lowlevel_live();
+    [DllImport("stock_program_observer", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern unsafe nint program_receiver_create(delegate* unmanaged[Cdecl]<int> callback);
+    [DllImport("stock_program_observer")] internal static extern int program_receiver_destroyed();
 }

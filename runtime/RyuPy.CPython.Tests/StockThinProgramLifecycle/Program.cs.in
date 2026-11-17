@@ -2,6 +2,8 @@
 // 业务F留在原__main__，控制胶水只注册退出协议和做身份断言；没有源码del或产品代码注入。
 using RyuPy.CPython;
 using RyuPy.Runtime;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 namespace RyuPy.CPython.Tests;
 internal static class ProgramLifecycle
 {
@@ -14,12 +16,38 @@ internal static class ProgramLifecycle
     private static readonly object constantString = "恒定CIL字符串:重复导出:0123456789";
     private static readonly object constantInteger = 123456789012345L;
     private static readonly ExternalCapture capture = new();
+    private static WeakReference? releasedDuringPause;
+    private static WeakReference? borrowedReceiver;
+    private static Exception? receiverError;
+
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static int ReenterBorrowedReceiver()
+    {
+        try
+        {
+            GC.Collect(); GC.WaitForPendingFinalizers(); host.DrainReferences();
+            Require(borrowedReceiver is { IsAlive: true }, "活动borrowed receiver保活到同步清理结束");
+            return 0;
+        }
+        catch (Exception error) { receiverError = error; return -1; }
+    }
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static unsafe object? TouchTemporaryReceiver()
+    {
+        using var lease = host.Enter();
+        var receiver = new PythonObject(host, host.Check(ProgramObserver.program_receiver_create(&ReenterBorrowedReceiver)));
+        borrowedReceiver = new(receiver);
+        return receiver.GetAttr("touch");
+    }
     private sealed class ExternalCapture : PyNativeObject
     {
         internal PythonObject? Saved;
         public override string TypeName => "external_capture";
         public override object? GetAttr(string name)
         {
+            // 登记权暂停时，旧内部token的finalizer仍必须精确退账，不能依赖临时authority指针。
+            GC.Collect(); GC.WaitForPendingFinalizers();
+            Require(releasedDuringPause is { IsAlive: false }, "Pause期间旧内部owner自然回收");
             Saved = (PythonObject)host.SystemAttribute("version")!;
             return PyNone.Instance;
         }
@@ -73,6 +101,9 @@ internal static class ProgramLifecycle
             new("0228:"+name, "__main__", name, "fixed-cil-body.cs", 1), body);
         module.SetAttr(name, f);
     }
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static WeakReference CreateTransientInternalOwner() =>
+        new(host.SystemAttribute("implementation")!);
     private static void Entry(object context)
     {
         entryContext = context;
@@ -82,15 +113,24 @@ internal static class ProgramLifecycle
             if (ProgramObserver.program_check_missing_builtins() < 0) host.ThrowError();
         if (mode == "zero") return;
         if (mode == "entry-fail") throw new PyValueError("entry-before-F");
+        if (mode == "borrowed-receiver")
+        {
+            Require((long)((PythonObject)TouchTemporaryReceiver()!).ReadScalar("exact_int") == 4123, "原生receiver回调后读取原payload");
+            Require(receiverError is null && ProgramObserver.program_receiver_destroyed() == 0,
+                "活动协议结束前receiver没有提前析构");
+        }
         Run("import gc, atexit, sys\ngc.disable()\nmarker=object()\n");
         Define("f", Echo); Define("global_f", Global); Define("global_self", Self);
         Define("onexit", AtExit); Define("ondel", Del); Define("fail", Fail); Define("onunraisable", Unraisable);
         Define("constant_str", ConstantString); Define("constant_int", ConstantInteger);
         Run("assert f(marker) is marker\nassert global_f(None) is marker\nassert global_self(None) is f\n");
+        // 活全局缺失经CP→CIL→CP返回，保留真实NameError的name/args/str；恢复后继续用同一F。
+        Run("saved_marker=marker\ndel marker\ntry:\n global_f(None)\nexcept NameError as error:\n assert type(error) is NameError and not isinstance(error, UnboundLocalError)\n assert error.name=='marker'\n assert error.args==(\"name 'marker' is not defined\",)\n assert str(error)==error.args[0]\nelse:\n raise AssertionError('缺失全局必须抛错')\nmarker=saved_marker\ndel saved_marker\nassert global_f(None) is marker\n");
         // 同一CLR常量反复导出；每次丢弃CP结果后再次调用，覆盖retired reverse旧地址复用。
         Run("for _ in range(1000):\n assert constant_str(None)=='恒定CIL字符串:重复导出:0123456789'\n assert constant_int(None)==123456789012345\n");
         if (mode == "external-callback")
         {
+            releasedDuringPause = CreateTransientInternalOwner();
             module.SetAttr("external_probe", capture);
             Run("external_probe.capture\nexternal_probe=None\n");
             Require(capture.Saved is { IsDisposed: false }, "第三方回调保存新opaque");
@@ -98,6 +138,7 @@ internal static class ProgramLifecycle
     }
     public static int Main(string[] args)
     {
+        Require(RuntimeFeature.IsDynamicCodeSupported == (args[2] == "jit"), "实际JIT/NativeAOT模式与命令一致");
         mode = args[1];
         if (mode == "no-host")
         {
@@ -119,10 +160,12 @@ internal static class ProgramLifecycle
         catch (PyValueError) when (mode == "entry-fail") { Console.WriteLine("EXPECTED entry-before-F"); }
         bool empty = mode is "zero" or "entry-fail";
         Require(CPythonHost.StockThinOwnedHandles == 0, "内部H已由入口作用域确定交还");
+        if (mode == "borrowed-receiver")
+            Require(ProgramObserver.program_receiver_destroyed() == 1, "入口收敛后receiver真实析构一次");
+        Refused(host.Dispose); // 零F也有module/D owned，不能绕回普通Dispose清账。
         if (!empty)
         {
             Require(ReferenceEquals(module, host.Import("__main__")), "Host与Runtime同一module");
-            Refused(host.Dispose);
         }
         if (mode == "external-callback")
         {

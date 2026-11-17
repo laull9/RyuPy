@@ -10,6 +10,41 @@ static void observe_exit(void) {
 __attribute__((visibility("default"))) int program_install_observer(void) { return Py_AtExit(observe_exit); }
 __attribute__((visibility("default"))) long long program_lowlevel_live(void) { return lowlevel_live; }
 
+/* borrowed receiver门：回调触发CLR GC并重入Drain；若提前析构，只报错且绝不再读已释放self。 */
+typedef struct { PyObject_HEAD int (*callback)(void); long payload; } BorrowedReceiver;
+static int receiver_active, receiver_destroyed, receiver_violation;
+static void receiver_dealloc(BorrowedReceiver *self) {
+    PyTypeObject *type = Py_TYPE(self);
+    receiver_destroyed++;
+    if (receiver_active) receiver_violation = 1;
+    type->tp_free((PyObject *)self); Py_DECREF(type);
+}
+static PyObject *receiver_getattro(PyObject *value, PyObject *name) {
+    if (PyUnicode_CompareWithASCIIString(name, "touch") != 0)
+        return PyObject_GenericGetAttr(value, name);
+    BorrowedReceiver *self = (BorrowedReceiver *)value;
+    int (*callback)(void) = self->callback;
+    receiver_active = 1;
+    int result = callback();
+    receiver_active = 0;
+    if (receiver_violation || result < 0) {
+        PyErr_SetString(PyExc_RuntimeError, "borrowed receiver lost during managed reentry"); return NULL;
+    }
+    return PyLong_FromLong(self->payload);
+}
+__attribute__((visibility("default"))) PyObject *program_receiver_create(int (*callback)(void)) {
+    PyType_Slot slots[] = {{Py_tp_dealloc, receiver_dealloc}, {Py_tp_getattro, receiver_getattro}, {0, NULL}};
+    PyType_Spec spec = {"ryupy.BorrowedReceiverProbe", sizeof(BorrowedReceiver), 0, Py_TPFLAGS_DEFAULT, slots};
+    PyObject *type = PyType_FromSpec(&spec);
+    if (!type) return NULL;
+    BorrowedReceiver *self = (BorrowedReceiver *)PyType_GenericAlloc((PyTypeObject *)type, 0);
+    Py_DECREF(type);
+    if (!self) return NULL;
+    self->callback = callback; self->payload = 4123;
+    return (PyObject *)self;
+}
+__attribute__((visibility("default"))) int program_receiver_destroyed(void) { return receiver_destroyed; }
+
 /* 真实frame的builtins为None，逐项调用产品API覆盖晚期受控失败；没有CP私有内存写入。 */
 extern void rp_error_text(const char *, const char *);
 extern PyObject *rp_make_error(const char *, PyObject *);

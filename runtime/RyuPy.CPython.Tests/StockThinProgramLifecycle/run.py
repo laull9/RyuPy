@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""实际产品程序集/正式shim的仓外独立 JIT 生命周期门；保留成功/失败三流，清理全部构建产物。"""
+"""实际产品程序集/正式shim的仓外独立 JIT/NativeAOT 生命周期门；保留成功/失败三流，清理全部构建产物。"""
 import argparse
 from datetime import datetime, timezone
 import json
@@ -15,13 +15,14 @@ import tempfile
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--python', type=Path, required=True)
-    parser.add_argument('--case', action='append', choices=['scoped', 'external', 'external-d', 'external-p', 'external-self', 'external-cell', 'external-container', 'zero', 'entry-fail', 'no-host', 'pre-entry-fail', 'scalar', 'external-callback'])
+    parser.add_argument('--aot', action='store_true', help='发布并直接运行真实NativeAOT runner')
+    parser.add_argument('--case', action='append', choices=['scoped', 'external', 'external-d', 'external-p', 'external-self', 'external-cell', 'external-container', 'zero', 'entry-fail', 'no-host', 'pre-entry-fail', 'scalar', 'external-callback', 'borrowed-receiver'])
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[3]
     source = Path(__file__).resolve().parent
     logs = Path.home()/'.cache/ryupy/validation/adr0228'
     logs.mkdir(parents=True, exist_ok=True)
-    path = logs/(datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ')+'.log')
+    path = logs/(datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ')+f'-{os.getpid()}.log')
     print('LOG', path, flush=True)
     with path.open('x') as log, tempfile.TemporaryDirectory(prefix='ryupy-0228-', dir='/tmp') as tmp:
         work = Path(tmp)
@@ -69,11 +70,15 @@ def main():
         (runner/'Runner.csproj').write_text('''<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup>
 <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><AssemblyName>RyuPy.CPython.Tests</AssemblyName>
 <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 </PropertyGroup><Import Project="../inputs/RuntimeDependencies.props"/><ItemGroup><Reference Include="RyuPy.CPython"><HintPath>../inputs/RyuPy.CPython.dll</HintPath></Reference>
 <Reference Include="RyuPy.Runtime"><HintPath>../inputs/RyuPy.Runtime.dll</HintPath></Reference></ItemGroup></Project>''')
         output = work/'output'
         env = dict(os.environ, DOTNET_ROLL_FORWARD='Major')
-        run(['dotnet', 'build', str(runner/'Runner.csproj'), '--disable-build-servers', '-c', 'Release', '-o', str(output), '-v', 'minimal'], env=env)
+        if args.aot:
+            run(['dotnet', 'publish', str(runner/'Runner.csproj'), '--disable-build-servers', '-c', 'Release', '-r', 'osx-arm64', '-p:PublishAot=true', '-p:IlcTreatWarningsAsErrors=true', '-p:ILLinkTreatWarningsAsErrors=true', '-o', str(output), '-v', 'minimal'], timeout=300, env=env)
+        else:
+            run(['dotnet', 'build', str(runner/'Runner.csproj'), '--disable-build-servers', '-c', 'Release', '-o', str(output), '-v', 'minimal'], env=env)
         run(['sh', str(root/'runtime/RyuPy.CPython/native/build.sh'), cfg['home'], str(output), series])
         shim = output/'libryupy_cpython.dylib'
         run(['clang', '-dynamiclib', '-O2', '-Wall', '-Wextra', '-Werror',
@@ -86,11 +91,13 @@ def main():
             search_paths=[str(Path(cfg['home'])/'lib'/f'python{series}'), str(Path(cfg['home'])/'lib'/f'python{series}'/'lib-dynload')],
             modules=['builtins', 'gc', 'sys', 'atexit'], container_transfer='proxy')
         failed = False
-        for case in args.case or ['scoped', 'external', 'external-d', 'external-p', 'external-self', 'external-cell', 'external-container', 'zero', 'entry-fail', 'no-host', 'pre-entry-fail', 'scalar', 'external-callback']:
+        for case in args.case or ['scoped', 'external', 'external-d', 'external-p', 'external-self', 'external-cell', 'external-container', 'zero', 'entry-fail', 'no-host', 'pre-entry-fail', 'scalar', 'external-callback', 'borrowed-receiver']:
             config_data['container_transfer'] = 'synchronized' if case == 'external-container' else 'proxy'
             config.write_text(json.dumps(config_data))
             env['RYUPY_CPYTHON_REPORT'] = str(work/f'{case}-report.json')
-            result = run(['dotnet', str(output/'RyuPy.CPython.Tests.dll'), str(config), case], required=False, env=env)
+            env['DOTNET_TieredCompilation'] = '0' if case == 'borrowed-receiver' else '1'
+            command = [str(output/'RyuPy.CPython.Tests')] if args.aot else ['dotnet', str(output/'RyuPy.CPython.Tests.dll')]
+            result = run(command + [str(config), case, 'aot' if args.aot else 'jit'], required=False, env=env)
             # 失败对照同样保留，SIGSEGV/异常退出永远不能作为预期泄漏通过。
             expected = 0
             env['RYUPY_CPYTHON_REPORT'] = str(work/f'{case}-report.json')
@@ -103,11 +110,14 @@ def main():
             after = next((line for line in result.stdout.splitlines() if line.startswith('AFTER ')), '')
             fields = dict(item.split('=', 1) for item in after.split() if '=' in item)
             diagnostic = fields.get('finalize') == '0' and fields.get('postFinalizeDecref') == '0'
-            report = json.loads(Path(env['RYUPY_CPYTHON_REPORT']).read_text())
+            report_path = Path(env['RYUPY_CPYTHON_REPORT'])
+            if not report_path.exists():
+                raise RuntimeError(f'进程没有生成终态报告: case={case} exit={result.returncode}，见 {path}')
+            report = json.loads(report_path.read_text())
             terminal = report['stock_compiled_program']
             log.write('REPORT '+json.dumps(report)+'\n')
             diagnostic &= terminal['permission'] and terminal['terminal'] and all(terminal[key] == 0 for key in
-                ('finalize_result','native_live','core_roots','owned_h','ledger','queue','late_releases','post_finalize_decrefs'))
+                ('finalize_result','native_live','core_roots','owned_h','ledger','queue','late_releases','post_finalize_decrefs','entry_final_records'))
             passed = result.returncode == expected and not result.stderr and diagnostic
             line = f'CASE python={cfg["version"]} case={case} exit={result.returncode} expected={expected} accepted={passed}\n'
             print(line, end='', flush=True); log.write(line); log.flush()

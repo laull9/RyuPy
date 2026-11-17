@@ -168,6 +168,9 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
         lock (gate)
         {
             if (!handles.Remove(token, out nint pointer)) { if (state == 3) late++; return; }
+            // Pause只撤销新登记权限；旧token退账始终使用稳定登记表，finalizer不获取GIL。
+            if (stockProgramEntryRegistry is { } registry)
+            { registry.RemoveReleasedToken(token); stockProgramTokens.Remove(token); }
             if (state is 3 or 4) { late++; return; }
             releases.Enqueue(pointer);
         }
@@ -201,6 +204,8 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
         {
             if (state == 3) return;
             if (state != 1) throw new InvalidOperationException("CPython关闭重入");
+            if (stockProgramAuthorized)
+                throw new InvalidOperationException("已授权stock编译程序须使用专用Finish，即使没有存活薄函数");
             state = 2;
             // Wait释放gate；现存外部调用和回调可以完成并通知。
             while (active != 0) Monitor.Wait(gate);

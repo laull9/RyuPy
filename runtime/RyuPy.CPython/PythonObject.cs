@@ -9,6 +9,7 @@ internal sealed class PythonObject : PyNativeObject, IPyForeignObject, IDisposab
     private readonly nint pointer;
     internal nint Pointer => !IsDisposed ? pointer : throw new ObjectDisposedException("PythonObject");
     private readonly long token;
+    internal long OwnershipToken => token;
     private int disposed;
     internal bool IsDisposed => Volatile.Read(ref disposed) != 0;
     internal PythonObject(CPythonHost host, nint pointer) { Host = host; this.pointer = pointer; token = host.Track(pointer); host.ObserveStockProgramOwner(this, token); }

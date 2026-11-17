@@ -7,7 +7,8 @@ namespace RyuPy.CPython;
 public sealed partial class CPythonHost
 {
     private bool stockProgramAuthorized, stockProgramExecuting;
-    private ProgramOwnedScope? stockProgramEntry, stockProgramCallback;
+    private ProgramEntryRegistry? stockProgramEntry, stockProgramEntryRegistry;
+    private ProgramOwnedScope? stockProgramCallback;
     private PythonObject[] stockProgramOwners = [];
     private HashSet<long> stockProgramTokens = [];
     private StockProgramResult? stockProgramResult;
@@ -24,16 +25,24 @@ public sealed partial class CPythonHost
         if (Environment.CurrentManagedThreadId != ownerThread || leaseDepth != 0)
             throw new InvalidOperationException("stock编译入口必须在初始化线程无租约执行");
         stockProgramExecuting = true;
-        var scope = new ProgramOwnedScope(this);
-        stockProgramEntry = scope;
+        var registry = new ProgramEntryRegistry(this);
+        stockProgramEntry = stockProgramEntryRegistry = registry;
         try { PyModules.RunMain(); }
         finally
         {
+            // 长入口只弱登记；先在无GIL、无gate时等待纯托管finalizer退账，禁止阻塞Release。
+            stockProgramEntry = null;
+            GC.Collect(); GC.WaitForPendingFinalizers();
             using Lease lease = Enter();
-            // 只交还入口内部H；真实F继续由原D持有，随后外部getter获取独立的新H。
-            scope.ReleaseHandles(); Drain();
-            stockProgramOwners = scope.Owners.Where(owner => !owner.IsDisposed).ToArray();
-            stockProgramTokens = stockProgramOwners.Select(owner => scope.Tokens[owner]).ToHashSet();
+            foreach (var holder in registry.SnapshotHandles())
+            { holder.Function.RetireScoped(); holder.Dispose(); }
+            Drain();
+            // 弱目标消失不等于owned已交还；未完成finalizer的token仍保留供预检拒绝/重试。
+            lock (gate)
+            {
+                stockProgramOwners = registry.SnapshotOwners();
+                stockProgramTokens = registry.TokenSnapshot();
+            }
             stockProgramEntry = null; stockProgramExecuting = false; stockProgramAuthorized = true;
         }
     }
@@ -52,9 +61,13 @@ public sealed partial class CPythonHost
         try
         {
             using Lease lease = Enter();
-            if (StockThinOwnedHandles != 0 || Roots.Count != 0
-                || !handles.Keys.ToHashSet().SetEquals(stockProgramTokens))
-                throw new InvalidOperationException("stock程序仍有外部owned引用，释放后重试结束");
+            lock (gate)
+            {
+                if (StockThinOwnedHandles != 0 || Roots.Count != 0
+                    || !handles.Keys.ToHashSet().SetEquals(stockProgramTokens)
+                    || stockProgramEntryRegistry!.HasUnresolvedOwner())
+                    throw new InvalidOperationException("stock程序仍有外部或未完成退账的owned引用，释放后重试结束");
+            }
             if (Native.rp_thin_program_check() < 0) ThrowError();
         }
         catch { lock (gate) state = 1; throw; }
@@ -107,16 +120,19 @@ public sealed partial class CPythonHost
         return code;
     }
 
-    // 构造时记录强owner与准确token，不从弱缓存、指针类型或总数量推测归属。
+    // 构造时记录准确token；长入口弱登记、短callback强scope，不从缓存或总数推测归属。
     internal void ObserveStockProgramOwner(PythonObject owner, long token)
     {
         if (Environment.CurrentManagedThreadId != ownerThread) return;
-        (stockProgramCallback ?? stockProgramEntry)?.Add(owner, token);
+        if (stockProgramCallback is { } callback) callback.Add(owner);
+        else stockProgramEntry?.Add(owner, token);
+        PruneStockProgramIdentities();
     }
     internal void ObserveStockProgramHandle(StockThinFunctionOwner owner)
     {
         if (Environment.CurrentManagedThreadId != ownerThread) return;
-        (stockProgramCallback ?? stockProgramEntry)?.Handles.Add(owner);
+        if (stockProgramCallback is { } callback) callback.Handles.Add(owner);
+        else stockProgramEntry?.AttachHandle(owner);
     }
     private ProgramOwnedScope? BeginStockProgramCallback()
     {
@@ -131,7 +147,8 @@ public sealed partial class CPythonHost
     private readonly struct ProgramRegistrationPause : IDisposable
     {
         private readonly CPythonHost host;
-        private readonly ProgramOwnedScope? entry, callback;
+        private readonly ProgramEntryRegistry? entry;
+        private readonly ProgramOwnedScope? callback;
         internal ProgramRegistrationPause(CPythonHost host)
         {
             this.host = host; entry = host.stockProgramEntry; callback = host.stockProgramCallback;
@@ -143,9 +160,8 @@ public sealed partial class CPythonHost
     private sealed class ProgramOwnedScope(CPythonHost host, ProgramOwnedScope? previous = null) : IDisposable
     {
         internal readonly List<PythonObject> Owners = [];
-        internal readonly Dictionary<PythonObject, long> Tokens = [];
         internal readonly List<StockThinFunctionOwner> Handles = [];
-        internal void Add(PythonObject owner, long token) { Owners.Add(owner); Tokens.Add(owner, token); }
+        internal void Add(PythonObject owner) => Owners.Add(owner);
         internal void ReleaseHandles()
         { foreach (var handle in Handles) { handle.Function.RetireScoped(); handle.Dispose(); } Handles.Clear(); }
         public void Dispose()

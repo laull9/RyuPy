@@ -218,9 +218,19 @@ API PyObject *rp_thin_global(PyObject *f, const char *name) {
         value = PyObject_GetItem(builtins, key);
         if (!value && PyErr_ExceptionMatches(PyExc_KeyError)) PyErr_Clear();
     }
-    Py_DECREF(builtins); Py_DECREF(key);
-    if (!value && !PyErr_Occurred())
-        PyErr_Format(PyExc_NameError, "name '%s' is not defined", name);
+    Py_DECREF(builtins);
+    if (!value && !PyErr_Occurred()) {
+        /* 与stock LOAD_GLOBAL一样保存原查询名；只创建本次缺失异常，映射原异常原样传播。
+         * 全部使用公开API；任一分配/属性失败保留该失败，SetRaisedException消费owned异常。 */
+        PyObject *message = PyUnicode_FromFormat("name '%U' is not defined", key);
+        PyObject *error = message ? PyObject_CallFunctionObjArgs(PyExc_NameError, message, NULL) : NULL;
+        Py_XDECREF(message);
+        if (error) {
+            if (PyObject_SetAttrString(error, "name", key) < 0) Py_DECREF(error);
+            else PyErr_SetRaisedException(error);
+        }
+    }
+    Py_DECREF(key);
     return value;
 }
 API void rp_thin_stats(long long *live, long long *destroyed, long long *calls) {

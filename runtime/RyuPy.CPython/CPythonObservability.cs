@@ -60,6 +60,9 @@ public sealed partial class CPythonHost
         writer.WriteStartObject("stock_compiled_program");
         writer.WriteBoolean("permission", stockProgramAuthorized);
         writer.WriteBoolean("terminal", stockProgramResult is not null);
+        writer.WriteNumber("entry_peak_records", stockProgramEntryRegistry?.PeakCount ?? 0);
+        writer.WriteNumber("entry_final_records", stockProgramEntryRegistry?.Count ?? 0);
+        writer.WriteNumber("identity_cache_entries", objects.Count);
         if (stockProgramResult is { } result)
         {
             writer.WriteNumber("finalize_result", result.FinalizeResult);
