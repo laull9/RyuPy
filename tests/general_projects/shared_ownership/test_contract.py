@@ -113,6 +113,11 @@ class SharedOwnershipContracts(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'RECORD.*重复'):
             COLLECTOR.record_files(dist)
 
+    def test_unselected_inventory_scan_does_not_validate_duplicate_ownership(self):
+        dist = SimpleNamespace(metadata={'Name': 'unrelated_drifter'},
+                               read_text=lambda name: 'unrelated_item.py,,\nunrelated_item.py,,\n')
+        self.assertEqual(COLLECTOR.record_files(dist, strict=False), ['unrelated_item.py'])
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -6,6 +6,15 @@ namespace RyuPy.CPython;
 
 public sealed partial class CPythonHost
 {
+    private readonly HashSet<nint> stockProgramProxyRoots = [];
+    private void ObserveStockProgramProxy(nint identity)
+    {
+        if (Environment.CurrentManagedThreadId == ownerThread && (stockProgramEntry is not null || stockProgramCallback is not null))
+            lock (gate) stockProgramProxyRoots.Add(identity);
+    }
+    private void ReleaseStockProgramProxy(nint identity)
+    { lock (gate) stockProgramProxyRoots.Remove(identity); }
+
     private void RetainStockProgramContainer(object value)
     {
         if (stockProgramCallback is null) return;

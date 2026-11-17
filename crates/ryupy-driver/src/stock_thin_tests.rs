@@ -29,6 +29,7 @@ fn stock_thin_graph_freezes_candidate_and_keeps_namespace() {
         include_str!("../../../tests/cases/stock_thin_compiler/call_pipeline.py"),
         include_str!("../../../tests/cases/stock_thin_compiler/operator_protocol.py"),
         include_str!("../../../tests/cases/stock_thin_compiler/frame_boundaries.py"),
+        include_str!("../../../tests/cases/stock_thin_compiler/dict_item_method.py"),
     ] {
         std::fs::write(root.join("entry.py"), source).unwrap();
         let mut session = session(&root);
@@ -117,6 +118,8 @@ fn stock_thin_pinned_two_version_oracle() {
         "call_pipeline.py",
         "operator_protocol.py",
         "frame_boundaries.py",
+        "dict_item_method.py",
+        "wrapped_frame_pending.py",
     ];
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/cases/stock_thin_compiler");
     let mut observations = vec![];

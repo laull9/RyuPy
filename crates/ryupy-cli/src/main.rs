@@ -43,6 +43,7 @@ fn main() -> ExitCode {
     let mut sess = Session {
         distribution_metadata: cli.distribution_metadata,
         cpython_provider: cli.cpython_provider,
+        cpython_native_components: cli.cpython_native_components,
         cpython_modules: cli.cpython_modules,
         cpython_entry: cli.cpython_entry,
         cpython_dynamic_modules: cli.cpython_dynamic_modules,

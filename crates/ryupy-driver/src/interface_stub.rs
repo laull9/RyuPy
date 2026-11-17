@@ -53,7 +53,7 @@ pub(super) fn extract(text: &str, path: &str, version: ast::PythonVersion, is_st
     }
     let diagnostics: Vec<_> = diagnostics.iter().map(|d| format!("{d:?}")).collect();
     json!({"role":if is_stub {"declaration_only"} else {"source_declarations"},
-        "business_body":!is_stub,"analysis":"static_ast_without_import_or_evaluation",
+        "business_body":if is_stub {json!(false)}else{Value::Null},"contains_body_source":!is_stub,"analysis":"static_ast_without_import_or_evaluation",
         "python_target":version.to_string(),"parse_status":if diagnostics.is_empty(){"parsed"}else{"partial"},
         "diagnostics":diagnostics,"declarations":scan.declarations,"unresolved":scan.unresolved,
         "declaration_scope":"module_and_class_all_branches","dynamic_export_set":"not_resolved",

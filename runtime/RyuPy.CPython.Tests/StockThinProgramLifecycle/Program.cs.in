@@ -20,6 +20,43 @@ internal static class ProgramLifecycle
     private static WeakReference? borrowedReceiver;
     private static Exception? receiverError;
     private static PyList? escapedValues;
+    private sealed class TerminalProxyStorage
+    {
+        internal PythonObject? Saved;
+        internal int Calls;
+        internal object? Call(object?[] args)
+        {
+            Calls++;
+            var value = (PythonObject)args[0]!;
+            if (Saved is null) Saved = value;
+            else Require(ReferenceEquals(Saved, value) && !Saved.IsDisposed, "终态proxy重复回调保留同一opaque别名");
+            NewTerminalTemporary();
+            GC.Collect(); GC.WaitForPendingFinalizers(); host.DrainReferences();
+            if (Calls == 2) throw new PyValueError("terminal-proxy-original");
+            return mode == "terminal-cycle" ? PyNone.Instance : value;
+        }
+    }
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void NewTerminalTemporary()
+    {
+        using var lease = host.Enter();
+        nint constructor = host.Check(Native.rp_builtin("object")), arguments = host.MakeTuple([]);
+        try { GC.KeepAlive(host.FromOwned(Native.rp_op(5, constructor, arguments))); }
+        finally { Native.rp_decref(constructor); Native.rp_decref(arguments); }
+    }
+    private sealed class SharedProxyStorage
+    {
+        internal PythonObject? Saved;
+        internal object? Save(object?[] args) { Saved = (PythonObject)args[0]!; return Saved; }
+        internal object? Read(object?[] args)
+        {
+            Require(host.Statistics.ManagedRoots == 1, "A原生proxy已真实dealloc且B仍活");
+            Require(Saved is { IsDisposed: false }, "B经共享CLR字段读出A保存的opaque仍有owned");
+            return Saved;
+        }
+    }
+    private static readonly SharedProxyStorage sharedStorage = new();
+    private static readonly TerminalProxyStorage terminalStorage = new();
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static int ReenterBorrowedReceiver()
@@ -82,6 +119,12 @@ internal static class ProgramLifecycle
         ((PyList)env.LoadGlobal("events")!).Items.Add(opaque);
         throw new PyValueError("callback-after-append");
     }
+    private static object? FrameInvoke(IPyStockThinEnvironment env, object? value) => PyOps.CallValue(value!, [], [], []);
+    private static object? FrameImplicitEval(IPyStockThinEnvironment env, object? value) => PyOps.CallValue(value!, ["1+2"], [], []);
+    private static object? FrameExplicitEval(IPyStockThinEnvironment env, object? value) => PyOps.CallValue(value!, ["value+1", env.LoadGlobal("scope")], [], []);
+    private static object? FrameExplicitExec(IPyStockThinEnvironment env, object? value) => PyOps.CallValue(value!, ["result=value+2", env.LoadGlobal("scope")], [], []);
+    private static object? FrameImplicitCompile(IPyStockThinEnvironment env, object? value) => PyOps.CallValue(value!, ["1+2", "<frame-probe>", "eval"], [], []);
+    private static object? FrameExplicitCompile(IPyStockThinEnvironment env, object? value) => PyOps.CallValue(value!, ["1+2", "<frame-probe>", "eval", 0L, true], [], []);
     private static object? ConstantString(IPyStockThinEnvironment env, object? value) => constantString;
     private static object? ConstantInteger(IPyStockThinEnvironment env, object? value) => constantInteger;
     private static object? AtExit(IPyStockThinEnvironment env, object? value)
@@ -141,8 +184,59 @@ internal static class ProgramLifecycle
         Run("assert f(marker) is marker\nassert global_f(None) is marker\nassert global_self(None) is f\n");
         // 活全局缺失经CP→CIL→CP返回，保留真实NameError的name/args/str；恢复后继续用同一F。
         Run("saved_marker=marker\ndel marker\ntry:\n global_f(None)\nexcept NameError as error:\n assert type(error) is NameError and not isinstance(error, UnboundLocalError)\n assert error.name=='marker'\n assert error.args==(\"name 'marker' is not defined\",)\n assert str(error)==error.args[0]\nelse:\n raise AssertionError('缺失全局必须抛错')\nmarker=saved_marker\ndel saved_marker\nassert global_f(None) is marker\n");
+        if (mode == "frame-builtins")
+        {
+            Define("frame_invoke", FrameInvoke); Define("frame_implicit_eval", FrameImplicitEval);
+            Define("frame_explicit_eval", FrameExplicitEval); Define("frame_explicit_exec", FrameExplicitExec);
+            Define("frame_implicit_compile", FrameImplicitCompile); Define("frame_explicit_compile", FrameExplicitCompile);
+            Run("""
+import builtins
+scope={'value':41}
+def check_frames(m=marker, d=globals(), canonical=tuple(getattr(builtins,n) for n in ('globals','locals','vars','eval','exec','compile'))):
+ g,l,v,e,x,c=canonical
+ assert frame_invoke(g) is d
+ for target in (l,v):
+  try: frame_invoke(target)
+  except NotImplementedError as error: assert 'business frame' in str(error)
+  else: raise AssertionError('缺frame形状未诊断')
+ for target in (e,x):
+  try: frame_implicit_eval(target)
+  except NotImplementedError as error: assert 'explicit globals' in str(error)
+  else: raise AssertionError('隐式环境未诊断')
+ try: frame_implicit_compile(c)
+ except NotImplementedError as error: assert 'dont_inherit=True' in str(error)
+ else: raise AssertionError('缺caller flags来源未诊断')
+ assert frame_explicit_eval(e)==42
+ assert frame_explicit_exec(x) is None and scope['result']==43
+ assert type(frame_explicit_compile(c)).__name__=='code'
+ def locals(): return 123
+ assert frame_invoke(locals)==123
+check_frames()
+atexit.register(check_frames)
+""");
+        }
+        if (mode == "terminal-alias")
+        {
+            module.SetAttr("proxy_a", PyNativeFunctions.CreateVariadic("proxy_a", sharedStorage.Save));
+            module.SetAttr("proxy_b", PyNativeFunctions.CreateVariadic("proxy_b", sharedStorage.Read));
+            Run("def terminal_alias(m=marker):\n a=globals().pop('proxy_a')\n b=proxy_b\n assert a(m) is m\n a=None\n gc.collect()\n assert b(None) is m\natexit.register(terminal_alias)\n");
+        }
+        if (mode is "terminal-proxy" or "terminal-cycle")
+        {
+            module.SetAttr("internal_proxy", PyNativeFunctions.CreateVariadic("internal_proxy", terminalStorage.Call));
+            if (mode == "terminal-cycle")
+                Run("def terminal_cycle(cb=internal_proxy):\n value=[cb]\n assert cb(value) is None\natexit.register(terminal_cycle)\n");
+            else
+                Run("def terminal_proxy(cb=internal_proxy, m=marker):\n assert cb(m) is m\n try:\n  cb(m)\n except ValueError as error:\n  assert error.args==('terminal-proxy-original',)\n else:\n  raise AssertionError('终态原异常未保留')\n for _ in range(1000):\n  assert cb(m) is m\natexit.register(terminal_proxy)\n");
+        }
         if (mode == "callback-result")
         {
+            var unsupported = new PyClass("UnsupportedDescriptor");
+            unsupported.SetAttr("__set_name__", PyNone.Instance); unsupported.SetAttr("__get__", PyNone.Instance);
+            int rootsBefore = host.Statistics.ManagedRoots;
+            try { using var lease = host.Enter(); Native.rp_decref(host.ToPython(new PyInstance(unsupported))); throw new Exception("构造应拒绝未桥接descriptor"); }
+            catch (PyNotImplementedError) { }
+            Require(host.Statistics.ManagedRoots == rootsBefore, "代理创建失败真实回滚root和内部登记");
             module.SetAttr("offset", new PyList([3L]));
             escapedValues = new PyList(); module.SetAttr("events", escapedValues);
             Define("repeat", Repeat); Define("chain", Chain); Define("raise_after_append", RaiseAfterAppend);
@@ -204,6 +298,14 @@ internal static class ProgramLifecycle
             Refused(() => host.FinishStockProgram(() => 0));
             Require(((string)capture.Saved!.ReadScalar("exact_str")).Length > 0, "拒绝后opaque仍可用");
             capture.Saved.Dispose(); host.DrainReferences();
+        }
+        if (mode == "external-proxy")
+        {
+            nint external;
+            using (host.Enter()) external = host.ToPython(PyNativeFunctions.CreateVariadic("external_proxy", static args => PyNone.Instance));
+            Refused(() => host.FinishStockProgram(() => 0));
+            using (host.Enter()) Native.rp_decref(external);
+            Require(host.Statistics.ManagedRoots == 0, "外部proxy由真实dealloc交还后可重试");
         }
         if (mode == "external")
         {
@@ -280,6 +382,15 @@ atexit.register(check_exit)
 """);
         int requested = mode == "entry-fail" ? 7 : 0;
         int exit = Bootstrap.FinishStockThin(requested);
+        if (mode == "terminal-cycle")
+        {
+            var rejected = host.ProgramResult!;
+            Require(exit != 0 && rejected.Ledger > 0 && host.Statistics.ManagedRoots > 0 && rejected.PostFinalizeDecrefs == 0 && rejected.Late == 0,
+                "不可见跨堆回指环保留真实失败账本");
+            Console.WriteLine("EXPECTED_INVISIBLE_CYCLE ledger=" + rejected.Ledger + " roots=" + host.Statistics.ManagedRoots);
+            GC.KeepAlive(terminalStorage); GC.KeepAlive(sharedStorage); return 0;
+        }
+
         GC.Collect(); GC.WaitForPendingFinalizers();
         var result = host.ProgramResult!; var stats = host.Statistics;
         Native.rp_reference_stats(out long post);
@@ -288,7 +399,7 @@ atexit.register(check_exit)
             && result.OwnedHandles == 0 && stats.Handles == 0 && stats.PendingReleases == 0 && stats.LateReleases == 0
             && post == 0 && ProgramObserver.program_lowlevel_live() == 0
             && (empty ? exits+dels+errors+unraisables == 0 : exits == 1 && dels == 1 && errors == 3 && unraisables == 1);
-        GC.KeepAlive(module); GC.KeepAlive(d); GC.KeepAlive(entryContext); GC.KeepAlive(escapedValues);
+        GC.KeepAlive(module); GC.KeepAlive(d); GC.KeepAlive(entryContext); GC.KeepAlive(escapedValues); GC.KeepAlive(terminalStorage); GC.KeepAlive(sharedStorage);
         return ok ? 0 : 2;
     }
 }

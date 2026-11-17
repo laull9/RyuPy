@@ -217,6 +217,10 @@ fn expr_children(kind: &ExprKind) -> Vec<ExprId> {
             operands: items, ..
         } => items.clone(),
         ExprKind::Dict(pairs) => pairs.iter().flat_map(|(k, v)| [*k, *v]).collect(),
+        ExprKind::DictUnpack(items) => items
+            .iter()
+            .flat_map(ryupy_hir::DictItem::expressions)
+            .collect(),
         ExprKind::Subscript { base, index } => vec![*base, *index],
         ExprKind::Slice { start, stop, step } => {
             [*start, *stop, *step].into_iter().flatten().collect()
@@ -542,6 +546,7 @@ impl FunctionChecker<'_> {
             | ExprKind::Tuple(_)
             | ExprKind::Set(_)
             | ExprKind::Dict(_)
+            | ExprKind::DictUnpack(_)
             | ExprKind::Bytes(_)
             | ExprKind::Subscript { .. }
             | ExprKind::Slice { .. }

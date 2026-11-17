@@ -43,3 +43,9 @@ def suspended():
 
 it = suspended()
 print(next(it), it.send(4))
+
+# 已有标准库原生布局保留原格式能力，普通实例协议升级不能收紧Enum路径。
+from enum import Enum
+class Color(Enum):
+    RED = 1
+print(f"{Color.RED}", f"{Color.RED:>{width + 7}}")

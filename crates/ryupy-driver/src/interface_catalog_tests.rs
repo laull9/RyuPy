@@ -163,6 +163,24 @@ fn interface_catalog_uses_selected_staged_files_and_stub_never_grants_execution(
         _shim_build: None,
         dependency_report: Value::Null,
     };
+    let mut session = crate::Session {
+        cpython_provider_state: crate::cpython_provider::CPythonProviderState {
+            plan: Some(plan.clone()),
+        },
+        ..Default::default()
+    };
+    let generic = "def f[T](value: T) -> T: ...\n";
+    let file = session.sources.add("version_probe.py", generic);
+    let (_, diagnostics) = session.parse_python(file, generic).unwrap();
+    assert!(diagnostics.iter().all(|d| d.code != Some("E0002")));
+    session
+        .cpython_provider_state
+        .plan
+        .as_mut()
+        .unwrap()
+        .version = PythonVersion::new(3, 11, 15);
+    let (_, earlier) = session.parse_python(file, generic).unwrap();
+    assert!(earlier.iter().any(|d| d.code == Some("E0002")));
     let report = analyze(&plan, &tree.0, &files).unwrap();
     assert_eq!(report["schema"], 1);
     assert_eq!(report["files"].as_array().unwrap().len(), 5);
@@ -186,6 +204,7 @@ fn interface_catalog_uses_selected_staged_files_and_stub_never_grants_execution(
         .iter()
         .find(|e| e["module"] == "bad")
         .unwrap();
+    assert!(report["modules"]["bad"]["execution_provider"].is_null());
     assert_eq!(bad["native"]["status"], "audit_error");
     assert!(!bad["native"]["error"].as_str().unwrap().is_empty());
 }
@@ -235,6 +254,59 @@ fn interface_native_real_exports_distinguish_extension_from_same_suffix_library(
             }
         );
         assert_eq!(report["method_signatures_verified"], false);
+        if expected {
+            let object = tree.0.join("renamed_object.so");
+            let output = std::process::Command::new("cc")
+                .arg("-c")
+                .arg(tree.0.join("engine.c"))
+                .arg("-o")
+                .arg(&object)
+                .output()
+                .unwrap();
+            assert!(output.status.success());
+            let rejected = native::inspect(&object, Some("engine"), rid);
+            assert_eq!(rejected["status"], "audit_error");
+            assert_eq!(rejected["initializer_verified"], false);
+            tree.write(
+                "executable.c",
+                "int PyInit_engine(void){return 1;} int main(void){return 0;}\n",
+            );
+            let executable = tree.0.join("renamed_executable.so");
+            let output = std::process::Command::new("cc")
+                .arg(tree.0.join("executable.c"))
+                .arg("-o")
+                .arg(&executable)
+                .output()
+                .unwrap();
+            assert!(output.status.success());
+            assert_eq!(
+                native::inspect(&executable, Some("engine"), rid)["initializer_verified"],
+                false
+            );
+            if cfg!(target_os = "macos") {
+                let bundle = tree.0.join("engine_bundle.so");
+                let output = std::process::Command::new("cc")
+                    .arg("-bundle")
+                    .arg(tree.0.join("engine.c"))
+                    .arg("-o")
+                    .arg(&bundle)
+                    .output()
+                    .unwrap();
+                assert!(output.status.success());
+                assert_eq!(
+                    native::inspect(&bundle, Some("engine"), rid)["initializer_verified"],
+                    true
+                );
+            }
+        }
+        if !expected {
+            let versioned = tree.0.join("libordinary.so.1.2");
+            std::fs::copy(&library, &versioned).unwrap();
+            assert!(native::is_native_filename(&versioned));
+            let same = native::inspect(&versioned, None, rid);
+            assert_eq!(same["kind"], "native_dependency");
+            assert_eq!(same["local_export_count"], report["local_export_count"]);
+        }
     }
 }
 #[test]

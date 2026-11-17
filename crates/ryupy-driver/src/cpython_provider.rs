@@ -7,6 +7,8 @@ use std::path::{Component, Path, PathBuf};
 #[path = "cpython_native.rs"]
 pub(crate) mod native;
 pub(crate) use native::version;
+#[path = "cpython_native_components.rs"]
+pub(crate) mod components;
 #[path = "cpython_delegation.rs"]
 pub(crate) mod delegation;
 #[path = "cpython_dependencies.rs"]
@@ -116,13 +118,15 @@ pub(crate) fn prepare_input(
         ensure!(
             sess.cpython_modules.is_empty()
                 && !sess.cpython_entry
-                && sess.cpython_dynamic_modules.is_empty(),
+                && sess.cpython_dynamic_modules.is_empty()
+                && sess.cpython_native_components.is_none(),
             "--cpython-module / --cpython-entry / --cpython-dynamic-module 需要启用 CPython provider（使用默认应用入口或显式传入 --cpython-provider）"
         );
         return Ok(());
     };
     if path == Path::new("auto") {
-        return prepare_auto(sess, source_input);
+        prepare_auto(sess, source_input)?;
+        return components::extend(sess);
     }
     ensure!(
         sess.distribution_metadata.is_none(),
@@ -222,7 +226,8 @@ pub(crate) fn prepare_input(
         root,
         metadata,
         version,
-    )
+    )?;
+    components::extend(sess)
 }
 
 fn prepare_auto(sess: &mut Session, source_input: dependencies::SourceInput<'_>) -> Result<()> {

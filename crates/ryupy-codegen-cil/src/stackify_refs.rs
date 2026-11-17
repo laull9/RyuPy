@@ -25,6 +25,7 @@ pub struct RuntimeRefs {
     pub(crate) numeric_list: crate::numeric_list_refs::NumericListRefs,
     pub(crate) typed_dict: crate::typed_dict_refs::TypedDictRefs,
     pub dict_set_scalar_key: MethodRefIndex,
+    pub dict_unpack_mapping: MethodRefIndex,
     pub(crate) accumulator: crate::accumulator_refs::AccumulatorRefs,
     pub(crate) system: crate::system_refs::SystemRefs,
     pub(crate) function_objects: crate::function_refs::FunctionRefs,

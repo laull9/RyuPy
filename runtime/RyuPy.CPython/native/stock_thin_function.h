@@ -12,7 +12,8 @@ typedef struct RpThinLink {
     struct RpThinLink *next;
 } RpThinLink;
 static RpThinLink *rp_thin_links;
-static PyObject *rp_thin_template;
+static PyObject *rp_thin_template, *rp_thin_frame_guards;
+static const char *rp_thin_frame_names[] = {"globals", "locals", "vars", "eval", "exec", "compile"};
 static rp_thin_invoke_fn rp_thin_invoke;
 static rp_thin_release_fn rp_thin_release;
 static long rp_thin_live, rp_thin_destroyed, rp_thin_calls;
@@ -47,6 +48,12 @@ static void rp_thin_dispose(void *context) {
     /* 只有 owner 最终析构在这里交还 token；tp_clear/解绑/摘链均不重复释放。 */
     rp_thin_release(link->token);
     free(link); rp_thin_live--; rp_thin_destroyed++;
+    /* core释放仍纯托管；独立终态通知在GIL内、最后CIL入口已析构后退余下弱owned池。 */
+    if (rp_thin_program_terminal && !rp_thin_live) {
+        PyObject *saved = PyErr_GetRaisedException();
+        PyObject *result = dispatch(-2, 30, NULL, NULL, NULL, 0, NULL);
+        Py_XDECREF(result); PyErr_Clear(); PyErr_SetRaisedException(saved);
+    }
 }
 static int rp_thin_shape(RpThinLink *link, PyObject *f) {
     if (!PyFunction_Check(f) || PyFunction_GetCode(f) != rp_thin_template ||
@@ -143,6 +150,18 @@ API int rp_thin_enable(rp_thin_invoke_fn invoke, rp_thin_release_fn release) {
         return -1;
     }
     if (rp_fo_start() < 0) { Py_DECREF(code); return -1; }
+    PyObject *guards = PyTuple_New(6);
+    if (!guards) { Py_DECREF(code); rp_fo_stop(); return -1; }
+    PyObject *builtins = PyEval_GetBuiltins();
+    for (int i = 0; i < 6; i++) {
+        PyObject *value = PyDict_GetItemString(builtins, rp_thin_frame_names[i]);
+        if (!value) {
+            Py_DECREF(guards); Py_DECREF(code); rp_fo_stop();
+            PyErr_SetString(PyExc_RuntimeError, "规范frame builtin缺失"); return -1;
+        }
+        PyTuple_SET_ITEM(guards, i, Py_NewRef(value));
+    }
+    rp_thin_frame_guards = guards;
     rp_thin_template = code;
     rp_thin_invoke = invoke; rp_thin_release = release; rp_thin_enabled = 1;
     return 0;
@@ -161,6 +180,7 @@ API PyObject *rp_thin_make(PyObject *globals, intptr_t token, int failure) {
     link->token = token;
     RpFunctionOwner *owner = rp_fo_new(link, rp_thin_detach, rp_thin_dispose);
     if (!owner) { free(link); rp_thin_release(token); return NULL; }
+    owner->frame_guards = Py_NewRef(rp_thin_frame_guards);
     link->owner = owner; link->next = rp_thin_links; rp_thin_links = link; rp_thin_live++;
     PyObject *p = PyCFunction_New(&rp_thin_dispatch_def, (PyObject *)owner);
     PyObject *cell = NULL, *closure = NULL, *f = NULL;
@@ -199,6 +219,14 @@ API void rp_thin_abort(PyObject *f) {
 API intptr_t rp_thin_token(PyObject *f) {
     RpThinLink *link = rp_thin_find(f);
     return link ? link->token : 0;
+}
+/* 当前owned F的GC owner保活规范身份；提交终态后也不使用已释放CLR包装或悬空别名。 */
+API int rp_thin_frame_builtin(PyObject *f, PyObject *value) {
+    if (rp_thin_validate(f) < 0) return -2;
+    RpThinLink *link = rp_thin_find(f);
+    if (!link || !link->owner->frame_guards) return -1;
+    for (int i = 0; i < 6; i++) if (PyTuple_GET_ITEM(link->owner->frame_guards, i) == value) return i;
+    return -1;
 }
 /* 只核查可供eval/exec/compile接收的公开对象族；不读取buffer、不求值用户源码。 */
 API int rp_frame_source(PyObject *value) {
@@ -242,7 +270,7 @@ API void rp_thin_stats(long long *live, long long *destroyed, long long *calls) 
 }
 API int rp_thin_clear(void) {
     if (rp_thin_live) { PyErr_SetString(PyExc_RuntimeError, "薄函数仍有 native owner，禁止关闭"); return -1; }
-    Py_CLEAR(rp_thin_template); rp_fo_stop(); rp_thin_enabled = 0;
+    Py_CLEAR(rp_thin_template); Py_CLEAR(rp_thin_frame_guards); rp_fo_stop(); rp_thin_enabled = 0;
     return 0;
 }
 
@@ -256,6 +284,7 @@ API int rp_thin_program_check(void) {
 }
 API int rp_thin_program_prepare(void) {
     rp_thin_program_terminal = 1;
+    Py_CLEAR(rp_thin_frame_guards);
     if (rp_thin_live) { Py_DECREF(rp_thin_template); Py_DECREF(rp_fo_type); }
     else { Py_CLEAR(rp_thin_template); Py_CLEAR(rp_fo_type); }
     return 0;

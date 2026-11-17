@@ -276,6 +276,13 @@ internal sealed class StockThinFunctionCallLease : IStockThinFunctionLease
         lease = host.Enter(callback: true);
         this.function = Native.rp_incref(function);
     }
+    internal int FrameBuiltinKind(nint value)
+    {
+        if (function == 0) throw new ObjectDisposedException("stock function lease");
+        int kind = Native.rp_thin_frame_builtin(function, value);
+        if (kind == -2) host.ThrowError();
+        return kind;
+    }
     internal object GlobalsForBuiltin()
     {
         if (function == 0) throw new ObjectDisposedException("stock function lease");

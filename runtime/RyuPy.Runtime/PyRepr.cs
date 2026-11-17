@@ -45,6 +45,7 @@ public static partial class PyRepr
         PyByteArray => "bytearray",
         PySlice => "slice",
         PyRange => "range",
+        PyIter iterator => iterator.PythonTypeName,
         PyDictView view => view.Kind switch
         {
             PyDictViewKind.Keys => "dict_keys",

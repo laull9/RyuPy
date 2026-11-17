@@ -2,11 +2,29 @@
 //! 支持目标架构fat Mach-O；PE转发导出由object的本地exports接口排除，不加载库或执行探针。
 use anyhow::{Context, Result, ensure};
 use object::{
-    Architecture, BinaryFormat, Object,
-    read::macho::{FatArch, MachOFatFile32, MachOFatFile64},
+    Architecture, BinaryFormat, Object, ObjectKind,
+    read::{
+        elf::{Dyn, FileHeader, ProgramHeader},
+        macho::{FatArch, MachHeader, MachOFatFile32, MachOFatFile64},
+    },
 };
 use serde_json::{Value, json};
 use std::path::Path;
+
+pub(super) fn is_native_filename(path: &Path) -> bool {
+    let Some(file) = path.file_name().and_then(|n| n.to_str()) else {
+        return false;
+    };
+    matches!(
+        path.extension().and_then(|e| e.to_str()),
+        Some("so" | "pyd" | "dylib" | "dll")
+    ) || file.rsplit_once(".so.").is_some_and(|(_, version)| {
+        !version.is_empty()
+            && version
+                .split('.')
+                .all(|part| !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()))
+    })
+}
 
 pub(super) fn module_name(path: &Path, suffixes: &[String]) -> Option<String> {
     let file = path.file_name()?.to_str()?;
@@ -67,6 +85,38 @@ fn image(data: &[u8], architecture: Architecture) -> Result<&[u8]> {
         _ => Ok(data),
     }
 }
+fn elf_loadable<'data, Elf: FileHeader>(
+    file: &object::read::elf::ElfFile<'data, Elf>,
+    data: &'data [u8],
+) -> Result<bool> {
+    for program in file.elf_program_headers() {
+        if program.p_type(file.endian()) == object::elf::PT_INTERP {
+            return Ok(false);
+        }
+        if let Some(dynamic) = program.dynamic(file.endian(), data)?
+            && dynamic.iter().any(|entry| {
+                entry.tag32(file.endian()) == Some(object::elf::DT_FLAGS_1)
+                    && entry
+                        .val32(file.endian())
+                        .is_some_and(|flags| flags & object::elf::DF_1_PIE != 0)
+            })
+        {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+fn loadable(file: &object::File<'_>, data: &[u8]) -> Result<bool> {
+    match file {
+        object::File::MachO32(m) => Ok(file.kind() == ObjectKind::Dynamic
+            || m.macho_header().filetype(m.endian()) == object::macho::MH_BUNDLE),
+        object::File::MachO64(m) => Ok(file.kind() == ObjectKind::Dynamic
+            || m.macho_header().filetype(m.endian()) == object::macho::MH_BUNDLE),
+        object::File::Elf32(elf) if file.kind() == ObjectKind::Dynamic => elf_loadable(elf, data),
+        object::File::Elf64(elf) if file.kind() == ObjectKind::Dynamic => elf_loadable(elf, data),
+        _ => Ok(file.kind() == ObjectKind::Dynamic),
+    }
+}
 fn inspect_inner(path: &Path, module: Option<&str>, rid: &str) -> Result<Value> {
     ensure!(
         std::fs::metadata(path)?.len() <= 512 * 1024 * 1024,
@@ -74,10 +124,15 @@ fn inspect_inner(path: &Path, module: Option<&str>, rid: &str) -> Result<Value> 
     );
     let bytes = std::fs::read(path)?;
     let (architecture, format) = target(rid)?;
-    let file = object::File::parse(image(&bytes, architecture)?)?;
+    let data = image(&bytes, architecture)?;
+    let file = object::File::parse(data)?;
     ensure!(
         file.architecture() == architecture && file.format() == format,
         "原生映像架构/格式与目标RID不符"
+    );
+    ensure!(
+        loadable(&file, data)?,
+        "不是目标平台可加载的动态库/扩展bundle（排除目标文件和可执行文件）"
     );
     let exports = file.exports().context("读取本地导出表失败")?;
     let macho = format == BinaryFormat::MachO;
@@ -105,8 +160,8 @@ fn inspect_inner(path: &Path, module: Option<&str>, rid: &str) -> Result<Value> 
             .any(|e| e.address() != 0 && symbol_matches(macho, e.name(), expected.as_bytes()))
     });
     Ok(
-        json!({"status":"audited","kind":if verified {"cpython_extension"}else{"native_dependency"},
-        "module":module,"format":format!("{format:?}"),"architecture":format!("{architecture:?}"),
+        json!({"status":"audited","kind":if verified {"cpython_extension"}else if !initializers.is_empty(){"cpython_extension_unresolved"}else{"native_dependency"},
+        "module":module,"image_kind":format!("{:?}",file.kind()),"format":format!("{format:?}"),"architecture":format!("{architecture:?}"),
         "local_export_count":exports.len(),"observed_initializers":initializers,
         "expected_initializer":expected,"initializer_verified":verified,
         "export_scope":"local_defined_exports_excluding_pe_forwarders",

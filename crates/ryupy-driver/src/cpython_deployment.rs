@@ -27,7 +27,11 @@ pub(super) fn stage(plan: &Plan, output: &Path) -> Result<()> {
     let relative_site = site_packages
         .strip_prefix("python")
         .context("平台site-packages路径必须以python开头")?;
-    let excluded = (!plan.dependency_report.is_null()).then(|| plan.root.join(relative_site));
+    let excluded = plan
+        .dependency_report
+        .get("collector")
+        .is_some()
+        .then(|| plan.root.join(relative_site));
     for directory in native::copy_directories()? {
         if plan.root.join(directory).is_dir() {
             // 自动闭包只复制已选第三方文件；基础发行中的开发包不能旁路冻结计划。
@@ -87,7 +91,8 @@ pub(super) fn stage(plan: &Plan, output: &Path) -> Result<()> {
         "CPython托管桥尚未随同Runtime冻结"
     );
     std::fs::copy(&plan.shim, output.join(native::shim_name()))?;
-    native::relocate(output)?;
+    let aliases = super::components::aliases(&plan.dependency_report, &site_packages, output)?;
+    native::relocate_with_components(output, &aliases)?;
     let mut files = Vec::new();
     list_files(&python, output, &mut files)?;
     // 冻结第三方附属DLL目录，运行时注册相同搜索闭包，避免审计与实际加载脱节。

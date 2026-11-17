@@ -70,7 +70,7 @@
 | 列表 / 字典 / 元组 / 集合 / frozenset / bytes / bytearray / slice | ✅ M2.3 | 容器表达式统一降级为 `Dynamic`，由运行时 `PyList` / `PyDict` / `PySet` / `PyFrozenSet` / `PyBytes` / `PyByteArray` / `PySlice` 承载 |
 | `x[i]` / `x[i:j:k]` / `del x[i]` / `x[i] = v` | ✅ M2.3 | `RuntimeFn::GetItem` / `SetItem` / `DelItem`；切片对象 `PySlice`，负值索引与越界按 Python 规则处理 |
 | `a in b` / `a not in b`、`a is b` / `a is not b` | ✅ M2.3 | `RuntimeFn::Contains` / `IsSame` |
-| 平坦序列解包赋值（含 `a, *b, c = x`）、`for x in 容器` | ✅ M2.3；一般非星号 iterator 有限修复通过 | 受控直接 tuple/list 字面量保 `UnpackCheck` 长度校验；一般非星号源新增 `UnpackSequence` 有界迭代准备。一般星号有限修复使用 UnpackEx 双iter/hint准备（ADR0068，专项及完整门禁通过），直接无展开字面量保旧结构；嵌套解包目标报 E0100。for 的迭代源沿用 `IterStart` / `IterNextOk` / `IterValue` |
+| 递归序列解包赋值（含 `a, *b, c = x`）、`for x in 容器` | ✅ M2.3；一般非星号 iterator 有限修复通过 | 受控直接 tuple/list 字面量保 `UnpackCheck` 长度校验；一般非星号源新增 `UnpackSequence` 有界迭代准备。一般星号有限修复使用 UnpackEx 双iter/hint准备（ADR0068，专项及完整门禁通过），直接无展开字面量保旧结构；嵌套目标逐层准备值并按序写入，深层失败保留已有写入。for 的迭代源沿用 `IterStart` / `IterNextOk` / `IterValue` |
 | 模块顶层 `del name`、函数显式 `global` 删除 | ✅ 有限 | 默认 typed 绑定位/动态哨兵、显式实例真实字典删键；删除不查 builtin，读取才回退。默认元数据/自定义 builtins 等边界见[合同](module-deletion.md)；局部/cell/class namespace 不由此行扩域 |
 | 嵌套 `def`、闭包、lambda | ✅ M3.0 | 定义位置创建 `PyFunction`；按 free 列表捕获共享 cell，保持 late binding 与函数逃逸 |
 | list / dict / set 推导式（多层 for / if、解包、闭包） | ✅ M3.1 | 独立隐式函数作用域；最左 iterable 在外层取得迭代器 |
@@ -82,7 +82,7 @@
 | `assert cond[, msg]` | ✅ M2.2 | 去糖为 `if not cond: raise AssertionError(msg)` |
 | `try` / `except` / `except (A, B)` / `else` / `finally` / `except … as e` | ✅ M2.2 | CIL 类型化 catch + `finally` 状态机；详见 §4.1 |
 | `str(x)` / `type(x)` / 动态属性读取 | ✅ M2.2 | `PyRepr.StrValue` / `PyObject.TypeOf` / `PyObject.GetAttr`（当前覆盖异常与类型对象） |
-| f-string（字面量、`!r` / `!s` / `!a`、格式说明符） | ✅ M2.4 | `PyOps.FormatValue`；嵌套格式说明符暂不支持 |
+| f-string（字面量、`!r` / `!s` / `!a`、格式说明符） | ✅ M2.4 | `PyOps.FormatValue`；动态规格按主体、规格、转换、格式化顺序执行 |
 | 字符串方法 `split` / `join` / `strip` / `replace` / `find` 等 | ✅ M2.4 | `PyOps.CallMethod`；返回值下标按码点计算 |
 | 内建 `len` / `range` / `enumerate` / `zip` / `reversed` / `sum` / `min` / `max` / `any` / `all` / `round` / `sorted` / `isinstance` / `id` / `getattr` / `hasattr` | ✅ M2.4 | `PyOps.CallBuiltin`；`sorted` / `list.sort` 支持 `key` 与 `reverse`，排序稳定 |
 | 内建 `ord` / `chr` 直接调用 | ✅ Phase 3 项目驱动 | Unicode码点/单字节、chr整数与`__index__`，范围和参数错误；一等内建函数值已接共享身份与动态调用（M3.3） |
@@ -266,6 +266,14 @@ NaN/Inf/±0短结果保符号规则，非零有限值复用固定.NET10显式有
 
 ## 4. 语义陷阱清单
 
+### 递归赋值与动态格式（2026-11-17）
+
+每层解包先准备本层值，再逐目标写入，内层仅在轮到该目标时解包。数量/协议失败保留
+此前已完成写入，尚未写入的局部仍报UnboundLocalError；目标求值中的yield恢复复用
+已准备引用。动态格式规格在值求出后、conversion及__format__之前执行。普通实例
+采用类型级__format__协议，原生布局保留其已有格式能力，见[ADR-0233](adr/0233-recursive-unpack-and-dynamic-format.md)。
+
+
 显式内部 stock 薄函数候选（ADR-0226/0227）采用真实 `f(x)` closure 胶水与 GC owner，
 保留 CP binder/活元数据，globals 未命中时查 F 定义时捕获的 builtins。
 默认值任意非 None 时调用明确能力失败；已登记 F 的 code setter 赋值前拒绝。
@@ -350,7 +358,7 @@ closure cell 写入保留 CP 行为，H 调用验证当前 P 绑定，失效时�
 | 34 | 指数 / 移位量上限（RyuPy 偏差） | 任意大的指数会尝试构造巨大整数 | — | `PyInt.MaxBitShift = 1_000_000`：超过时报 `OverflowError`，避免一次运算耗尽内存；`2 ** 100`、`1 << 100` 等常用规模不受影响 |
 | 35 | 参数绑定错误 | 运行时 `TypeError`：缺少 / 过多 / 重复绑定 / 未知关键字 / 位置-only 当关键字 | — | `PyBinder` 按 CPython 规则绑定并生成相同措辞的消息；编译期只判断能否走静态快路径，**不**把绑定错误变成编译错误 |
 | 36 | 默认值求值时机 | 在 `def` 执行时于模块作用域求值、只求值一次；可变默认值跨调用共享 | — | 默认值在定义位置（`FunctionDefaults` 语句）写进模块静态数组；`def f(x=[])` 的所有调用共享同一个 list |
-| 37 | f-string 格式说明符 | 支持嵌套插值（`f"{x:{width}}"`） | — | 当前只支持纯字面量规格；嵌套插值报 `E0100`。格式子集：宽度 / 对齐 / 补零 / 精度 / 进制 / 百分比 |
+| 37 | f-string 格式说明符 | 支持嵌套插值（`f"{x:{width}}"`） | — | 动态规格已接入递归HIR与MIR，保留暂停、异常和转换时序；纯字面量保持常量快路。格式子集：宽度 / 对齐 / 补零 / 精度 / 进制 / 百分比 |
 | 38 | `id(x)` | 返回对象地址（CPython 内部细节） | — | 返回运行时的稳定身份哈希；不伪造地址，登记为 D002 的内部观测差异 |
 | 39 | 序列拼接与重复 | `[1] + [2]`、`(1,) + (2,)`、`"ab" * 3`、`3 * [0]`；只允许同类拼接，次数 ≤ 0 得空序列 | — | M2.12：`PySequenceOps` 实现 list / tuple / str / bytes / bytearray 的 `+` / `*`，错误消息按 CPython（`can only concatenate list (not "tuple") to list`、`can't multiply sequence by non-int of type 'float'`） |
 | 40 | 增量赋值的原地语义 | `a += b` 对 list 原地 `extend`，别名可见、`a is` 原对象；对 int / str / tuple 生成新对象 | 去糖成 `a = a + b` 会丢失别名 | M2.12：HIR `Binary { inplace }` → 操作码标记位 → `PyOps.InPlaceBinary`；覆盖 list / bytearray / set（`\|= &= -= ^=`）/ `__iadd__` 等，错误消息写 `+=` |

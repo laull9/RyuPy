@@ -214,6 +214,9 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         RuntimeFn::DictSetScalarKey => {
             ins.push(Instruction::call(ctx.runtime_refs.dict_set_scalar_key))
         }
+        RuntimeFn::DictUnpackMapping => {
+            ins.push(Instruction::call(ctx.runtime_refs.dict_unpack_mapping))
+        }
         RuntimeFn::ValidateOrdinaryBase => {
             ins.push(Instruction::call(ctx.runtime_refs.classes.validate))
         }

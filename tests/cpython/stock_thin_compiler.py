@@ -21,13 +21,15 @@ from onefile_support import audit_onefile_output
 
 CASES = ('identity', 'global_rebinding', 'builtin_and_function', 'shutdown',
          'local_identity', 'local_unbound', 'identity_order',
-         'numeric_pipeline', 'call_pipeline', 'operator_protocol')
+         'numeric_pipeline', 'call_pipeline', 'operator_protocol', 'dict_item_method')
 NEGATIVE_CASES = ('frame_boundaries',)
+PENDING_CASES = ('wrapped_frame_pending',)
 # 手写输入中的调用（包括抛错路径）和顶层定义数，防止只验输出漏掉静态core调度。
 EXPECTED_THIN = {'shutdown': (1, 1), 'local_identity': (9, 4),
                  'local_unbound': (3, 2), 'identity_order': (8, 3),
-                 'numeric_pipeline': (32, 10), 'call_pipeline': (22, 14),
-                 'operator_protocol': (26, 11), 'frame_boundaries': (6, 4)}
+                 'numeric_pipeline': (32, 10), 'call_pipeline': (23, 15),
+                 'operator_protocol': (29, 11), 'dict_item_method': (4, 1),
+                 'frame_boundaries': (6, 4), 'wrapped_frame_pending': (2, 2)}
 
 
 class Recorder:
@@ -63,7 +65,7 @@ def require_success(result, label):
     return result
 
 
-def validate_case(args, log, version, mode, case, workspace, negative=False):
+def validate_case(args, log, version, mode, case, workspace, negative=False, pending=False):
     work = workspace/(mode+'-'+case)
     inputs, output = work/'private input', work/'build output'
     inputs.mkdir(parents=True)
@@ -116,7 +118,17 @@ def validate_case(args, log, version, mode, case, workspace, negative=False):
             raise RuntimeError('frame oracle没有验证四项真实scope能力')
         log.stream.write('NEGATIVE_CONTRACT CPython支持真实scope；候选必须明确拒绝，单列负合同\n')
         expected_stdout = expected_stdout.replace(b'real-scope\n', b'blocked\n')
-    if (actual.returncode, actual.stdout, actual.stderr) != (oracle.returncode, expected_stdout, oracle.stderr):
+    mismatch = (actual.returncode, actual.stdout, actual.stderr) != (oracle.returncode, expected_stdout, oracle.stderr)
+    if pending:
+        if not mismatch:
+            raise RuntimeError('pending已与CPython一致，应移除标记并转为正例')
+        # 精确记录完整frame缺口；其它错误仍使此观察门失败，不能把任意失败当已知pending。
+        if (actual.returncode != 1 or b'AssertionError' not in actual.stderr
+                or b"locals ['p', 'x'] None True\n" not in actual.stdout
+                or b"eval-error NameError name 'hidden' is not defined\n" not in actual.stdout):
+            raise RuntimeError('wrapped frame出现新的观察形状，须重新审查完整三流')
+        log.stream.write('KNOWN_PENDING partial(locals)暴露glue的p/x，partial(eval)缺少业务hidden槽\n')
+    elif mismatch:
         if report.is_file():
             log.stream.write('FAILED_HOST_REPORT\n'+report.read_text()+'\n')
             log.stream.flush()
@@ -147,7 +159,7 @@ def validate_case(args, log, version, mode, case, workspace, negative=False):
         expected_calls, expected_destroyed = EXPECTED_THIN[case]
         if (thin['native_calls'], thin['destroyed']) != (expected_calls, expected_destroyed):
             raise RuntimeError(f'{case} 静态core调用或owner析构次数与手写输入不同')
-    status = 'PASS-NEGATIVE' if negative else 'PASS'
+    status = 'PENDING-OBSERVED' if pending else 'PASS-NEGATIVE' if negative else 'PASS'
     print(f'{status} {version} {mode} {case}', flush=True)
 
 
@@ -158,6 +170,7 @@ def main():
     parser.add_argument('--mode', choices=('jit', 'standalone', 'onefile', 'all'), default='jit')
     parser.add_argument('--case', action='append', choices=CASES)
     parser.add_argument('--negative-case', action='append', choices=NEGATIVE_CASES)
+    parser.add_argument('--pending-case', action='append', choices=PENDING_CASES)
     args = parser.parse_args()
     args.python = args.python.resolve()
     args.cli = args.cli.resolve()
@@ -177,11 +190,13 @@ def main():
             modes = ('jit', 'standalone', 'onefile') if args.mode == 'all' else (args.mode,)
             try:
                 for mode in modes:
-                    cases = args.case or (() if args.negative_case else CASES)
+                    cases = args.case or (() if args.negative_case or args.pending_case else CASES)
                     for case in cases:
                         validate_case(args, Recorder(stream), version, mode, case, workspace)
                     for case in args.negative_case or ():
                         validate_case(args, Recorder(stream), version, mode, case, workspace, True)
+                    for case in args.pending_case or ():
+                        validate_case(args, Recorder(stream), version, mode, case, workspace, pending=True)
             finally:
                 stream.write('CLEANING '+str(workspace)+'\n')
         stream.write('CLEANED\n')

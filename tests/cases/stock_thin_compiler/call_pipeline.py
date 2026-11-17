@@ -60,6 +60,9 @@ def explicit_exec(x):
     x("result = value + 2", scope)
     return None
 
+def explicit_vars(x):
+    return inspector(x)
+
 print(transform("  hello 雪  "))
 print(events)
 print(invoke("mixed".upper))
@@ -80,6 +83,11 @@ scope = getattr(builtins, "dict")(value=41)
 print(type(explicit_compile(getattr(builtins, "compile"))).__name__)
 print(explicit_eval(getattr(builtins, "eval")))
 print(explicit_exec(getattr(builtins, "exec")) is None, scope["result"])
+inspector = getattr(builtins, "vars")
+Plain = type("Plain", (), {})
+instance = Plain()
+instance.value = 9
+print(explicit_vars(instance)["value"])
 extractor = operator.itemgetter(1)
 try:
     fetch([marker])

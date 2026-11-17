@@ -2,7 +2,7 @@
 //! 只解析已选第三方载荷与编译来源；标准库保留库存分类，避免默认全发行AST扫描。
 use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::path::Path;
 #[path = "interface_native.rs"]
 mod native;
@@ -22,27 +22,33 @@ pub(crate) fn analyze(
     ));
     let platform = crate::cpython_provider::native::PlatformKind::current()?;
     let rid = platform.rid();
+    // 文件payload以exact目标命中；目录payload沿路径祖先集合命中，成本随目录深度而非wheel文件数增长。
+    let payload_targets: HashSet<_> = plan
+        .payloads
+        .iter()
+        .map(|p| std::path::PathBuf::from(&p.destination))
+        .collect();
+    let compiled_targets: HashSet<_> = plan
+        .delegation
+        .compiled_sources
+        .iter()
+        .map(|s| Path::new("python").join(&s.destination))
+        .collect();
     let mut entries = Vec::new();
     let mut modules = BTreeMap::<String, Value>::new();
     for file in files {
         let relative = file["path"].as_str().context("接口库存文件缺少path")?;
         let path = Path::new(relative);
-        let compiled = plan
-            .delegation
-            .compiled_sources
-            .iter()
-            .any(|s| path == Path::new("python").join(&s.destination));
+        let compiled = compiled_targets.contains(path);
         let delegated =
             path.starts_with("python/ryupy_delegated") || path.starts_with("python/ryupy_entry");
         let third_party = path.strip_prefix(&site).ok().is_some_and(|p| {
-            plan.payloads
-                .iter()
-                .any(|payload| p.starts_with(&payload.destination))
+            p.ancestors()
+                .any(|ancestor| payload_targets.contains(ancestor))
         });
         if !compiled && !delegated && !third_party {
             continue;
         }
-        ensure!(entries.len() < 32768, "接口目录超过32768文件预算");
         let module_path = if compiled {
             path.strip_prefix("python/ryupy_compiled")?
         } else if delegated {
@@ -53,9 +59,7 @@ pub(crate) fn analyze(
         };
         let is_stub = path.extension().is_some_and(|e| e == "pyi");
         let source = path.extension().is_some_and(|e| e == "py");
-        let native_candidate = path
-            .extension()
-            .is_some_and(|e| matches!(e.to_str(), Some("so" | "pyd" | "dylib" | "dll")));
+        let native_candidate = native::is_native_filename(path);
         if !source && !is_stub && !native_candidate {
             continue;
         }
@@ -78,7 +82,7 @@ pub(crate) fn analyze(
         };
         let mut entry = json!({"path":relative,"module":name,"kind":if is_stub{"type_stub"}else if source{"python_source"}else{"native_image"},
             "execution":execution,"origin":if compiled{"compiled_source"}else if delegated{"explicit_delegation"}else{"selected_third_party_payload"},
-            "business_body":!is_stub && (source || native_candidate),"source_role":if compiled{"diagnostic_source_for_cil"}else if is_stub{"interface_declaration"}else{"provider_implementation"}});
+            "business_body":if is_stub {json!(false)}else{Value::Null},"contains_python_source":source,"contains_native_code":native_candidate,"source_role":if compiled{"diagnostic_source_for_cil"}else if is_stub{"interface_declaration"}else{"provider_implementation"}});
         if source || is_stub {
             entry["interface"] = read_interface(&output.join(path), relative, version, is_stub);
         } else {
@@ -93,7 +97,7 @@ pub(crate) fn analyze(
                 "implementations"
             };
             record[key].as_array_mut().unwrap().push(json!(relative));
-            if !is_stub {
+            if !is_stub && (source || compiled || entry["native"]["initializer_verified"] == true) {
                 if record["execution_provider"].is_null() {
                     record["execution_provider"] = entry["execution"].clone();
                 } else if record["execution_provider"] != entry["execution"] {
@@ -107,7 +111,7 @@ pub(crate) fn analyze(
         json!({"schema":1,"analysis":"static_deployed_files_and_local_native_exports",
         "python_version":plan.version.version_str(),"rid":rid,"files":entries,"modules":modules,
         "coverage":{"selected_third_party_payloads":true,"compiled_sources":true,"explicit_delegation":true,
-            "stdlib":"inventory_only","dynamic_export_sets":"not_resolved","runtime_signature_execution":false},
+            "stdlib":"inventory_only","dynamic_export_sets":"not_resolved","runtime_signature_execution":false,"native_filename_families":["so","so.numeric_version","pyd","dylib","dll"]},
         "abi_authority":{"explicit_c_abi":"existing_v3_declarations_and_static_pinvoke","inference":"Python调用形状由声明AST推导；更多ABI/布局/所有权推导按额外证据与实测扩展"}}),
     )
 }

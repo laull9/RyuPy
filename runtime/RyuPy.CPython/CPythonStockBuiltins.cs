@@ -25,8 +25,6 @@ public sealed partial class CPythonHost : IPyCompiledBuiltinsProvider
                 try
                 {
                     var importer = new PythonObject(this, Check(Native.rp_builtin("__import__")));
-                    try { CaptureStockFrameBuiltins(globals); }
-                    catch { importer.Dispose(); throw; }
                     stockGlobalsBuiltin = globals; stockImportBuiltin = importer;
                     stockBuiltins = dictionary;
                     return dictionary;

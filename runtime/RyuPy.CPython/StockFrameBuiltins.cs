@@ -1,12 +1,11 @@
 // 静态CIL业务体中的frame相关builtin按真实对象身份分发：globals返回原F的D，显式环境能力保留。
-// 活动环境只存在本线程调用栈；规范对象由入口owned保活，用户同名替身不取得特殊权限。
+// 活动环境只存在本线程调用栈；规范对象由F的原生GC owner保活，用户同名替身不取得特殊权限。
 using RyuPy.Runtime;
 
 namespace RyuPy.CPython;
 
 public sealed partial class CPythonHost
 {
-    private readonly Dictionary<string, PythonObject> stockFrameBuiltins = new(StringComparer.Ordinal);
     [ThreadStatic] private static StockThinFunctionCallLease? currentStockBody;
     private readonly struct StockBodyScope : IDisposable
     {
@@ -15,28 +14,13 @@ public sealed partial class CPythonHost
         { previous = currentStockBody; currentStockBody = body; }
         public void Dispose() => currentStockBody = previous;
     }
-    private void CaptureStockFrameBuiltins(PythonObject globals)
-    {
-        try
-        {
-            stockFrameBuiltins.Add("globals", globals);
-            foreach (string name in new[] { "locals", "vars", "eval", "exec", "compile" })
-                stockFrameBuiltins.Add(name, new PythonObject(this, Check(Native.rp_builtin(name))));
-        }
-        catch
-        {
-            foreach (PythonObject owner in stockFrameBuiltins.Values) owner.Dispose();
-            stockFrameBuiltins.Clear(); throw;
-        }
-    }
     internal bool TryInvokeStockFrameBuiltin(PythonObject actual, object?[] args,
         string[] names, object?[] values, out object? result)
     {
         result = null;
-        if (currentStockBody is not { } body || actual.IsDisposed) return false;
-        string? name = null;
-        foreach (var pair in stockFrameBuiltins)
-            if (!pair.Value.IsDisposed && pair.Value.Pointer == actual.Pointer) { name = pair.Key; break; }
+        if ((!stockProgramExecuting && state != 5) || currentStockBody is not { } body || actual.IsDisposed) return false;
+        int kind = body.FrameBuiltinKind(actual.Pointer);
+        string? name = kind switch { 0 => "globals", 1 => "locals", 2 => "vars", 3 => "eval", 4 => "exec", 5 => "compile", _ => null };
         if (name is null) return false;
         if (name == "globals" && args.Length == 0 && names.Length == 0)
         { result = body.GlobalsForBuiltin(); return true; }
@@ -64,6 +48,6 @@ public sealed partial class CPythonHost
         }
         return false;
     }
-    private static bool IsFrameSource(object? source) => source is string or PyBytes or PyByteArray
+    private static bool IsFrameSource(object? source) => source is string or PyBytes
         || source is PythonObject foreign && !foreign.IsDisposed && Native.rp_frame_source(foreign.Pointer) != 0;
 }

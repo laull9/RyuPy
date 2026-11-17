@@ -101,8 +101,22 @@ def product(args, project, evidence):
         if args.oracle_only:
             return {'mode': args.mode, 'oracle': 'pass', 'product': 'not-run'}
         output = work / 'output'
+        extra = []
+        if args.native_components:
+            original = args.native_components.expanduser().resolve()
+            declaration = json.loads(original.read_text())
+            for index, component in enumerate(declaration['components']):
+                root = Path(component['root'])
+                if not root.is_absolute():
+                    root = original.parent / root
+                private = inputs / ('component-' + str(index))
+                shutil.copytree(root, private, symlinks=True)
+                component['root'] = str(private)
+            native_declaration = inputs / 'native-components.json'
+            native_declaration.write_text(json.dumps(declaration, ensure_ascii=False))
+            extra = ['--cpython-native-components', native_declaration]
         built = execute([args.ryupy.resolve(), entry, '--mode', args.mode, '-o', output,
-                         '-I', tree / 'src', '-I', tree], work, dict(env, VIRTUAL_ENV=str(venv)),
+                         '-I', tree / 'src', '-I', tree, *extra], work, dict(env, VIRTUAL_ENV=str(venv)),
                         evidence, 'build')
         checked(built, 'CIL probe项目构建')
         generated = [Path(line[len('已生成 '):]) for line in built.stderr.decode().splitlines()
@@ -145,6 +159,7 @@ def main():
     parser.add_argument('--cache', type=Path, default=CACHE)
     parser.add_argument('--mode', choices=['jit', 'standalone', 'onefile'], default='jit')
     parser.add_argument('--oracle-only', action='store_true')
+    parser.add_argument('--native-components', type=Path)
     parser.add_argument('--evidence', type=Path, default=Path.home() / '.cache/ryupy/validation/explorerpro-products')
     args = parser.parse_args()
     evidence = args.evidence.expanduser().resolve() / datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ')

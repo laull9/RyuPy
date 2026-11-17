@@ -168,6 +168,7 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
         lock (gate)
         {
             stockExternalOwnerOrigins.Remove(token);
+            ReleaseTerminalOwnerToken(token);
             if (!handles.Remove(token, out nint pointer)) { if (state == 3) late++; return; }
             // Pause只撤销新登记权限；旧token退账始终使用稳定登记表，finalizer不获取GIL。
             if (stockProgramEntryRegistry is { } registry)
@@ -187,7 +188,7 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
         using Lease lease = Enter();
         if (reverse.TryGetValue(value, out ManagedReference? reference))
         {
-            Roots.TryRemove(reference.Identity, out _); reverse.Remove(value);
+            Roots.TryRemove(reference.Identity, out _); ReleaseStockProgramProxy(reference.Identity); reverse.Remove(value);
             if (transfers.TryGetValue(value, out ContainerTransfer? transfer))
             {
                 transfers.Remove(value); transfer.Owner.Dispose();

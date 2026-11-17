@@ -317,16 +317,12 @@ def paused(target, values):
     let cil = ryupy_driver::dump(&mut Session::default(), &input, Stage::Cil).unwrap();
     std::fs::write(root.0.join("cil.txt"), &cil).unwrap();
     assert!(cil.contains("PyOps.UnpackEx(object, long, long)"), "{cil}");
-    for invalid in ["a, (b, c) = [1, [2, 3]]\n", "a, *(b, c) = [1, 2, 3]\n"] {
-        std::fs::write(&input, invalid).unwrap();
+    for nested in ["a, (b, c) = [1, [2, 3]]\n", "a, *(b, c) = [1, 2, 3]\n"] {
+        std::fs::write(&input, nested).unwrap();
         let mut session = Session::default();
-        assert!(ryupy_driver::dump(&mut session, &input, Stage::Mir).is_err());
-        assert!(
-            session
-                .diagnostics
-                .iter()
-                .any(|error| error.code == Some("E0100"))
-        );
+        let mir = ryupy_driver::dump(&mut session, &input, Stage::Mir).expect("递归目标逐层准备");
+        assert!(session.diagnostics.is_empty());
+        assert_eq!(mir.matches("RuntimeFn::UnpackSequence(").count(), 1);
     }
     std::fs::write(&input, "a, *b, *c = [1, 2, 3]\n").unwrap();
     let mut session = Session::default();

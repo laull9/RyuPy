@@ -5,8 +5,9 @@ import builtins
 events = []
 record = events.append
 marker = object()
-# 使用stock精确dict的原生协议，让回调异常真实跨过CP→CLR→CP边界。
-lookup = getattr(builtins, "dict")().__getitem__
+managed_lookup = {}.__getitem__
+native_lookup = getattr(builtins, "dict")().__getitem__
+lookup = managed_lookup
 
 def decline(x):
     record("left")
@@ -63,6 +64,12 @@ right = Unrelated()
 print(add(left) is marker, events)
 events.clear()
 right = Broken()
+try:
+    add(left)
+except KeyError as error:
+    print(type(error).__name__, error.args, str(error), events)
+events.clear()
+lookup = native_lookup
 try:
     add(left)
 except KeyError as error:

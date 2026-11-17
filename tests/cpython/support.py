@@ -149,13 +149,12 @@ def audit_macho_paths(dist):
             if stream.read(4) not in magic:
                 continue
         result = subprocess.run(['/usr/bin/otool', '-L', path], capture_output=True, check=True)
-        own_id = None
-        if path.suffix == '.dylib':
-            identity = subprocess.run(['/usr/bin/otool', '-D', path], capture_output=True, check=True)
-            ids = identity.stdout.decode().splitlines()[1:]
-            own_id = ids[0].strip() if ids else None
-            if path.name in ('libryupy_cpython.dylib', 'libpython3.12.dylib'):
-                assert own_id and own_id.startswith(('@rpath/', '@loader_path/')), ('宿主库ID必须可搬迁', path, own_id)
+        # CP扩展的.so也可能是MH_DYLIB；按实际LC_ID_DYLIB识别自身ID，后缀不能替代映像事实。
+        identity = subprocess.run(['/usr/bin/otool', '-D', path], capture_output=True, check=True)
+        ids = identity.stdout.decode().splitlines()[1:]
+        own_id = ids[0].strip() if ids else None
+        if path.name in ('libryupy_cpython.dylib', 'libpython3.12.dylib'):
+            assert own_id and own_id.startswith(('@rpath/', '@loader_path/')), ('宿主库ID必须可搬迁', path, own_id)
         for index, line in enumerate(result.stdout.decode().splitlines()[1:]):
             dependency = line.strip().split(' (compatibility', 1)[0]
             # otool对dylib的第一行展示自身ID；它不是加载其他映像的边。

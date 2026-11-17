@@ -1,0 +1,42 @@
+/* 通用原生依赖输入：真实CPython mapping/index协议经独立C共享库取值，库名和布局由fixture数据提供。 */
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
+#include <string.h>
+extern long @SYMBOL@(long value);
+typedef struct { PyObject_HEAD long calls; } Record;
+static PyObject *record_type;
+static PyObject *keys(PyObject *self, PyObject *unused) {
+    (void)self; (void)unused;
+    return Py_BuildValue("[ss]", "left", "right");
+}
+static PyObject *get(PyObject *self, PyObject *key) {
+    const char *text = PyUnicode_AsUTF8(key);
+    if (!text) return NULL;
+    Record *record = (Record *)self;
+    if (strcmp(text, "left") && strcmp(text, "right")) { PyErr_SetObject(PyExc_KeyError, key); return NULL; }
+    return PyLong_FromLong(@SYMBOL@(++record->calls));
+}
+static PyObject *index_value(PyObject *self) { (void)self; return PyLong_FromLong(@SYMBOL@(5)); }
+static PyMethodDef record_methods[] = {{"keys", keys, METH_NOARGS, "返回真实mapping键。"}, {NULL, NULL, 0, NULL}};
+static PyType_Slot slots[] = {
+    {Py_tp_new, PyType_GenericNew}, {Py_tp_methods, record_methods},
+    {Py_mp_subscript, get}, {Py_nb_index, index_value}, {0, NULL}
+};
+static PyType_Spec spec = {"@MODULE@.NativeRecord", sizeof(Record), 0, Py_TPFLAGS_DEFAULT, slots};
+static PyObject *make(PyObject *self, PyObject *unused) { (void)self; (void)unused; return PyObject_CallNoArgs(record_type); }
+static PyObject *mapping(PyObject *self, PyObject *unused) {
+    (void)self; (void)unused;
+    return Py_BuildValue("{s:l,s:l}", "left", @SYMBOL@(1), "right", @SYMBOL@(2));
+}
+static PyMethodDef methods[] = {
+    {"make", make, METH_NOARGS, "返回原生mapping与index对象。"},
+    {"mapping", mapping, METH_NOARGS, "返回真实CPython字典。"}, {NULL, NULL, 0, NULL}
+};
+static struct PyModuleDef module = {PyModuleDef_HEAD_INIT, "@MODULE@", NULL, -1, methods};
+PyMODINIT_FUNC PyInit_@MODULE@(void) {
+    PyObject *result = PyModule_Create(&module);
+    if (!result) return NULL;
+    record_type = PyType_FromSpec(&spec);
+    if (!record_type || PyModule_AddObject(result, "NativeRecord", record_type) < 0) { Py_DECREF(result); return NULL; }
+    return result;
+}

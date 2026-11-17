@@ -64,6 +64,10 @@ pub(crate) fn safe_uses(function: &Function, facts: &TypeckResults) -> bool {
                 operands: items, ..
             } => items.clone(),
             ExprKind::Dict(items) => items.iter().flat_map(|(a, b)| [*a, *b]).collect(),
+            ExprKind::DictUnpack(items) => items
+                .iter()
+                .flat_map(ryupy_hir::DictItem::expressions)
+                .collect(),
             ExprKind::FString(parts) => parts
                 .iter()
                 .flat_map(|p| match p {

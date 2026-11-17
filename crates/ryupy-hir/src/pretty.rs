@@ -441,19 +441,8 @@ pub(crate) fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String
         ExprKind::List(items) => format!("[{}]", dump_list(module, body, items)),
         ExprKind::Tuple(items) => format!("({})", dump_list(module, body, items)),
         ExprKind::Set(items) => format!("{{{}}}", dump_list(module, body, items)),
-        ExprKind::Dict(pairs) => {
-            let parts: Vec<String> = pairs
-                .iter()
-                .map(|(k, v)| {
-                    format!(
-                        "{}: {}",
-                        dump_expr(module, body, *k),
-                        dump_expr(module, body, *v)
-                    )
-                })
-                .collect();
-            format!("{{{}}}", parts.join(", "))
-        }
+        ExprKind::Dict(pairs) => dict_unpack::dump_plain(module, body, pairs),
+        ExprKind::DictUnpack(items) => dict_unpack::dump(module, body, items),
         ExprKind::Bytes(bytes) => format!("b{:?}", bytes),
         ExprKind::Subscript { base, index } => {
             format!(
@@ -597,3 +586,6 @@ fn sequence_target_name(
         ),
     }
 }
+
+#[path = "pretty_dict_unpack.rs"]
+mod dict_unpack;

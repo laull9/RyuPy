@@ -294,6 +294,7 @@ impl<'a> ExprBuilder<'a> {
                 Operand::Local(dest)
             }
             ExprKind::Dict(pairs) => self.build_dict_literal(pairs, expr_id),
+            ExprKind::DictUnpack(items) => self.build_dict_unpack(items, expr_id),
             ExprKind::Subscript { base, index } => {
                 let base_op = self.build_expr(*base);
                 let index_op = self.build_expr(*index);

@@ -225,17 +225,23 @@ impl<'a> ExprLowerCtx<'a> {
     fn lower_dict(&mut self, dict: &ast::ExprDict) -> ExprKind {
         // >17项的动态键交给MIR逐对插入的精确标量守卫；用户键仍明确运行时拒绝。
         // 不能按类型标注猜测键安全，也不删除未执行分支中的整个字典表达式。
+        if dict.items.iter().any(|item| item.key.is_none()) {
+            let mut items = Vec::new();
+            for item in &dict.items {
+                items.push(if let Some(key) = &item.key {
+                    let key = self.lower_expr(key);
+                    let value = self.lower_expr(&item.value);
+                    crate::DictItem::Pair(key, value)
+                } else {
+                    crate::DictItem::Unpack(self.lower_expr(&item.value))
+                });
+            }
+            return ExprKind::DictUnpack(items);
+        }
         let mut pairs = Vec::new();
         for item in &dict.items {
             let Some(key) = &item.key else {
-                self.diagnostics.push(
-                    Diagnostic::error(
-                        Span::new(self.file, item.value.range()),
-                        "暂不支持在字典字面量里使用 `**`",
-                    )
-                    .with_code("E0100")
-                    .with_primary_label("不支持字典解包"),
-                );
+                // 已在上方按是否含解包分支；错误恢复仍继续，绝不panic。
                 continue;
             };
             let key_id = self.lower_expr(key);

@@ -65,7 +65,7 @@ public sealed partial class CPythonHost
             using Lease lease = Enter();
             lock (gate)
             {
-                if (StockThinOwnedHandles != 0 || Roots.Count != 0
+                if (StockThinOwnedHandles != 0 || !Roots.Keys.ToHashSet().SetEquals(stockProgramProxyRoots)
                     || !handles.Keys.ToHashSet().SetEquals(stockProgramTokens)
                     || stockProgramEntryRegistry!.HasUnresolvedOwner())
                     throw new InvalidOperationException("stock程序仍有外部或未完成退账的owned引用，释放后重试结束");
@@ -121,7 +121,8 @@ public sealed partial class CPythonHost
         WriteReport();
         StockProgramResult result = stockProgramResult!;
         if (result.NativeLive != 0 || result.CoreRoots != 0 || result.OwnedHandles != 0
-            || result.Ledger != 0 || result.Pending != 0 || result.Late != 0 || result.PostFinalizeDecrefs != 0 || Roots.Count != 0)
+            || result.Ledger != 0 || result.Pending != 0 || result.Late != 0 || result.PostFinalizeDecrefs != 0 || Roots.Count != 0
+            || stockProgramProxyRoots.Count != 0 || terminalOwnerRoots.Count != 0)
             throw new InvalidOperationException("stock程序终态owned/native引用未归零：" + result);
         if (error is not null) throw new InvalidOperationException("stock程序退出处理失败", error);
         if (nativeResult != 0) throw new InvalidOperationException("CPython关闭时标准流刷新失败");
@@ -173,6 +174,8 @@ public sealed partial class CPythonHost
     private sealed class ProgramOwnedScope(CPythonHost host, ProgramOwnedScope? previous = null) : IDisposable
     {
         internal ProgramOwnedScope? Previous => previous;
+        internal nint ProxyIdentity;
+        internal void Detach() => host.stockProgramCallback = previous;
         internal readonly List<PythonObject> Owners = [];
         internal readonly List<StockThinFunctionOwner> Handles = [];
         internal void Add(PythonObject owner) => Owners.Add(owner);
@@ -199,6 +202,7 @@ public sealed partial class CPythonHost
             {
                 host.stockProgramCallback = previous;
                 if (raised != 0) { Native.rp_restore_error(raised); Native.rp_decref(raised); }
+                host.TryReleaseTerminalOwnerPool();
             }
         }
     }

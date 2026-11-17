@@ -113,8 +113,10 @@ pub enum ExprKind {
     Tuple(Vec<ExprId>),
     /// `{a, b}`。
     Set(Vec<ExprId>),
-    /// `{k: v}`；`**mapping` 暂不支持。
+    /// `{k: v}`；没有解包的字面量保留原批量求值路径。
     Dict(Vec<(ExprId, ExprId)>),
+    /// 含`**mapping`的字典，显式保存逐源顺序，不伪造key/value哨兵。
+    DictUnpack(Vec<DictItem>),
     /// `b"..."`：源码里的字节串已经是字节序列，不需要再做编码。
     Bytes(Box<[u8]>),
     /// f-string：字面量与插值段交替。
@@ -132,6 +134,24 @@ pub enum ExprKind {
     },
     /// `*seq`：只出现在容器字面量与赋值目标里。
     Starred(ExprId),
+}
+
+/// 混合字典字面量的一项；Pair连续块具有独立BUILD_MAP求值/插入顺序。
+#[derive(Clone, Copy, Debug)]
+pub enum DictItem {
+    Pair(ExprId, ExprId),
+    Unpack(ExprId),
+}
+
+impl DictItem {
+    pub fn expressions(&self) -> impl Iterator<Item = ExprId> {
+        match self {
+            Self::Pair(key, value) => [Some(*key), Some(*value)],
+            Self::Unpack(value) => [Some(*value), None],
+        }
+        .into_iter()
+        .flatten()
+    }
 }
 
 /// f-string 的一段。

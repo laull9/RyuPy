@@ -10,7 +10,7 @@ import subprocess
 import sys
 import tempfile
 
-from fixtures import prepare
+from fixtures import prepare, wheel
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -99,6 +99,13 @@ def main():
                          work, env, evidence / 'version.log')
         assert version.stdout.strip() == b'3.12.13', version.stdout
         cases = prepare(inputs, python, env)
+        # 环境中的无关破损发行不得污染选中闭包：仅其RECORD内部重复，应用从未导入该根。
+        unrelated = wheel(inputs, 'unrelated_drifter', {'unrelated_item.py': 'raise RuntimeError("不得导入")\n'})
+        invoke(['uv', 'pip', 'install', '--python', python, '--no-deps', unrelated],
+               work, env, evidence / 'unrelated-install.log')
+        unrelated_record = venv / 'lib/python3.12/site-packages/unrelated_drifter-1.0.dist-info/RECORD'
+        with unrelated_record.open('a') as stream:
+            stream.write('unrelated_item.py,,\n')
         products = []
         for case, wheels, shared in cases:
             label = case['id']

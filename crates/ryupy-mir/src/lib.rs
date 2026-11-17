@@ -137,6 +137,7 @@ mod yield_expr;
 mod prepared_call;
 
 mod container_literals;
+mod dict_unpack;
 
 #[cfg(test)]
 mod print_tests;

@@ -9,6 +9,7 @@ fn stock_thin_expressions_compile_independent_application_shapes() {
         include_str!("../../../tests/cases/stock_thin_compiler/call_pipeline.py"),
         include_str!("../../../tests/cases/stock_thin_compiler/operator_protocol.py"),
         include_str!("../../../tests/cases/stock_thin_compiler/frame_boundaries.py"),
+        include_str!("../../../tests/cases/stock_thin_compiler/dict_item_method.py"),
     ] {
         let (program, _) = compile(source);
         validate::validate(&program).unwrap();

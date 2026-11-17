@@ -14,7 +14,7 @@ def fail(message):
     raise ValueError(message)
 
 
-def record_files(dist):
+def record_files(dist, *, strict=True):
     # importlib.metadata.files会静默过滤缺失文件；直接读RECORD才能在构建时发现破损安装。
     text = dist.read_text('RECORD') or ''
     files = []
@@ -27,7 +27,9 @@ def record_files(dist):
         # 保留既有Windows RECORD斜杠兼容；点分量/重复斜杠归一后仍禁止单发行内部重复。
         logical = str(PurePosixPath(row[0].replace("\\", "/")))
         if logical in seen:
-            fail(f'{dist.metadata["Name"]} 的RECORD包含重复安装目标：{logical}')
+            if strict:
+                fail(f'{dist.metadata["Name"]} 的RECORD包含重复安装目标：{logical}')
+            continue
         seen.add(logical)
         files.append(logical)
     return files
@@ -174,7 +176,8 @@ def main(request):
             fail(f'构建环境含重复发行：{name}')
         distributions[name] = dist
         # 从RECORD识别导入族，覆盖无top_level.txt的wheel和PEP420命名空间。
-        for file in record_files(dist):
+        # 未选中的发行只提供名称归属线索；新文件验证必须限于本次冻结闭包。
+        for file in record_files(dist, strict=False):
             top = str(file).split('/')[0]
             module = top[:-3] if top.endswith('.py') else top.split('.')[0]
             if ((len(Path(str(file)).parts) > 1 and '.' not in top)

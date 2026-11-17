@@ -19,6 +19,12 @@ public sealed partial class CPythonHost
     internal object? FromBorrowed(nint pointer) => pointer == 0 ? null : FromOwned(Native.rp_incref(pointer));
     internal object? FromOwned(nint pointer)
     {
+        object? value = FromOwnedCore(pointer);
+        ObserveTerminalProxyValue(value);
+        return value;
+    }
+    private object? FromOwnedCore(nint pointer)
+    {
         Check(pointer);
         if (TryFromStockThinOwned(pointer, out object? thinFunction)) return thinFunction;
         if (TryImportInspect(pointer, out object? inspected)) return inspected;
@@ -148,6 +154,7 @@ public sealed partial class CPythonHost
         // 弱反向索引不钉住托管对象；C端代理存活期间Roots才是明确的强根。
         nint identity = (nint)Interlocked.Increment(ref nextRoot);
         Roots[identity] = value;
+        ObserveStockProgramProxy(identity);
         nint pointer;
         try
         {
@@ -155,7 +162,7 @@ public sealed partial class CPythonHost
             ValidateSetNameDescriptor(value);
             pointer = Check(descriptor ? Native.rp_managed_descriptor(identity) : Native.rp_managed(identity));
         }
-        catch { Roots.TryRemove(identity, out _); throw; }
+        catch { Roots.TryRemove(identity, out _); ReleaseStockProgramProxy(identity); throw; }
         reverse.Add(value, new ManagedReference(identity, pointer));
         return pointer;
     }

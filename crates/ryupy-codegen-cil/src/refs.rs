@@ -415,6 +415,9 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
     let dict_set_scalar_key = res.push_method_reference(
         method_ref! { static void @pyops_type::DictSetScalarKey(object, object, object) },
     );
+    let dict_unpack_mapping = res.push_method_reference(
+        method_ref! { static void @pyops_type::DictUnpackMapping(object, object) },
+    );
     let runtime_refs = RuntimeRefs {
         trace_product: None,
         deletions: None,
@@ -424,6 +427,7 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         owned_functions: None,
         stock_thin: None,
         dict_set_scalar_key,
+        dict_unpack_mapping,
         enum_create,
         classes: crate::class_refs::ClassRefs::build(res, ryupy_runtime),
         typed_dict: crate::typed_dict_refs::TypedDictRefs::build(res, ryupy_runtime),

@@ -40,7 +40,7 @@ public static partial class PyOps
             return ApplyTextSpec(PyRepr.Str(value), spec);
         }
         // 普通Python实例复用类型级__format__协议，不能退化为先str再套文本规格。
-        if (value is PyInstance)
+        if (value is PyInstance instance && PyBuiltinFormat.HandlesFString(instance))
         {
             object formatted = PyBuiltinFormat.Format(value, spec, spec);
             PyStringLayout.TryGet(formatted, out string text);

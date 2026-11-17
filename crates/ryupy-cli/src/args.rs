@@ -18,6 +18,9 @@ pub(super) struct Cli {
     /// CPython provider 声明路径，或 auto 自动匹配当前 Python 环境
     #[arg(long, global = true, hide = true)]
     pub(super) cpython_provider: Option<PathBuf>,
+    /// 显式原生组件来源、许可证与ABI清单（需CPython provider）
+    #[arg(long, global = true, conflicts_with = "native")]
+    pub(super) cpython_native_components: Option<PathBuf>,
     /// 显式封闭分发快照请求（JIT/AOT）；不改变sys.path
     #[arg(long, global = true, hide = true)]
     pub(super) distribution_metadata: Option<PathBuf>,
