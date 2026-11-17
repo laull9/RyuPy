@@ -12,6 +12,12 @@ internal sealed class PythonObject : PyNativeObject, IPyForeignObject, IDisposab
     private int disposed;
     internal bool IsDisposed => Volatile.Read(ref disposed) != 0;
     internal PythonObject(CPythonHost host, nint pointer) { Host = host; this.pointer = pointer; token = host.Track(pointer); host.ObserveStockProgramOwner(this, token); }
+    // 仅owned作用域在GIL内调用：先撤销反向身份，再交还owned，防止标量缓存保留旧地址。
+    internal void RetireScoped()
+    {
+        if (IsDisposed) return;
+        Host.RetireOwnedIdentity(this, pointer); Dispose();
+    }
     ~PythonObject() => Dispose();
     public void Dispose() { if (Interlocked.Exchange(ref disposed, 1) == 0) { Host.Release(token); GC.SuppressFinalize(this); } }
     public override string TypeName => Host.PythonCall(() =>

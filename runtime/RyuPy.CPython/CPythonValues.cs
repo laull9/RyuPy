@@ -90,7 +90,11 @@ public sealed partial class CPythonHost
         {
             // owned 作用域可以确定释放仍被 CLR 常量保活的缓存 owner；其裸地址随后不能再 INCREF。
             if (reference.Owner is { IsDisposed: true } retired)
+            {
                 RetireOwnedIdentity(retired, reference.Pointer);
+                // 地址可能已由另一对象复用；Retire保护新关联，这里仍须撤销当前CLR键的旧关联。
+                reverse.Remove(value);
+            }
             else
             {
                 if (HasSetName(value) && Native.rp_is_managed_descriptor(reference.Pointer) == 0)

@@ -45,10 +45,34 @@ public sealed partial class CPythonHost
         writer.WriteString("synchronization_failure", synchronizationFailure);
         writer.WriteString("python_library", pythonPath);
         writer.WriteString("shim_library", shimPath);
+        WriteStockProgramReport(writer);
         WriteExecutionAudit(writer);
         WriteInspectReport(writer);
         writer.WriteStartObject("module_paths");
         foreach ((string name, string filename) in loadedModulePaths) writer.WriteString(name, filename);
         writer.WriteEndObject(); writer.WriteEndObject();
+    }
+    // 关闭后的观测只读纯C计数及托管ledger；没有PythonCall、GIL或CP对象解引用。
+    // 只为编译入口权限输出；closed阶段只读冻结托管快照，不重新进入Python。
+    private void WriteStockProgramReport(Utf8JsonWriter writer)
+    {
+        if (!stockProgramAuthorized && !stockProgramExecuting) return;
+        writer.WriteStartObject("stock_compiled_program");
+        writer.WriteBoolean("permission", stockProgramAuthorized);
+        writer.WriteBoolean("terminal", stockProgramResult is not null);
+        if (stockProgramResult is { } result)
+        {
+            writer.WriteNumber("finalize_result", result.FinalizeResult);
+            writer.WriteNumber("native_live", result.NativeLive);
+            writer.WriteNumber("destroyed", result.Destroyed);
+            writer.WriteNumber("native_calls", result.NativeCalls);
+            writer.WriteNumber("core_roots", result.CoreRoots);
+            writer.WriteNumber("owned_h", result.OwnedHandles);
+            writer.WriteNumber("ledger", result.Ledger);
+            writer.WriteNumber("queue", result.Pending);
+            writer.WriteNumber("late_releases", result.Late);
+            writer.WriteNumber("post_finalize_decrefs", result.PostFinalizeDecrefs);
+        }
+        writer.WriteEndObject();
     }
 }

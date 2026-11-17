@@ -1,55 +1,48 @@
-/* 独立生命周期探针 shim：包含原产品实现，仅增加测试导出和终态模板所有权移交。
- * 不读写 CPython 私有内存；保留的模板/type 借用地址由正在调用的 F/owner 强引用见证。
- * 此文件与产品 shim 分开构建，终态之后只读取 C 计数，不调用解释器 API。
- */
-#define rp_decref program_original_decref
-#define rp_thin_make program_original_make
-#include "ryupy_cpython.c"
-#undef rp_decref
-#undef rp_thin_make
-static int terminal_prepared, terminal_done;
-static long terminal_decrefs, post_finalize_decrefs;
-static long lowlevel_live = -1;
-static void program_lowlevel_exit(void) { lowlevel_live = rp_thin_live; }
-API int program_install_observer(void) { return Py_AtExit(program_lowlevel_exit); }
-API long long program_lowlevel_live(void) { return lowlevel_live; }
-API PyObject *rp_thin_make(PyObject *d, intptr_t token, int failure) {
-    if (terminal_prepared) {
-        /* 拒绝新定义时仍消费调用方交付的 core token，沿用 make 的单一所有权合同。 */
-        rp_thin_release(token);
-        PyErr_SetString(PyExc_RuntimeError, "程序终态禁止创建新薄函数");
-        return NULL;
+/* 产品程序集专项测试观察器：通过公开Py_AtExit读取产品shim纯C计数。
+ * 不包含或改写产品shim；不持Python对象，不执行终态清理，低层回调不调用Python API。 */
+#include <Python.h>
+extern void rp_thin_stats(long long *, long long *, long long *);
+static long long lowlevel_live = -1;
+static void observe_exit(void) {
+    long long destroyed, calls;
+    rp_thin_stats(&lowlevel_live, &destroyed, &calls);
+}
+__attribute__((visibility("default"))) int program_install_observer(void) { return Py_AtExit(observe_exit); }
+__attribute__((visibility("default"))) long long program_lowlevel_live(void) { return lowlevel_live; }
+
+/* 真实frame的builtins为None，逐项调用产品API覆盖晚期受控失败；没有CP私有内存写入。 */
+extern void rp_error_text(const char *, const char *);
+extern PyObject *rp_make_error(const char *, PyObject *);
+extern const char *rp_builtin_exception(PyObject *);
+extern PyObject *rp_builtin(const char *);
+static PyObject *missing_builtins(PyObject *self, PyObject *unused) {
+    (void)self; (void)unused;
+    rp_error_text("ValueError", "late");
+    if (!PyErr_ExceptionMatches(PyExc_RuntimeError)) return NULL;
+    PyErr_Clear();
+    PyObject *args = PyTuple_New(0);
+    if (!args) return NULL;
+    PyObject *error = rp_make_error("ValueError", args); Py_DECREF(args);
+    if (!error) return NULL;
+    int valid = PyErr_GivenExceptionMatches(error, PyExc_RuntimeError)
+        && !strcmp(rp_builtin_exception(error), "BaseException");
+    Py_DECREF(error);
+    PyObject *value = rp_builtin("len");
+    if (value || !PyErr_ExceptionMatches(PyExc_TypeError) || !valid) {
+        Py_XDECREF(value); PyErr_SetString(PyExc_AssertionError, "late builtins guard failed"); return NULL;
     }
-    return program_original_make(d, token, failure);
+    PyErr_Clear(); Py_RETURN_NONE;
 }
-API int program_canonical_builtins(PyObject *module) {
-    /* 原 Runtime metadata 前言会写 managed 默认 builtins；本冷路在固定 Entry 创建 F 前恢复原 CP dict。
-     * 只使用公开 module/dict API；替换旧代理触发真实 DECREF/dealloc，业务函数尚未创建。 */
-    return PyDict_SetItemString(PyModule_GetDict(module), "__builtins__", PyEval_GetBuiltins());
-}
-API int program_prepare(void) {
-    if (terminal_prepared || !rp_thin_live || !rp_thin_template || !rp_fo_type) return -1;
-    terminal_prepared = 1;
-    /* 只交还 shim 自己的两份 owned 引用；F 保活 code，owner 保活 heap type。
-     * 不能 Py_CLEAR：现有 shape/dispatch 在终态回调中仍比较这两个借用别名。 */
-    Py_DECREF(rp_thin_template); Py_DECREF(rp_fo_type);
-    return 0;
-}
-API void rp_decref(PyObject *p) {
-    if (terminal_done) { post_finalize_decrefs++; return; }
-    terminal_decrefs++; Py_XDECREF(p);
-}
-API int program_stop(void) {
-    int result = rp_stop();
-    terminal_done = 1;
-    if (terminal_prepared) {
-        /* 这些全局已经转为借用；清别名没有 DECREF。 */
-        rp_thin_template = NULL; rp_fo_type = NULL;
-    }
-    return result;
-}
-API void program_counts(long long *live, long long *destroyed, long long *calls,
-                       long long *decrefs, long long *post) {
-    rp_thin_stats(live, destroyed, calls);
-    *decrefs = terminal_decrefs; *post = post_finalize_decrefs;
+__attribute__((visibility("default"))) int program_check_missing_builtins(void) {
+    static PyMethodDef method = {"probe", missing_builtins, METH_NOARGS, NULL};
+    PyObject *globals = PyDict_New(), *probe = PyCFunction_New(&method, NULL), *code = NULL, *result = NULL;
+    if (!globals || !probe) goto done;
+    if (PyDict_SetItemString(globals, "__builtins__", Py_None) < 0
+        || PyDict_SetItemString(globals, "probe", probe) < 0) goto done;
+    code = Py_CompileString("probe()", "<0228-late-builtins-control>", Py_file_input);
+    if (code) result = PyEval_EvalCode(code, globals, globals);
+done:
+    Py_XDECREF(code); Py_XDECREF(probe); Py_XDECREF(globals);
+    if (!result) return -1;
+    Py_DECREF(result); return 0;
 }

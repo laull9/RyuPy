@@ -41,7 +41,8 @@ public static class Bootstrap
     /// <summary>一次性编译程序终态；外部owned拒绝时保留宿主供释放重试。</summary>
     public static int FinishStockThin(int code)
     {
-        CPythonHost current = Host;
+        // 启动回滚或入口前初始化失败仍走原退出合同，不能凭finish调用伪造程序权限。
+        if (host is not { HasStockProgramPermission: true } current) return Finish(code);
         try
         {
             int result = current.FinishStockProgram(() => Builtins.FinishExit(code));

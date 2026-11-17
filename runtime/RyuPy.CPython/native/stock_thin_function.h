@@ -16,7 +16,7 @@ static PyObject *rp_thin_template;
 static rp_thin_invoke_fn rp_thin_invoke;
 static rp_thin_release_fn rp_thin_release;
 static long rp_thin_live, rp_thin_destroyed, rp_thin_calls;
-static int rp_thin_audit_seen, rp_thin_enabled;
+static int rp_thin_audit_seen, rp_thin_enabled, rp_thin_program_terminal;
 static PyObject *rp_thin_dispatch(PyObject *self, PyObject *argument);
 
 static RpThinLink *rp_thin_find(PyObject *f) {
@@ -149,6 +149,10 @@ API int rp_thin_enable(rp_thin_invoke_fn invoke, rp_thin_release_fn release) {
 }
 /* make 成功失败都消费 token；三个失败注入覆盖 P/closure/F-owner 组装阶段。 */
 API PyObject *rp_thin_make(PyObject *globals, intptr_t token, int failure) {
+    if (rp_thin_program_terminal) {
+        rp_thin_release(token);
+        PyErr_SetString(PyExc_RuntimeError, "程序终态禁止创建薄函数"); return NULL;
+    }
     if (!rp_thin_enabled || !PyDict_CheckExact(globals)) {
         rp_thin_release(token); PyErr_SetString(PyExc_TypeError, "薄函数需要已启用 profile 和精确 globals dict"); return NULL;
     }
@@ -226,4 +230,22 @@ API int rp_thin_clear(void) {
     if (rp_thin_live) { PyErr_SetString(PyExc_RuntimeError, "薄函数仍有 native owner，禁止关闭"); return -1; }
     Py_CLEAR(rp_thin_template); rp_fo_stop(); rp_thin_enabled = 0;
     return 0;
+}
+
+/* 专用程序终态：check无副作用，允许零实例；prepare只移交shim自己的两份owned。
+ * 现有F/owner保活比较别名；没有实例时直接清空。禁止新make，finalize后只撤销借用。 */
+API int rp_thin_program_check(void) {
+    if (!rp_thin_enabled || rp_thin_program_terminal) {
+        PyErr_SetString(PyExc_RuntimeError, "stock程序缺少能力或已经提交终态"); return -1;
+    }
+    return 0;
+}
+API int rp_thin_program_prepare(void) {
+    rp_thin_program_terminal = 1;
+    if (rp_thin_live) { Py_DECREF(rp_thin_template); Py_DECREF(rp_fo_type); }
+    else { Py_CLEAR(rp_thin_template); Py_CLEAR(rp_fo_type); }
+    return 0;
+}
+static void rp_thin_program_closed(void) {
+    if (rp_thin_program_terminal) { rp_thin_template = NULL; rp_fo_type = NULL; }
 }

@@ -40,9 +40,10 @@ Bootstrap.StartStockThin(config,args) 只供显式编译资格发射；安装旧
 
 ## 3. 首个编译资格
 
-计划显式 `--experimental-stock-thin-functions`，默认关闭。driver 在完整图和 provider
+显式 `--experimental-stock-thin-functions`，默认关闭。driver 在完整图和 provider
 冻结后要求只有编译入口 __main__，入口未委派、非 fixed binding。复用真实 stock entry
-存储，但不放宽原自动资格。
+存储，但不放宽原自动资格。首切仅接受已验的精确 stock 3.12.13 / 3.13.3；
+其它版本在编译期 Diagnostic 拒止，默认 provider 3.9–3.15 合同继续保留。
 
 首切只接顶层同步 `def f(x)`：x 为一个位置/关键字参数，无 positional-only、kw-only、
 variadic、注解、默认值、装饰器、type params 或业务 closure；body 恰一条 return Name。
@@ -84,6 +85,11 @@ lease 读名和 factory，随后两版 JIT/NativeAOT/搬迁及原二十项目与
 CIL dump 也显示 StartStockThin；__debug__ 以明确 Diagnostic 拒止。真实 CLI 的 ast/hir/
 types/mir/cil 五阶段均退出 0，额外源码模块明确拒绝；CP oracle 的 __debug__ 为 True，
 候选不读取被注入的 False。完整三流/退出码在仓外保存，原输入与临时产物已清理。
+
+canonical builtins 由新增可选 `IPyCompiledBuiltinsProvider` 冷能力提供，在入口 Execute
+捕获前写入真实 CP 字典。顶层及真实 F 共享原 builtins，globals/import 规范函数守卫
+只比较受 owned 保护的原对象；用户同名替换不会取得守卫权限。普通入口未启用时继续
+使用既有 managed 环境。新增机制和原导入守卫共 10 项定向测试通过，产品运行待关闭接线合流。
 
 冷 ABI 增量的 Runtime 全套固定 CPython 检查为 3422 pass、3 既有 skip；provider 43 pass。
 首个 Runtime 单独命令缺少 PYTHON 导致两项 textwrap oracle 环境失败，补固定解释器后

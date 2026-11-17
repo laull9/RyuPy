@@ -21,6 +21,7 @@ fn stock_thin_graph_freezes_candidate_and_keeps_namespace() {
         include_str!("../../../tests/cases/stock_thin_compiler/identity.py"),
         include_str!("../../../tests/cases/stock_thin_compiler/global_rebinding.py"),
         include_str!("../../../tests/cases/stock_thin_compiler/builtin_and_function.py"),
+        include_str!("../../../tests/cases/stock_thin_compiler/shutdown.py"),
     ] {
         std::fs::write(root.join("entry.py"), source).unwrap();
         let mut session = session(&root);
@@ -54,16 +55,23 @@ fn stock_thin_graph_freezes_candidate_and_keeps_namespace() {
 fn stock_thin_graph_rejects_provider_fixed_delegated_and_extra_source() {
     let root = crate::test_temp::Root::new("stock-thin-reject");
     std::fs::write(root.join("entry.py"), "def f(x):\n    return x\n").unwrap();
-    for case in 0..4 {
+    for case in 0..7 {
         let mut s = session(&root);
         match case {
             0 => s.cpython_provider_state.plan = None,
             1 => s.fixed_binding_build = true,
             2 => s.cpython_entry = true,
-            _ => {
+            3 => {
                 std::fs::write(root.join("extra.py"), "value = 1\n").unwrap();
                 s.include_modules.push("extra".into());
             }
+            4..=6 => {
+                let versions = [(3, 11, 15), (3, 12, 14), (3, 14, 7)];
+                let (major, minor, micro) = versions[case - 4];
+                s.cpython_provider_state.plan.as_mut().unwrap().version =
+                    crate::cpython_provider::version::PythonVersion::new(major, minor, micro);
+            }
+            _ => unreachable!(),
         }
         assert!(compile_linked(&mut s, &root.join("entry.py"), &[], false, None).is_err());
         assert!(s.render_diagnostics(false).contains("薄函数候选要求"));
@@ -94,6 +102,7 @@ fn stock_thin_pinned_two_version_oracle() {
         "identity.py",
         "global_rebinding.py",
         "builtin_and_function.py",
+        "shutdown.py",
     ];
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/cases/stock_thin_compiler");
     let mut observations = vec![];

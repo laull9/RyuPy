@@ -174,6 +174,14 @@ synchronized 失效弱观察项的错误日志都保留，最终成绩以 README
 
 ## 7. 验收边界
 
+2026-11-17 产品接线审查补充：独立实验暴露三项具体缺口，接线必须覆盖。
+scope 交还标量 owned 时要同步撤销 reverse/objects 关联，导出前也必须验证缓存 owner 仍有效，
+否则重复返回同一 CLR 常量会使用失效地址。第三方 managed 回调暂停内部登记权限，
+防止入口执行窗口收编外部新建 owner。零存活 F 仍然允许正常交还模板/type 并结束；
+无副作用的 prepare 校验失败留在可恢复预检阶段。实验通过记录保留，产品结果按修复后重新采集。
+
+真实 Python 编译产品门见 [驱动说明](../../tests/cpython/stock_thin_compiler_README.md)。
+
 已经证明原版 finalize 足以清掉正常 `__main__` F/D 和 direct owner/core，条件是 CLR owned 边具有
 确定的内部作用域及终态 callback scope。无需修改内核、写 CP 私有内存、卸载原生库或主动清业务模块。
 本轮结论是该有限合同具备实际实现路径，最后阻塞是上述产品接线，而非 CPython 终止能力不足。

@@ -10,18 +10,20 @@ pub(crate) fn validate(sess: &mut Session, sources: &[SourceModule]) -> anyhow::
     }
     let valid = !sess.fixed_binding_build
         && !sess.cpython_entry
-        && sess
-            .cpython_provider_state
-            .plan
-            .as_ref()
-            .is_some_and(|p| p.delegation.entry_script.is_none())
+        && sess.cpython_provider_state.plan.as_ref().is_some_and(|p| {
+            p.delegation.entry_script.is_none()
+                && matches!(
+                    (p.version.major, p.version.minor, p.version.micro),
+                    (3, 12, 13) | (3, 13, 3)
+                )
+        })
         && sources.len() == 1
         && sources[0].name == "__main__"
         && sources[0].kind == SourceKind::Entry
         && ryupy_hir::has_defined_functions(&sources[0].parsed);
     if !valid {
         sess.diagnostics.push(Diagnostic::error(Span::new(sources[0].parsed.file, TextRange::default()),
-            "薄函数候选要求已冻结stock provider、未委派的单源码__main__且至少一个薄函数定义，禁止fixed binding和额外源码模块").with_code("E0100"));
+            "薄函数候选要求已冻结stock CPython 3.12.13/3.13.3 provider、未委派的单源码__main__且至少一个薄函数定义，禁止fixed binding和额外源码模块").with_code("E0100"));
         return Err(HasErrors.into());
     }
     Ok(())

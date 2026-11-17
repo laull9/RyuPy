@@ -1,5 +1,5 @@
-// 手写真实 Host 驱动：静态 C# 业务体与固定 Python 协议控制胶水分离。
-// 入口 F 留在真实 __main__.md_dict；持有 CLR module/cache/D，退出由 stock 自己清模块。
+// 真实产品Bootstrap/Runtime/Host/native生命周期门；业务体固定为public中性ABI静态C#。
+// 业务F留在原__main__，控制胶水只注册退出协议和做身份断言；没有源码del或产品代码注入。
 using RyuPy.CPython;
 using RyuPy.Runtime;
 namespace RyuPy.CPython.Tests;
@@ -8,16 +8,21 @@ internal static class ProgramLifecycle
     private static int exits, dels, errors, unraisables;
     private static CPythonHost host = null!;
     private static PyModule module = null!;
+    private static PythonObject d = null!;
     private static object entryContext = null!;
-    private static void Entry(object context)
+    private static string mode = "";
+    private static readonly object constantString = "恒定CIL字符串:重复导出:0123456789";
+    private static readonly object constantInteger = 123456789012345L;
+    private static readonly ExternalCapture capture = new();
+    private sealed class ExternalCapture : PyNativeObject
     {
-        entryContext = context;
-        Require(PyModules.TryCached("__main__", out var current), "执行前已发布 Runtime Cache");
-        // 独立 bootstrap 冷操作：在创建 F 前安装 canonical builtins，避免把业务交给 Python。
-        object originalBuiltins = PyModuleInstances.LoadName(context, "__builtins__")!;
-        using var lease = host.Enter();
-        if (ProgramNative.program_canonical_builtins(((PythonObject)current!.ForeignObject!).Pointer) < 0) host.ThrowError();
-        host.Unregister(originalBuiltins); host.ForgetReleasedTransferObservations();
+        internal PythonObject? Saved;
+        public override string TypeName => "external_capture";
+        public override object? GetAttr(string name)
+        {
+            Saved = (PythonObject)host.SystemAttribute("version")!;
+            return PyNone.Instance;
+        }
     }
     private static void Require(bool ok, string text) { if (!ok) throw new InvalidOperationException(text); }
     private static void Run(string text)
@@ -28,95 +33,126 @@ internal static class ProgramLifecycle
     private static void Refused(Action action)
     {
         try { action(); } catch (InvalidOperationException e)
-        { Require(host.Statistics.State == "running", "拒绝后仍 running"); Console.WriteLine("REFUSED " + e.Message); return; }
+        { Require(host.Statistics.State == "running", "拒绝后仍running"); Console.WriteLine("REFUSED " + e.Message); return; }
         throw new InvalidOperationException("关闭本应拒绝");
     }
-    private static object? Echo(IStockThinFunctionLease env, object? value) => value;
-    private static object? Self(IStockThinFunctionLease env, object? value) => env.LoadGlobal("f");
-    private static object? Global(IStockThinFunctionLease env, object? value) => env.LoadGlobal("marker");
-    private static object? AtExit(IStockThinFunctionLease env, object? value)
+    private static object? Echo(IPyStockThinEnvironment env, object? value) => value;
+    private static object? Self(IPyStockThinEnvironment env, object? value) => env.LoadGlobal("f");
+    private static object? Global(IPyStockThinEnvironment env, object? value) => env.LoadGlobal("marker");
+    private static object? ConstantString(IPyStockThinEnvironment env, object? value) => constantString;
+    private static object? ConstantInteger(IPyStockThinEnvironment env, object? value) => constantInteger;
+    private static object? AtExit(IPyStockThinEnvironment env, object? value)
     {
         exits++; Console.WriteLine("EVENT atexit-cil");
-        bool foreignRejected = Task.Run(() => {
+        bool rejected = Task.Run(() => {
             try { using var lease = host.Enter(callback: true); return false; }
             catch (ObjectDisposedException) { return true; }
         }).GetAwaiter().GetResult();
-        Require(foreignRejected, "终态拒绝外线程新callback租约");
-        Require(ReferenceEquals(env.LoadGlobal("marker"), value), "atexit 原 D 身份");
-        Require(env.LoadGlobal("len") is not null, "atexit 原 builtins");
+        Require(rejected, "终态拒绝外线程新callback租约");
+        Require(ReferenceEquals(env.LoadGlobal("marker"), value), "atexit原D身份");
+        Require(env.LoadGlobal("len") is not null, "atexit原builtins");
         var f = (StockThinFunctionHandle)env.LoadGlobal("f")!;
-        Require(ReferenceEquals(f.Invoke(value), value), "atexit 临时 H 可调用并保留身份");
-        // 活动回调内尝试终止仍拒绝；state 是 committing 而非可恢复 running。
-        try { host.FinishProgramForProbe(true); throw new Exception("活动关闭未拒绝"); }
+        Require(ReferenceEquals(f.Invoke(value), value), "atexit临时H身份");
+        try { host.FinishStockProgram(() => 0); throw new Exception("活动关闭未拒绝"); }
         catch (InvalidOperationException) { }
         return value;
     }
-    private static object? Del(IStockThinFunctionLease env, object? value)
-    { dels++; Console.WriteLine("EVENT del-cil"); Require(ReferenceEquals(value, env.LoadGlobal("marker")), "__del__ 原 D"); return value; }
-    private static object? Fail(IStockThinFunctionLease env, object? value)
+    private static object? Del(IPyStockThinEnvironment env, object? value)
+    { dels++; Console.WriteLine("EVENT del-cil"); Require(ReferenceEquals(value, env.LoadGlobal("marker")), "析构原D"); return value; }
+    private static object? Fail(IPyStockThinEnvironment env, object? value)
     { errors++; throw (PyBaseException)value!; }
-    private static object? Unraisable(IStockThinFunctionLease env, object? value)
+    private static object? Unraisable(IPyStockThinEnvironment env, object? value)
     {
         unraisables++; Console.WriteLine("EVENT unraisable-cil");
-        Require(ReferenceEquals(value, env.LoadGlobal("del_error")), "unraisable 原异常身份");
-        return value;
+        Require(ReferenceEquals(value, env.LoadGlobal("del_error")), "unraisable原异常"); return value;
     }
-    private static void Define(PythonObject d, string name, StockThinFunctionBody body)
+    private static void Define(string name, PyStockThinBody body)
     {
-        using var f = host.CreateStockThinFunction(d, new("0228:"+name, "__main__", name, "fixed-cil-body.cs", 1), body);
-        module.SetAttr(name, f); // 发布后立即交还临时 H 的 owned F；普通源码无须 del f。
+        // 故意不手工Dispose临时H：真实入口owned作用域必须在RunStockThinMain的finally交还。
+        object f = PyModuleInstances.CreateStockThinFunction(entryContext,
+            new("0228:"+name, "__main__", name, "fixed-cil-body.cs", 1), body);
+        module.SetAttr(name, f);
+    }
+    private static void Entry(object context)
+    {
+        entryContext = context;
+        Require(PyModules.TryCached("__main__", out var current), "执行前RuntimeCache已发布");
+        module = current!; d = (PythonObject)module.GetAttr("__dict__")!;
+        using (host.Enter())
+            if (ProgramObserver.program_check_missing_builtins() < 0) host.ThrowError();
+        if (mode == "zero") return;
+        if (mode == "entry-fail") throw new PyValueError("entry-before-F");
+        Run("import gc, atexit, sys\ngc.disable()\nmarker=object()\n");
+        Define("f", Echo); Define("global_f", Global); Define("global_self", Self);
+        Define("onexit", AtExit); Define("ondel", Del); Define("fail", Fail); Define("onunraisable", Unraisable);
+        Define("constant_str", ConstantString); Define("constant_int", ConstantInteger);
+        Run("assert f(marker) is marker\nassert global_f(None) is marker\nassert global_self(None) is f\n");
+        // 同一CLR常量反复导出；每次丢弃CP结果后再次调用，覆盖retired reverse旧地址复用。
+        Run("for _ in range(1000):\n assert constant_str(None)=='恒定CIL字符串:重复导出:0123456789'\n assert constant_int(None)==123456789012345\n");
+        if (mode == "external-callback")
+        {
+            module.SetAttr("external_probe", capture);
+            Run("external_probe.capture\nexternal_probe=None\n");
+            Require(capture.Saved is { IsDisposed: false }, "第三方回调保存新opaque");
+        }
     }
     public static int Main(string[] args)
     {
-        string mode = args[1];
-        host = CPythonHost.Start(args[0], ["0228-program"]);
-        PyProvider.Install(host);
-        host.EnableProgramProbe(mode != "unscoped");
-        host.BeginProgramEntry();
-        // 真正经过 Runtime instance factory、States、Cache 和 Publish，而非手造 CLR 模块。
+        mode = args[1];
+        if (mode == "no-host")
+        {
+            Require(Bootstrap.FinishStockThin(17) == 17, "未启动/回滚后finish保留错误码");
+            Console.WriteLine("PASS no-host finish=17"); return 0;
+        }
+        Bootstrap.StartStockThin(args[0], ["0228-product-program"]); host = Bootstrap.Host;
+        using (host.Enter()) Require(ProgramObserver.program_install_observer() == 0, "低层观察安装");
+        if (mode == "pre-entry-fail")
+        {
+            Require(Bootstrap.FinishStockThin(17) == 17 && host.Statistics.State == "closed",
+                "入口前无授权/零候选按普通Finish保留错误码");
+            Require(!host.HasStockProgramPermission && host.ProgramResult is null, "没有伪造程序权限");
+            Console.WriteLine("PASS pre-entry-fail finish=17"); return 0;
+        }
         PyModules.RegisterStockEntrySourceLocated("__main__", "", "fixed-cil-body.cs", 1,
             Path.GetFullPath("fixed-cil-body.cs"), false, Entry);
-        module = PyModules.Import("__main__");
-        Require(PyModules.TryCached("__main__", out var cached) && ReferenceEquals(module, cached), "真实 Runtime Cache");
-        Require(ReferenceEquals(module, host.Import("__main__")), "真实 Host imported cache");
-        var d = (PythonObject)module.GetAttr("__dict__")!;
-        // 只用控制胶水建 identity 哨兵与退出协议，不委派业务体。
-        Run("import gc, atexit, sys\ngc.disable()\nmarker=object()\n");
-        Define(d, "f", Echo); Define(d, "global_f", Global); Define(d, "global_self", Self);
-        Define(d, "onexit", AtExit); Define(d, "ondel", Del); Define(d, "fail", Fail);
-        Define(d, "onunraisable", Unraisable);
-        Run("assert f(marker) is marker\nassert global_f(None) is marker\nassert global_self(None) is f\n");
-        host.RegisterProgramOwners(module);
-        // 普通 Dispose 的 nativeLive 拒绝必须保留可用宿主。
-        Refused(host.Dispose);
+        try { Bootstrap.RunStockThinMain(); Require(mode != "entry-fail", "入口应抛错"); }
+        catch (PyValueError) when (mode == "entry-fail") { Console.WriteLine("EXPECTED entry-before-F"); }
+        bool empty = mode is "zero" or "entry-fail";
+        Require(CPythonHost.StockThinOwnedHandles == 0, "内部H已由入口作用域确定交还");
+        if (!empty)
+        {
+            Require(ReferenceEquals(module, host.Import("__main__")), "Host与Runtime同一module");
+            Refused(host.Dispose);
+        }
+        if (mode == "external-callback")
+        {
+            Require(host.Statistics.ManagedRoots == 0, "第三方CP代理已真实析构，余下仅外逃owned");
+            Refused(() => host.FinishStockProgram(() => 0));
+            Require(((string)capture.Saved!.ReadScalar("exact_str")).Length > 0, "拒绝后opaque仍可用");
+            capture.Saved.Dispose(); host.DrainReferences();
+        }
         if (mode == "external")
         {
             var h = (StockThinFunctionHandle)module.GetAttr("f")!;
-            Refused(() => host.FinishProgramForProbe(true));
+            Refused(() => host.FinishStockProgram(() => 0));
             object input = 42L;
-            Require(ReferenceEquals(h.Invoke(input), input), "外部 H 拒绝后仍可调用");
+            Require(ReferenceEquals(h.Invoke(input), input), "拒绝后H仍可调用");
             host.ReleaseObject(input); h.Dispose(); host.DrainReferences();
         }
         if (mode == "external-d")
         {
             PythonObject extra;
             using (host.Enter()) extra = new PythonObject(host, Native.rp_incref(d.Pointer));
-            Refused(() => host.FinishProgramForProbe(true)); extra.Dispose(); host.DrainReferences();
+            Refused(() => host.FinishStockProgram(() => 0)); extra.Dispose(); host.DrainReferences();
         }
         if (mode is "external-p" or "external-self" or "external-cell")
         {
-            string expression = mode switch {
-                "external-p" => "f.__closure__[0].cell_contents",
-                "external-self" => "f.__closure__[0].cell_contents.__self__",
-                _ => "f.__closure__[0]" };
-            Run("escaped=" + expression);
-            var opaque = (PythonObject)module.GetAttr("escaped")!;
-            host.ReleaseObject("escaped"); // 本次getter的CLR元数据键，与外逃opaque所有权分开。
-            Require(CPythonHost.StockThinOwnedHandles == 0, "只有 opaque 外根，没有活 H");
-            Refused(() => host.FinishProgramForProbe(true));
-            Require(!opaque.IsDisposed, "拒绝保留外逃 opaque 使用权");
+            string expr = mode switch { "external-p" => "f.__closure__[0].cell_contents",
+                "external-self" => "f.__closure__[0].cell_contents.__self__", _ => "f.__closure__[0]" };
+            Run("escaped=" + expr);
+            var opaque = (PythonObject)module.GetAttr("escaped")!; host.ReleaseObject("escaped");
+            Refused(() => host.FinishStockProgram(() => 0)); Require(!opaque.IsDisposed, "外逃opaque仍有效");
             opaque.Dispose(); host.DrainReferences();
-            // CP 的 escaped 键继续保留，交给合法终态模块清理。
         }
         if (mode == "external-container")
         {
@@ -124,31 +160,24 @@ internal static class ProgramLifecycle
             var container = new PyList([h]);
             using (host.Enter()) Native.rp_decref(host.TransferContainer(container));
             h.Dispose(); host.DrainReferences();
-            Require(CPythonHost.StockThinOwnedHandles == 0, "CLR H 已显式释放，真实 CP list 仍 owned F");
-            Refused(() => host.FinishProgramForProbe(true));
-            // 走真实 synchronized transfer 的 owner 释放；CLR list 仍活着，无 CLR GC 代劳。
-            host.Unregister(container); host.ForgetReleasedTransferObservations(); host.DrainReferences();
-            GC.KeepAlive(container);
+            Require(CPythonHost.StockThinOwnedHandles == 0, "H为零但CP容器仍ownedF");
+            Refused(() => host.FinishStockProgram(() => 0));
+            host.Unregister(container); host.DrainReferences(); GC.KeepAlive(container);
         }
         using (host.Enter())
         {
-            try { host.FinishProgramForProbe(true); throw new Exception("租约内关闭未拒绝"); }
+            try { host.FinishStockProgram(() => 0); throw new Exception("租约内应拒绝"); }
             catch (InvalidOperationException) { Console.WriteLine("REFUSED active-lease"); }
         }
-        // 另一个线程已持有合法租约时，关闭立即拒绝，随后仍可释放重试。
-        using (var entered = new ManualResetEventSlim())
-        using (var leave = new ManualResetEventSlim())
+        using (var entered = new ManualResetEventSlim()) using (var leave = new ManualResetEventSlim())
         {
             var worker = new Thread(() => { using var lease = host.Enter(); entered.Set(); leave.Wait(); });
-            worker.Start(); entered.Wait();
-            Refused(() => host.FinishProgramForProbe(true));
-            leave.Set(); worker.Join();
+            worker.Start(); entered.Wait(); Refused(() => host.FinishStockProgram(() => 0)); leave.Set(); worker.Join();
         }
-        Run("""
+        if (!empty) Run("""
 del_error=ValueError('unraisable-original')
 def unraisable_hook(info, cb=onunraisable, err=del_error):
- assert info.exc_value is err
- assert cb(info.exc_value) is err
+ assert info.exc_value is err and cb(info.exc_value) is err
 sys.unraisablehook=unraisable_hook
 class Finalizer:
  def __init__(self, cb=ondel, bad=fail, m=marker, err=del_error): self.cb,self.bad,self.m,self.err=cb,bad,m,err
@@ -157,32 +186,35 @@ class Finalizer:
   e=ValueError('del-original')
   try: self.bad(e)
   except ValueError as got: assert got is e
-  else: raise AssertionError('未传播原异常')
+  else: raise AssertionError('原异常丢失')
   self.bad(self.err)
-# 环只在 stock 的退出 GC 阶段成为垃圾；这里没有手动 collect/del。
 victim=Finalizer()
 victim.cycle=victim
 victim=None
 def check_exit(cb=onexit, bad=fail, m=marker):
  assert sys.modules['__main__'].__dict__ is globals()
  assert f(m) is m and global_f(None) is m and global_self(None) is f
+ for _ in range(1000):
+  assert constant_str(None)=='恒定CIL字符串:重复导出:0123456789'
+  assert constant_int(None)==123456789012345
  assert cb(m) is m
  e=ValueError('exit-original')
  try: bad(e)
  except ValueError as got: assert got is e
- else: raise AssertionError('未传播原异常')
+ else: raise AssertionError('原异常丢失')
 atexit.register(check_exit)
 """);
-        Console.WriteLine($"BEFORE mode={mode} handles={host.Statistics.Handles} native={host.StockThinStatistics.NativeLive} H={CPythonHost.StockThinOwnedHandles}");
-        int result = host.FinishProgramForProbe(mode != "keep-owned");
+        int requested = mode == "entry-fail" ? 7 : 0;
+        int exit = Bootstrap.FinishStockThin(requested);
         GC.Collect(); GC.WaitForPendingFinalizers();
-        host.ReadProgramCounts(out long live, out long destroyed, out long calls, out long dec, out long post);
-        var stats = host.Statistics;
-        Console.WriteLine($"AFTER mode={mode} finalize={result} native={live} destroyed={destroyed} roots={CPythonHost.ProgramCoreRoots} H={CPythonHost.StockThinOwnedHandles} ledger={stats.Handles} queue={stats.PendingReleases} late={stats.LateReleases} decrefs={dec} postFinalizeDecref={post} lowlevelNative={CPythonHost.ProgramLowlevelLive} atexit={exits} del={dels} errors={errors} unraisable={unraisables} calls={calls}");
-        bool success = result == 0 && live == 0 && CPythonHost.ProgramCoreRoots == 0
-            && CPythonHost.StockThinOwnedHandles == 0 && stats.Handles == 0 && stats.PendingReleases == 0
-            && CPythonHost.ProgramLowlevelLive == 0 && CPythonHost.ProgramLowlevelLive == 0 && stats.ManagedRoots == 0 && stats.LateReleases == 0 && post == 0 && exits == 1 && dels == 1 && errors == 3 && unraisables == 1;
+        var result = host.ProgramResult!; var stats = host.Statistics;
+        Native.rp_reference_stats(out long post);
+        Console.WriteLine($"AFTER mode={mode} exit={exit} finalize={result.FinalizeResult} native={result.NativeLive} destroyed={result.Destroyed} roots={result.CoreRoots} H={result.OwnedHandles} ledger={stats.Handles} queue={stats.PendingReleases} late={stats.LateReleases} postFinalizeDecref={post} lowlevelNative={ProgramObserver.program_lowlevel_live()} atexit={exits} del={dels} errors={errors} unraisable={unraisables}");
+        bool ok = exit == requested && result.FinalizeResult == 0 && result.NativeLive == 0 && result.CoreRoots == 0
+            && result.OwnedHandles == 0 && stats.Handles == 0 && stats.PendingReleases == 0 && stats.LateReleases == 0
+            && post == 0 && ProgramObserver.program_lowlevel_live() == 0
+            && (empty ? exits+dels+errors+unraisables == 0 : exits == 1 && dels == 1 && errors == 3 && unraisables == 1);
         GC.KeepAlive(module); GC.KeepAlive(d); GC.KeepAlive(entryContext);
-        return success ? 0 : 2;
+        return ok ? 0 : 2;
     }
 }

@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
-"""固定 HEAD provider 仓外独立 JIT 生命周期门；保留成功/失败三流，清理全部构建产物。"""
+"""实际产品程序集/正式shim的仓外独立 JIT 生命周期门；保留成功/失败三流，清理全部构建产物。"""
 import argparse
-import io
-import tarfile
 from datetime import datetime, timezone
 import json
 import os
@@ -17,7 +15,7 @@ import tempfile
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--python', type=Path, required=True)
-    parser.add_argument('--case', action='append', choices=['scoped', 'unscoped', 'keep-owned', 'external', 'external-d', 'external-p', 'external-self', 'external-cell', 'external-container'])
+    parser.add_argument('--case', action='append', choices=['scoped', 'external', 'external-d', 'external-p', 'external-self', 'external-cell', 'external-container', 'zero', 'entry-fail', 'no-host', 'pre-entry-fail', 'scalar', 'external-callback'])
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[3]
     source = Path(__file__).resolve().parent
@@ -52,89 +50,64 @@ def main():
                 raise RuntimeError('命令失败，见 '+str(path))
             return result
 
-        # 并行产品开发不可渗入本轮：只读取冻结 git 对象，不修改工作树。
-        revision = '1489dd2a'
-        provider = work/'provider'; provider.mkdir()
-        names = run(['git', '-C', str(root), 'ls-tree', '-r', '--name-only', revision,
-                     'runtime/RyuPy.CPython'], quiet=True).stdout.splitlines()
-        for name in names:
-            target = provider/Path(name).relative_to('runtime/RyuPy.CPython')
-            target.parent.mkdir(parents=True, exist_ok=True)
-            content = subprocess.check_output(['git', '-C', str(root), 'show', revision+':'+name])
-            target.write_bytes(content)
-        shutil.copy2(source/'HostProbe.cs.in', provider/'HostProbe.cs')
-        # 仅对仓外冻结副本作两处所有权观察接线；现有仓库源码没有修改。
-        # 钩子在 constructor 登记强 owner，避免依赖 weak identity 表或 CLR GC 时机。
-        def connect(filename, old, new):
-            target = provider/filename
-            text = target.read_text()
-            assert text.count(old) == 1, '固定源码接线漂移：'+filename
-            target.write_text(text.replace(old, new))
-        connect('PythonObject.cs', 'token = host.Track(pointer);',
-                'token = host.Track(pointer); host.ObserveProgramOwner(this, token);')
-        connect('CPythonStockThinFunctions.cs', 'Interlocked.Increment(ref CPythonHost.StockThinOwnedHandles);',
-                'Interlocked.Increment(ref CPythonHost.StockThinOwnedHandles); function.Host.ObserveProgramThinOwner(this);')
-        connect('CPythonHost.cs', 'internal Lease Enter(bool callback = false)\n    {',
-                'internal Lease Enter(bool callback = false)\n    {\n        ValidateProgramEntry();')
-        log.write('SOURCE EXPERIMENT constructor strong owner hooks: PythonObject + StockThinFunctionOwner\n')
         cfg = json.loads(run([str(args.python.resolve()), '-I', '-B', '-c',
             'import sys,sysconfig,json; print(json.dumps(dict(home=sys.base_prefix,version=".".join(map(str,sys.version_info[:3])),lib=sysconfig.get_config_var("LIBDIR"),library=sysconfig.get_config_var("LDLIBRARY"),gil=sysconfig.get_config_var("Py_GIL_DISABLED"))))']).stdout)
         assert cfg['version'] in ('3.12.13', '3.13.3') and not cfg['gil']
         series = '.'.join(cfg['version'].split('.')[:2])
-        # Runtime 同样从固定版本仓外构建，杜绝并行中性 API 开发的 DLL 渗入。
-        archive = subprocess.check_output(['git', '-C', str(root), 'archive', revision, 'runtime/RyuPy.Runtime'])
-        frozen = work/'frozen'
-        with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
-            tar.extractall(frozen, filter='data')
-        runtime_output = work/'runtime-output'
-        run(['dotnet', 'build', str(frozen/'runtime/RyuPy.Runtime/RyuPy.Runtime.csproj'),
-             '--disable-build-servers', '-c', 'Release', '-o', str(runtime_output), '-v', 'minimal'],
-            env=dict(os.environ, DOTNET_ROLL_FORWARD='Major'))
-        shutil.copy2(runtime_output/'RyuPy.Runtime.dll', work/'RyuPy.Runtime.dll')
-        log.write(f'BASE provider+Runtime {revision}\nPYTHON {cfg}\n')
-        props = subprocess.check_output(['git', '-C', str(root), 'show', revision+':runtime/RyuPy.Runtime/RuntimeDependencies.props'])
-        (provider/'RuntimeDependencies.props').write_bytes(props)
-        (provider/'ThirdPartyNotices.sqlite3.txt').write_bytes(subprocess.check_output(['git', '-C', str(root), 'show', revision+':runtime/RyuPy.Runtime/ThirdPartyNotices.sqlite3.txt']))
-        (provider/'Provider.csproj').write_text('''<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup>
-<TargetFramework>net10.0</TargetFramework><AssemblyName>RyuPy.CPython</AssemblyName><AssemblyVersion>1.0.0.0</AssemblyVersion>
-<ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-<TreatWarningsAsErrors>true</TreatWarningsAsErrors></PropertyGroup><Import Project="RuntimeDependencies.props"/>
-<ItemGroup><Reference Include="RyuPy.Runtime"><HintPath>../RyuPy.Runtime.dll</HintPath></Reference>
-<AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo"><_Parameter1>RyuPy.CPython.Tests</_Parameter1></AssemblyAttribute>
-</ItemGroup></Project>''')
+        # 只复制当前已构建的真实产品DLL，不注入源码、不改构造器或callback。
+        inputs = work/'inputs'; inputs.mkdir()
+        for assembly in ('RyuPy.Runtime', 'RyuPy.CPython'):
+            built = root/f'runtime/{assembly}/bin/Release/net10.0/{assembly}.dll'
+            assert built.is_file(), '先构建实际产品provider'
+            shutil.copy2(built, inputs/built.name)
+        (inputs/'RuntimeDependencies.props').write_bytes((root/'runtime/RyuPy.Runtime/RuntimeDependencies.props').read_bytes())
+        shutil.copy2(root/'runtime/RyuPy.Runtime/ThirdPartyNotices.sqlite3.txt', inputs/'ThirdPartyNotices.sqlite3.txt')
+        log.write('PRODUCT current built Runtime/provider + official native/build.sh\n')
         runner = work/'runner'; runner.mkdir()
         shutil.copy2(source/'Program.cs.in', runner/'Program.cs')
+        shutil.copy2(source/'HostProbe.cs.in', runner/'Observer.cs')
         (runner/'Runner.csproj').write_text('''<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup>
 <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><AssemblyName>RyuPy.CPython.Tests</AssemblyName>
 <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-</PropertyGroup><ItemGroup><ProjectReference Include="../provider/Provider.csproj"/>
-<Reference Include="RyuPy.Runtime"><HintPath>../RyuPy.Runtime.dll</HintPath></Reference></ItemGroup></Project>''')
+</PropertyGroup><Import Project="../inputs/RuntimeDependencies.props"/><ItemGroup><Reference Include="RyuPy.CPython"><HintPath>../inputs/RyuPy.CPython.dll</HintPath></Reference>
+<Reference Include="RyuPy.Runtime"><HintPath>../inputs/RyuPy.Runtime.dll</HintPath></Reference></ItemGroup></Project>''')
         output = work/'output'
         env = dict(os.environ, DOTNET_ROLL_FORWARD='Major')
         run(['dotnet', 'build', str(runner/'Runner.csproj'), '--disable-build-servers', '-c', 'Release', '-o', str(output), '-v', 'minimal'], env=env)
+        run(['sh', str(root/'runtime/RyuPy.CPython/native/build.sh'), cfg['home'], str(output), series])
         shim = output/'libryupy_cpython.dylib'
         run(['clang', '-dynamiclib', '-O2', '-Wall', '-Wextra', '-Werror',
-             '-I'+str(Path(cfg['home'])/'include'/f'python{series}'), '-I'+str(provider/'native'),
-             str(source/'NativeProbe.c'), str(Path(cfg['lib'])/cfg['library']), '-o', str(shim)])
+             '-I'+str(Path(cfg['home'])/'include'/f'python{series}'),
+             str(source/'NativeProbe.c'), str(shim), str(Path(cfg['lib'])/cfg['library']),
+             '-o', str(output/'libstock_program_observer.dylib')])
         config = work/'host.json'
         config_data = dict(schema=1, python_version=cfg['version'], development=True,
             home=cfg['home'], library=str(Path(cfg['lib'])/cfg['library']), shim=str(shim),
             search_paths=[str(Path(cfg['home'])/'lib'/f'python{series}'), str(Path(cfg['home'])/'lib'/f'python{series}'/'lib-dynload')],
             modules=['builtins', 'gc', 'sys', 'atexit'], container_transfer='proxy')
         failed = False
-        for case in args.case or ['unscoped', 'keep-owned', 'scoped', 'external', 'external-d', 'external-p', 'external-self', 'external-cell', 'external-container']:
+        for case in args.case or ['scoped', 'external', 'external-d', 'external-p', 'external-self', 'external-cell', 'external-container', 'zero', 'entry-fail', 'no-host', 'pre-entry-fail', 'scalar', 'external-callback']:
             config_data['container_transfer'] = 'synchronized' if case == 'external-container' else 'proxy'
             config.write_text(json.dumps(config_data))
+            env['RYUPY_CPYTHON_REPORT'] = str(work/f'{case}-report.json')
             result = run(['dotnet', str(output/'RyuPy.CPython.Tests.dll'), str(config), case], required=False, env=env)
             # 失败对照同样保留，SIGSEGV/异常退出永远不能作为预期泄漏通过。
-            expected = 2 if case in ('unscoped', 'keep-owned') else 0
+            expected = 0
+            env['RYUPY_CPYTHON_REPORT'] = str(work/f'{case}-report.json')
+            if case in ('no-host', 'pre-entry-fail'):
+                report_path = Path(env['RYUPY_CPYTHON_REPORT'])
+                if report_path.exists():
+                    assert 'stock_compiled_program' not in json.loads(report_path.read_text())
+                assert result.returncode == 0 and not result.stderr and 'PASS '+case in result.stdout
+                log.write('CASE '+case+' accepted=True\n'); continue
             after = next((line for line in result.stdout.splitlines() if line.startswith('AFTER ')), '')
             fields = dict(item.split('=', 1) for item in after.split() if '=' in item)
             diagnostic = fields.get('finalize') == '0' and fields.get('postFinalizeDecref') == '0'
-            if case == 'unscoped':
-                diagnostic &= int(fields.get('native', '-1')) > 0 and int(fields.get('roots', '-1')) > 0 and int(fields.get('late', '0')) > 0
-            elif case == 'keep-owned':
-                diagnostic &= fields.get('native') == '0' and int(fields.get('ledger', '0')) > 0
+            report = json.loads(Path(env['RYUPY_CPYTHON_REPORT']).read_text())
+            terminal = report['stock_compiled_program']
+            log.write('REPORT '+json.dumps(report)+'\n')
+            diagnostic &= terminal['permission'] and terminal['terminal'] and all(terminal[key] == 0 for key in
+                ('finalize_result','native_live','core_roots','owned_h','ledger','queue','late_releases','post_finalize_decrefs'))
             passed = result.returncode == expected and not result.stderr and diagnostic
             line = f'CASE python={cfg["version"]} case={case} exit={result.returncode} expected={expected} accepted={passed}\n'
             print(line, end='', flush=True); log.write(line); log.flush()

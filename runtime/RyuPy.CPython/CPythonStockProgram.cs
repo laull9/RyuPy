@@ -12,8 +12,9 @@ public sealed partial class CPythonHost
     private HashSet<long> stockProgramTokens = [];
     private StockProgramResult? stockProgramResult;
 
-    internal sealed record StockProgramResult(int FinalizeResult, long NativeLive, long Destroyed,
+    internal sealed record StockProgramResult(int FinalizeResult, long NativeLive, long Destroyed, long NativeCalls,
         int CoreRoots, int OwnedHandles, int Ledger, int Pending, long Late, long PostFinalizeDecrefs);
+    internal bool HasStockProgramPermission => stockProgramAuthorized;
     internal StockProgramResult? ProgramResult => stockProgramResult;
 
     internal void RunStockProgramMain()
@@ -76,7 +77,7 @@ public sealed partial class CPythonHost
                 try { CaptureModulePaths(); } catch (Exception failure) { error ??= failure; }
                 ReleaseClassBridgeResources();
                 if (Native.rp_thin_program_prepare() < 0) ThrowError();
-                foreach (PythonObject owner in stockProgramOwners) owner.Dispose();
+                foreach (PythonObject owner in stockProgramOwners) owner.RetireScoped();
                 Drain(); liveHandlesAtShutdown = handles.Count;
             }
             nativeResult = Native.rp_stop();
@@ -84,12 +85,12 @@ public sealed partial class CPythonHost
         finally
         {
             // 此处仅读取纯C计数与托管计数；解释器终止后绝不补做DECREF。
-            Native.rp_thin_stats(out long live, out long destroyed, out _);
+            Native.rp_thin_stats(out long live, out long destroyed, out long nativeCalls);
             Native.rp_reference_stats(out long post);
             lock (gate)
             {
                 state = 3;
-                stockProgramResult = new(nativeResult, live, destroyed, stockThinRoots,
+                stockProgramResult = new(nativeResult, live, destroyed, nativeCalls, stockThinRoots,
                     StockThinOwnedHandles, handles.Count, releases.Count, late, post);
             }
             RemoveInspectBridge(); imported.Clear(); objects.Clear();
@@ -109,20 +110,34 @@ public sealed partial class CPythonHost
     // 构造时记录强owner与准确token，不从弱缓存、指针类型或总数量推测归属。
     internal void ObserveStockProgramOwner(PythonObject owner, long token)
     {
-        stockProgramEntry?.Add(owner, token);
-        stockProgramCallback?.Add(owner, token);
+        if (Environment.CurrentManagedThreadId != ownerThread) return;
+        (stockProgramCallback ?? stockProgramEntry)?.Add(owner, token);
     }
     internal void ObserveStockProgramHandle(StockThinFunctionOwner owner)
     {
-        stockProgramEntry?.Handles.Add(owner);
-        stockProgramCallback?.Handles.Add(owner);
+        if (Environment.CurrentManagedThreadId != ownerThread) return;
+        (stockProgramCallback ?? stockProgramEntry)?.Handles.Add(owner);
     }
     private ProgramOwnedScope? BeginStockProgramCallback()
     {
-        if (state != 5) return null;
+        if ((state != 5 && !stockProgramExecuting) || Environment.CurrentManagedThreadId != ownerThread) return null;
         var scope = new ProgramOwnedScope(this, stockProgramCallback);
         stockProgramCallback = scope;
         return scope;
+    }
+
+    // 第三方managed业务没有入口/终态内部登记权限；准入静态body另建独立callback能力。
+    private ProgramRegistrationPause PauseStockProgramRegistration() => new(this);
+    private readonly struct ProgramRegistrationPause : IDisposable
+    {
+        private readonly CPythonHost host;
+        private readonly ProgramOwnedScope? entry, callback;
+        internal ProgramRegistrationPause(CPythonHost host)
+        {
+            this.host = host; entry = host.stockProgramEntry; callback = host.stockProgramCallback;
+            host.stockProgramEntry = null; host.stockProgramCallback = null;
+        }
+        public void Dispose() { host.stockProgramEntry = entry; host.stockProgramCallback = callback; }
     }
 
     private sealed class ProgramOwnedScope(CPythonHost host, ProgramOwnedScope? previous = null) : IDisposable
@@ -132,7 +147,7 @@ public sealed partial class CPythonHost
         internal readonly List<StockThinFunctionOwner> Handles = [];
         internal void Add(PythonObject owner, long token) { Owners.Add(owner); Tokens.Add(owner, token); }
         internal void ReleaseHandles()
-        { foreach (var handle in Handles) handle.Dispose(); Handles.Clear(); }
+        { foreach (var handle in Handles) { handle.Function.RetireScoped(); handle.Dispose(); } Handles.Clear(); }
         public void Dispose()
         {
             // 原异常和返回值已由调用边界独立保活；DECREF中的析构重入使用嵌套scope。
@@ -145,7 +160,7 @@ public sealed partial class CPythonHost
                     while (Owners.Count != 0)
                     {
                         int last = Owners.Count - 1;
-                        PythonObject owner = Owners[last]; Owners.RemoveAt(last); owner.Dispose();
+                        PythonObject owner = Owners[last]; Owners.RemoveAt(last); owner.RetireScoped();
                     }
                     host.Drain();
                 }

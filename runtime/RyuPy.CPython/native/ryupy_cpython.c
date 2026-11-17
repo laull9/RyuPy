@@ -132,6 +132,16 @@ static managed_call dispatch;
 static PyTypeObject *managed_type;
 static PyThreadState *initial_thread;
 static char init_error[4096];
+/* 终态frame可能已无builtins；只查合法dict，禁止晚期重建解释器环境。 */
+static PyObject *rp_builtin_item(const char *name) {
+    PyObject *dict = PyEval_GetBuiltins();
+    return dict && PyDict_Check(dict) ? PyDict_GetItemString(dict, name) : NULL;
+}
+static int rp_install_current_builtins(PyObject *globals) {
+    PyObject *dict = PyEval_GetBuiltins();
+    if (!dict) { PyErr_SetString(PyExc_RuntimeError, "builtins unavailable"); return -1; }
+    return PyDict_SetItemString(globals, "__builtins__", dict);
+}
 #include "execution_audit.h"
 #include "method_descriptor.h"
 #include "class_construction.h"
@@ -261,7 +271,7 @@ API PyObject *rp_install_imports(const char *source) {
     PyObject *module = PyModule_New("_ryupy_imports");
     if (!module) return NULL;
     PyObject *globals = PyModule_GetDict(module);
-    if (PyDict_SetItemString(globals, "__builtins__", PyEval_GetBuiltins()) < 0) goto error;
+    if (rp_install_current_builtins(globals) < 0) goto error;
     for (PyMethodDef *method = bridge_methods; method->ml_name; method++) {
         PyObject *function = PyCFunction_New(method, NULL);
         if (!function) goto error;
@@ -284,18 +294,25 @@ error:
 API const char *rp_init_error(void) { return init_error; }
 API int rp_gil(void) { return (int)PyGILState_Ensure(); }
 API void rp_gil_release(int state) { PyGILState_Release((PyGILState_STATE)state); }
+static int rp_reference_closed;
+static long long rp_post_finalize_decrefs;
 API int rp_stop(void) {
     PyEval_RestoreThread(initial_thread); initial_thread = NULL;
     rp_execution_audit_phase(2);
     native_import_hooks_clear();
     Py_CLEAR(native_method_type); Py_CLEAR(native_static_method_type); Py_CLEAR(managed_descriptor_type);
     int result = Py_FinalizeEx();
+    rp_reference_closed = 1; rp_thin_program_closed();
     inspect_bridge_closed_aliases();
     audit_finalized = audit_enabled;
     managed_type = NULL;
     return result;
 }
-API void rp_decref(PyObject *value) { Py_XDECREF(value); }
+API void rp_decref(PyObject *value) {
+    if (rp_reference_closed) { if (value) rp_post_finalize_decrefs++; return; }
+    Py_XDECREF(value);
+}
+API void rp_reference_stats(long long *post) { *post = rp_post_finalize_decrefs; }
 API PyObject *rp_incref(PyObject *value) { return Py_NewRef(value); }
 API PyObject *rp_managed(intptr_t identity) {
     Managed *self = PyObject_New(Managed, managed_type);
@@ -324,7 +341,7 @@ API int rp_error(void) { return PyErr_Occurred() != NULL; }
 API PyObject *rp_take_error(void) { return PyErr_GetRaisedException(); }
 API void rp_restore_error(PyObject *value) { PyErr_SetRaisedException(Py_NewRef(value)); }
 API void rp_error_text(const char *type, const char *message) {
-    PyObject *builtins = PyEval_GetBuiltins(); PyObject *cls = PyDict_GetItemString(builtins, type);
+    PyObject *cls = rp_builtin_item(type);
     if (!cls || !PyExceptionClass_Check(cls)) cls = PyExc_RuntimeError;
     PyErr_SetString(cls, message);
 }
@@ -430,7 +447,7 @@ API PyObject *rp_exception_type(const char *name, PyObject *parent, PyObject *me
 }
 /* 用真实异常类型与参数构造实例，回调首次出域后可复用同一实例。 */
 API PyObject *rp_make_error(const char *type, PyObject *args) {
-    PyObject *cls = PyDict_GetItemString(PyEval_GetBuiltins(), type);
+    PyObject *cls = rp_builtin_item(type);
     if (!cls || !PyExceptionClass_Check(cls)) cls = PyExc_RuntimeError;
     return PyObject_CallObject(cls, args);
 }
@@ -449,7 +466,7 @@ API PyObject *rp_integer_hex(PyObject *value) { return PyNumber_ToBase(value, 16
 API const char *rp_builtin_exception(PyObject *value) {
     PyObject *mro = Py_TYPE(value)->tp_mro;
     PyObject *builtins = PyEval_GetBuiltins();
-    if (!mro) return "BaseException";
+    if (!mro || !builtins || !PyDict_Check(builtins)) return "BaseException";
     for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(mro); i++) {
         PyObject *type = PyTuple_GET_ITEM(mro, i);
         if (!PyType_Check(type)) continue;
@@ -459,7 +476,7 @@ API const char *rp_builtin_exception(PyObject *value) {
     return "BaseException";
 }
 API PyObject *rp_builtin(const char *name) {
-    PyObject *value = PyDict_GetItemString(PyEval_GetBuiltins(), name);
+    PyObject *value = rp_builtin_item(name);
     if (!value) { PyErr_SetString(PyExc_TypeError, "unknown builtin type"); return NULL; }
     return Py_NewRef(value);
 }
@@ -551,7 +568,7 @@ API int rp_run_entry(const char *path, const char *source) {
         return -1;
     }
     if (!PyDict_GetItemString(globals, "__builtins__")) {
-        if (PyDict_SetItemString(globals, "__builtins__", PyEval_GetBuiltins()) < 0) {
+        if (rp_install_current_builtins(globals) < 0) {
             Py_DECREF(filename);
             return -1;
         }
