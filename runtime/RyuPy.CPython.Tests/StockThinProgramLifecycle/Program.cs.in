@@ -191,11 +191,12 @@ internal static class ProgramLifecycle
             Define("frame_implicit_compile", FrameImplicitCompile); Define("frame_explicit_compile", FrameExplicitCompile);
             Run("""
 import builtins
+from functools import partial
 scope={'value':41}
 def check_frames(m=marker, d=globals(), canonical=tuple(getattr(builtins,n) for n in ('globals','locals','vars','eval','exec','compile'))):
  g,l,v,e,x,c=canonical
  assert frame_invoke(g) is d
- for target in (l,v):
+ for target in (l,v,partial(l),partial(v),partial(partial(l))):
   try: frame_invoke(target)
   except NotImplementedError as error: assert 'business frame' in str(error)
   else: raise AssertionError('缺frame形状未诊断')
@@ -207,6 +208,20 @@ def check_frames(m=marker, d=globals(), canonical=tuple(getattr(builtins,n) for 
  except NotImplementedError as error: assert 'dont_inherit=True' in str(error)
  else: raise AssertionError('缺caller flags来源未诊断')
  assert frame_explicit_eval(e)==42
+ assert frame_invoke(partial(e,'value+1',scope))==42
+ class Example: pass
+ sample=Example()
+ assert frame_invoke(partial(v,sample)) is sample.__dict__
+ assert frame_invoke(partial(c,'1+2','<partial>','eval',dont_inherit=True)).__class__.__name__=='code'
+ for target in (partial(e,'1+2'),partial(x,'a=1'),partial(c,'1+2','<partial>','eval')):
+  try: frame_invoke(target)
+  except NotImplementedError: pass
+  else: raise AssertionError('partial缺frame形状未诊断')
+ for source in (bytearray(b'value+1'),memoryview(b'value+1')):
+  assert frame_invoke(partial(e,source,scope))==42
+  try: frame_invoke(partial(e,source))
+  except NotImplementedError: pass
+  else: raise AssertionError('buffer隐式环境未诊断')
  assert frame_explicit_exec(x) is None and scope['result']==43
  assert type(frame_explicit_compile(c)).__name__=='code'
  def locals(): return 123
@@ -283,6 +298,11 @@ atexit.register(check_frames)
             Path.GetFullPath("fixed-cil-body.cs"), false, Entry);
         try { Bootstrap.RunStockThinMain(); Require(mode != "entry-fail", "入口应抛错"); }
         catch (PyValueError) when (mode == "entry-fail") { Console.WriteLine("EXPECTED entry-before-F"); }
+        if (mode == "entry-fail")
+        {
+            Require(host.EnterDiagnosticScope(null!) is null, "空诊断请求不能授予内部scope");
+            PyTraceback.Report(new PyValueError("expected-diagnostic-report"));
+        }
         bool empty = mode is "zero" or "entry-fail";
         Require(CPythonHost.StockThinOwnedHandles == 0, "内部H已由入口作用域确定交还");
         if (mode == "borrowed-receiver")

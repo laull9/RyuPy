@@ -283,6 +283,18 @@ internal sealed class StockThinFunctionCallLease : IStockThinFunctionLease
         if (kind == -2) host.ThrowError();
         return kind;
     }
+    internal int FrameTarget(nint value, out nint bound)
+    {
+        int kind = Native.rp_thin_frame_target(function, value, out bound);
+        if (kind == -2) host.ThrowError();
+        return kind;
+    }
+    internal int FrameCall(nint callable, nint args, nint kwargs)
+    {
+        int action = Native.rp_thin_frame_call(function, callable, args, kwargs);
+        if (action < 0) host.ThrowError();
+        return action;
+    }
     internal object GlobalsForBuiltin()
     {
         if (function == 0) throw new ObjectDisposedException("stock function lease");

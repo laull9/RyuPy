@@ -14,9 +14,9 @@ internal static class PyOctBuiltin
         if (!PyInt.IsInt(integer))
         {
             // 不读实例同名字段，也不调用__int__/原对象__format__；用户槽异常保持原身份传播。
-            if (integer is IPyForeignObject foreign) integer = foreign.ReadScalar("index");
+            if (integer is IPyForeignObject foreign) integer = foreign.ReadScalar("int");
             else if (integer is PyInstance { ForeignInstance: IPyForeignObject foreignInstance })
-                integer = foreignInstance.ReadScalar("index");
+                integer = foreignInstance.ReadScalar("int");
             else if (!PyIndexSlot.TryInvoke(integer, out integer))
                 throw Own(new PyTypeError($"'{PyRepr.TypeName(args[0])}' object cannot be interpreted as an integer"));
             if (!PyInt.IsInt(integer))

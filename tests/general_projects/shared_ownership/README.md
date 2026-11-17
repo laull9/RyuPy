@@ -13,8 +13,8 @@
 - 保留安装根内安全符号链接的物化语义。外逃、链接环、缺失及非普通文件继续报错；
   RECORD 越界、版本和 ABI、metadata 完整性检查继续运行。
 
-九组静态合同已纳入 `make python-baseline`，覆盖两组互不相关的发行身份、同目标不同
-源冲突、同 owner 重复、规范别名重复、相对路径逃逸、安全/外逃/循环链接及缺失文件。
+十组静态合同已纳入 `make python-baseline`，覆盖两组互不相关的发行身份、同目标不同
+源冲突、同 owner 重复、规范别名重复、相对路径逃逸、安全/外逃/循环链接及缺失文件。另验证环境中无关发行的重复 RECORD 不污染选中闭包。
 
 ```sh
 python3 -B tests/general_projects/shared_ownership/test_contract.py
@@ -40,6 +40,6 @@ owner metadata、链接外逃。目录产品进一步验证缺资源或缺原生
 实现前两组合成发行均在旧 CLI 重现重复归属错误，红证为仓外
 `~/.cache/ryupy/validation/shared-ownership/20261117T080108.778144Z/`。
 最终六产品、十个安装破坏负例和四个运行期破坏负例全部通过，证据为
-`~/.cache/ryupy/validation/shared-ownership/20261117T080635.421485Z/`。
+`~/.cache/ryupy/validation/shared-ownership/20261117T084438.309723Z/`。
 日志、provider清单、精简结果及清理记录均在仓外，临时输入和产品由驱动清理。
 本轮实测平台为 macOS arm64 / CPython 3.12.13；Windows 原生编译门独立待验。

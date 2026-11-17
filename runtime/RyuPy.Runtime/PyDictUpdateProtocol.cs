@@ -179,6 +179,7 @@ public static partial class PyOps
     private static void DictUpdateRequireKey(object? key)
     {
         if (key is null or PyNone or string or long or int or bool or BigInteger or double) return;
+        if (PyForeignScalarKey.TryRead(key, out _)) return;
         if (!PyHash.IsHashable(key))
             throw DictUpdateError(new PyTypeError($"unhashable type: '{PyRepr.TypeName(key)}'"));
         throw DictUpdateError(new PyNotImplementedError("dict update protocol with custom keys is not supported"));

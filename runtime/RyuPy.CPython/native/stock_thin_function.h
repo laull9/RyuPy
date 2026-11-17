@@ -150,7 +150,7 @@ API int rp_thin_enable(rp_thin_invoke_fn invoke, rp_thin_release_fn release) {
         return -1;
     }
     if (rp_fo_start() < 0) { Py_DECREF(code); return -1; }
-    PyObject *guards = PyTuple_New(6);
+    PyObject *guards = PyTuple_New(7);
     if (!guards) { Py_DECREF(code); rp_fo_stop(); return -1; }
     PyObject *builtins = PyEval_GetBuiltins();
     for (int i = 0; i < 6; i++) {
@@ -161,6 +161,12 @@ API int rp_thin_enable(rp_thin_invoke_fn invoke, rp_thin_release_fn release) {
         }
         PyTuple_SET_ITEM(guards, i, Py_NewRef(value));
     }
+    /* 标准库partial以真实原生type身份冻结；公共字段读取，无私有结构布局。 */
+    PyObject *functools = PyImport_ImportModule("_functools");
+    PyObject *partial = functools ? PyObject_GetAttrString(functools, "partial") : NULL;
+    Py_XDECREF(functools);
+    if (!partial) { Py_DECREF(guards); Py_DECREF(code); rp_fo_stop(); return -1; }
+    PyTuple_SET_ITEM(guards, 6, partial);
     rp_thin_frame_guards = guards;
     rp_thin_template = code;
     rp_thin_invoke = invoke; rp_thin_release = release; rp_thin_enabled = 1;
@@ -292,3 +298,5 @@ API int rp_thin_program_prepare(void) {
 static void rp_thin_program_closed(void) {
     if (rp_thin_program_terminal) { rp_thin_template = NULL; rp_fo_type = NULL; }
 }
+
+#include "stock_frame_call.h"

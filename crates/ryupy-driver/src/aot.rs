@@ -472,11 +472,15 @@ fn publish_owned(
                 runtime.parent().context("运行时缺父目录")?,
                 &publish,
             )?;
+            if let AotManifest::Binding(_, plan) = context {
+                plan.write_interfaces(&publish)?;
+            }
             let mut artifacts = crate::manifest_files::collect(&publish, &executable)?;
             if let Some(staged) = &staged {
                 staged.mark_artifacts(&mut artifacts)?;
             }
             if let AotManifest::Binding(_, plan) = context {
+                plan.mark_interfaces(&mut artifacts);
                 if plan.dynamic {
                     plan.mark_shared(&mut artifacts);
                 }

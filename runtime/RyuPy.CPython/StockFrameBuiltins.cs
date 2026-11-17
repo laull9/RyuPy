@@ -14,40 +14,35 @@ public sealed partial class CPythonHost
         { previous = currentStockBody; currentStockBody = body; }
         public void Dispose() => currentStockBody = previous;
     }
-    internal bool TryInvokeStockFrameBuiltin(PythonObject actual, object?[] args,
-        string[] names, object?[] values, out object? result)
+    private StockThinFunctionCallLease? ActiveStockBody =>
+        (stockProgramExecuting || state == 5) ? currentStockBody : null;
+
+    // Runtime连续buffer只在已证实source位置导出字节快照；真实CP buffer仍交原binder读取一次。
+    internal object?[] PrepareStockFrameArguments(PythonObject actual, object?[] args)
+    {
+        if (args.Length == 0 || args[0] is not (PyByteArray or PyMemoryView)
+            || ActiveStockBody is not { } body) return args;
+        int kind = body.FrameTarget(actual.Pointer, out nint bound);
+        if (kind is not (3 or 4 or 5) || bound != 0) return args;
+        object?[] converted = [.. args];
+        converted[0] = args[0] is PyByteArray array ? array.ToBytes()
+            : new PyBytes(((PyMemoryView)args[0]!).CopyBuffer());
+        return converted;
+    }
+    internal bool TryInvokeStockFrameBuiltin(PythonObject actual, nint args, nint kwargs, out object? result)
     {
         result = null;
-        if ((!stockProgramExecuting && state != 5) || currentStockBody is not { } body || actual.IsDisposed) return false;
-        int kind = body.FrameBuiltinKind(actual.Pointer);
-        string? name = kind switch { 0 => "globals", 1 => "locals", 2 => "vars", 3 => "eval", 4 => "exec", 5 => "compile", _ => null };
-        if (name is null) return false;
-        if (name == "globals" && args.Length == 0 && names.Length == 0)
-        { result = body.GlobalsForBuiltin(); return true; }
-        if (name is "locals" or "vars" && args.Length == 0 && names.Length == 0)
-            throw new PyNotImplementedError($"stock CIL {name}() requires a materialized business frame");
-        // 错误形状交真实builtin完成其原参数/类型诊断；仅有效源码的隐式环境形状需要业务frame。
-        if (name is "eval" or "exec" && args.Length is >= 1 and <= 3
-            && names.All(keyword => keyword is "globals" or "locals")
-            && !(args.Length >= 2 && names.Contains("globals"))
-            && !(args.Length >= 3 && names.Contains("locals"))
-            && IsFrameSource(args[0]))
+        if (ActiveStockBody is not { } body) return false;
+        int action = body.FrameCall(actual.Pointer, args, kwargs);
+        if (action == 0) return false;
+        if (action == 1) { result = body.GlobalsForBuiltin(); return true; }
+        string name = action switch { 2 => "locals", 3 => "vars", 4 => "eval", 5 => "exec", _ => "compile" };
+        throw new PyNotImplementedError(action switch
         {
-            int globalsKeyword = Array.IndexOf(names, "globals");
-            object? globals = args.Length >= 2 ? args[1] : globalsKeyword >= 0 ? values[globalsKeyword] : null;
-            if (globals is null or PyNone)
-                throw new PyNotImplementedError($"stock CIL {name}() without explicit globals requires a materialized business frame");
-        }
-        if (name == "compile" && args.Length is >= 3 and <= 7 && IsFrameSource(args[0]))
-        {
-            int keyword = Array.IndexOf(names, "dont_inherit");
-            object? inherit = args.Length >= 5 ? args[4] : keyword >= 0 ? values[keyword] : false;
-            // 显式非零值及需真实__index__协议的参数仍由CP binder处理；默认/精确false缺少caller flags来源。
-            if (inherit is false or 0 or 0L && !(args.Length >= 5 && keyword >= 0))
-                throw new PyNotImplementedError("stock CIL compile() inheriting caller flags requires a materialized business frame; use dont_inherit=True");
-        }
-        return false;
+            4 or 5 => $"stock CIL {name}() without explicit globals requires a materialized business frame",
+            7 => "stock CIL compile() with frame-dependent parameter protocols requires a materialized business frame",
+            6 => "stock CIL compile() inheriting caller flags requires a materialized business frame; use dont_inherit=True",
+            _ => $"stock CIL {name}() requires a materialized business frame",
+        });
     }
-    private static bool IsFrameSource(object? source) => source is string or PyBytes
-        || source is PythonObject foreign && !foreign.IsDisposed && Native.rp_frame_source(foreign.Pointer) != 0;
 }

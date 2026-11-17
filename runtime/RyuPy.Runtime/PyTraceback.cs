@@ -283,6 +283,7 @@ public static partial class PyTraceback
     /// <param name="exception">未被捕获的异常。</param>
     public static void Report(PyBaseException exception)
     {
+        using var diagnosticScope = PyDiagnosticScopeRequest.Begin();
         PyTraceProduct.Terminal(exception);
         // stdout 是带缓冲的：若不先刷新，缓冲区里的输出会出现在 stderr 之后，
         // 甚至随进程退出顺序不同而丢失
@@ -323,6 +324,7 @@ public static partial class PyTraceback
     /// <param name="exit">退出请求。</param>
     public static int SystemExitCode(PySystemExit exit)
     {
+        using var diagnosticScope = PyDiagnosticScopeRequest.Begin();
         // 与 CPython 一致：退出时先把 stdout 的缓冲写出去
         try { Builtins.Flush(); }
         catch (Exception error) { Report(error as PyBaseException ?? PyIO.FileSystemError(error)); return 120; }

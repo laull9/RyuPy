@@ -14,14 +14,14 @@ def wrapped_eval(x):
 local_reader = functools.partial(getattr(builtins, "locals"))
 evaluator = functools.partial(getattr(builtins, "eval"))
 snapshot = wrapped_locals(local_reader)
-print("locals", sorted(snapshot), snapshot.get("business"), snapshot.get("x") is local_reader)
+print("locals", sorted(snapshot), snapshot.get("business"), snapshot.get("x") is local_reader, flush=True)
 try:
     result = wrapped_eval(evaluator)
 except Exception as error:
-    print("eval-error", type(error).__name__, str(error))
+    print("eval-error", type(error).__name__, str(error), flush=True)
     result = None
 else:
-    print("eval", result)
+    print("eval", result, flush=True)
 assert sorted(snapshot) == ["business", "x"]
 assert snapshot["business"] == 17
 assert snapshot["x"] is local_reader

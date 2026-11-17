@@ -129,3 +129,10 @@ owned 关闭拒绝及 Runtime 字典缺属性失败；生命周期和字典协�
 `partial(eval)`。两版 CPython 基线为 `locals ['business', 'x'] 17 True` 与 `eval 23`。
 直接对象守卫的验收范围由上述四项负合同界定；包装 callable 与 C 扩展间接读取 frame 的
 业务 locals/求值 scope 随完整 frame 合同推进，普通值调用保持开放。
+
+通过 `--pending-case wrapped_frame_pending --mode jit` 独立复现：2026-11-17 两版实际
+候选均输出 `locals ['p', 'x'] None True`，`partial(eval)` 报缺少 `hidden` 的 `NameError`，
+随后业务断言退出 1。Host 同时拒绝 owned 关闭，`terminal=false`；这项完整 frame 与
+生命周期缺口保持 pending。日志为 `stock-thin-compiler-3.12.13-jit-20261117T091630.057546Z.log`
+与 `stock-thin-compiler-3.13.3-jit-20261117T091631.217353Z.log`，包含完整三流、Host 报告和清理记录。
+驱动以 `PENDING-OBSERVED` 单列这一实际失败形状，正例和直接负合同成绩分别维护。

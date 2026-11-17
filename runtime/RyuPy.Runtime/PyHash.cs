@@ -454,13 +454,13 @@ public sealed partial class PyKeyComparer : IEqualityComparer<object>
     /// <param name="x">左值。</param>
     /// <param name="y">右值。</param>
     bool IEqualityComparer<object>.Equals(object? x, object? y) =>
-        ReferenceEquals(x, y) || PyHash.Equal(x, y);
+        ReferenceEquals(x, y) || PyForeignScalarKey.Equal(x, y);
 
     /// <summary>按 Python 规则计算哈希。</summary>
     /// <param name="obj">键。</param>
     public int GetHashCode(object obj)
     {
-        long hash = PyHash.Of(obj);
+        long hash = PyHash.Of(PyForeignScalarKey.Canonical(obj));
         return unchecked((int)(hash ^ (hash >> 32)));
     }
 }

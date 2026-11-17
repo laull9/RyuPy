@@ -116,24 +116,32 @@ public sealed partial class CPythonHost
     {
         if (state != 5 || terminalPoolDraining || stockProgramCallback is not null
             || Roots.Count != 0 || Volatile.Read(ref stockThinRoots) != 0) return;
-        PythonObject[] owners;
-        StockThinFunctionOwner[] holders;
-        lock (gate)
-        {
-            if (terminalOwnerPool.Count == 0) return;
-            owners = terminalOwnerPool.Values.Select(record => record.Owner.TryGetTarget(out var owner) && !owner.IsDisposed ? owner : null)
-                .OfType<PythonObject>().ToArray();
-            holders = terminalOwnerPool.Values.Select(record => record.Holder is { } weak && weak.TryGetTarget(out var holder) ? holder : null)
-                .OfType<StockThinFunctionOwner>().ToArray();
-        }
-        // 所有CP→CLR proxy和薄函数入口均已真实析构，且没有活动owned调用scope，才撤销终态余下权利。
+        lock (gate) if (terminalOwnerPool.Count == 0) return;
+        // finalizer可能已置disposed、尚未取得gate退token；不持gate等待纯托管Release后再冻结快照。
         terminalPoolDraining = true;
+        nint raised = Native.rp_take_error();
         try
         {
+            GC.Collect(); GC.WaitForPendingFinalizers(); Drain();
+            if (Roots.Count != 0 || Volatile.Read(ref stockThinRoots) != 0) return;
+            PythonObject[] owners;
+            StockThinFunctionOwner[] holders;
+            lock (gate)
+            {
+                owners = terminalOwnerPool.Values.Select(record => record.Owner.TryGetTarget(out var owner) && !owner.IsDisposed ? owner : null)
+                    .OfType<PythonObject>().ToArray();
+                holders = terminalOwnerPool.Values.Select(record => record.Holder is { } weak && weak.TryGetTarget(out var holder) ? holder : null)
+                    .OfType<StockThinFunctionOwner>().ToArray();
+            }
+            // 所有CP→CLR proxy和薄函数入口均已真实析构，且没有活动owned scope，才撤销终态余下权利。
             ProgramOwnedScope scope = BeginStockProgramCallback()!;
             scope.Owners.AddRange(owners); scope.Handles.AddRange(holders); scope.Dispose();
         }
-        finally { terminalPoolDraining = false; }
+        finally
+        {
+            terminalPoolDraining = false;
+            if (raised != 0) { Native.rp_restore_error(raised); Native.rp_decref(raised); }
+        }
     }
     private PythonObject? StockProgramValueOwner(object value) => value switch
     {

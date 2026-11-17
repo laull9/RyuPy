@@ -126,6 +126,7 @@ pub(super) fn relocate_macos_with_components(
     aliases: &[macho_identity::Alias],
 ) -> Result<()> {
     use std::collections::BTreeMap;
+    let output = output.canonicalize()?;
     let mut all = Vec::new();
     collect_images(&output.join("python"), &mut all)?;
     all.push(output.join(shim_name));
@@ -153,6 +154,12 @@ pub(super) fn relocate_macos_with_components(
                 "Mach-O显式加载名有多个目标：{}",
                 dependency.name
             );
+            let local = dependency
+                .name
+                .strip_prefix("@loader_path/")
+                .and_then(|relative| image.parent().map(|parent| parent.join(relative)))
+                .and_then(|path| path.canonicalize().ok())
+                .filter(|path| path.starts_with(&output) && images.contains_key(path));
             let target = if let Some(alias) = declared.first() {
                 ensure!(
                     all.contains(&alias.target),
@@ -169,15 +176,30 @@ pub(super) fn relocate_macos_with_components(
                     alias.target.display()
                 );
                 &alias.target
+            } else if let Some(ref local) = local {
+                // 加载边相对当前映像的位置先于全局候选；多个组件可携带同名不同ABI库。
+                local
             } else {
                 // basename只作候选hint；真正替换前仍核实LC_ID身份、目标架构及版本。
                 let name = Path::new(&dependency.name)
                     .file_name()
                     .context("Mach-O依赖缺少文件名")?;
-                let matches: Vec<_> = all
+                let exact: Vec<_> = all
                     .iter()
-                    .filter(|candidate| candidate.file_name() == Some(name))
+                    .filter(|candidate| {
+                        images[*candidate]
+                            .identity
+                            .as_ref()
+                            .is_some_and(|identity| identity.name == dependency.name)
+                    })
                     .collect();
+                let matches: Vec<_> = if exact.is_empty() {
+                    all.iter()
+                        .filter(|candidate| candidate.file_name() == Some(name))
+                        .collect()
+                } else {
+                    exact
+                };
                 ensure!(
                     matches.len() == 1,
                     "CPython 原生依赖未唯一收集：{} → {}",

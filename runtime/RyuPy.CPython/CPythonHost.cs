@@ -134,7 +134,7 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
         get { lock (gate) return new(state == 1 ? "running" : state is 2 or 4 or 5 ? "stopping" : "closed", calls, active, handles.Count, Roots.Count, releases.Count, late); }
     }
 
-    internal Lease Enter(bool callback = false)
+    internal Lease Enter(bool callback = false, bool drainReferences = true)
     {
         lock (gate)
         {
@@ -144,7 +144,7 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider, IPyFor
         }
         // 取得GIL时不持有托管锁，Python可以重入同一宿主。
         int gil = 0; bool acquired = false;
-        try { gil = Native.rp_gil(); acquired = true; Drain(); leaseDepth++; return new Lease(this, gil); }
+        try { gil = Native.rp_gil(); acquired = true; if (drainReferences) Drain(); leaseDepth++; return new Lease(this, gil); }
         catch
         {
             if (acquired) Native.rp_gil_release(gil);

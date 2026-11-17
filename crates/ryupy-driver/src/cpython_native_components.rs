@@ -6,11 +6,17 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Component, Path, PathBuf};
 
+#[path = "cpython_payload_selection.rs"]
+mod selection;
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Declaration {
     schema: u32,
+    #[serde(default)]
     components: Vec<ComponentDeclaration>,
+    #[serde(default)]
+    payload_selection: Vec<selection::Group>,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -18,6 +24,8 @@ struct ComponentDeclaration {
     name: String,
     version: String,
     source_url: String,
+    #[serde(default)]
+    build_features: serde_json::Value,
     root: PathBuf,
     libraries: Vec<LibraryDeclaration>,
     licenses: Vec<FileDeclaration>,
@@ -55,6 +63,8 @@ struct Report {
     name: String,
     version: String,
     source_url: String,
+    #[serde(default)]
+    build_features: serde_json::Value,
     root: PathBuf,
     libraries: Vec<LibraryReport>,
     licenses: Vec<String>,
@@ -210,6 +220,7 @@ pub(super) fn extend(sess: &mut Session) -> Result<()> {
             name: component.name,
             version: component.version,
             source_url: component.source_url,
+            build_features: component.build_features,
             root,
             libraries,
             licenses,
@@ -220,11 +231,15 @@ pub(super) fn extend(sess: &mut Session) -> Result<()> {
         .plan
         .as_mut()
         .context("原生组件计划丢失")?;
-    plan.payloads.extend(payloads);
+    let mut selected_payloads = plan.payloads.clone();
+    selected_payloads.extend(payloads);
+    let selection_report = selection::apply(declaration.payload_selection, &mut selected_payloads)?;
+    plan.payloads = selected_payloads;
     if plan.dependency_report.is_null() {
         plan.dependency_report = serde_json::json!({});
     }
     plan.dependency_report["native_components"] = serde_json::to_value(reports)?;
+    plan.dependency_report["payload_selection"] = selection_report;
     Ok(())
 }
 

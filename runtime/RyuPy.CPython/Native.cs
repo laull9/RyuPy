@@ -73,6 +73,7 @@ internal static unsafe partial class Native
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_text(byte* value, long size);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_bytes(byte* value, long size);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_utf8(nint value, out long size);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern long rp_unicode_units(nint value, char* output, long capacity, int codepoints);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern long rp_long(nint value);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern double rp_double(nint value);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_truth(nint value);

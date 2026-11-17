@@ -594,3 +594,4 @@ API PyObject *rp_dir(PyObject *value) { return PyObject_Dir(value); }
 API PyObject *rp_borrowed_type(PyObject *value) { return value ? (PyObject *)Py_TYPE(value) : NULL; }
 
 #include "module_namespace.h"
+#include "exact_scalar.h"

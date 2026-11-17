@@ -19,6 +19,10 @@ internal static unsafe partial class Native
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int rp_frame_source(nint value);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int rp_thin_frame_target(nint function, nint callable, out nint bound);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int rp_thin_frame_call(nint function, nint callable, nint args, nint kwargs);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int rp_thin_frame_builtin(nint function, nint value);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern void rp_thin_stats(out long live, out long destroyed, out long calls);
