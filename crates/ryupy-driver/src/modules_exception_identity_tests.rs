@@ -34,7 +34,7 @@ fn build_and_dump_reject_original_fixtures_and_all_stable_xml_forms() {
         );
         let mut build = Session::default();
         let out_dir = root.0.join("out");
-        let error = crate::build(
+        let error = match crate::build(
             &mut build,
             &BuildOptions {
                 input,
@@ -42,9 +42,10 @@ fn build_and_dump_reject_original_fixtures_and_all_stable_xml_forms() {
                 aot: false,
                 search_paths: vec![],
             },
-        )
-        .err()
-        .expect("原始fixture必须继续被语义门拒绝");
+        ) {
+            Err(error) => error,
+            Ok(_) => panic!("原始fixture必须继续被语义门拒绝"),
+        };
         assert!(error.is::<crate::HasErrors>(), "{error:#}");
         for session in [&dump, &build] {
             let expected_start = if source.contains("class Child(SyntaxError)") {

@@ -24,7 +24,7 @@ def main():
     evidence.mkdir(parents=True)
     print(evidence, flush=True)
     with (evidence/'commands.log').open('x') as stream, tempfile.TemporaryDirectory(prefix='ryupy-resource-anchor-') as temporary:
-        work = Path(temporary); recorder = Recorder(stream); env = environment()
+        work = Path(temporary).resolve(); recorder = Recorder(stream); env = environment()
         fixture = ROOT/'tests/cases/stock_resource_locations'
         products = []
         for name, resource in [('orchard', 'harvest.txt'), ('estuary', 'samples/tide.txt')]:
