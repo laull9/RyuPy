@@ -1,6 +1,6 @@
 # 第六轮验收：权威模块环境与真实原生调用
 
-日期：2026-11-17，平台macOS arm64。新profile通过显式
+日期：2026-11-17–18，平台macOS arm64。新profile通过显式
 `--experimental-stock-module-namespaces`选择完整本地源码图，底层复用原版CPython。
 生产选择规则基于冻结来源与实际能力，第三方名称只出现在测试输入、原项目和验收说明。
 通用C ABI、pyi及原生组件分发沿第五轮已提交合同继续使用。
@@ -93,11 +93,61 @@ Optimal。这组到ready后的两进程RSS和为584.125/686.531MiB，仅是同�
 `/tmp`为10.950/8.064/7.557秒，系统临时目录为8.555/8.711/8.667秒，pre-Main均
 8–26ms；系统临时目录未稳定复现4秒启动。目录AOT首次观察也存在逐原生镜像
 评估波动，记录于仓外`onefile-compression-20261117/startup-os-diagnostic/FINDINGS.md`。
-测试未修改系统安全设置。临时目录、原生镜像签名和目标架构体积继续以独立变量验证。
+测试未修改系统安全设置。
 
 另一个仅延迟默认builtins初始化的Runtime候选在六轮平衡采样中为旧0.405秒、新0.408秒，
 到ready后的RSS时点值151.461/153.133MiB。该候选没有收益，撤回该优化；负结果保留在
 `generic-interfaces-20261117/startup-runtime-pair-20261117T214759/result.json`。
+
+最终采用同一源码快照`3a47968a`、同一冻结Runtime组，分别构建严格全架构、严格目标
+架构和最小改写目标架构的目录/OneFile共六产品。构建输入和原输出全部删除后，首观察
+另列，每种形态四路轮转八轮；主计时不启用report/audit/stats，到真实Qt首心跳为止。
+
+| 形态 | 全架构严格 | 目标架构严格（默认） | 目标架构最小改写（实验） |
+| --- | ---: | ---: | ---: |
+| 目录AOT启动中位数，秒 | 0.3980 | 0.3981 | 0.4050 |
+| OneFile启动中位数，秒 | 10.5868 | 9.4762 | 9.6530 |
+| OneFile首心跳时点RSS和，MiB | 590.508 | 421.227 | 419.813 |
+| OneFile文件大小，字节 | 434388240 | 255315600 | 255299088 |
+
+架构收敛使OneFile体积下降41.22%、ready时点RSS和下降28.67%；本机该输入的启动
+中位数下降10.49%，八轮中六轮更快。时点RSS包含外壳/内层，共享页可能重复，峰值另验。
+最小改写的分组中位数略慢，OneFile成对统计偏快，数秒波动使估计依赖统计口径；本轮
+不确认其启动收益，保留为默认关闭的Cargo实验。完整授权、identifier及runtime标志恢复
+独立保留在默认严格路径。默认目录启动约0.40秒，OneFile仍有明显提取和系统评估成本。
+证据为仓外`startup-products-20261118T000504/measurement-20261118T002204/result.json`。
+
+## 内部依赖目录与完整发布组合
+
+非OneFile公开根仅保留实际入口和`internal/`。JIT使用官方SDK apphost，托管程序集、
+runtimeconfig/deps、Python/原生依赖、资源、pyi/机器接口和清单都在内部；版本化marker
+明确依赖根，旧无marker宿主保持原定位。Unix应用名`INTERNAL.py`自动用`INTERNAL.bin`
+入口，中文空格、相对输出及预建空目录的JIT/AOT搬迁均通过。缺SDK时给官方SDK页及
+macOS/Linux安装命令；真实无SDK、有Runtime环境中的两个程序已核验中文引导。
+
+初版16个真实产品覆盖Cocoa、共享归属、接口导出、声明原生依赖；两独立C ABI声明
+另完成JIT/AOT四格。最终Cocoa JIT/AOT补验真实事件循环、截图及完整加载边/ID/ABI/
+架构审计。所有产品删除源码、venv、组件输入与原构建树，整体搬迁后核对同次CP三流。
+证据分别位于`internal-layout-cocoa`、`internal-layout-shared`、`internal-layout-native`、
+`interface-exports/20261117T143426.916219Z`、`internal-layout-cabi-v2`和`internal-layout-v3-cocoa`。
+
+两独立fat消费者×JIT/AOT/OneFile六格最终全过，实际扩展调用/回调/异常、无扩展名helper
+执行、原授权/identifier/runtime标志、声明资源逐字节读取、退出终态清零均参与核验。
+fat64测试先签真实thin slice再组容器，平台generic外层签名不充当架构内授权证据；实际
+重签发现preserve-metadata会丢授权，改为修改前读取完整plist、重签显式传回。证据
+`macho-slices/20261117T153001.854797Z/results.json`，合同见ADR-0240/0241。
+
+显式ResourcePlan优先驱动模块定位与真实D.__file__，provider编译源码库存继续登记，
+无声明时保持原BundleRelative。两独立AOT资源应用完成相邻/子目录读取、删除所有输入
+搬迁、真实薄调用及关闭核验：`stock-resource-locations/20261117T153147.911475Z`。
+独立SQLite/resolver八进程覆盖JIT/AOT、旧flat/新internal、默认/既有自定义resolver；
+现有自定义resolver未被覆盖。完整CPython.Tests两模式各45/45、0跳过，补修已释放
+foreign实例在carrier前的纯托管存活检查，保原ObjectDisposedException与镜像查找顺序。
+日志`cpython-tests-full/20261117T154106.749375Z`。
+
+JIT失败来源报告存于公开根之外的独占诊断目录，CLI明确显示位置；失败不会覆盖旧产品。
+测试工作树移至仓外独占目录，work与product分离，e2e结果通过RYUPY_E2E_RESULTS显式
+保存；原语义、错误码、trace顺序与资源失败路径断言保留。最终联合门计数待完成后补齐。
 
 函数定义点builtins与Python回调来源现已完成有限合同：两套独立模块输入双版JIT/AOT
 八产品通过，原pending原样迁入四模块sunrise场景；canonical、外来及字面量builtins

@@ -14,14 +14,32 @@ pub(crate) enum Decision {
 pub(crate) struct Plan<'a> {
     root: &'a Path,
     images: &'a BTreeMap<PathBuf, Image>,
+    minimal: bool,
 }
 
 impl<'a> Plan<'a> {
     pub(crate) fn new(root: &'a Path, images: &'a BTreeMap<PathBuf, Image>) -> Self {
-        Self { root, images }
+        Self {
+            root,
+            images,
+            minimal: cfg!(feature = "experimental-minimal-macho-relocation"),
+        }
+    }
+
+    /// 纯计划测试显式选择候选；生产new始终遵守编译feature，测试构建也不例外。
+    #[cfg(test)]
+    fn candidate(root: &'a Path, images: &'a BTreeMap<PathBuf, Image>) -> Self {
+        Self {
+            root,
+            images,
+            minimal: true,
+        }
     }
 
     pub(crate) fn identity(&self, image: &Path) -> Decision {
+        if !self.minimal {
+            return Decision::Strict("默认严格重定位；最小计划仅编译期实验");
+        }
         let Some(info) = self.images.get(image) else {
             return Decision::Strict("映像未登记");
         };

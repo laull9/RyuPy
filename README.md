@@ -4,7 +4,8 @@
 兼容模式复用随包CPython标准库与第三方扩展；本地应用模块进入CIL编译链。
 
 长期方向已规划为[全 CIL 执行与 libpython 底层化](docs/cil-execution-roadmap.md)：
-全部 Python 函数体进入 CIL，内部 Python 胶水逐步移除；C0–C5 尚待实施，当前兼容模式继续维护。
+全部 Python 函数体进入 CIL，内部 Python 胶水逐步收敛；C0已完成，C1–C3有已验子合同，
+C4业务闭包分切实施。完整阶段与默认晋升分别验收，当前兼容模式继续维护。
 
 ## 使用
 
@@ -15,6 +16,7 @@ RyuPy CLI本身是一个文件，C#运行时、互操作桥、SQLite依赖、许
 ryupy main.py                         # 默认自动环境＋单文件AOT
 ryupy main.py --onefile               # 显式选择同一形态
 ryupy main.py --mode standalone       # 独立运行目录
+ryupy main.py --mode jit              # 官方apphost入口＋internal依赖目录
 ryupy main.py --native                # 纯RyuPy执行域
 ryupy main.py -o release              # 指定输出根，默认./dist
 ryupy main.py --cpython-entry --cpython-module web  # 显式委派入口及本地 web 包
@@ -27,7 +29,9 @@ ryupy main.py --cpython-entry --cpython-module web  # 显式委派入口及本�
 
 单文件应用位于`dist/main.onefile/main`（Windows为`main.exe`），搬走该文件即可运行。
 启动时在独占临时目录解包，正常退出及已覆盖的中断后清理。目录发布位于`dist/main.dist`。
-原生发布会自动检测.NET SDK 10及以上和Python环境，构建机还需平台C工具链、curl及支持
+非OneFile公开根只保留入口和`internal/`，依赖、配置、资源、接口导出及清单集中在其中；
+搬迁时复制整个目录。JIT和原生发布均需要.NET SDK 10及以上，缺失时提供官方下载及
+macOS/Linux一键安装命令。原生构建机还需Python环境、平台C工具链、curl及支持
 Zstandard的tar或zstd；运行生成的AOT应用无需安装.NET、Python或构建工具。
 托管运行需要.NET Runtime 10及以上，生成配置允许向上使用已安装的正式主版本。CLI的帮助、版本和许可查询无需.NET或Python。
 
@@ -60,7 +64,7 @@ make build     # Release单文件CLI与仅含该文件的分发归档
 ```
 
 旧`build/run/probe/dump`开发入口保留原有行为，`build/run`默认纯原生执行域；例如
-`ryupy build main.py`生成托管产物，`ryupy run main.py`编译并运行。
+`ryupy build main.py`生成JIT应用入口和内部托管产物，`ryupy run main.py`编译并运行。
 实现与验收合同见[ADR-0190](docs/adr/0190-project-cli.md)、
 [ADR-0191](docs/adr/0191-single-file-compiler-cli.md)及[CPython provider](docs/cpython-provider.md)。
 

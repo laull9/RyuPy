@@ -969,7 +969,7 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
   - [ ] 完整标准库 provider 与版本化 catalog 逐 API 落地（路线和合同已通过交叉评审）（[ADR0172](docs/adr/0172-aot-stdlib-provider-plan.md)）。
 - [ ] N4：逐真实OS/架构/ABI扩大平台CI，不把RID字符串当实机通过
   - [x] macOS arm64 / Windows x64 MSVC同宿主真实ILC、搬迁及args/exit/error通过（[证据](docs/validation/aot-host-platforms/README.md)）；SDK仍安装，干净目标机未勾完成
-- [ ] N5：静态能力优先，必要外置依赖集中 `_internal`；目录交付成熟后独立评估onefile，不为形式强加自解包，资源寻址/生命周期/性能另验
+- [~] N5：非OneFile公开根仅入口与`internal/`，依赖/配置/资源/接口及清单同根加载；目录与OneFile的搬迁、生命周期和启动分别验收（ADR-0239/0240/0241）
   - [x] 无资源 smoke 产物的三平台仅exe复制/搬迁四模式验证（[证据](docs/validation/aot-single-executable/README.md)）；复用原ILC，Mac/Win仍同SDK宿主，不代表任意项目onefile
 - [ ] B：桥接AOT仍独立验收libpython/扩展/stdlib部署，不因N项通过勾完成
 

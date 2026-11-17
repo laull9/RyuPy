@@ -81,13 +81,42 @@ macOS实证发现：即使同时传入`--force-library-entitlements`，仅依赖
 fat64输入必须先对真实thin slices签名再组包，平台把fat64外壳视为generic文件时
 产生的外层签名不能代替目标架构内的真实授权证据。
 
-真实GUI NativeAOT/OneFile与独立产品的完整搬迁门、稳定运行及启动性能继续执行。
+真实GUI NativeAOT/OneFile正式首心跳对照已完成；完整项目的业务兼容与持续交互仍按各自产品门登记。
 正式比较冻结同一布局、编译器、Runtime、Python、输入及依赖，只改变重定位
 策略；严格基线CLI与完整assets已单独冻结。首观察与平衡重复轮分别报告，
 首心跳墙钟、阶段CPU和RSS各自标明口径。正式性能窗口保持独占。
 
-若候选没有实测收益，退出默认调用并保存证据。当前源码接入属于待验候选，
-尚未宣布启动加速或默认晋升。
+## 正式对照与退出默认（2026-11-18）
+
+同源码快照`3a47968a9264d7a226f01ad1baac3c8e26f9baa6`、v6 Runtime、相同输入及依赖，
+构建严格fat、严格thin和最小thin三组产品。输入与原构建树删除后，独占执行首观察
+加八轮平衡fresh-process采样；首次观察单列，RSS为首心跳后的进程组求和时点值。
+
+| 八轮中位数 | 严格fat | 严格thin | 最小thin |
+| --- | ---: | ---: | ---: |
+| 目录首心跳，秒 | 0.39805 | 0.39809 | 0.40496 |
+| OneFile首心跳，秒 | 10.58675 | 9.47617 | 9.65299 |
+| OneFile时点RSS，MiB | 590.51 | 421.23 | 419.81 |
+| OneFile字节 | 434388240 | 255315600 | 255299088 |
+
+目标slice相对fat的确定收益是体积下降41.22%、时点RSS下降28.67%；本次OneFile
+首心跳中位数下降10.49%，目录结果基本相同。最小thin相对严格thin的OneFile分组
+中位数增加0.177秒；成对五轮更快、三轮更慢，成对差值范围-1.869至+2.683秒，
+成对中位数为-0.749秒。统计口径对这组噪声敏感，主墙钟收益未确认。
+
+真实产品400个映像中最小计划仅保留3个原签名、保留0条加载边；两组均重写2766条
+依赖边，实际改写映像390变389。已有门证明正确性；尚无严格策略失败而最小计划
+解决的真实兼容场景。默认保留目标slice与完整授权/identifier/runtime恢复修复，
+默认加载边使用严格重定位。
+
+`experimental-minimal-macho-relocation`为driver默认关闭的Cargo feature，CLI同名
+feature显式转发；不增加用户运行参数。生产`Plan::new`仅按此feature选择，测试构建
+也遵守。纯计划测试显式构造candidate；真实保签生产门仅在feature开启时注册，
+默认全thin授权、强制重签、闭包与版本门继续执行。退出默认后定向门分别通过默认9项、feature候选10项（含新增构造器策略门）。
+
+候选可用`cargo test -p ryupy-driver --features experimental-minimal-macho-relocation --lib macho_relocation -- --test-threads=1`
+复验；CLI实验构建使用同名feature。未来晋升必须先补独立的真实兼容收益或稳定性能
+证据。此次遵循无实测收益退出默认的既定条件。
 
 ## 仓外证据
 
@@ -96,3 +125,5 @@ fat64输入必须先对真实thin slices签名再组包，平台把fat64外壳�
 `slice-signature-20261117T221227/result.json`保存真实切片验签与加载；
 `independent-inputs-20261117T221807.json`保存独立C输入的双版本红绿结果。
 仓库仅保存手写测试输入与测试驱动代码。
+
+正式对照：`~/.cache/ryupy/validation/generic-interfaces-20261117/startup-products-20261118T000504/measurement-20261118T002204/result.json`。

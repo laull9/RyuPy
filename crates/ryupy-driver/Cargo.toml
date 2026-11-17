@@ -17,6 +17,8 @@ records-increment-diagnostics = ["records-increment-experiment"]
 trace-adapter-test = ["ryupy-mir/trace-adapter-test", "ryupy-codegen-cil/trace-adapter-test"]
 # 隔离JIT候选；尚未通过默认晋升条件，发行构建保持关闭。
 ordinary-dynamic-module-pilot = []
+# ADR-0241：完整启动对照收益未确认，最小Mach-O重定位仅编译期实验。
+experimental-minimal-macho-relocation = []
 
 [dependencies]
 # 仅构建期文件身份；Windows 同目标仍只放行同一已验证 lexical 记录。

@@ -1,7 +1,9 @@
 //! 仅由实际native父模块注册的macOS生产重定位门；不能随fake Linux RID的源码include重复注册。
 //! 保留真实clang/codesign/loader与原断言，纯结构和签名工具测试仍留在各自独立模块。
 use super::platform_relocate::relocate_macos_with_components;
-use std::path::{Path, PathBuf};
+#[cfg(feature = "experimental-minimal-macho-relocation")]
+use std::path::Path;
+use std::path::PathBuf;
 use std::process::Command;
 
 struct Root(PathBuf);
@@ -34,6 +36,7 @@ fn run(args: &[&std::ffi::OsStr]) {
 }
 
 #[test]
+#[cfg(feature = "experimental-minimal-macho-relocation")]
 fn real_native_closure_preserves_valid_images_and_isolates_duplicate_ids() {
     use std::process::Command;
     let f = Root::new();

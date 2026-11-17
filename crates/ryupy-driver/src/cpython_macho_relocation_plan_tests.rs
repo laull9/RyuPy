@@ -56,7 +56,7 @@ fn independent_layouts_preserve_only_equivalent_internal_paths() {
             ),
             (target.clone(), image(&format!("@rpath/{library}"), &[])),
         ]);
-        let plan = Plan::new(&f.0, &images);
+        let plan = Plan::candidate(&f.0, &images);
         assert_eq!(
             plan.dependency(&owner, &format!("@rpath/{library}"), &target),
             Decision::Preserve
@@ -90,7 +90,7 @@ fn duplicate_identity_versions_use_strict_path_even_with_local_hit() {
         ),
         (second, alternate),
     ]);
-    let plan = Plan::new(&f.0, &images);
+    let plan = Plan::candidate(&f.0, &images);
     assert!(matches!(plan.identity(&first), Decision::Strict(_)));
     assert!(matches!(
         plan.dependency(&first, "@loader_path/libsame.dylib", &first),
@@ -122,7 +122,11 @@ fn ancestor_shadow_and_unknown_or_escaping_roots_force_strict_relocation() {
         ]);
         assert!(
             matches!(
-                Plan::new(&f.0, &images).dependency(&owner, "@rpath/libsample.dylib", &target),
+                Plan::candidate(&f.0, &images).dependency(
+                    &owner,
+                    "@rpath/libsample.dylib",
+                    &target
+                ),
                 Decision::Strict(_)
             ),
             "{rpath}"
@@ -142,14 +146,14 @@ fn missing_first_hit_external_id_and_no_id_cannot_preserve_signature() {
         ),
         (target.clone(), image("@rpath/libsample.dylib", &[])),
     ]);
-    let plan = Plan::new(&f.0, &images);
+    let plan = Plan::candidate(&f.0, &images);
     assert!(matches!(
         plan.dependency(&owner, "@rpath/libsample.dylib", &target),
         Decision::Strict(_)
     ));
     assert!(!plan.preserve_signature(&owner, false, true));
     images.get_mut(&owner).unwrap().identity = None;
-    assert!(!Plan::new(&f.0, &images).preserve_signature(&owner, false, true));
+    assert!(!Plan::candidate(&f.0, &images).preserve_signature(&owner, false, true));
 }
 
 #[cfg(unix)]
@@ -167,11 +171,27 @@ fn symlink_escape_and_relative_parent_identity_never_preserve() {
         ),
         (target.clone(), image("@rpath/libsample.dylib", &[])),
     ]);
-    let plan = Plan::new(&f.0, &images);
+    let plan = Plan::candidate(&f.0, &images);
     assert!(matches!(plan.identity(&owner), Decision::Strict(_)));
     assert!(matches!(
         plan.dependency(&owner, "@rpath/libsample.dylib", &target),
         Decision::Strict(_)
     ));
     assert!(loader_path(&owner, "@loader_path/linked", &f.0).is_none());
+}
+
+#[test]
+fn production_constructor_respects_explicit_build_feature() {
+    let f = Fixture::new();
+    let target = f.file("libsample.dylib");
+    let images = BTreeMap::from([(target.clone(), image("@rpath/libsample.dylib", &[]))]);
+    let plan = Plan::new(&f.0, &images);
+    assert_eq!(
+        plan.identity(&target) == Decision::Preserve,
+        cfg!(feature = "experimental-minimal-macho-relocation")
+    );
+    assert_eq!(
+        plan.preserve_signature(&target, false, true),
+        cfg!(feature = "experimental-minimal-macho-relocation")
+    );
 }
