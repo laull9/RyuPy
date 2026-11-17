@@ -129,3 +129,4 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 
 - [0223：原版 libpython、受控必要胶水与性能验收](0223-stock-libpython-bounded-glue.md)（方向已接受；胶水清单产品化与性能门待验）
 - [0224：真实 CP 薄函数与独立 core/handle 的回收首证](0224-cpython-thin-function-core-handles.md)（独立 JIT/AOT 首证已验；产品接入与元数据扩围待办）
+- [0225：stock 编译入口的真实模块字典](0225-stock-entry-live-module-namespace.md)（无自定义 callable 的有限入口已验；完整函数所有权继续待办）
