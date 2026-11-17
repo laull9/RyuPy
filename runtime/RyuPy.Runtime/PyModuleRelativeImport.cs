@@ -1,4 +1,4 @@
-// 实例相对from-import的两阶段协议；只消费真实globals与已登记来源，不调用未知finder。
+// 实例相对from-import的两阶段协议：原生域消费已登记来源，strict域转交真实globals并保任意返回值。
 using System;
 namespace RyuPy.Runtime;
 
@@ -8,7 +8,9 @@ public static partial class PyModuleInstances
     public static object RelativeImport(object context, string name, long level, object?[] fromlist)
     {
         ImportGuard(context);
-        string package = RelativePackage(Context(context).State.Globals);
+        if (PyProvider.Current is IPyStrictImportProvider)
+            return PyModules.ImportLevel(name, Context(context).State.View, fromlist, level);
+        string package = RelativePackage(Context(context).State);
         if (package.Length == 0) throw new PyImportError("attempted relative import with no known parent package");
         if (level < 1) throw new PyRuntimeError("invalid compiled relative import level");
         for (long index = 1; index < level; index++)
@@ -22,7 +24,7 @@ public static partial class PyModuleInstances
     }
 
     // 即使package是合法字符串，CP也先消费spec.parent以检查不一致；非法package则先失败。
-    private static string RelativePackage(PyDict globals)
+    private static string RelativePackage(PyModuleInstanceState globals)
     {
         globals.TryGet("__package__", out object? package);
         globals.TryGet("__spec__", out object? spec);
@@ -54,8 +56,21 @@ public static partial class PyModuleInstances
     public static object? RelativeImportAttr(object context, object imported, string name)
     {
         _ = Context(context);
+        if (PyProvider.Current is IPyStrictImportProvider)
+            return StrictImportAttribute(imported, name);
         if (imported is not PyModule module) throw new PyRuntimeError("invalid relative import module");
         return PyModules.RelativeAttribute(module, name);
+    }
+    // IMPORT_FROM先取公开属性，循环导入缺属性时才看同一权威sys.modules；任意值不包模块。
+    private static object? StrictImportAttribute(object imported, string name)
+    {
+        try { return PyObject.GetAttr(imported, name); }
+        catch (PyAttributeError) { }
+        object? moduleName;
+        try { moduleName = PyObject.GetAttr(imported, "__name__"); }
+        catch (PyAttributeError) { throw new PyImportError($"cannot import name '{name}' from '<unknown module name>' (unknown location)"); }
+        if (moduleName is string current && PyModules.TryGetSysModuleEntry(current + "." + name, out object? entry)) return entry;
+        throw new PyImportError($"cannot import name '{name}' from '{PyRepr.Str(moduleName)}'");
     }
     private static PyNotImplementedError RelativeUnsupported(string detail) =>
         new("relative import: " + detail + " is not implemented");

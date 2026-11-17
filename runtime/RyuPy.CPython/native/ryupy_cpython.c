@@ -574,3 +574,5 @@ API int rp_is_subclass(PyObject *cls, PyObject *base) { return PyObject_IsSubcla
 API int rp_contains(PyObject *container, PyObject *item) { return PySequence_Contains(container, item); }
 API PyObject *rp_dir(PyObject *value) { return PyObject_Dir(value); }
 API PyObject *rp_borrowed_type(PyObject *value) { return value ? (PyObject *)Py_TYPE(value) : NULL; }
+
+#include "module_namespace.h"

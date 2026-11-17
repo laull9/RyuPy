@@ -37,6 +37,10 @@ pub(super) fn build(
     let result = (|| {
         for (name, source) in [
             (
+                "module_namespace.h",
+                include_str!("../../../runtime/RyuPy.CPython/native/module_namespace.h"),
+            ),
+            (
                 "ryupy_cpython.c",
                 include_str!("../../../runtime/RyuPy.CPython/native/ryupy_cpython.c"),
             ),

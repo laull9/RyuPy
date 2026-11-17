@@ -15,6 +15,7 @@ pub(crate) struct InstanceRefs {
     pub relative_attribute: MethodRefIndex,
     pub execute_ctor: MethodRefIndex,
     pub register: MethodRefIndex,
+    pub register_stock_entry: MethodRefIndex,
 }
 
 impl InstanceRefs {
@@ -41,6 +42,7 @@ impl InstanceRefs {
             import_guard: res.push_method_reference(method_ref! { static void @instances::ImportGuard(object) }),
             execute_ctor: res.push_method_reference(method_ref! { void @execute::.ctor(object, nint) }),
             register: res.push_method_reference(method_ref! { static void @modules::RegisterInstanceSourceLocated(string, string, string, long, string, bool, @execute) }),
+            register_stock_entry: res.push_method_reference(method_ref! { static void @modules::RegisterStockEntrySourceLocated(string, string, string, long, string, bool, @execute) }),
         }
     }
 }
@@ -52,6 +54,7 @@ pub(crate) fn append_registration(
     execute: MethodIndex,
     refs: &InstanceRefs,
     candidate_register: Option<MethodRefIndex>,
+    stock_entry: bool,
 ) {
     let (kind, location) = match &module.location {
         ryupy_mir::ModuleLocation::LegacyDiagnostic => (0, ""),
@@ -69,7 +72,11 @@ pub(crate) fn append_registration(
         Instruction::LoadNull,
         Instruction::LoadMethodPointer(MethodSource::User(UserMethod::Definition(execute))),
         Instruction::NewObject(UserMethod::Reference(refs.execute_ctor)),
-        Instruction::call(candidate_register.unwrap_or(refs.register)),
+        Instruction::call(candidate_register.unwrap_or(if stock_entry {
+            refs.register_stock_entry
+        } else {
+            refs.register
+        })),
     ]);
 }
 

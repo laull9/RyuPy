@@ -244,6 +244,9 @@ pub(crate) fn append_module_registration(
                 fn_indices[&module.init],
                 refs.instances.as_ref().expect("instance module references"),
                 candidate.then(|| candidates.as_ref().expect("candidate references").instance),
+                program.functions[module.init]
+                    .instance_capabilities
+                    .entry_namespace,
             );
             continue;
         }

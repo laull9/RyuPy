@@ -40,7 +40,7 @@ public static partial class PyModuleInstances
     /// <summary>删除当前执行实例的真实全局键；不查询 builtins、注册表或其它实例。</summary>
     public static void DeleteName(object context, string name)
     {
-        if (!Context(context).State.Globals.DeleteIfPresent(name))
+        if (!Context(context).State.DeleteIfPresent(name))
             throw new PyNameError($"name '{name}' is not defined");
     }
 }

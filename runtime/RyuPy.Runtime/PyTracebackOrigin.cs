@@ -7,11 +7,11 @@ internal sealed class ModuleExecutionSource
 {
     internal readonly object Module;
     internal readonly CompiledCodeSource? Source;
-    internal readonly PyDict? Globals;
+    internal readonly object? Globals;
     internal readonly object EntryModule;
     // 旧ABI的原值语义保持，不将字符串重新解释为代码或注册名。
     internal ModuleExecutionSource(object? module) => Module = EntryModule = module ?? PyNone.Instance;
-    internal ModuleExecutionSource(object module, CompiledCodeSource source, PyDict? globals, object entry)
+    internal ModuleExecutionSource(object module, CompiledCodeSource source, object? globals, object entry)
     { Module = module; Source = source; Globals = globals; EntryModule = entry; }
 }
 
@@ -34,7 +34,7 @@ public static partial class PyTraceback
         // 函数的可写 __module__ 不是类体 globals；未知/静态帧也不能借用外层模块。
         if (_depth == 0 || _origins[_depth - 1] is not ModuleExecutionSource source) return false;
         if (source.Module is PyModuleInstanceState state)
-            return state.Globals.TryGet("__name__", out value);
+            return state.TryGet("__name__", out value);
         return source.Module is string key && PyModules.TryGetClassDefinitionModule(key, out value);
     }
 
@@ -45,7 +45,7 @@ public static partial class PyTraceback
         return origin switch
         {
             PyFunction function => function.Module,
-            ModuleExecutionSource { Module: PyModuleInstanceState state } => state.Globals.GetOrDefault("__name__", PyNone.Instance) ?? PyNone.Instance,
+            ModuleExecutionSource { Module: PyModuleInstanceState state } => state.GetOrDefault("__name__", PyNone.Instance) ?? PyNone.Instance,
             ModuleExecutionSource module => module.Module,
             // 未知静态/native帧不能向下搜索并冒用外层身份；非法内部来源同样明确失败。
             _ => throw (PyNotImplementedError)PyErrors.PrepareRaise(new PyNotImplementedError(

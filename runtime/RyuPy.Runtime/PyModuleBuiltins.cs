@@ -14,7 +14,7 @@ internal static class PyModuleBuiltins
         "IndentationError" or "TabError" or "TimeoutError" or "UnicodeTranslateError" or "MemoryError" or
         "ReferenceError" or "SystemError" or "FloatingPointError" or "ascii" or "bin" or "hex" or "oct";
 
-    private static PyDict Create()
+    internal static PyDict Create()
     {
         var values = new PyDict();
         values.Set("__name__", "builtins");

@@ -47,6 +47,7 @@ pub(crate) fn selected(sess: &Session, sources: &[SourceModule]) -> Result<Vec<u
             "默认AOT catalog身份变化"
         );
         let capabilities = ryupy_base::InstanceCapabilities {
+            entry_namespace: false,
             aot_class_guards: false,
             direct_globals: false,
             ordinary_name_handlers: true,

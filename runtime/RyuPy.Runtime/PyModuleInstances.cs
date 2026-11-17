@@ -8,29 +8,48 @@ public delegate void PyModuleExecute(object state);
 
 // 不可变代码身份；注册替换不会改动已创建实例的代码及来源。
 internal sealed record PyCompiledModuleCode(string Name, string Package, string File,
-    bool IsPackage, PyModuleExecute Execute);
+    bool IsPackage, PyModuleExecute Execute, bool StockEntry = false);
 
-internal sealed class PyModuleInstanceState(PyCompiledModuleCode? code)
+internal sealed class PyModuleInstanceState
 {
-    internal readonly PyCompiledModuleCode? Code = code;
-    internal readonly PyDict Globals = new();
-    internal object? GetAttr(string name) => name == "__dict__" ? Globals
-        : Globals.TryGet(name, out var value) ? value
-        : throw MissingAttr(name);
-    // 只认当前精确str名，不转换任意对象，不借不可变注册身份覆盖Python元数据。
+    internal readonly PyCompiledModuleCode? Code;
+    internal readonly PyDict? NativeGlobals;
+    internal readonly IPyModuleNamespace? ForeignGlobals;
+    internal readonly IPyForeignObject? ForeignModule;
+    internal WeakReference<PyModule>? Peer;
+    // 仅外来Exec事务使用：0未开始，1执行中，2成功，3失败终态。
+    internal int BoundStatus;
+    internal PyModuleInstanceState(PyCompiledModuleCode? code, IPyModuleNamespace? foreign = null,
+        IPyForeignObject? module = null)
+    { Code = code; ForeignGlobals = foreign; ForeignModule = module; if (foreign is null) NativeGlobals = new(); }
+    // 来源载体持后端以便活读；Python可见属性只返回View，不泄漏适配器身份。
+    internal object Globals => (object?)NativeGlobals ?? ForeignGlobals!;
+    internal object View => PyModuleNamespaceAccess.View(Globals);
+    internal bool TryGet(string name, out object? value) => NativeGlobals is { } native
+        ? native.TryGet(name, out value) : ForeignGlobals!.TryGet(name, out value);
+    internal object? GetOrDefault(string name, object? fallback) => TryGet(name, out var value) ? value : fallback;
+    internal void Set(string name, object? value)
+    { if (NativeGlobals is { } native) native.Set(name, value); else ForeignGlobals!.Set(name, value); }
+    internal bool DeleteIfPresent(string name) => NativeGlobals is { } native
+        ? native.DeleteIfPresent(name) : ForeignGlobals!.DeleteIfPresent(name);
+    internal object? GetAttr(string name) => name == "__dict__" ? View
+        : TryGet(name, out var value) ? value : throw MissingAttr(name);
     internal PyAttributeError MissingAttr(string name) => new(
-        Globals.TryGet("__name__", out var current) && current is string moduleName
-            ? $"module '{moduleName}' has no attribute '{name}'"
-            : $"module has no attribute '{name}'");
+        TryGet("__name__", out var current) && current is string moduleName
+            ? $"module '{moduleName}' has no attribute '{name}'" : $"module has no attribute '{name}'");
     internal void SetAttr(string name, object? value)
     {
         if (name == "__dict__") throw new PyAttributeError("readonly attribute");
-        Globals.Set(name, value);
+        Set(name, value);
     }
 }
 
-// 每次执行独立捕获引用而非复制字典；重入执行不会改变外层frame的builtins环境。
-internal sealed record PyModuleExecutionContext(PyModuleInstanceState State, PyDict Builtins);
+// 每次执行捕获同一builtins后端；其键替换活读，模块键重绑只影响新定义。
+internal sealed record PyModuleExecutionContext(PyModuleInstanceState State, object Builtins)
+{
+    internal bool TryBuiltin(string name, out object? value) => PyModuleNamespaceAccess.TryGet(Builtins, name, out value);
+    internal object BuiltinsView => PyModuleNamespaceAccess.View(Builtins);
+}
 
 /// <summary>CLR宿主与编译器实例ABI；公开loader冷路复用真实字典执行机制。</summary>
 public static partial class PyModuleInstances
@@ -42,21 +61,29 @@ public static partial class PyModuleInstances
 
     internal static PyModule Create(PyCompiledModuleCode code)
     {
-        var state = new PyModuleInstanceState(code);
+        // 入口资格由driver冻结；provider只分配存储，不重放源码或迁移旧静态槽。
+        if (code.StockEntry && PyProvider.Current is not IPyCompiledModuleNamespaceProvider)
+            throw new PyNotImplementedError("compiled stock entry requires a real module namespace provider");
+        PyCompiledModuleNamespace? foreign = code.StockEntry
+            && PyProvider.Current is IPyCompiledModuleNamespaceProvider factory
+                ? factory.CreateEntryNamespace(code.Name) : null;
+        var state = new PyModuleInstanceState(code, foreign?.Globals, foreign?.Module);
         var metadata = new PyModuleMetadata(code.Name, code.File, code.IsPackage, code);
-        state.Globals.Set("__name__", code.Name); state.Globals.Set("__package__", code.Package);
-        state.Globals.Set("__file__", code.File); state.Globals.Set("__doc__", PyNone.Instance);
-        state.Globals.Set("__builtins__", PyModuleBuiltins.Default);
+        state.Set("__name__", code.Name); state.Set("__package__", code.Package);
+        state.Set("__file__", code.File); state.Set("__doc__", PyNone.Instance);
+        state.Set("__builtins__", PyModuleBuiltins.Default);
         foreach (string name in new[] { "__spec__", "__loader__", "__cached__", "__path__" })
         {
             object? value = metadata.Initial(name);
-            if (value is not PyUnbound) state.Globals.Set(name, value);
+            if (value is not PyUnbound) state.Set(name, value);
         }
         // 复用原getter/setter，legacy属性热路不增加CWT查询或实例state字段。
         var module = new PyModule(code.Name, code.Package, code.File, () => Execute(state),
             state.GetAttr, (_, name, value) => state.SetAttr(name, value), fileBackedByGlobal: true, instanceGlobals: true)
-            { Metadata = metadata };
+            { Metadata = metadata, ForeignObject = foreign?.Module };
         States.Add(module, state);
+        if (foreign is not null)
+            ((IPyCompiledModuleNamespaceProvider)PyProvider.Current!).PublishEntryNamespace(module, foreign);
         PyModules.BindDefaultInstance(module, code);
         return module;
     }
@@ -65,9 +92,9 @@ public static partial class PyModuleInstances
     internal static PyModule CreateEmpty(string name)
     {
         var state = new PyModuleInstanceState(null);
-        state.Globals.Set("__name__", name);
+        state.Set("__name__", name);
         foreach (string key in new[] { "__doc__", "__package__", "__loader__", "__spec__" })
-            state.Globals.Set(key, PyNone.Instance);
+            state.Set(key, PyNone.Instance);
         var module = new PyModule(name, "", "", () => Execute(state), state.GetAttr,
             (_, key, value) => state.SetAttr(key, value), instanceGlobals: true);
         States.Add(module, state);
@@ -95,13 +122,15 @@ public static partial class PyModuleInstances
     private static void Execute(PyCompiledModuleCode code, PyModuleInstanceState state)
     {
         // 与exec一致：缺键时在正文前真实补入共享默认环境；已有非法值不能被fallback吞掉。
-        if (!state.Globals.TryGet("__builtins__", out object? value))
+        if (!state.TryGet("__builtins__", out object? value))
         {
+            // 外来初始模块由Host在Exec前安装canonical真实dict；不能注入另一执行域的托管字典。
+            if (state.ForeignGlobals is not null)
+                throw new PyNotImplementedError("foreign module requires host-provided __builtins__ before execution");
             value = PyModuleBuiltins.Default;
-            state.Globals.Set("__builtins__", value);
+            state.Set("__builtins__", value);
         }
-        if (value is not PyDict builtins)
-            throw new PyNotImplementedError("instance module __builtins__ must be a dictionary");
+        object builtins = PyModuleNamespaceAccess.RequireBuiltins(value);
         code.Execute(new PyModuleExecutionContext(state, builtins));
     }
     private static PyModuleExecutionContext Context(object state) => state as PyModuleExecutionContext
@@ -111,13 +140,13 @@ public static partial class PyModuleInstances
     public static object? LoadName(object state, string name)
     {
         var context = Context(state);
-        if (context.State.Globals.TryGet(name, out var value) || context.Builtins.TryGet(name, out value)) return value;
+        if (context.State.TryGet(name, out var value) || context.TryBuiltin(name, out value)) return value;
         if (ReferenceEquals(context.Builtins, PyModuleBuiltins.Default) && PyModuleBuiltins.IsUnsupported(name))
             throw new PyNotImplementedError($"builtin '{name}' is not implemented");
         throw new PyNameError($"name '{name}' is not defined");
     }
     /// <summary>所有公开名字写入唯一globals，不经过第二份镜像。</summary>
-    public static void StoreName(object state, string name, object? value) => Context(state).State.Globals.Set(name, value);
+    public static void StoreName(object state, string name, object? value) => Context(state).State.Set(name, value);
     /// <summary>来源保存实例state，绝不按模块名字回注册表寻找另一实例。</summary>
     public static object ExecutionSource(object state) => PyTraceback.CreateModuleExecutionSource(Context(state).State);
     internal static bool IsInstance(PyModule module) => States.TryGetValue(module, out _);
@@ -126,7 +155,7 @@ public static partial class PyModuleInstances
         if (!States.TryGetValue(module, out var state))
             throw new PyNotImplementedError("module attribute deletion requires global-slot synchronization");
         if (name == "__dict__") throw new PyAttributeError("readonly attribute");
-        if (!state.Globals.DeleteIfPresent(name))
+        if (!state.DeleteIfPresent(name))
             throw state.MissingAttr(name);
     }
 }
@@ -136,11 +165,20 @@ public static partial class PyModules
     /// <summary>注册真实实例源码能力；来源1/2及受校验provider bundle来源3有效。</summary>
     public static void RegisterInstanceSourceLocated(string name, string package, string diagnosticFile,
         long locationKind, string locationValue, bool isPackage, PyModuleExecute execute)
+        => RegisterInstanceCode(name, package, diagnosticFile, locationKind, locationValue, isPackage, execute, false);
+
+    /// <summary>编译器冻结的stock入口ABI；与旧显式Instance注册分开，禁止按运行期名称猜资格。</summary>
+    public static void RegisterStockEntrySourceLocated(string name, string package, string diagnosticFile,
+        long locationKind, string locationValue, bool isPackage, PyModuleExecute execute)
+        => RegisterInstanceCode(name, package, diagnosticFile, locationKind, locationValue, isPackage, execute, true);
+
+    private static void RegisterInstanceCode(string name, string package, string diagnosticFile,
+        long locationKind, string locationValue, bool isPackage, PyModuleExecute execute, bool stockEntry)
     {
         EnsureRegistrationAvoidsCacheAliases(name);
         if (locationKind is not (1 or 2 or 3)) throw new PyNotImplementedError("instance modules require an explicit source location");
         string resolved = PyModuleLocations.Resolve(locationKind, locationValue);
-        var code = new PyCompiledModuleCode(name, package, resolved, isPackage, execute);
+        var code = new PyCompiledModuleCode(name, package, resolved, isPackage, execute, stockEntry);
         Registry[name] = new Registration(package, diagnosticFile, () => { },
             _ => throw new PyRuntimeError("instance code has no singleton globals"), SetDynamic,
             resolved, true, new ResourceLocation(isPackage, locationKind, resolved), true, code);

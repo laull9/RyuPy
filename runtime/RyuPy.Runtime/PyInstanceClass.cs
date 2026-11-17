@@ -23,7 +23,7 @@ public static partial class PyModuleInstances
     /// <summary>class表达式求基类前消费外frame的builtins hook；不查globals同名覆盖。</summary>
     public static void ClassGuard(object outerContext)
     {
-        if (!Context(outerContext).Builtins.TryGet("__build_class__", out object? hook))
+        if (!Context(outerContext).TryBuiltin("__build_class__", out object? hook))
             throw new PyNameError("__build_class__ not found");
         if (!ReferenceEquals(hook, PyInstanceClassHook.Function))
             throw new PyNotImplementedError("custom __build_class__ hooks are not implemented for instance modules");
@@ -35,6 +35,10 @@ public static partial class PyModuleInstances
         var context = Context(capturedContext);
         if (bases.Length > 1) throw UnsupportedBase();
         if (bases.Length == 1) ValidateOrdinaryBase(bases[0]);
+        // stock入口的普通类直接构造真实CP类型；object不是业务委派，类体仍由CIL顺序执行。
+        if (context.State.Code?.StockEntry == true
+            && (bases.Length == 0 || ReferenceEquals(bases[0], PyBaseObject.Type)))
+            bases = [PyProvider.Current!.Import("builtins").GetAttr("object")];
         var cls = (PyClass)PyOps.MakeClassCore(name, bases, null, captureAmbientMetadata: false);
         // 类体的LOAD_NAME与函数__module__捕获不同：缺global可回退本class frame的builtins。
         try

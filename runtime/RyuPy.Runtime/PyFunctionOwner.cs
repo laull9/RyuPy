@@ -28,13 +28,13 @@ public static partial class PyModuleInstances
     {
         var caller = Context(callerContext);
         // CP缺键继承当前frame且不插键；这与模块Execute进入时补默认字典不同。
-        if (!caller.State.Globals.TryGet("__builtins__", out object? value))
+        if (!caller.State.TryGet("__builtins__", out object? value))
             return caller;
-        // 本切仅真实PyDict；CP还允许module/其它对象并可能晚错，此处明确较早NI。
-        if (value is not PyDict builtins)
-            throw new PyNotImplementedError("instance function __builtins__ must be a dictionary");
+        // 原生字典或经provider验证的外来精确字典；其它对象仍明确较早NI。
+        object builtins = PyModuleNamespaceAccess.RequireBuiltins(value);
         // context不可变且无Python可观察身份；同引用无需再分配，重绑才创建新捕获。
-        return ReferenceEquals(caller.Builtins, builtins) ? caller
+        return ReferenceEquals(caller.Builtins, builtins)
+            || ReferenceEquals(caller.BuiltinsView, PyModuleNamespaceAccess.View(builtins)) ? caller
             : new PyModuleExecutionContext(caller.State, builtins);
     }
 
@@ -49,7 +49,7 @@ public static partial class PyModuleInstances
     /// <summary>定义元数据只读取真实globals，不把builtin或可变函数__module__当来源。</summary>
     public static object? DefinitionModule(object context)
     {
-        if (Context(context).State.Globals.TryGet("__name__", out object? value)) return value;
+        if (Context(context).State.TryGet("__name__", out object? value)) return value;
         return PyNone.Instance;
     }
 }

@@ -23,7 +23,7 @@ public static partial class PyModuleInstances
     {
         var context = Context(state);
         return ReferenceEquals(callable, PyInstanceGlobals.Function)
-            ? context.State.Globals
+            ? context.State.View
             : PyOps.CallValue(callable, [], [], []);
     }
 }
