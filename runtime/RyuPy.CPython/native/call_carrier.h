@@ -151,36 +151,29 @@ API PyObject *rp_call_with_frame(PyObject *target, PyObject *args, PyObject *kwa
 }
 API void rp_carrier_stats(int64_t *live, int64_t *calls) { *live = rp_carrier_live; *calls = rp_carrier_calls; }
 
-/* 返回0=无frame，1=真实Python frame，2=本桥活动carrier；只有2才供CIL跨模块切换现场。 */
+/* 返回0=无frame，1=真实Python frame，2=本桥活动carrier；两种活动现场均返回owned D/builtins。
+ * 无活动carrier时不读code；活动时只查活动链，绝不遍历用户co_consts。 */
 API int rp_carrier_frame_context_builtins(PyObject **globals, PyObject **builtins) {
     *globals = NULL; *builtins = NULL;
     PyFrameObject *frame = PyEval_GetFrame();
-    if (!frame) return 0;
-    if (!rp_carrier_active) return 1;
-    PyObject *code = (PyObject *)PyFrame_GetCode(frame);
-    if (!code) return -1;
+    if (!frame) return PyErr_Occurred() ? -1 : 0;
     RpCallCarrier *found = NULL;
-    for (RpCallCarrier *context = rp_carrier_active; context; context = context->next)
-        if (context->code == code) { found = context; break; }
-    Py_DECREF(code);
-    if (!found) return 1;
+    if (rp_carrier_active) {
+        PyObject *code = (PyObject *)PyFrame_GetCode(frame);
+        if (!code) return -1;
+        for (RpCallCarrier *context = rp_carrier_active; context; context = context->next)
+            if (context->code == code) { found = context; break; }
+        Py_DECREF(code);
+    }
 #if PY_VERSION_HEX >= 0x030b0000
-    PyObject *actual = PyFrame_GetGlobals(frame);
+    *globals = PyFrame_GetGlobals(frame);
+    if (*globals) *builtins = PyFrame_GetBuiltins(frame);
 #else
-    PyObject *actual = PyObject_GetAttrString((PyObject *)frame, "f_globals");
+    *globals = PyObject_GetAttrString((PyObject *)frame, "f_globals");
+    if (*globals) *builtins = PyObject_GetAttrString((PyObject *)frame, "f_builtins");
 #endif
-    if (!actual) return -1;
-    int kind = actual == found->globals ? 2 : 1;
-    if (kind == 2) {
-        *globals = actual;
-#if PY_VERSION_HEX >= 0x030b0000
-        *builtins = PyFrame_GetBuiltins(frame);
-#else
-        *builtins = PyObject_GetAttrString((PyObject *)frame, "f_builtins");
-#endif
-        if (!*builtins) { Py_CLEAR(*globals); return -1; }
-    } else Py_DECREF(actual);
-    return kind;
+    if (!*builtins) { Py_CLEAR(*globals); return -1; }
+    return found && *globals == found->globals ? 2 : 1;
 }
 API int rp_carrier_frame_context(PyObject **globals) {
     PyObject *builtins = NULL; int result = rp_carrier_frame_context_builtins(globals, &builtins);

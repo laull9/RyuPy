@@ -1,4 +1,3 @@
-# ryupy: pending
 # 显式Python函数A调用编译B，B原生调用必须切换现场；返回A后仍恢复其真实frame。
 import builtins
 import sys

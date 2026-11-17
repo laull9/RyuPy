@@ -15,8 +15,9 @@ import tempfile
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--python', type=Path, required=True)
+    parser.add_argument('--audit', action='store_true', help='独立3.12执行来源诊断，不用于正式计时')
     parser.add_argument('--aot', action='store_true', help='发布并直接运行真实NativeAOT runner')
-    parser.add_argument('--case', action='append', choices=['scoped', 'external', 'external-d', 'external-p', 'external-self', 'external-cell', 'external-container', 'zero', 'entry-fail', 'no-host', 'pre-entry-fail', 'scalar', 'external-callback', 'borrowed-receiver', 'callback-result', 'terminal-proxy', 'external-proxy', 'terminal-cycle', 'terminal-alias', 'frame-builtins', 'call-carrier', 'namespace-builtins', 'entry-builtins', 'ordinary-error', 'ordinary-error-gc'])
+    parser.add_argument('--case', action='append', choices=['scoped', 'external', 'external-d', 'external-p', 'external-self', 'external-cell', 'external-container', 'zero', 'entry-fail', 'no-host', 'pre-entry-fail', 'scalar', 'external-callback', 'borrowed-receiver', 'callback-result', 'terminal-proxy', 'external-proxy', 'terminal-cycle', 'terminal-alias', 'frame-builtins', 'call-carrier', 'namespace-builtins', 'entry-builtins', 'ordinary-error', 'ordinary-error-gc', 'ordinary-alias', 'ordinary-finalizer'])
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[3]
     source = Path(__file__).resolve().parent
@@ -70,6 +71,7 @@ def main():
         shutil.copy2(source/'CarrierCases.cs.in', runner/'CarrierCases.cs')
         shutil.copy2(source/'NamespaceCases.cs.in', runner/'NamespaceCases.cs')
         shutil.copy2(source/'OrdinaryErrorCases.cs.in', runner/'OrdinaryErrorCases.cs')
+        shutil.copy2(source/'OrdinaryCloseCases.cs.in', runner/'OrdinaryCloseCases.cs')
         (runner/'Runner.csproj').write_text('''<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup>
 <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><AssemblyName>RyuPy.CPython.Tests</AssemblyName>
 <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><TreatWarningsAsErrors>true</TreatWarningsAsErrors>
@@ -78,6 +80,9 @@ def main():
 <Reference Include="RyuPy.Runtime"><HintPath>../inputs/RyuPy.Runtime.dll</HintPath></Reference></ItemGroup></Project>''')
         output = work/'output'
         env = dict(os.environ, DOTNET_ROLL_FORWARD='Major')
+        if args.audit:
+            assert cfg['version'] == '3.12.13', '此来源审计内核显式固定3.12.13'
+            env['RYUPY_CPYTHON_EXECUTION_AUDIT'] = '1'
         if args.aot:
             run(['dotnet', 'publish', str(runner/'Runner.csproj'), '--disable-build-servers', '-c', 'Release', '-r', 'osx-arm64', '-p:PublishAot=true', '-p:IlcTreatWarningsAsErrors=true', '-p:ILLinkTreatWarningsAsErrors=true', '-o', str(output), '-v', 'minimal'], timeout=300, env=env)
         else:
@@ -99,7 +104,7 @@ def main():
             search_paths=[str(Path(cfg['home'])/'lib'/f'python{series}'), str(Path(cfg['home'])/'lib'/f'python{series}'/'lib-dynload'), str(output)],
             modules=['builtins', 'gc', 'sys', 'atexit', 'native_scope_probe', 'native_callback_probe'], container_transfer='proxy')
         failed = False
-        for case in args.case or ['scoped', 'external', 'external-d', 'external-p', 'external-self', 'external-cell', 'external-container', 'zero', 'entry-fail', 'no-host', 'pre-entry-fail', 'scalar', 'external-callback', 'borrowed-receiver', 'callback-result', 'terminal-proxy', 'external-proxy', 'terminal-cycle', 'terminal-alias', 'frame-builtins', 'call-carrier', 'namespace-builtins', 'entry-builtins']:
+        for case in args.case or ['scoped', 'external', 'external-d', 'external-p', 'external-self', 'external-cell', 'external-container', 'zero', 'entry-fail', 'no-host', 'pre-entry-fail', 'scalar', 'external-callback', 'borrowed-receiver', 'callback-result', 'terminal-proxy', 'external-proxy', 'terminal-cycle', 'terminal-alias', 'frame-builtins', 'call-carrier', 'namespace-builtins', 'entry-builtins', 'ordinary-error', 'ordinary-error-gc', 'ordinary-alias', 'ordinary-finalizer']:
             config_data['container_transfer'] = 'synchronized' if case in ('external-container', 'callback-result') else 'proxy'
             config.write_text(json.dumps(config_data))
             env['RYUPY_CPYTHON_REPORT'] = str(work/f'{case}-report.json')
@@ -117,11 +122,15 @@ def main():
                 failed |= not passed
                 print('ORDINARY_ERROR '+case+' accepted='+str(passed), flush=True)
                 continue
-            if case in ('no-host', 'pre-entry-fail', 'namespace-builtins', 'entry-builtins'):
+            if case in ('no-host', 'pre-entry-fail', 'namespace-builtins', 'entry-builtins', 'ordinary-alias', 'ordinary-finalizer'):
                 report_path = Path(env['RYUPY_CPYTHON_REPORT'])
                 if report_path.exists():
                     assert 'stock_compiled_program' not in json.loads(report_path.read_text())
                 assert result.returncode == 0 and not result.stderr and 'PASS '+case in result.stdout
+                if case == 'ordinary-finalizer':
+                    assert 'ORDINARY_UNRAISABLE ordinary-finalizer-original' in result.stdout
+                    assert 'ORDINARY_FINALIZER_REENTRY' in result.stdout
+                    assert 'ORDINARY_ATEXIT_ORDER del,reentered,unraisable' in result.stdout
                 log.write('CASE '+case+' accepted=True\n'); continue
             if case == 'terminal-cycle':
                 report = json.loads(Path(env['RYUPY_CPYTHON_REPORT']).read_text())
@@ -142,6 +151,12 @@ def main():
             report = json.loads(report_path.read_text())
             terminal = report['stock_compiled_program']
             log.write('REPORT '+json.dumps(report)+'\n')
+            if args.audit and case == 'call-carrier':
+                frames = report['execution_audit']['frames']
+                matching = [row for row in frames if row['file'] == '真实 thin 来源.py' and row['function'] == 'native_reader']
+                assert {row['origin'] for row in matching} == {'python', 'stock_thin_glue'}, matching
+                assert any(row['origin'] == 'call_carrier_glue' for row in frames), frames
+                print('PASS audit exact-code origins with identical filename/name', flush=True)
             carriers = report['call_carriers']
             diagnostic &= all(carriers[key] == 0 for key in ('native_live','managed_handles','code_origin_records','code_origin_active'))
             diagnostic &= terminal['permission'] and terminal['terminal'] and all(terminal[key] == 0 for key in

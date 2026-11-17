@@ -23,20 +23,36 @@ public sealed partial class CPythonHost : IPyCompiledExecutionProvider
             throw new PyRuntimeError("invalid compiled execution request");
         if (request.Globals is not PythonObject globals || !ReferenceEquals(globals.Host, this))
             throw new PyTypeError("compiled execution requires the provider's real globals");
-        ExecuteWithCallCarrier(globals, request.File, body);
+        using Lease lease = Enter();
+        nint builtins = ExportCapturedBuiltins(request.Builtins);
+        try { RunCallCarrier(globals, builtins, request.File, body); }
+        finally { Native.rp_decref(builtins); GC.KeepAlive(request); }
     }
     internal void ExecuteWithCallCarrier(PythonObject globals, string file, Action body) =>
-        RunCallCarrier(globals, file, body);
+        RunCallCarrier(globals, 0, file, body);
+
+    // 保留Runtime字面量dict的既有映射身份；只借单次raw owned，不建立另一份定义点缓存。
+    private nint ExportCapturedBuiltins(object view)
+    {
+        if (view is PythonObject foreign && !ReferenceEquals(foreign.Host, this))
+            throw new PyTypeError("native caller builtins belong to a different execution domain");
+        nint pointer = Check(ToPython(view));
+        // Runtime精确PyDict还可能按显式proxy合同导出mapping；沿原投影，不新增配置限制。
+        if (view is PyDict || Native.rp_container_kind(pointer) == 2) return pointer;
+        Native.rp_decref(pointer);
+        throw new PyTypeError("compiled execution requires captured dictionary builtins");
+    }
 
     private bool TryCallCarrier<T>(Func<T> operation, out T result)
     {
         result = default!;
-        int kind = Native.rp_carrier_frame_context(out nint currentGlobals);
-        if (kind < 0) ThrowError();
+        int kind = Native.rp_carrier_frame_context_builtins(out nint currentGlobals, out nint currentBuiltins);
         try
         {
-            if (kind == 1) return false; // 真正Python调用现场优先，不被外层CIL元数据覆盖。
-            int source = PyTraceback.CompiledNativeCallSite(out object? globals, out string? file);
+            if (kind < 0) ThrowError();
+            // Python内部协议继续沿真实frame；只有回调入口后新压入的可信CIL帧才取得切换权。
+            if (kind == 1 && !HasNewCompiledCarrierFrame) return false;
+            int source = PyTraceback.CompiledNativeCallSite(out object? globals, out object? builtins, out string? file);
             if (source is 2 or 3) return false; // Legacy/未知旧来源保原执行，新profile独立提供权威D。
             PythonObject? dictionary = null;
             if (source == 1)
@@ -44,21 +60,28 @@ public sealed partial class CPythonHost : IPyCompiledExecutionProvider
                 if (globals is not PythonObject value) return false; // 旧NativeGlobals PyDict不取得新frame能力。
                 if (!ReferenceEquals(value.Host, this)) throw new PyTypeError("native caller globals belong to a different execution domain");
                 dictionary = value;
-                if (kind == 2 && currentGlobals == dictionary.Pointer) return false;
             }
             else if (kind != 0 || Native.rp_external_carrier_available() == 0) return false;
-            T captured = default!;
-            RunCallCarrier(dictionary, file, () => captured = ExecutePythonCall(operation));
-            result = captured; return true;
+            nint expectedBuiltins = dictionary is null ? 0 : ExportCapturedBuiltins(builtins!);
+            try
+            {
+                if (kind == 2 && dictionary is not null
+                    && currentGlobals == dictionary.Pointer && currentBuiltins == expectedBuiltins)
+                    return false;
+                T captured = default!;
+                RunCallCarrier(dictionary, expectedBuiltins, file, () => captured = ExecutePythonCall(operation));
+                result = captured; return true;
+            }
+            finally { Native.rp_decref(expectedBuiltins); GC.KeepAlive(builtins); }
         }
-        finally { Native.rp_decref(currentGlobals); }
+        finally { Native.rp_decref(currentGlobals); Native.rp_decref(currentBuiltins); }
     }
     private unsafe nint MakeNativeMetadataText(string text)
     {
         string points = PyOps.UnicodeCodePoints(text);
         fixed (char* units = points) return Check(Native.rp_text_codepoints(units, points.Length));
     }
-    private unsafe void RunCallCarrier(PythonObject? globals, string? file, Action body)
+    private unsafe void RunCallCarrier(PythonObject? globals, nint builtins, string? file, Action body)
     {
         using Lease lease = Enter();
         using var handled = new PythonHandledScope(this);
@@ -77,7 +100,7 @@ public sealed partial class CPythonHost : IPyCompiledExecutionProvider
             else
             {
                 source = MakeNativeMetadataText(file!);
-                result = Native.rp_execute_carrier(globals.Pointer, source, GCHandle.ToIntPtr(handle),
+                result = Native.rp_execute_carrier_builtins(globals.Pointer, builtins, source, GCHandle.ToIntPtr(handle),
                     &InvokeCompiledExecution, &ReleaseCompiledExecution);
             }
             Native.rp_decref(Check(result));
@@ -112,11 +135,13 @@ public sealed partial class CPythonHost : IPyCompiledExecutionProvider
         {
             // 该能力仅Runtime模块入口签发；保持现入口弱登记，不经普通第三方proxy的Pause路径。
             using Lease lease = host.Enter(callback: true);
+            using var boundary = new ManagedCarrierCallbackScope(PyTraceback.CaptureDepth());
             using var handled = new ManagedHandledScope(host);
             execution.Body(); return Native.rp_none();
         }
         catch (Exception error)
         {
+            using var boundary = new ManagedCarrierCallbackScope(PyTraceback.CaptureDepth());
             try { host.RestoreCallbackError(error as PyBaseException ?? PyErrors.FromClr(error)); }
             catch { Native.rp_error_text("RuntimeError", "compiled execution callback error export failed"); }
             return 0;
@@ -143,11 +168,16 @@ internal static unsafe partial class Native
     internal static extern nint rp_execute_carrier(nint globals, nint filename, nint token,
         delegate* unmanaged[Cdecl]<nint, nint> invoke, delegate* unmanaged[Cdecl]<nint, void> release);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern nint rp_execute_carrier_builtins(nint globals, nint builtins, nint filename, nint token,
+        delegate* unmanaged[Cdecl]<nint, nint> invoke, delegate* unmanaged[Cdecl]<nint, void> release);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern void rp_carrier_stats(out long live, out long calls);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern void rp_code_origin_stats(out long records, out long active);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int rp_carrier_frame_context(out nint globals);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int rp_carrier_frame_context_builtins(out nint globals, out nint builtins);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int rp_external_carrier_available();
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]

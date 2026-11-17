@@ -1,4 +1,3 @@
-# ryupy: pending
 # 不同布局的相对from-import与替换builtins映射；值可以不是模块，逐个属性副作用可观察。
 import builtins
 import sys

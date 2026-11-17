@@ -1,4 +1,3 @@
-# ryupy: pending
 # 独立消费布局与模块名，不依赖另一套用例的helper或绑定。
 import mineral
 import chamber

@@ -16,7 +16,7 @@ pub fn provider_namespace_capabilities() -> InstanceCapabilities {
 /// 全图来源由driver证明；这里保留所有未扩围的语法边界，后续HIR/MIR仍逐模块验证完整实现。
 /// 无def/Entry/Package均有同一实例执行ABI，不沿用旧首切lambda/typed/NoFunction的资格理由。
 pub fn validate_provider_namespace_aot(parsed: &ParsedModule) -> Vec<Diagnostic> {
-    // 同步生成器沿既有GeneratorFrame保存/恢复context；异步与生成器handler仍由下层精确守卫。
+    // 同步生成器沿既有GeneratorFrame保存/恢复context；源码handler由MIR真实逻辑路由合同验证，异步保留诊断。
     crate::instance_globals::validate(
         &parsed.module.body,
         parsed.file,
@@ -94,8 +94,18 @@ mod tests {
         let source = "value = 3\ndef source():\n    yield globals()\n    yield from (value + item for item in [1, 2])\n";
         let (module, errors) = lower(source, true);
         assert!(errors.is_empty(), "{errors:?}");
-        assert!(module.functions.iter().any(|(_, function)| function.is_generator));
-        assert!(lower(source, false).1.iter().any(|d| d.message.contains("globals") || d.message.contains("生成器表达式")));
+        assert!(
+            module
+                .functions
+                .iter()
+                .any(|(_, function)| function.is_generator)
+        );
+        assert!(
+            lower(source, false)
+                .1
+                .iter()
+                .any(|d| d.message.contains("globals") || d.message.contains("生成器表达式"))
+        );
     }
     #[test]
     fn authoritative_dictionary_attribute_and_item_deletion_use_existing_targets() {

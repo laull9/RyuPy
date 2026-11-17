@@ -1,4 +1,3 @@
-# ryupy: pending
 # 多模块定义点、重入及真实Python调用者恢复，全部预期来自同次CPython。
 import reservoir
 import relay

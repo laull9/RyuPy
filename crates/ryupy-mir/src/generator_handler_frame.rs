@@ -71,7 +71,7 @@ impl Check<'_> {
         chosen.ok_or_else(|| "typed分派没有目标".into())
     }
     pub(super) fn exits(
-        &self,
+        &mut self,
         layout: &crate::trace_lowering::GeneratorLayout,
         types: &[MirType],
         protected: usize,
@@ -83,7 +83,12 @@ impl Check<'_> {
             .sum::<usize>();
         for (id, pc) in &layout.exit_pcs {
             let value = self.body(*id)?;
-            if value.stmts.is_empty() && value.terminator==Terminator::Unreachable && !self.reachable.contains(id) {continue;}
+            if value.stmts.is_empty()
+                && value.terminator == Terminator::Unreachable
+                && !self.reachable.contains(id)
+            {
+                continue;
+            }
             let suffix = 3 + if *pc >= 0 { spill } else { 0 };
             let start = value
                 .stmts
@@ -109,7 +114,9 @@ impl Check<'_> {
                 return Err("挂起/完成没有共同保护区外出口".into());
             }
             result = Some(dest);
+            self.role_writes.insert((*id, value.stmts.len() - 1));
             cursor.end()?;
+            self.mark_frame_ops(*id, start, value.stmts.len());
         }
         let result = result.ok_or("生成器没有完成或挂起出口")?;
         let value = self.body(block(protected))?;
@@ -118,12 +125,16 @@ impl Check<'_> {
         {
             return Err("保护区外未返回实际保存值".into());
         }
-        if [self.frame, self.active, self.caught, self.pc].contains(&result) {
+        self.result = Some(result);
+        if [self.frame, self.active, self.caught, self.pc, self.state].contains(&result) {
             return Err("出口值与路由私有角色别名".into());
         }
         Ok(())
     }
-    pub(super) fn catch_reads(&self, layout: &crate::trace_lowering::GeneratorLayout) -> Result<(), String> {
+    pub(super) fn catch_reads(
+        &mut self,
+        layout: &crate::trace_lowering::GeneratorLayout,
+    ) -> Result<(), String> {
         let mut actual = FxHashSet::default();
         for id in &layout.original_blocks {
             for (index, stmt) in self.body(*id)?.stmts.iter().enumerate() {
@@ -143,6 +154,7 @@ impl Check<'_> {
                     let mut cursor =
                         Cursor::new(&self.body(*id)?.stmts[index + 1..], self.original + 1);
                     cursor.slot(self.frame, 3, Operand::Const(Constant::None))?;
+                    self.mark_frame_ops(*id, index, index + 2);
                 }
             }
         }
@@ -157,17 +169,59 @@ impl Check<'_> {
         Ok(())
     }
     pub(super) fn private_roles(&self) -> Result<(), String> {
-        let roles = [self.frame, self.active, self.caught, self.pc];
+        let roles = [
+            self.frame,
+            self.active,
+            self.caught,
+            self.pc,
+            self.state,
+            self.result.ok_or("缺少出口值角色")?,
+        ];
         if roles.into_iter().collect::<FxHashSet<_>>().len() != roles.len() {
             return Err("frame/active/caught/handlerPC角色别名".into());
         }
         for (id, body) in self.function.body.blocks.iter() {
             for (index, stmt) in body.stmts.iter().enumerate() {
+                let mut reads = FxHashSet::default();
+                match stmt {
+                    Statement::Assign { value, .. } | Statement::Eval(value) => {
+                        crate::local_access::read_value(value, &mut reads)
+                    }
+                    Statement::SetField { obj, value, .. } => {
+                        crate::local_access::read_operand(obj, &mut reads);
+                        crate::local_access::read_operand(value, &mut reads);
+                    }
+                    Statement::SetGlobal { value, .. } => {
+                        crate::local_access::read_operand(value, &mut reads)
+                    }
+                    Statement::Line(_) => {}
+                }
+                if reads.contains(&self.frame) && !self.frame_ops.contains(&(id, index)) {
+                    let allowed = matches!(stmt,Statement::Assign{value:Rvalue::Call{callee:Callee::Runtime(RuntimeFn::GeneratorInput|RuntimeFn::GeneratorDelegateStep|RuntimeFn::GeneratorTracebackReceive),args},..}|Statement::Eval(Rvalue::Call{callee:Callee::Runtime(RuntimeFn::GeneratorInput|RuntimeFn::GeneratorDelegateStep|RuntimeFn::GeneratorTracebackReceive),args})
+                        if matches!(args.first(),Some(Operand::Local(frame))if *frame==self.frame) && !args.iter().skip(1).any(|value|{let mut reads=FxHashSet::default();crate::local_access::read_operand(value,&mut reads);reads.contains(&self.frame)}));
+                    if !allowed {
+                        return Err("私有frame逃出已核保存/恢复及控制协议".into());
+                    }
+                }
                 if let Statement::Assign { dest, .. } = stmt
                     && roles.contains(dest)
                     && !self.role_writes.contains(&(id, index))
                 {
                     return Err("私有路由角色被额外覆盖".into());
+                }
+            }
+            let operands: Vec<&Operand> = match &body.terminator {
+                Terminator::Branch { cond, .. } => vec![cond],
+                Terminator::Return(value) => value.iter().collect(),
+                Terminator::Raise { value, cause } => value.iter().chain(cause).collect(),
+                Terminator::Suspend { value, .. } => vec![value],
+                _ => vec![],
+            };
+            for value in operands {
+                let mut reads = FxHashSet::default();
+                crate::local_access::read_operand(value, &mut reads);
+                if reads.contains(&self.frame) {
+                    return Err("私有frame泄漏到控制返回值".into());
                 }
             }
         }

@@ -108,8 +108,12 @@ CreateSuper 历史 Object 返回公共 ABI 已恢复，真实 `5d36db1e` 的 184
   del与任意hook返回；真实Cocoa最小输入JIT/AOT/OneFile三产品搬迁显示成功，无库名分支。
 - [x] **精确本地键热路恢复（ADR-0238）**：六输入独占AOT对照、19项协议测试及独立
   完整make check通过，`207ebd6c`已推送；推导式RSS增加2.219MiB等不利保留。
-- [~] **原生函数现场与原业务下一阻塞**：定义点builtins及Python A→CIL B现场正在闭合；
-  完整ExplorerPro新profile到生成器except OSError，按真实逻辑异常路由逐项验证。联合全门待冻结。
+- [x] **定义点builtins与回调来源子合同**：两独立模块双版JIT/AOT八产品、真实dict类型
+  四产品、反向Python协议现场四产品通过，业务D保持原样；完整函数locals/name/line继续开发。
+- [x] **生成器源码异常链子合同**：实际窗口/typed/PC/私有帧证明与二十IR破坏拒绝通过，
+  两模块双版JIT/AOT八产品搬迁通过；原ExplorerPro已越过except OSError。
+- [~] **原生交互与完整原业务下一阻塞**：按用户实际观察补持续QTimer、真实鼠标/键盘和关闭
+  验收；完整ExplorerPro新profile到实例dataclass。联合完整门待这组交互冻结。
 - [ ] **可选严格内核研究（ADR-0221）**：Host Slice 1/2 源码完整保存在远端 WIP，已撤出
   stock 主线工作树；最终内核与十二项 Host 子进程门尚未完成，暂停扩展。
   已有 22 内核/10 stock 探针保留原快照范围。

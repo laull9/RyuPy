@@ -1,4 +1,3 @@
-# ryupy: pending
 # Python A→CIL B→原生CAPI后检查A真实字典恢复，并覆盖异常原对象与再次调用。
 import builtins
 import sys

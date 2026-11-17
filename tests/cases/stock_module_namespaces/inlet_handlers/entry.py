@@ -1,4 +1,3 @@
-# ryupy: pending
 # 暂停后活读目标，throw保异常身份；as清理与外层当前异常跨暂停恢复。
 import inlet_stream as stream
 import inlet_targets as target

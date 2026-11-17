@@ -34,7 +34,6 @@ mod build_params;
 mod build_print;
 mod build_product_trace;
 mod build_relative_import;
-mod provider_import;
 mod build_stmts;
 mod build_try;
 mod call_builder;
@@ -85,6 +84,7 @@ pub(crate) mod generator_readonly_params;
 #[cfg(test)]
 mod generator_readonly_params_tests;
 mod generators;
+mod provider_import;
 
 mod async_iteration;
 mod async_iteration_abi;
@@ -217,11 +217,11 @@ mod class_cell_tests;
 #[cfg(test)]
 mod relative_import_tests;
 
-mod source_handler_contract;
-mod generator_source_handlers;
 mod generator_handler_frame;
 #[cfg(test)]
 mod generator_source_handler_tests;
+mod generator_source_handlers;
+mod source_handler_contract;
 pub use source_handler_contract::SourceHandlerContract;
 #[cfg(test)]
 mod instance_handler_tests;
@@ -319,6 +319,6 @@ mod stock_thin_contract;
 mod unicode_literal_tests;
 
 #[cfg(test)]
-mod provider_namespace_tests;
-#[cfg(test)]
 mod provider_generator_tests;
+#[cfg(test)]
+mod provider_namespace_tests;

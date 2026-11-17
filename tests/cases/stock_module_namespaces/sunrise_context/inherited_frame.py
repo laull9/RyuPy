@@ -1,4 +1,3 @@
-# ryupy: pending
 # CIL名称读取已保留当前builtins；完整CAPI frame的f_builtins快照另行闭合。
 import builtins
 import sys

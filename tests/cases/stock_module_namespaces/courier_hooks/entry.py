@@ -1,4 +1,3 @@
-# ryupy: pending
 # 任意hook返回值、dotted-as、整批fromlist、缓存回退及失败前缀都保持CP协议。
 import builtins
 import sys

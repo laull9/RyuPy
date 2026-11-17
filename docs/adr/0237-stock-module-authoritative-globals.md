@@ -45,7 +45,7 @@ finally、yield-from终值、再次耗尽与跨暂停的同名callee及返回对
 
 真实产品发现provider的tp_iternext旧桥调用布尔MoveNext而丢失生成器终值。精确
 PyGenerator转发到既有Next协议，保留本次StopIteration.value及后续空args；其余迭代器
-继续原协议，不另存终值镜像。dataclass、生成器handler及其余缺口继续逐竖切；
+继续原协议，不另存终值镜像。生成器源码handler按下节合同扩围；dataclass及其余缺口继续逐竖切；
 默认provider和原生模式分别回归。
 
 规范globals/import/build_class身份在解释器初始化后、应用执行前捕获原对象；活builtins
@@ -55,3 +55,33 @@ PyGenerator转发到既有Next协议，保留本次StopIteration.value及后续�
 
 权威字典访问的CPU/GIL成本、模块初始化carrier成本与函数热调用成本分别测量，保留
 旧编译器/Runtime控制与普通路径结果，默认晋升另过固定项目和完整性能门。
+
+## 生成器源码异常链的逻辑路由证明
+
+决定仅在`provider_namespace`能力下扩围同步生成器handler。普通Instance源码链继续
+要求一条对应的真实CatchAll；新GeneratorFrame保留同一SourceHandlerContract，并携带
+共享逻辑路由旁证。源码target表达式和as清理由既有动态链降级，未增加业务名称分支。
+
+验证器复用GeneratorLayout/FrameCatchRoute和逐槽Cursor，重走最终CFG：唯一物理
+catch接原异常，实际active的Ge/Lt窗口按内层优先首次匹配，typed合成链读取真实类型
+并逐项匹配，选择handler旧PC后经统一Retry保存局部、frame[0]和frame[3]。恢复入口
+逐槽加载，再由实际PC比较跳到重排后的handler；逻辑Catch须读取并清空同一异常槽。
+同时核验挂起/完成出口、私有角色互异及frame不外泄。source链0在物理catch留合同锚，
+删除全部旁证仍会触发孤儿ID诊断。跨模块链接只重写真实typed目标GlobalId，保持每份
+共享证据身份，绝不把不同旁证合并。窗口整数先try_from再checked_add，坏IR走错误诊断。
+
+CFG优化可以清空真正不可达块；豁免依据是最终入口、实际EH入口及恢复PC分支形成的
+真实可达图。仍被异常边或PC边到达的handler被改成Unreachable会拒绝。结构门包含
+15组实际路由/能力/私有帧破坏，以及usize::MAX、i64::MAX、负起点、零长和越界五组
+窗口破坏；两套输入还完整运行默认pass序列。
+
+`inlet_handlers`与`quarry_handlers`采用独立模块/数据布局，同次固定CPython验证
+暂停后target重绑、throw同对象、as局部清理、getter失败越过同级handler、for/with
+continue，以及send/close时当前异常上下文。双版本JIT/NativeAOT八产品均删除输入后
+搬迁通过：3.12 JIT `121559.974900Z`、AOT `121625.617702Z`，3.13四产品
+`121625.617720Z`，完整日志位于仓外`validation/stock-module-namespaces`。
+
+保持原ExplorerPro源码复验后，完整原入口与完整隔离业务probe共同推进至
+`archive_service.py`的ArchiveEntry/ArchiveSummary实例dataclass资格守卫。其原始
+@dataclass、字段注解/默认值与property全部保留；该装饰器与真实类/模块字典和生成
+方法的来源合同进入下一竖切。完整原项目和默认晋升仍按各自产品门推进。

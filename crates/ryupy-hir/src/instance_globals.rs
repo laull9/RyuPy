@@ -66,7 +66,9 @@ impl Check {
     }
 
     fn name(&mut self, name: &str, range: TextRange) {
-        if self.provider_namespace && name == "__import__" { return; }
+        if self.provider_namespace && name == "__import__" {
+            return;
+        }
         if matches!(
             name,
             "__classcell__"
@@ -123,8 +125,11 @@ impl<'a> Visitor<'a> for Check {
                 }
             }
             ast::Stmt::Import(_) | ast::Stmt::ImportFrom(_)
-                if self.provider_namespace && matches!(self.scope, crate::module_deletions::DeleteScope::Class) =>
-            { self.reject(statement.range(), "class import需要真实prepared namespace"); }
+                if self.provider_namespace
+                    && matches!(self.scope, crate::module_deletions::DeleteScope::Class) =>
+            {
+                self.reject(statement.range(), "class import需要真实prepared namespace");
+            }
             ast::Stmt::ImportFrom(import) if import.level != 0 => self
                 .requirements
                 .push((statement.range(), Requirement::RelativeFrom)),
@@ -214,7 +219,9 @@ impl<'a> Visitor<'a> for Check {
 
     fn visit_except_handler(&mut self, handler: &'a ast::ExceptHandler) {
         let ast::ExceptHandler::ExceptHandler(except) = handler;
-        if (self.generator && !self.provider_namespace) || matches!(self.scope, crate::module_deletions::DeleteScope::Class) {
+        if (self.generator && !self.provider_namespace)
+            || matches!(self.scope, crate::module_deletions::DeleteScope::Class)
+        {
             self.reject(handler.range(), "生成器或类体源码except handler");
         } else if except.type_.as_ref().is_some_and(|target| {
             !matches!(target.as_ref(), ast::Expr::Name(_))

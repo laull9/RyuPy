@@ -19,6 +19,15 @@ internal static partial class ProgramLifecycle
         Require(ReferenceEquals(CarrierItem(first, 0), d) && ReferenceEquals(CarrierItem(first, 1), d), "C API模块globals/locals必须为原D");
         Require(ReferenceEquals(CarrierItem(first, 4), CarrierItem(second, 4)), "模块体复用同一carrier frame");
         Require(CarrierText(CarrierItem(first, 2)) == module.File, "C API保留实际模块源文件");
+        // 独立Python A进入无新增CIL帧的普通managed协议；外层模块来源不能覆盖A。
+        module.SetAttr("native_protocol", PyNativeFunctions.CreateVariadic("native_protocol", _ => NativeInvoke(scope, "facts")));
+        Run("""
+import builtins
+protocol_environment={'__builtins__':dict(builtins.__dict__), '__file__':'独立Python A.py', 'callback':native_protocol}
+exec(compile("def check():\n observed=callback()\n assert observed[0] is globals()\n assert observed[1] is not globals()\n assert observed[4].f_builtins is globals()['__builtins__']\n assert observed[3].co_name=='check'\n assert observed[2]=='独立Python A.py'\n", "独立Python A.py", "exec"), protocol_environment)
+protocol_environment['check']()
+del protocol_environment
+""");
         Require(NativeInvoke(callback, "remember") is true, "扩展保存真实frame/code/thunk");
         try { NativeInvoke(callback, "replay"); throw new Exception("活动thunk重复执行未拒绝"); }
         catch (PyRuntimeError error) { Require(error.Message == "compiled execution context already used", "活动重入诊断"); }
@@ -32,6 +41,8 @@ internal static partial class ProgramLifecycle
         Require(CarrierText(CarrierItem(thinFacts, 2)) == "真实 thin 来源.py", "薄函数原生code来源");
         Require(CarrierText(PyObject.GetAttr(thinCode!, "co_name")) == "native_reader", "薄函数原生code名");
         Require(PyObject.GetAttr(thinCode!, "co_firstlineno") is 7L, "薄函数真实定义首行");
+        // 同file/name的真实Python code必须保留python归属，不能继承native code身份。
+        Run("exec(compile('def native_reader(x): return x\\nnative_reader(1)\\n', '真实 thin 来源.py', 'exec'))\n");
         carrierReplay = (PythonObject)callback.GetAttr("replay")!;
         carrierForget = (PythonObject)callback.GetAttr("forget")!;
         // 第二个真实D的嵌套CIL模块现场，返回后恢复A；没有借__main__伪装B。

@@ -194,7 +194,7 @@ pub(super) fn preflight(root: &Path) -> Result<()> {
 /// 在 Linux 上校验 ELF DT_NEEDED 闭包并配置 rpath；
 /// 在 Windows 上校验 PE 导入表，拒绝任何未经授权的外部依赖。
 pub(super) fn relocate(output: &Path) -> Result<()> {
-    relocate_with_components(output, &[])
+    relocate_with_components(output, &[]).map(|_| ())
 }
 
 pub(super) fn check_architecture(path: &Path, rid: &str) -> Result<()> {
@@ -204,14 +204,16 @@ pub(super) fn check_architecture(path: &Path, rid: &str) -> Result<()> {
 pub(super) fn relocate_with_components(
     output: &Path,
     aliases: &[super::components::Alias],
-) -> Result<()> {
+) -> Result<serde_json::Value> {
     let platform = PlatformKind::current()?;
     let shim = platform.shim_name();
     let sys_deps = platform.system_dependencies();
 
     match platform {
         PlatformKind::MacOSArm64 => {
-            platform_relocate::relocate_macos_with_components(output, shim, sys_deps, aliases)?;
+            return platform_relocate::relocate_macos_with_components(
+                output, shim, sys_deps, aliases,
+            );
         }
         PlatformKind::LinuxX64 => {
             platform_relocate::relocate_linux(output, shim, sys_deps)?;
@@ -220,7 +222,7 @@ pub(super) fn relocate_with_components(
             platform_relocate::relocate_windows(output, shim, sys_deps)?;
         }
     }
-    Ok(())
+    Ok(serde_json::json!({"schema":1,"policy":"not_applicable","files":[]}))
 }
 
 /// patchlevel.h 的 PY_VERSION 必须逐段完全匹配选中解释器。

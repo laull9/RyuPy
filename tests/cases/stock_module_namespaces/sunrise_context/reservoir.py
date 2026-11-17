@@ -1,4 +1,3 @@
-# ryupy: pending
 # 同一真实D在多个定义点替换/删除builtins；原生现场与普通名称查找必须读同一捕获。
 import builtins
 import sys

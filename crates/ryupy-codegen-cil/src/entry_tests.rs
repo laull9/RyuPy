@@ -151,7 +151,43 @@ fn provider_entry_start_is_protected_and_every_exit_uses_finish() {
         .flat_map(|ty| &ty.methods)
         .find(|method| method.name == "Main")
         .unwrap();
-    let body = main.body.as_ref().unwrap();
+    let outer = main.body.as_ref().unwrap();
+    assert_eq!(outer.instructions.len(), 4);
+    assert!(
+        outer.data_sections.is_empty(),
+        "关闭必须在已离开异常处理方法之后"
+    );
+    assert!(matches!(
+        outer.instructions[0],
+        Instruction::LoadArgument(0)
+    ));
+    assert!(
+        outer.instructions[1]
+            .show(&resolution)
+            .contains("__run_provider_body")
+    );
+    let finish = outer.instructions[2].show(&resolution);
+    assert!(
+        finish.contains("Bootstrap") && finish.contains("Finish"),
+        "{finish}"
+    );
+    assert!(matches!(outer.instructions[3], Instruction::Return));
+    let inner = resolution
+        .type_definitions
+        .iter()
+        .flat_map(|ty| &ty.methods)
+        .find(|method| method.name == "__run_provider_body")
+        .unwrap();
+    assert!(
+        inner.no_inlining,
+        "真实PE必须标记NoInlining，避免AOT重新合并EH强根"
+    );
+    assert!(matches!(
+        inner.accessibility,
+        MemberAccessibility::Access(Accessibility::Private)
+    ));
+    let body = inner.body.as_ref().unwrap();
+    assert!(body.header.initialize_locals);
     assert!(
         body.instructions[5]
             .show(&resolution)
@@ -163,10 +199,12 @@ fn provider_entry_start_is_protected_and_every_exit_uses_finish() {
         start.contains("Bootstrap") && start.contains("Start"),
         "{start}"
     );
-    let finish = body.instructions[24].show(&resolution);
+    assert!(matches!(body.instructions[23], Instruction::LoadLocal(0)));
+    assert!(matches!(body.instructions[24], Instruction::Return));
     assert!(
-        finish.contains("Bootstrap") && finish.contains("Finish"),
-        "{finish}"
+        body.instructions
+            .iter()
+            .all(|instruction| !instruction.show(&resolution).contains("::Finish"))
     );
     let body::DataSection::ExceptionHandlers(handlers) = &body.data_sections[0] else {
         panic!("缺少入口异常表");

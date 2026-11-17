@@ -94,6 +94,9 @@ pub(crate) fn validate(function: &Function) -> Result<(), String> {
         active: frame,
         caught: frame,
         pc: frame,
+        state: frame,
+        result: None,
+        frame_ops: FxHashSet::default(),
         original: layout.saved_locals.len(),
         seen: FxHashSet::default(),
         role_writes: FxHashSet::default(),
@@ -102,7 +105,12 @@ pub(crate) fn validate(function: &Function) -> Result<(), String> {
     check.restore(layout)?;
     for (label, id) in layout.original_blocks.iter().enumerate() {
         let source = check.body(*id)?;
-        if source.stmts.is_empty() && source.terminator == Terminator::Unreachable && !check.reachable.contains(id) { continue; }
+        if source.stmts.is_empty()
+            && source.terminator == Terminator::Unreachable
+            && !check.reachable.contains(id)
+        {
+            continue;
+        }
         if !matches!(source.stmts.first(), Some(Statement::Assign {dest,value:Rvalue::Use(Operand::Const(Constant::I64(actual)))})
             if *dest==check.active && *actual==label as i64)
         {
@@ -147,20 +155,9 @@ pub(crate) fn validate(function: &Function) -> Result<(), String> {
     }
     for (route_index, route) in layout.exception_routes.iter().enumerate() {
         let (upper, next) = check.comparison(dispatch, check.active, BinOp::Ge, route.start)?;
-        let (mut choose, upper_next) = check.comparison(
-            upper,
-            check.active,
-            BinOp::Lt,
-            route
-                .start
-                .checked_add(route.length as i64)
-                .ok_or("逻辑窗口溢出")?,
-        )?;
-        if next != upper_next
-            || route.length == 0
-            || route.start < 0
-            || route.start as usize + route.length > layout.original_blocks.len()
-        {
+        let end = window_end(route, layout.original_blocks.len())?;
+        let (mut choose, upper_next) = check.comparison(upper, check.active, BinOp::Lt, end)?;
+        if next != upper_next {
             return Err("逻辑区间上下界或不匹配边非法".into());
         }
         choose = check.typed(
@@ -216,6 +213,7 @@ pub(crate) fn validate(function: &Function) -> Result<(), String> {
     if retry.terminator != Terminator::Return(Some(Operand::Local(signal))) {
         return Err("Retry没有返回实际哨兵".into());
     }
+    check.mark_frame_ops(block(region.try_len + 2), 0, retry.stmts.len());
     check.catch_reads(layout)?;
     check.exits(layout, &types, region.try_len)?;
     let mut source_ids = FxHashSet::default();
@@ -252,6 +250,9 @@ pub(super) struct Check<'a> {
     pub(super) active: LocalId,
     pub(super) caught: LocalId,
     pub(super) pc: LocalId,
+    pub(super) state: LocalId,
+    pub(super) result: Option<LocalId>,
+    pub(super) frame_ops: FxHashSet<(BlockId, usize)>,
     pub(super) original: usize,
     pub(super) seen: FxHashSet<BlockId>,
     pub(super) reachable: FxHashSet<BlockId>,
@@ -262,6 +263,17 @@ impl<'a> Check<'a> {
         (number(id) < self.function.body.blocks.len())
             .then(|| &self.function.body.blocks[id])
             .ok_or_else(|| "实际CFG块越界".into())
+    }
+    pub(super) fn mark_frame_ops(&mut self, id: BlockId, start: usize, end: usize) {
+        for index in start..end {
+            if let Some(Statement::Assign { value, .. } | Statement::Eval(value)) =
+                self.function.body.blocks[id].stmts.get(index)
+                && matches!(value,Rvalue::Call {callee:Callee::Runtime(RuntimeFn::ArrayGet | RuntimeFn::ArraySet),args}
+                    if matches!(args.first(),Some(Operand::Local(frame)) if *frame==self.frame))
+            {
+                self.frame_ops.insert((id, index));
+            }
+        }
     }
     pub(super) fn private(&self, id: LocalId, ty: MirType) -> Result<(), String> {
         if id.into_raw().into_u32() as usize <= self.original
@@ -360,13 +372,17 @@ impl<'a> Check<'a> {
             &[Operand::Local(self.frame), Operand::Const(Constant::I64(0))],
         )?;
         self.private(object, MirType::Dynamic)?;
+        let state_position = cursor.position;
         let (state, value) = cursor.assignment()?;
+        self.state = state;
+        self.role_writes.insert((block(0), state_position));
         self.private(state, MirType::I64)?;
         if !matches!(value,Rvalue::Unbox{value:Operand::Local(input),to:MirType::I64}if *input==object)
         {
             return Err("恢复PC未读实际frame首槽".into());
         }
         cursor.end()?;
+        self.mark_frame_ops(block(0), 0, entry.stmts.len());
         let Terminator::Goto(mut dispatch) = entry.terminator else {
             return Err("恢复入口未到实际PC分派".into());
         };
@@ -382,7 +398,6 @@ impl<'a> Check<'a> {
         }
         Ok(())
     }
-
 }
 
 /// 路由证据只含内域块/局部；唯一跨域的typed目标与真实块一起由同一global映射重写。
@@ -390,17 +405,19 @@ pub(crate) fn remap(
     contracts: &[SourceHandlerContract],
     globals: &rustc_hash::FxHashMap<GlobalId, GlobalId>,
 ) -> Vec<SourceHandlerContract> {
-    let mut evidence = None;
+    let mut evidence = rustc_hash::FxHashMap::default();
     contracts
         .iter()
         .map(|contract| {
             let mut contract = contract.clone();
             if let Some(old) = &contract.generator {
-                let replacement = evidence.get_or_insert_with(|| {
+                let replacement = evidence.entry(Arc::as_ptr(old)).or_insert_with(|| {
                     let mut value = (**old).clone();
                     for target in value.typed_targets.iter_mut().flatten() {
                         if let Operand::Global(id) = target {
-                            if let Some(replacement) = globals.get(id) { *id = *replacement; }
+                            if let Some(replacement) = globals.get(id) {
+                                *id = *replacement;
+                            }
                         }
                     }
                     Arc::new(value)
@@ -413,17 +430,88 @@ pub(crate) fn remap(
 }
 
 /// CFG清理可以删真正不可达块；实际handler与所有恢复PC必须通过最终真实边保持可达。
-fn reachable(function:&Function)->Result<FxHashSet<BlockId>,String>{
-    let mut result=FxHashSet::default();let mut queue=vec![function.body.entry];
-    queue.extend(function.body.regions.iter().map(|region|region.handler));
-    while let Some(id)=queue.pop(){
-        if number(id)>=function.body.blocks.len(){return Err("最终CFG目标越界".into());}
-        if !result.insert(id){continue;}
-        match function.body.blocks[id].terminator{
-            Terminator::Goto(target)|Terminator::Suspend{resume:target,..}=>queue.push(target),
-            Terminator::Branch{then_,else_,..}=>{queue.push(then_);queue.push(else_);},
-            _=>{}
+fn reachable(function: &Function) -> Result<FxHashSet<BlockId>, String> {
+    let mut result = FxHashSet::default();
+    let mut queue = vec![function.body.entry];
+    queue.extend(function.body.regions.iter().map(|region| region.handler));
+    while let Some(id) = queue.pop() {
+        if number(id) >= function.body.blocks.len() {
+            return Err("最终CFG目标越界".into());
+        }
+        if !result.insert(id) {
+            continue;
+        }
+        match function.body.blocks[id].terminator {
+            Terminator::Goto(target) | Terminator::Suspend { resume: target, .. } => {
+                queue.push(target)
+            }
+            Terminator::Branch { then_, else_, .. } => {
+                queue.push(then_);
+                queue.push(else_);
+            }
+            _ => {}
         }
     }
     Ok(result)
+}
+
+/// 声明数据和坏IR均走显式拒绝；先证整数域再运算，防usize窗口溢出与i64截断。
+fn window_end(
+    route: &crate::trace_lowering::FrameCatchRoute,
+    blocks: usize,
+) -> Result<i64, String> {
+    let length = i64::try_from(route.length).map_err(|_| "逻辑窗口长度超出PC整数域")?;
+    let start = usize::try_from(route.start).map_err(|_| "逻辑窗口起点不是非负索引")?;
+    let end = start.checked_add(route.length).ok_or("逻辑窗口索引溢出")?;
+    if route.length == 0 || end > blocks {
+        return Err("逻辑窗口越过实际源块".into());
+    }
+    route
+        .start
+        .checked_add(length)
+        .ok_or_else(|| "逻辑窗口PC溢出".into())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn oversized_and_out_of_range_windows_remain_diagnostics_after_ir_mutation() {
+        for (start, length) in [(0, usize::MAX), (i64::MAX, 2), (-1, 1), (0, 0), (0, 10000)] {
+            let mut program=crate::provider_namespace_tests::compile("def source():\n    try:\n        yield 1\n    except ValueError:\n        yield 2\n",true).unwrap();
+            let function = program
+                .functions
+                .iter_mut()
+                .find_map(|(_, function)| {
+                    matches!(
+                        function.module_state_source,
+                        Some(InstanceStateSource::GeneratorFrame { .. })
+                    )
+                    .then_some(function)
+                })
+                .unwrap();
+            let mut evidence = (**function.body.source_handler_contracts[0]
+                .generator
+                .as_ref()
+                .unwrap())
+            .clone();
+            evidence.layout.exception_routes[0].start = start;
+            evidence.layout.exception_routes[0].length = length;
+            assert!(
+                window_end(
+                    &evidence.layout.exception_routes[0],
+                    evidence.layout.original_blocks.len()
+                )
+                .is_err()
+            );
+            let evidence = Arc::new(evidence);
+            for contract in &mut function.body.source_handler_contracts {
+                contract.generator = Some(evidence.clone());
+            }
+            assert!(
+                crate::validate::validate(&program).is_err(),
+                "{start}/{length}"
+            );
+        }
+    }
 }

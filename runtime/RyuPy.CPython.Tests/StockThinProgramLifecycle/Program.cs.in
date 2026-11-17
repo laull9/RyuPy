@@ -352,6 +352,7 @@ atexit.register(check_frames)
     {
         Require(RuntimeFeature.IsDynamicCodeSupported == (args[2] == "jit"), "实际JIT/NativeAOT模式与命令一致");
         mode = args[1];
+        if (mode is "ordinary-alias" or "ordinary-finalizer") return OrdinaryCloseCase(args[0], mode == "ordinary-finalizer");
         if (mode is "ordinary-error" or "ordinary-error-gc") return OrdinaryErrorCase(args[0], mode == "ordinary-error-gc");
         if (mode is "namespace-builtins" or "entry-builtins") return NamespaceBuiltins(args[0], mode == "entry-builtins");
         if (mode == "no-host")

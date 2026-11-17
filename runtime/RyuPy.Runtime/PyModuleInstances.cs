@@ -76,10 +76,11 @@ public static partial class PyModuleInstances
         state.Set("__name__", code.Name); state.Set("__package__", code.Package);
         state.Set("__file__", code.File); state.Set("__doc__", PyNone.Instance);
         // 外来 profile 在 Execute 捕获环境之前提供 canonical builtins，避免顶层与新 F 分属两份字典。
-        object builtins = PyModuleBuiltins.Default;
+        object builtins;
         if (foreign is not null && PyProvider.Current is IPyCompiledBuiltinsProvider builtinProvider
             && builtinProvider.TryGetCompiledBuiltins(out var supplied))
             builtins = supplied?.ViewObject ?? throw new PyRuntimeError("compiled builtins has no dictionary identity");
+        else builtins = PyModuleBuiltins.Default;
         state.Set("__builtins__", builtins);
         foreach (string name in new[] { "__spec__", "__loader__", "__cached__", "__path__" })
         {
@@ -158,7 +159,9 @@ public static partial class PyModuleInstances
     {
         var context = Context(state);
         if (context.State.TryGet(name, out var value) || context.TryBuiltin(name, out value)) return value;
-        if (ReferenceEquals(context.Builtins, PyModuleBuiltins.Default) && PyModuleBuiltins.IsUnsupported(name))
+        // 外来namespace缺名直接按NameError处理，无需为比较身份先构造另一执行域的默认字典。
+        if (context.Builtins is PyDict && ReferenceEquals(context.Builtins, PyModuleBuiltins.Default)
+            && PyModuleBuiltins.IsUnsupported(name))
             throw new PyNotImplementedError($"builtin '{name}' is not implemented");
         throw new PyNameError($"name '{name}' is not defined");
     }

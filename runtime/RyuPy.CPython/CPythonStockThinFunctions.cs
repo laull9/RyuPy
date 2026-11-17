@@ -197,6 +197,7 @@ public sealed partial class CPythonHost : IPyStockThinFunctionProvider
             host.PullContainers();
             object? value;
             using (new StockBodyScope(environment))
+            using (new ManagedCarrierCallbackScope(depth))
                 value = core.Invoke(environment, environment.ConvertBorrowed(argument));
             host.PushContainers();
             result = environment.ExportResult(value);

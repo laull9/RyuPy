@@ -1,4 +1,3 @@
-# ryupy: pending
 # 不同命名与数据布局：工厂内创建函数、同D重绑、删除后旧捕获仍由CAPI可见。
 import builtins
 import sys
@@ -11,7 +10,8 @@ alternate['abs'] = lambda value: 70 + standard['abs'](value)
 def create(expected):
     def examine(value):
         return (sys._getframe().f_globals is namespace,
-                sys._getframe().f_builtins is expected, abs(value), '__builtins__' not in namespace)
+                sys._getframe().f_builtins is expected, abs(value), '__builtins__' not in namespace,
+                standard['type'](sys._getframe().f_builtins) is standard['dict'])
     return examine
 
 old = create(standard)

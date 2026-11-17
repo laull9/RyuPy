@@ -8,7 +8,7 @@ python3.12 -B tests/cpython/stock_module_namespaces.py \
   --cli target/debug/ryupy --python /absolute/cpython3.12 --mode all
 ```
 
-公开选择参数为 `--cpython-provider auto --experimental-stock-module-namespaces`。Runner 的 `--case eager`、`--case annotations`、`--case harbor_pair`、`--case frost_pair`、`--case generators` 可分别验证；`--mode jit` / `standalone` 指定形态，默认两种。
+公开选择参数为 `--cpython-provider auto --experimental-stock-module-namespaces`。Runner 的 `--case` 可分别选择下述任一case；`--mode jit` / `standalone` 指定形态，默认两种。
 
 每个产品先用固定CPython即时运行同一套手写多模块输入，再调用真实CLI。读取实际 `cpython-provider.json` 中 `dependency_collection.module_namespaces`，要求源码全部已编译、使用InstanceGlobals/provider_namespace，入口及本地模块没有业务源码委派。随后删除源码、venv和构建树，仅搬迁公开产品，在空PATH和失效Python环境下执行，严格比较退出码/stdout/stderr，并审计实际原生路径与Host关闭计数。日志保存在仓库外 `~/.cache/ryupy/validation/stock-module-namespaces`；临时产品自动清理。
 
@@ -25,4 +25,20 @@ yield-from的完整返回值与再次耗尽、定义点捕获builtins、外部�
 真实产品曾发现tp_iternext的布尔迭代接口吞掉终值，修复后原输入完整保留；
 MIR另有真实恢复体与三个修改来源/槽位的拒绝测试。
 
-尚未实现的NamedExpr保留完整输入 `tests/cases/stock_module_namespaces/pending/eager_walrus.py`，继续精确E0100。`pending/eager_capi_builtins.py` 保留完整CAPI frame的 `f_builtins` 差分：模块急切推导式在字典重绑/删除后保留原快照；普通函数在定义点捕获新字典后，候选CAPI现场仍沿外层模块字典，双版即时CP期望True、候选False。普通CIL名称查找快照的正例沿 `eager` 独立验收。同步生成器及生成器表达式由 `generators` 场景单独验收；生成器/类体handler、PEP695、dataclass及既有类体推导式边界持续由相应预检/降级诊断保护。
+`sunrise_context` / `quartz_context` 专门验收函数定义点的CAPI globals/builtins。输入包含定义前后字典替换/删除、字面量dict的既有桥接投影、嵌套定义、不同捕获的重入、异常同对象，以及显式Python函数A→CIL函数B→原生调用后恢复A现场。函数内部检查真实D中缺少 `__builtins__`，约束临时写回业务字典的实现。原始差分输入完整保留为 `sunrise_context/inherited_frame.py`。双版JIT/NativeAOT八产品通过，日志为 `20261117T121951.009514Z.json` 与 `20261117T122126.203157Z.json`。`quartz_context` 另用原版CPython的type/dict验证canonical、foreign和literal三类捕获的f_builtins精确dict类型；auto的Synchronized投影四产品通过，日志为 `20261117T122218.500702Z.json` 与 `20261117T122351.389323Z.json`。
+
+尚未实现的NamedExpr保留完整输入 `tests/cases/stock_module_namespaces/pending/eager_walrus.py`，继续精确E0100。类体handler、PEP695、dataclass及既有类体推导式边界持续由相应预检/降级诊断保护。完整函数locals、逐语句原生frame行号等字段继续按独立frame合同推进。
+
+`courier_hooks` / `marsh_hooks` 使用独立命名及平面/嵌套package布局，验证每条IMPORT_NAME
+活读当前捕获builtins中的实际hook：模块传D/D，当前未物化locals的普通函数传D/None；
+name/fromlist/level保原语法，返回值可以是任意对象。一次整批fromlist调用后按源码顺序
+IMPORT_FROM并立即绑定，后项失败保留前缀；属性缺失才读同一sys.modules缓存，缓存None
+与缺项分开，getter其它异常保身份。输入覆盖hook替换、删除/None、dotted-as遍历、相对
+层级、错误name/path与副作用轨迹。双版JIT/NativeAOT八产品通过。class import的prepared
+namespace、fromlist常量元组身份共享与3.13 shadowing错误提示细节仍按有限合同单列。
+
+`inlet_handlers` / `quarry_handlers` 验证生成器源码动态handler：throw对象身份、暂停后
+Name/tuple/属性目标重绑、as局部删除、getter异常越过同级、嵌套handler中的当前异常，
+以及for/with的continue和close清理。双版JIT/NativeAOT八产品通过；MIR独立核验实际
+物理catch→区间首次匹配→handler PC→Retry槽保存→恢复分派与异常槽读取/清除，含20组
+破坏输入。旧Instance的生成器handler资格保持原诊断。详细决定见ADR-0237。

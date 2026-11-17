@@ -31,6 +31,13 @@ yield-from的真实终值与再次耗尽，以及同名callee一次求值和对�
 context来源、保存邻槽及恢复邻槽的破坏拒绝。产品日志分别为
 `20261117T115007.910822Z.json`与`20261117T115742.698468Z.json`。
 
+生成器源码except链随后补齐最终逻辑路由证明：逐项核对实际active窗口、typed匹配、
+handler PC、Retry的私有帧/待接异常写入、恢复分派和Catch槽清理，保原for/with合成
+StopIteration路由。可达根包含真实EH入口；只豁免最终CFG确不可达的已清空块。
+二十项实际IR变异涵盖错误区间、异常/PC仍可达块、整数溢出及恢复槽，均明确拒绝。
+两独立多模块输入双版JIT/AOT八产品通过：`20261117T121559.974900Z.json`、
+`20261117T121625.617702Z.json`、`20261117T121625.617720Z.json`。
+
 ## 导入钩子与原生窗口
 
 实际导入读取本次捕获builtins中的hook并仅调用一次，保留五实参、真实globals、普通
@@ -48,6 +55,9 @@ context来源、保存邻槽及恢复邻槽的破坏拒绝。产品日志分别�
 `20261117T115636.399118Z`、`20261117T115851.074664Z`、
 `20261117T115851.074451Z`。完整原入口及原GUI业务按其实际后续阻塞分别登记。
 
+首轮窗口探针通过QTimer在`app.exec()`约300ms后截图并退出。用户随后实际观察到鼠标
+持续加载，验收已追加持续心跳、真实鼠标/键盘输入及原生关闭事件；这一组交互正在验证。
+
 主审发现IMPORT_FROM的name_from布局只存在于3.12+，无版本守卫会破坏旧provider。
 保留七版preflight中3.9–3.11失败记录，补真实头文件版本条件后3.9–3.15严格native
 编译全部通过；日志`generic-interfaces-20261117/native-versions-guarded.json`。
@@ -61,7 +71,26 @@ context来源、保存邻槽及恢复邻槽的破坏拒绝。产品日志分别�
 0.121ms，字符串近乎持平。原不利数据、CPU/RSS分列与六输入范围完整保留于ADR-0238。
 修复在独立worktree完整make check通过后以`207ebd6c`提交并推送。
 
-权威namespace/carrier的新函数builtins与Python回调进入CIL来源仍在联合收尾：原红测
-分别实际观察到定义点builtins被外层模块覆盖，以及Python A→CIL B→CAPI仍读A环境。
-完整原输入、退出码与原生计数保留。最终联合完整门、函数现场产品复验和必要边界成本
-在冻结实现后追加；C1–C4完整业务闭包和默认晋升继续按各自门槛验收。
+函数定义点builtins与Python回调来源现已完成有限合同：两套独立模块输入双版JIT/AOT
+八产品通过，原pending原样迁入四模块sunrise场景；canonical、外来及字面量builtins
+均补验真实CP dict类型，四产品通过。日志为`20261117T121951.009514Z.json`、
+`20261117T122126.203157Z.json`、`20261117T122218.500702Z.json`、
+`20261117T122351.389323Z.json`。Runtime相关41项及冷边界两项通过。
+
+来源选择区分真正新CIL帧和Python内部协议。Python A调用CIL B时切到B的真实D及
+定义点builtins，返回后恢复A；无新增CIL帧的协议回调保持A的globals/locals/builtins及
+code/file，反向四产品亦通过。CLR错误展开残留的诊断帧在错误导出期不能取得现场切换权。
+运行期载体在业务执行前以对应版本真实PyFunctionObject布局安装owned func_builtins，
+业务D保持原样；该布局使用目标头文件构建，七版本严格编译已复验。
+
+完整函数frame仍有明确待做项：原样差分中CP为`(True,17,'read_frame',8)`，候选为
+`(True,None,'<module>',1)`，对应globals已正确，locals/name/line继续开发。真实异常
+产品另发现CLR入口EH强根延迟释放载体；入口现用NoInlining私有内层结束catch栈，外层
+再执行Finish；十二个双版JIT/AOT搬迁产品已通过RuntimeError、字符串SystemExit及原生
+KeyError的退出码/stdout/错误末行核验，真实carrier/token/origin均为零。完整frame四项
+继续保原语义红测，其关闭计数已为零。产品索引为仓外
+`~/.cache/ryupy/validation/ownership-carrier-final-20261117.json`。
+
+完整ExplorerPro新profile已越过生成器except，当前到archive_service.py的实例
+dataclass合同。原完整入口、原业务probe、窗口交互与各发布形态分别登记。最终联合
+完整门及必要边界成本在冻结实现后追加；C1–C4完整闭包和默认晋升按各自门槛验收。

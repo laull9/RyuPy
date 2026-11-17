@@ -6,11 +6,11 @@
 #include "code_origin.h"
 #include "call_carrier.h"
 static PyObject *run(PyObject *self, PyObject *args) {
-    (void)self; PyObject *globals, *filename, *target;
-    if (!PyArg_ParseTuple(args,"OOO",&globals,&filename,&target)) return NULL;
+    (void)self; PyObject *globals, *filename, *target, *builtins = NULL;
+    if (!PyArg_ParseTuple(args,"OOO|O",&globals,&filename,&target,&builtins)) return NULL;
     RpCallCarrier *context = PyMem_Calloc(1,sizeof(*context));
     if (!context) return PyErr_NoMemory();
-    rp_carrier_live++; context->state=1;
+    rp_carrier_live++; context->state=1; context->captured_builtins=Py_XNewRef(builtins);
     context->target=Py_NewRef(target); context->args=PyTuple_New(0);
     if (!context->args) { rp_carrier_close(context); PyMem_Free(context); rp_carrier_live--; return NULL; }
     return rp_carrier_run(context,globals,filename);

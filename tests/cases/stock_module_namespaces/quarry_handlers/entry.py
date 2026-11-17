@@ -1,4 +1,3 @@
-# ryupy: pending
 # 独立布局：with/for中的continue、关闭finally、嵌套throw及tuple属性目标活读。
 import quarry_flow as flow
 import quarry_types as kinds
