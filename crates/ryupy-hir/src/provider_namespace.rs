@@ -118,4 +118,21 @@ mod tests {
                 .any(|d| d.message.contains("del目标"))
         );
     }
+
+    #[test]
+    fn dataclasses_use_runtime_decorator_only_in_provider_namespace() {
+        let source = "from dataclasses import dataclass, field\n@dataclass(frozen=True)\nclass Entry:\n    name: str\n    tags: list = field(default_factory=list)\n";
+        let (module, errors) = lower(source, true);
+        assert!(errors.is_empty(), "{errors:?}");
+        let cls = module.classes.iter().next().unwrap().1;
+        assert!(!cls.is_dataclass);
+        assert!(cls.has_annotations);
+        assert!(matches!(cls.decorators.as_slice(), [crate::Decorator::Expr(_)]));
+        assert!(
+            lower(source, false)
+                .1
+                .iter()
+                .any(|d| d.message.contains("实例dataclass"))
+        );
+    }
 }

@@ -88,7 +88,11 @@ pub fn lower_module_with_native_exceptions(
             &parsed.module.body,
             native_exceptions,
         ),
-        dataclass_markers: crate::decorators::dataclass_markers(&parsed.module.body),
+        dataclass_markers: if info.instance_capabilities.provider_namespace {
+            Default::default()
+        } else {
+            crate::decorators::dataclass_markers(&parsed.module.body)
+        },
         ..GlobalScope::default()
     };
 

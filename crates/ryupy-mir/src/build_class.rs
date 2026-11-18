@@ -245,6 +245,7 @@ impl FunctionBuilder<'_> {
         if !conditional
             && !matches!(base, Some(ClassBase::TypedDict { .. }))
             && !self.hir.classes[cls_id].declared_fields.is_empty()
+            && !self.hir.info.instance_capabilities.provider_namespace
         {
             self.push_stmt(Statement::Eval(Rvalue::Call {
                 callee: Callee::Runtime(RuntimeFn::DeclareDataclass),
