@@ -333,6 +333,7 @@ impl Solver<'_> {
                 }
                 h::StmtKind::Expr(_)
                 | h::StmtKind::Pass
+                | h::StmtKind::SetupAnnotations
                 | h::StmtKind::FunctionDefaults(_)
                 | h::StmtKind::ClassDef(_)
                 | h::StmtKind::Try { .. } => {}

@@ -208,6 +208,7 @@ fn explicit_aot_class_guard_no_cell_and_old_path_contract() {
             let info = ryupy_hir::ModuleInfo {
                 instance_globals: true,
                 instance_capabilities: ryupy_base::InstanceCapabilities {
+                    provider_namespace: false,
                     aot_class_guards: admitted,
                     ..Default::default()
                 },

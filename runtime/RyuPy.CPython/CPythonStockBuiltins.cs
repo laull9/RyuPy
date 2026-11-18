@@ -1,5 +1,5 @@
-// stock 薄函数编译入口共享原 CP builtins；规范 globals/import 守卫仅比较受 owned 保护的原对象。
-// 初始化发生在入口 owned 事务内，普通 provider 路径未启用时完全沿用旧环境。
+// 真实CP模块字典共享canonical builtins；规范globals/import守卫比较初始化时保留的原对象。
+// namespace分配与薄函数能力分别授权，未创建真实namespace的旧provider保原环境。
 using RyuPy.Runtime;
 
 namespace RyuPy.CPython;
@@ -7,31 +7,31 @@ namespace RyuPy.CPython;
 public sealed partial class CPythonHost : IPyCompiledBuiltinsProvider
 {
     private IPyModuleNamespace? stockBuiltins;
-    private PythonObject? stockGlobalsBuiltin, stockImportBuiltin;
+    private PythonObject? stockGlobalsBuiltin, stockImportBuiltin, stockBuildClassBuiltin;
 
     /// <inheritdoc />
     public bool TryGetCompiledBuiltins(out IPyModuleNamespace? builtins)
     {
-        if (!stockThinEnabled) { builtins = null; return false; }
+        if (!stockThinEnabled && !stockNamespaceCreated) { builtins = null; return false; }
         builtins = PythonCall(() =>
         {
             if (stockBuiltins is not null) return stockBuiltins;
-            // 直接读取内建 module 的真实 md_dict；不通过可覆盖的 __dict__ 属性。
-            var module = new PythonObject(this, Check(Native.rp_op(1, s: "builtins")));
+            // 共享原字典的活内容，规范callable另用初始化见证；用户提前替换也不能冒领规范身份。
+            object dictionary = FromOwned(Check(ModuleNamespaceNative.rp_initial_builtins()))
+                ?? throw new PyRuntimeError("initial builtins dictionary returned null");
+            PythonObject? globals = null, importer = null, buildClass = null;
             try
             {
-                var dictionary = StockModuleNamespace(module);
-                var globals = new PythonObject(this, Check(Native.rp_builtin("globals")));
-                try
-                {
-                    var importer = new PythonObject(this, Check(Native.rp_builtin("__import__")));
-                    stockGlobalsBuiltin = globals; stockImportBuiltin = importer;
-                    stockBuiltins = dictionary;
-                    return dictionary;
-                }
-                catch { globals.Dispose(); throw; }
+                var storage = StockModuleNamespace(dictionary);
+                globals = new PythonObject(this, Check(ModuleNamespaceNative.rp_initial_builtin("globals")));
+                importer = new PythonObject(this, Check(ModuleNamespaceNative.rp_initial_builtin("__import__")));
+                buildClass = new PythonObject(this, Check(ModuleNamespaceNative.rp_initial_builtin("__build_class__")));
+                stockGlobalsBuiltin = globals; stockImportBuiltin = importer; stockBuildClassBuiltin = buildClass;
+                stockBuiltins = storage;
+                globals = null; importer = null; buildClass = null;
+                return storage;
             }
-            finally { module.Dispose(); }
+            finally { buildClass?.Dispose(); importer?.Dispose(); globals?.Dispose(); }
         });
         return true;
     }
@@ -40,7 +40,7 @@ public sealed partial class CPythonHost : IPyCompiledBuiltinsProvider
     public bool TryGetCompiledBuiltinsNamespace(object value, out IPyModuleNamespace? builtins)
     {
         builtins = null;
-        if (!stockThinEnabled || value is not PythonObject foreign || foreign.IsDisposed
+        if ((!stockThinEnabled && !stockNamespaceCreated) || value is not PythonObject foreign || foreign.IsDisposed
             || !ReferenceEquals(foreign.Host, this)) return false;
         // StockModuleNamespace 只适配 exact dict / module；非法值保持其真实 TypeError。
         builtins = StockModuleNamespace(foreign);
@@ -54,6 +54,7 @@ public sealed partial class CPythonHost : IPyCompiledBuiltinsProvider
         {
             "globals" => stockGlobalsBuiltin,
             "__import__" => stockImportBuiltin,
+            "__build_class__" => stockBuildClassBuiltin,
             _ => null,
         };
         // 终态包装已交还 owned 权利；不能读取失效 Pointer，也不缓存悬空原地址。

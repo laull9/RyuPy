@@ -298,6 +298,8 @@ pub enum StmtKind {
     Break,
     Continue,
     Pass,
+    /// 在真实模块D中执行SETUP_ANNOTATIONS，不覆盖已存在的对象。
+    SetupAnnotations,
     /// 内部节点：普通静态绑定def的执行点，准备默认值/注解并创建、发布新函数。
     ///
     /// Python 在 `def` 执行时求值默认值；把它保留成一条语句（而不是统一提到开头），

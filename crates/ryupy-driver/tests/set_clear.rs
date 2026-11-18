@@ -120,7 +120,10 @@ fn execute(
     )
     .unwrap();
     let artifact = result.unwrap();
-    let result = ryupy_driver::dotnet::run_dll(&artifact.dll);
+    let result = ryupy_driver::dotnet::run_executable_with(
+        artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+        &Default::default(),
+    );
     std::fs::write(
         root.0.join("jit.result.txt"),
         match &result {

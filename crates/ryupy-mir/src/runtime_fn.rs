@@ -89,6 +89,8 @@ pub enum RuntimeFn {
     InstanceDeleteName,
     InstanceExecutionSource,
     InstanceCaptureDefinitionContext,
+    /// 真实模块D的SETUP_ANNOTATIONS；缺键才建立目标域字典。
+    InstanceSetupAnnotations,
     InstanceDefinitionModule,
     InstanceClassGuard,
     /// 类体/普通终结之后，词法class cell填充之前的冷能力检查。
@@ -96,6 +98,10 @@ pub enum RuntimeFn {
     InstanceMakeClass,
     /// 每次真实import消费前检查该frame捕获的导入函数。
     InstanceImportGuard,
+    /// 真实捕获builtins中活读hook；模块D/D，普通函数D/None，返回任意Python值。
+    InstanceImportName,
+    /// 原生IMPORT_FROM：属性访问、权威sys.modules缓存回退及ImportError字段。
+    InstanceImportAttribute,
     /// 两阶段运行期相对导入；仅显式实例能力可调用。
     InstanceRelativeImport,
     InstanceRelativeImportAttr,

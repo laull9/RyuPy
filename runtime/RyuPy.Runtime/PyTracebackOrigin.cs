@@ -8,11 +8,15 @@ internal sealed class ModuleExecutionSource
     internal readonly object Module;
     internal readonly CompiledCodeSource? Source;
     internal readonly object? Globals;
+    // 只有具context的新来源捕获；旧构造器保持未知，不能从可变globals反推快照。
+    internal readonly object? Builtins;
     internal readonly object EntryModule;
     // 旧ABI的原值语义保持，不将字符串重新解释为代码或注册名。
     internal ModuleExecutionSource(object? module) => Module = EntryModule = module ?? PyNone.Instance;
     internal ModuleExecutionSource(object module, CompiledCodeSource source, object? globals, object entry)
     { Module = module; Source = source; Globals = globals; EntryModule = entry; }
+    internal ModuleExecutionSource(object module, CompiledCodeSource source, object globals, object entry,
+        object builtins) : this(module, source, globals, entry) => Builtins = builtins;
 }
 
 public static partial class PyTraceback

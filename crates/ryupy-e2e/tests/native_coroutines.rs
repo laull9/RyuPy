@@ -82,7 +82,10 @@ fn differential_mode(name: &str, aot: bool) {
         let moved = output.0.join("中文 搬迁");
         std::fs::rename(product, &moved).unwrap();
         // 完整删除构建目录，再从新位置执行真实原生产物。
-        std::fs::remove_dir_all(output.0.join("product")).unwrap();
+        let remaining = output.0.join("product");
+        if remaining.exists() {
+            std::fs::remove_dir_all(remaining).unwrap();
+        }
         Command::new(moved.join(executable.file_name().unwrap()))
             .current_dir(&moved)
             .output()

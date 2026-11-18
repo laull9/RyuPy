@@ -1,10 +1,12 @@
 //! 显式退出回调的真实进程验收：保原退出码、错误继续、不关闭未注册流。
+#[path = "../src/test_temp.rs"]
+mod layout_temp;
 use ryupy_driver::{BuildOptions, Session};
 
 #[test]
 fn atexit_runs_for_all_python_exit_paths_and_preserves_status() {
     let root = ryupy_driver::runtime::workspace_root();
-    let directory = std::env::temp_dir().join(format!("ryupy_atexit_{}", std::process::id()));
+    let directory = layout_temp::Root::new("atexit-exit");
     std::fs::create_dir_all(&directory).unwrap();
     let mut session = Session::default();
     let artifact = ryupy_driver::build(
@@ -29,11 +31,11 @@ fn atexit_runs_for_all_python_exit_paths_and_preserves_status() {
         ("no_close", 0),
         ("flush_error", 120),
     ] {
-        let output = std::process::Command::new(ryupy_driver::dotnet::dotnet_exe())
-            .arg(&artifact.dll)
-            .arg(mode)
-            .output()
-            .unwrap();
+        let output =
+            std::process::Command::new(artifact.native_exe.as_ref().expect("应用必须有公开入口"))
+                .arg(mode)
+                .output()
+                .unwrap();
         let stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
         assert_eq!(output.status.code(), Some(code), "{mode}: {stderr}");

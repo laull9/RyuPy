@@ -1,10 +1,13 @@
 //! TypedDict专用构建只接受真实基值；条件导入与可变别名不能绕过运行时检查。
+#[path = "../src/test_temp.rs"]
+mod layout_temp;
 use ryupy_driver::{Session, Stage};
 mod support;
 
 #[test]
 fn snapshot_typed_dict_uses_private_shell_then_atomic_binding() {
-    let path = std::env::temp_dir().join("ryupy_typed_dict_snapshot.py");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let path = _layout_temp.join("ryupy_typed_dict_snapshot.py");
     std::fs::write(
         &path,
         "from typing import TypedDict\nclass Record(TypedDict, total=False):\n    x: int\n",
@@ -59,7 +62,8 @@ fn snapshot_typed_dict_uses_private_shell_then_atomic_binding() {
 
 #[test]
 fn rebound_root_and_unexecuted_import_do_not_fabricate_types() {
-    let root = ryupy_driver::runtime::workspace_root().join("target/test_typed_dict_guard");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let root = _layout_temp.join("test_typed_dict_guard");
     std::fs::create_dir_all(&root).unwrap();
     let input = root.join("main.py");
     std::fs::write(&input, "from typing import TypedDict as Root\nRoot = dict\nExisting = 'old'\nevents = []\ndef annotation():\n    events.append('body')\n    return int\ntry:\n    class Existing(Root):\n        x: annotation()\nexcept NotImplementedError:\n    print(Existing, events)\nif False:\n    from typing import TypedDict as Missing\ntry:\n    class Absent(Missing):\n        x: int\nexcept NameError:\n    print('missing import')\n").unwrap();
@@ -74,7 +78,11 @@ fn rebound_root_and_unexecuted_import_do_not_fabricate_types() {
         },
     )
     .unwrap();
-    let result = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
+    let result = ryupy_driver::dotnet::run_executable_with(
+        artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+        &Default::default(),
+    )
+    .unwrap();
     assert_eq!(
         result.status.code(),
         Some(0),

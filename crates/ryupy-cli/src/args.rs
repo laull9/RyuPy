@@ -45,6 +45,9 @@ pub(super) struct Cli {
     /// 候选：单源码入口的静态薄函数。
     #[arg(long, global = true)]
     pub(super) experimental_stock_thin_functions: bool,
+    /// 实验：本次源码图使用provider权威模块字典，正文仍编译为CIL
+    #[arg(long, global = true, conflicts_with_all = ["native", "experimental_stock_thin_functions", "instance_modules", "instance_direct_globals", "cpython_entry", "cpython_modules"])]
+    pub(super) experimental_stock_module_namespaces: bool,
     /// 诊断：保SLP守卫/物化，以标量运算作为packed SIMD的公平控制组
     #[arg(
         long,

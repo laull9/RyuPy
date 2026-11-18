@@ -61,6 +61,14 @@ public sealed partial class CPythonHost
         // 旧导出 ABI 保留；产品仅安装默认方法 factory，候选空源码不进入求值器。
         Native.rp_decref(Check(Native.rp_install_imports(nativeMethodsEnabled ? "" : LegacyMethodWrapper)));
         Native.rp_decref(Check(Native.rp_install_native_imports()));
+        // 仅legacy包装器在用户代码之前捕获；普通程序无需初始化类桥的其它描述符。
+        // owned引用沿现有类桥关闭路径释放，业务类定义与sys.modules替换不会再触发导入。
+        if (!nativeMethodsEnabled)
+        {
+            nint module = Check(Native.rp_op(1, s: "_ryupy_imports"));
+            try { _wrapMethodFn = Check(Native.rp_op(2, module, s: "_rp_wrap_method")); }
+            finally { Native.rp_decref(module); }
+        }
     }
 
 }

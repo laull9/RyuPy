@@ -212,18 +212,35 @@ fn stock_thin_pe_has_static_typed_adapter_and_cold_factory() {
     assert!(shown.contains("FinishStockThin"));
     let wrapper = methods.iter().find(|m| m.name == "Main").unwrap();
     let wrapper = wrapper.body.as_ref().unwrap();
-    for name in ["StartStockThin", "FinishStockThin"] {
+    let inner = methods
+        .iter()
+        .find(|m| m.name == "__run_provider_body")
+        .unwrap();
+    assert!(inner.no_inlining);
+    let inner = inner.body.as_ref().unwrap();
+    for (body, name) in [(inner, "StartStockThin"), (wrapper, "FinishStockThin")] {
         assert_eq!(
-            wrapper
-                .instructions
+            body.instructions
                 .iter()
                 .filter(|i| bootstrap_call(i, &res, name))
                 .count(),
             1
         );
     }
-    // 初始化仍走原Main；仅__run_main内部实际执行改由Host包住PyModules.RunMain。
-    let definition_calls: Vec<_> = wrapper
+    // 初始化和报告位于不可内联的内层；外层只在catch强根已退栈后调用Finish。
+    assert!(wrapper.data_sections.is_empty());
+    assert_eq!(wrapper.instructions.len(), 4);
+    assert!(
+        wrapper.instructions[1]
+            .show(&res)
+            .contains("__run_provider_body")
+    );
+    assert!(bootstrap_call(
+        &wrapper.instructions[2],
+        &res,
+        "FinishStockThin"
+    ));
+    let definition_calls: Vec<_> = inner
         .instructions
         .iter()
         .filter_map(|i| match i {
@@ -244,17 +261,16 @@ fn stock_thin_pe_has_static_typed_adapter_and_cold_factory() {
     assert!(bootstrap_call(&run[0], &res, "RunStockThinMain"));
     assert!(matches!(run[1], Instruction::Return));
     // 成功、SystemExit、Python异常、CLR异常共享同一专用finish汇合点。
-    let finish = wrapper.instructions.len() - 3;
+    let finish = inner.instructions.len() - 2;
     assert!(matches!(
-        wrapper.instructions[finish],
+        inner.instructions[finish],
         Instruction::LoadLocal(0)
     ));
-    assert!(bootstrap_call(
-        &wrapper.instructions[finish + 1],
-        &res,
-        "FinishStockThin"
+    assert!(matches!(
+        inner.instructions[finish + 1],
+        Instruction::Return
     ));
-    let leaves: Vec<_> = wrapper
+    let leaves: Vec<_> = inner
         .instructions
         .iter()
         .filter_map(|i| match i {
@@ -323,7 +339,15 @@ fn ordinary_provider_keeps_original_start_run_and_finish() {
         .collect();
     let wrapper = methods.iter().find(|m| m.name == "Main").unwrap();
     let instructions = &wrapper.body.as_ref().unwrap().instructions;
-    for name in ["Start", "Finish"] {
+    let inner = methods
+        .iter()
+        .find(|m| m.name == "__run_provider_body")
+        .unwrap();
+    assert!(inner.no_inlining);
+    let inner = &inner.body.as_ref().unwrap().instructions;
+    assert_eq!(instructions.len(), 4);
+    assert!(instructions[1].show(&res).contains("__run_provider_body"));
+    for (instructions, name) in [(inner, "Start"), (instructions, "Finish")] {
         assert_eq!(
             instructions
                 .iter()

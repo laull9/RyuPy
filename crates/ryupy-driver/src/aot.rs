@@ -41,7 +41,7 @@ fn validate_platform() -> Result<()> {
 }
 
 /// SDK 使用绝对 HintPath；先转义 MSBuild 特殊字符，再转义 XML，不经过 shell。
-fn literal(value: &str) -> String {
+pub(crate) fn literal(value: &str) -> String {
     let mut escaped = String::new();
     for ch in value.chars() {
         match ch {
@@ -167,7 +167,7 @@ fn short_owned_root(
 }
 
 pub(crate) fn publish(dll: &Path, out: &Path) -> Result<PathBuf> {
-    Ok(publish_internal(dll, out, None, None, None)?.executable)
+    Ok(publish_internal(dll, out, None, None, None, true)?.executable)
 }
 
 /// 本次编译入口必须携带真实报告；不能因上下文缺失而悄悄退回低层无清单成功。
@@ -185,6 +185,7 @@ pub(crate) fn publish_with_manifest(
     context: &crate::manifest::ManifestContext,
     resources: Option<&crate::resources::ResourcePlan>,
     owned: Option<&crate::aot_layout::OwnedAttempt>,
+    canonical: bool,
 ) -> Result<ManifestPublication> {
     let result = publish_internal(
         dll,
@@ -192,6 +193,7 @@ pub(crate) fn publish_with_manifest(
         Some(AotManifest::Ordinary(context)),
         resources,
         owned,
+        canonical,
     )?;
     Ok(ManifestPublication {
         executable: result.executable,
@@ -243,6 +245,7 @@ impl AotManifest<'_> {
         }
     }
 }
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn publish_binding(
     dll: &Path,
     out: &Path,
@@ -250,6 +253,7 @@ pub(crate) fn publish_binding(
     plan: &crate::native_binding::BindingPlan,
     resources: Option<&crate::resources::ResourcePlan>,
     owned: Option<&crate::aot_layout::OwnedAttempt>,
+    canonical: bool,
 ) -> Result<ManifestPublication> {
     let result = publish_internal(
         dll,
@@ -257,6 +261,7 @@ pub(crate) fn publish_binding(
         Some(AotManifest::Binding(context, plan)),
         resources,
         owned,
+        canonical,
     )?;
     Ok(ManifestPublication {
         executable: result.executable,
@@ -270,6 +275,7 @@ fn publish_internal(
     context: Option<AotManifest<'_>>,
     resources: Option<&crate::resources::ResourcePlan>,
     owned: Option<&crate::aot_layout::OwnedAttempt>,
+    canonical: bool,
 ) -> Result<Publication> {
     validate_platform()?;
     validate_before_build(dll, true)?;
@@ -288,7 +294,9 @@ fn publish_internal(
     } else {
         owned_root(&out, input_name)?
     };
-    let result = publish_owned(&root, &host, input_name, &dll, &runtime, context, resources);
+    let result = publish_owned(
+        &root, &host, input_name, &dll, &runtime, context, resources, canonical,
+    );
     if owned.is_some() {
         result
     } else {
@@ -310,6 +318,7 @@ fn finish_owned<T>(root: &Path, result: Result<T>) -> Result<T> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn publish_owned(
     root: &Path,
     host: &str,
@@ -318,6 +327,7 @@ fn publish_owned(
     runtime: &Path,
     context: Option<AotManifest<'_>>,
     resources: Option<&crate::resources::ResourcePlan>,
+    canonical: bool,
 ) -> Result<Publication> {
     let platform = HostPlatform::current()?;
     // SDK只见已完成资源快照；冻结失败由外层按高层留证/低层清理策略处理。
@@ -475,7 +485,13 @@ fn publish_owned(
             if let AotManifest::Binding(_, plan) = context {
                 plan.write_interfaces(&publish)?;
             }
+            if canonical {
+                crate::application_layout::canonicalize(&publish, &executable, "native_aot")?;
+            }
             let mut artifacts = crate::manifest_files::collect(&publish, &executable)?;
+            if canonical {
+                crate::application_layout::logical_artifacts(&mut artifacts);
+            }
             if let Some(staged) = &staged {
                 staged.mark_artifacts(&mut artifacts)?;
             }
@@ -497,8 +513,19 @@ fn publish_owned(
             } else {
                 bytes
             };
-            Some(crate::manifest_files::write_atomic(&publish, &bytes)?)
+            if canonical {
+                let bytes = crate::application_layout::manifest_bytes(
+                    &bytes,
+                    &platform.executable_name(host),
+                )?;
+                Some(crate::application_layout::write_manifest(&publish, &bytes)?)
+            } else {
+                Some(crate::manifest_files::write_atomic(&publish, &bytes)?)
+            }
         } else {
+            if canonical {
+                crate::application_layout::canonicalize(&publish, &executable, "native_aot")?;
+            }
             None
         };
         Ok(Publication {

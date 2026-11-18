@@ -155,8 +155,8 @@ fn differential(entry: &str, included: &[&str]) {
         },
     )
     .unwrap();
-    let actual = ryupy_driver::dotnet::run_dll_with(
-        &artifacts.dll,
+    let actual = ryupy_driver::dotnet::run_executable_with(
+        artifacts.native_exe.as_ref().expect("应用必须有公开入口"),
         &ryupy_driver::dotnet::RunOptions {
             cwd: Some(outside),
             ..Default::default()
@@ -190,8 +190,21 @@ fn explicitly_included_missing_module_is_a_build_error() {
     let root = root();
     let source = sources(&root.0);
     let output = root.0.join("artifacts");
-    std::fs::create_dir(&output).unwrap();
-    let sentinel = output.join("user-sentinel");
+    // 先发布真实自有产品，再验证缺失include不会破坏旧入口与内部用户数据。
+    // 未归属非空目录另有CLI拒绝门；不能让它提前遮蔽本测试的源码解析错误。
+    let previous_input = root.0.join("previous.py");
+    std::fs::write(&previous_input, "print('previous product')\n").unwrap();
+    let previous = ryupy_driver::build(
+        &mut Session::default(),
+        &BuildOptions {
+            input: previous_input,
+            out_dir: output.clone(),
+            aot: false,
+            search_paths: vec![],
+        },
+    )
+    .unwrap();
+    let sentinel = output.join("internal/user-sentinel");
     std::fs::write(&sentinel, b"unchanged").unwrap();
     let mut session = Session {
         include_modules: vec!["missing_included_package".to_owned()],
@@ -210,5 +223,13 @@ fn explicitly_included_missing_module_is_a_build_error() {
     let detail = format!("{error:#}");
     assert!(detail.contains("missing_included_package"), "{detail}");
     assert_eq!(std::fs::read(sentinel).unwrap(), b"unchanged");
-    assert!(!output.join("missing.dll").exists());
+    assert!(!output.join("internal/missing.dll").exists());
+    let surviving = ryupy_driver::dotnet::run_executable_with(
+        previous.native_exe.as_ref().unwrap(),
+        &Default::default(),
+    )
+    .unwrap();
+    assert!(surviving.status.success());
+    assert_eq!(surviving.stdout, b"previous product\n");
+    assert!(surviving.stderr.is_empty());
 }

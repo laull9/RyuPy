@@ -37,6 +37,10 @@ pub(super) fn build(
     let result = (|| {
         for (name, source) in [
             (
+                "import_protocol.h",
+                include_str!("../../../runtime/RyuPy.CPython/native/import_protocol.h"),
+            ),
+            (
                 "unicode_codepoints.h",
                 include_str!("../../../runtime/RyuPy.CPython/native/unicode_codepoints.h"),
             ),
@@ -47,6 +51,14 @@ pub(super) fn build(
             (
                 "stock_function_owner.h",
                 include_str!("../../../runtime/RyuPy.CPython/native/stock_function_owner.h"),
+            ),
+            (
+                "code_origin.h",
+                include_str!("../../../runtime/RyuPy.CPython/native/code_origin.h"),
+            ),
+            (
+                "call_carrier.h",
+                include_str!("../../../runtime/RyuPy.CPython/native/call_carrier.h"),
             ),
             (
                 "stock_frame_call.h",

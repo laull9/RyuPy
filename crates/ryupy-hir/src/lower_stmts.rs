@@ -250,6 +250,9 @@ impl StmtLowerCtx<'_> {
                 }
             }
             ast::Stmt::AnnAssign(ann_stmt) => {
+                if self.global_scope.provider_namespace {
+                    return self.lower_provider_annotation(ann_stmt);
+                }
                 if self.global_scope.postponed_annotations {
                     return self.lower_postponed_assignment(ann_stmt);
                 }

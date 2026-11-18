@@ -116,12 +116,13 @@ impl Tree {
             .find(|row| row["module"] == "pkg.data")
             .unwrap();
         assert_eq!(child.get("resource_discovery").is_some(), discovered);
-        let dotnet = std::env::var_os("DOTNET").unwrap_or_else(|| "dotnet".into());
         let cwd = self.0.join("jit").join(label);
         std::fs::create_dir(&cwd).unwrap();
         let output = self
-            .command(dotnet, &cwd)
-            .arg(&artifact.dll)
+            .command(
+                artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+                &cwd,
+            )
             .output()
             .unwrap();
         self.save(label, &output);

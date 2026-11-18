@@ -39,6 +39,7 @@ public static partial class PySystem
 
     private static void InitializeState(string sourceName, string[] args)
     {
+        PyApplicationLayout.InstallSqliteResolver();
         var argv = new List<object?> { sourceName };
         argv.AddRange(args);
         var attributes = new Dictionary<string, object?>(StringComparer.Ordinal)

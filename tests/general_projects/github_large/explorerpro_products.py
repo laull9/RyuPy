@@ -17,8 +17,12 @@ import traceback
 
 from inspect_sources import CACHE, CATALOG, REPO, analyze
 import tempfile
+import sys
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parents[2] / 'tests/cpython'))
+from support import audit_native_paths, built_product, provider_data
+
 
 
 def execute(command, cwd, env, evidence, label, timeout=900):
@@ -101,7 +105,7 @@ def product(args, project, evidence):
         if args.oracle_only:
             return {'mode': args.mode, 'oracle': 'pass', 'product': 'not-run'}
         output = work / 'output'
-        extra = []
+        extra = ['--experimental-stock-module-namespaces'] if args.stock_module_namespaces else []
         if args.native_components:
             original = args.native_components.expanduser().resolve()
             declaration = json.loads(original.read_text())
@@ -114,7 +118,7 @@ def product(args, project, evidence):
                 component['root'] = str(private)
             native_declaration = inputs / 'native-components.json'
             native_declaration.write_text(json.dumps(declaration, ensure_ascii=False))
-            extra = ['--cpython-native-components', native_declaration]
+            extra.extend(['--cpython-native-components', native_declaration])
         built = execute([args.ryupy.resolve(), entry, '--mode', args.mode, '-o', output,
                          '-I', tree / 'src', '-I', tree, *extra], work, dict(env, VIRTUAL_ENV=str(venv)),
                         evidence, 'build')
@@ -123,11 +127,15 @@ def product(args, project, evidence):
                      if line.startswith('已生成 ')]
         assert len(generated) == 1, built.stderr
         executable = generated[0]
-        reports = list(output.rglob('cpython-provider.json'))
-        report_path = next((p for p in reports if p.parent.name.endswith('.dist')), reports[0])
+        report_path = provider_data(output, entry.stem, args.mode) / 'cpython-provider.json'
+        if args.mode != 'onefile':
+            assert built_product(built.stderr, output, entry.stem, args.mode).entry == executable.resolve()
         report = json.loads(report_path.read_text())
         assert report['delegated_local_modules'] == [], report['delegated_local_modules']
         assert report['entry_provider'] == 'ryupy_compiled_source', report['entry_provider']
+        if args.stock_module_namespaces:
+            decisions = report['dependency_collection']['module_namespaces']['modules']
+            assert decisions and all(d['compiled'] and d['provider_namespace'] and d['execution'] == 'InstanceGlobals' for d in decisions), decisions
         shutil.copy2(report_path, evidence / 'cpython-provider.json')
         relocated = work / ('搬迁 空格 ' + args.mode)
         if args.mode == 'onefile':
@@ -135,7 +143,8 @@ def product(args, project, evidence):
             shutil.copy2(executable, relocated / executable.name)
         else:
             shutil.copytree(executable.parent, relocated)
-        dotnet = shutil.which('dotnet')
+        if args.mode != 'onefile':
+            audit_native_paths(relocated)
         shutil.rmtree(inputs)
         shutil.rmtree(output)
         empty_path, cwd = work / 'empty-path', work / 'empty-cwd'
@@ -143,13 +152,14 @@ def product(args, project, evidence):
         cwd.mkdir()
         polluted = dict(runtime_env('product'), PATH=str(empty_path),
                         PYTHONHOME='/missing-python', PYTHONPATH='/missing-site')
-        command = [dotnet, relocated / executable.name] if args.mode == 'jit' else [relocated / executable.name]
+        command = [relocated / executable.name]
         actual = checked(execute([*command, profiles['product'], evidence / 'product'], cwd,
                                  polluted, evidence, 'product', timeout=150), '搬迁Cocoa原业务')
         assert normalize(actual.stdout, profiles['product']) == normalize(oracle.stdout, profiles['oracle'])
         assert normalize(actual.stderr, profiles['product']) == normalize(oracle.stderr, profiles['oracle'])
         return {'mode': args.mode, 'oracle': 'pass', 'product': 'deleted_inputs_relocated_pass',
-                'business_delegations': [], 'probe_entry': 'cil', 'display': 'cocoa'}
+                'business_delegations': [], 'probe_entry': 'cil', 'display': 'cocoa',
+                'stock_module_namespaces': args.stock_module_namespaces}
 
 
 def main():
@@ -161,6 +171,7 @@ def main():
     parser.add_argument('--oracle-only', action='store_true')
     parser.add_argument('--probe-entry', type=Path, default=HERE / 'explorerpro_probe.py', help='同次CP/CIL诊断入口，默认保持完整原业务合同')
     parser.add_argument('--native-components', type=Path)
+    parser.add_argument('--stock-module-namespaces', action='store_true', help='显式全图Instance/provider权威globals合同')
     parser.add_argument('--evidence', type=Path, default=Path.home() / '.cache/ryupy/validation/explorerpro-products')
     args = parser.parse_args()
     evidence = args.evidence.expanduser().resolve() / datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ')

@@ -25,6 +25,7 @@ public class PyForeignClassBridgeTests
         public Dictionary<string, object?> Dict { get; } = new(StringComparer.Ordinal);
         public Func<object?[], string[], object?[], object?>? OnInvoke { get; init; }
         public Func<object, bool>? OnAccepts { get; init; }
+        public Action<string>? OnDelete { get; init; }
         public bool IsTypeFlag { get; }
 
         public override string TypeName => _typeName;
@@ -38,6 +39,7 @@ public class PyForeignClassBridgeTests
 
         public override void DelAttr(string name)
         {
+            OnDelete?.Invoke(name);
             if (!Dict.Remove(name)) throw Missing(name);
         }
 
@@ -368,5 +370,29 @@ public class PyForeignClassBridgeTests
             PyProvider.Remove(provider);
         }
         Assert.Null(PyForeignClassBridge.Current);
+    }
+
+    [Fact]
+    public void ForeignModuleDeletionUsesTheActualObjectAndPreservesItsErrors()
+    {
+        int calls = 0;
+        var failure = new PyRuntimeError("native deletion rejected");
+        var foreign = new MockForeignObject("module")
+        {
+            OnDelete = name => { calls++; if (name == "locked") throw failure; },
+        };
+        var first = new object();
+        foreign.Dict["first"] = first;
+        foreign.Dict["locked"] = 17L;
+        var module = PyProvider.Module("unrelated_namespace", foreign.GetAttr,
+            (_, name, value) => foreign.SetAttr(name, value), foreign);
+        Assert.Same(first, module.GetAttr("first"));
+        PyObject.DelAttr(module, "first");
+        Assert.False(foreign.Dict.ContainsKey("first"));
+        Assert.Throws<PyAttributeError>(() => module.GetAttr("first"));
+        Assert.Throws<PyAttributeError>(() => PyObject.DelAttr(module, "first"));
+        Assert.Same(failure, Assert.Throws<PyRuntimeError>(() => PyObject.DelAttr(module, "locked")));
+        Assert.Equal(17L, module.GetAttr("locked"));
+        Assert.Equal(3, calls);
     }
 }

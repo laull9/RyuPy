@@ -46,6 +46,9 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         RuntimeFn::InstanceMakeClass => ins.push(Instruction::call(
             crate::instance_refs::required(ctx.runtime_refs).create_class,
         )),
+        RuntimeFn::InstanceSetupAnnotations => ins.push(Instruction::call(
+            crate::instance_refs::required(ctx.runtime_refs).setup_annotations,
+        )),
         RuntimeFn::InstanceCaptureDefinitionContext => ins.push(Instruction::call(
             crate::instance_refs::required(ctx.runtime_refs).capture_definition,
         )),
@@ -57,6 +60,12 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         )),
         RuntimeFn::InstanceRelativeImportAttr => ins.push(Instruction::call(
             crate::instance_refs::required(ctx.runtime_refs).relative_attribute,
+        )),
+        RuntimeFn::InstanceImportName => ins.push(Instruction::call(
+            crate::instance_refs::required(ctx.runtime_refs).import_name,
+        )),
+        RuntimeFn::InstanceImportAttribute => ins.push(Instruction::call(
+            crate::instance_refs::required(ctx.runtime_refs).import_attribute,
         )),
         RuntimeFn::InstanceImportGuard => ins.push(Instruction::call(
             crate::instance_refs::required(ctx.runtime_refs).import_guard,

@@ -41,7 +41,8 @@ build: ## 构建单一可分发CLI → releases/<平台>/ryupy（C#闭包已内�
 	tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT; \
 	printf 'print("release ok")\n' > "$$tmp/hello.py"; \
 	env -u RYUPY_RUNTIME_DIR "$(RELEASE_DIR)/ryupy" build "$$tmp/hello.py" -o "$$tmp/out"; \
-	out=$$(env -u RYUPY_RUNTIME_DIR dotnet "$${tmp}/out/hello.dll"); \
+	test -f "$${tmp}/out/internal/.ryupy-layout.json"; \
+	out=$$(env -u RYUPY_RUNTIME_DIR "$${tmp}/out/hello"); \
 	test "$${out}" = "release ok"; \
 	echo "单文件CLI：$(RELEASE_DIR)/ryupy；独立内嵌运行时自检通过"
 

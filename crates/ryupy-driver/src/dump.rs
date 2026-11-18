@@ -8,16 +8,18 @@ use super::*;
 pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
     accumulator_options::validate(sess)?;
     sess.module_environment_report.clear();
-    let module = if sess.experimental_stock_thin_functions {
-        // CLI新Session只有配置路径；先按本次输入冻结provider，再核验实际图。
-        // 不能用load_single伪造“单源码”，遗漏import/include的额外业务模块。
-        cpython_provider::prepare_input(sess, input, &[])?;
-        let (mut sources, entry) = modules::load_build_graph(sess, input, &[], false)?;
-        stock_thin::validate(sess, &sources)?;
-        sources.swap_remove(entry)
-    } else {
-        modules::load_single(sess, input)?
-    };
+    let module =
+        if sess.experimental_stock_thin_functions || sess.experimental_stock_module_namespaces {
+            // CLI新Session只有配置路径；先按本次输入冻结provider，再核验实际图。
+            // 不能用load_single伪造“单源码”，遗漏import/include的额外业务模块。
+            cpython_provider::prepare_input(sess, input, &[])?;
+            let (mut sources, entry) = modules::load_build_graph(sess, input, &[], false)?;
+            stock_thin::validate(sess, &sources)?;
+            stock_module_namespaces::validate(sess, &sources)?;
+            sources.swap_remove(entry)
+        } else {
+            modules::load_single(sess, input)?
+        };
     let mut invalid_selection = false;
     for name in &sess.instance_modules {
         if name != &module.name {
@@ -122,7 +124,7 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
     )?;
     linked.native_modules =
         native_module_requirements::freeze_parsed(sess, [&module.parsed], false);
-    if sess.experimental_stock_thin_functions {
+    if sess.experimental_stock_thin_functions || sess.experimental_stock_module_namespaces {
         // CIL转储也展示真实候选启动，而非没有provider的不可执行入口替身。
         linked.external_provider = sess
             .cpython_provider_state

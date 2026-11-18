@@ -56,7 +56,7 @@ static void rp_thin_dispose(void *context) {
     }
 }
 static int rp_thin_shape(RpThinLink *link, PyObject *f) {
-    if (!PyFunction_Check(f) || PyFunction_GetCode(f) != rp_thin_template ||
+    if (!PyFunction_Check(f) || PyFunction_GetCode(f) != link->owner->expected_code ||
         PyFunction_GetDefaults(f) || PyFunction_GetKwDefaults(f)) return 0;
     PyObject *closure = PyFunction_GetClosure(f);
     if (!closure || PyTuple_Size(closure) != 1) return 0;
@@ -94,7 +94,7 @@ static PyObject *rp_thin_dispatch(PyObject *self, PyObject *argument) {
 #else
     PyObject *globals = frame ? PyObject_GetAttrString(frame, "f_globals") : NULL;
 #endif
-    int valid = code == rp_thin_template && globals == PyFunction_GetGlobals(f);
+    int valid = code == link->owner->expected_code && globals == PyFunction_GetGlobals(f);
     Py_XDECREF(code); Py_XDECREF(globals); Py_XDECREF(frame);
     if (!valid) {
         Py_DECREF(f);
@@ -173,12 +173,13 @@ API int rp_thin_enable(rp_thin_invoke_fn invoke, rp_thin_release_fn release) {
     if (!ast_type) { Py_DECREF(guards); Py_DECREF(code); rp_fo_stop(); return -1; }
     PyTuple_SET_ITEM(guards, 7, ast_type);
     rp_thin_frame_guards = guards;
-    rp_thin_template = code;
+    rp_thin_template = rp_code_origin_attach(code, 1); Py_DECREF(code);
+    if (!rp_thin_template) { Py_CLEAR(rp_thin_frame_guards); rp_fo_stop(); return -1; }
     rp_thin_invoke = invoke; rp_thin_release = release; rp_thin_enabled = 1;
     return 0;
 }
 /* make 成功失败都消费 token；三个失败注入覆盖 P/closure/F-owner 组装阶段。 */
-API PyObject *rp_thin_make(PyObject *globals, intptr_t token, int failure) {
+static PyObject *rp_thin_make_code(PyObject *globals, intptr_t token, int failure, PyObject *code) {
     if (rp_thin_program_terminal) {
         rp_thin_release(token);
         PyErr_SetString(PyExc_RuntimeError, "程序终态禁止创建薄函数"); return NULL;
@@ -192,6 +193,7 @@ API PyObject *rp_thin_make(PyObject *globals, intptr_t token, int failure) {
     RpFunctionOwner *owner = rp_fo_new(link, rp_thin_detach, rp_thin_dispose);
     if (!owner) { free(link); rp_thin_release(token); return NULL; }
     owner->frame_guards = Py_NewRef(rp_thin_frame_guards);
+    owner->expected_code = Py_NewRef(code);
     link->owner = owner; link->next = rp_thin_links; rp_thin_links = link; rp_thin_live++;
     PyObject *p = PyCFunction_New(&rp_thin_dispatch_def, (PyObject *)owner);
     PyObject *cell = NULL, *closure = NULL, *f = NULL;
@@ -201,7 +203,7 @@ API PyObject *rp_thin_make(PyObject *globals, intptr_t token, int failure) {
     closure = cell ? PyTuple_Pack(1, cell) : NULL;
     if (!closure) goto done;
     if (failure == 2) goto injected;
-    f = PyFunction_New(rp_thin_template, globals);
+    f = PyFunction_New(code, globals);
     if (!f) goto done;
     PyObject_GC_UnTrack(f);
     if (PyFunction_SetClosure(f, closure) < 0) goto unpublished;
@@ -226,6 +228,32 @@ done:
 API void rp_thin_abort(PyObject *f) {
     RpThinLink *link = rp_thin_find(f);
     if (link) rp_fo_unbind(link->owner);
+}
+/* 旧测试seam保持原模板来源；正式CIL定义使用下面的冷来源定制。 */
+API PyObject *rp_thin_make(PyObject *globals, intptr_t token, int failure) {
+    return rp_thin_make_code(globals, token, failure, rp_thin_template);
+}
+API PyObject *rp_thin_make_source(PyObject *globals, intptr_t token, int failure,
+    PyObject *filename, int64_t line, PyObject *name) {
+    if (!rp_thin_enabled || rp_thin_program_terminal) {
+        rp_thin_release(token); PyErr_SetString(PyExc_RuntimeError, "薄函数profile不可创建新定义"); return NULL;
+    }
+    PyObject *method = PyObject_GetAttrString(rp_thin_template, "replace");
+    PyObject *args = PyTuple_New(0), *kwargs = PyDict_New(), *first = PyLong_FromLongLong(line), *code = NULL;
+    if (method && args && kwargs && first
+        && PyDict_SetItemString(kwargs, "co_filename", filename) == 0
+        && PyDict_SetItemString(kwargs, "co_firstlineno", first) == 0
+        && PyDict_SetItemString(kwargs, "co_name", name) == 0
+#if PY_VERSION_HEX >= 0x030b0000
+        && PyDict_SetItemString(kwargs, "co_qualname", name) == 0
+#endif
+    ) code = PyObject_Call(method, args, kwargs);
+    Py_XDECREF(first); Py_XDECREF(kwargs); Py_XDECREF(args); Py_XDECREF(method);
+    if (!code) { rp_thin_release(token); return NULL; }
+    PyObject *tagged = rp_code_origin_attach(code, 1); Py_DECREF(code); code = tagged;
+    if (!code) { rp_thin_release(token); return NULL; }
+    PyObject *function = rp_thin_make_code(globals, token, failure, code);
+    Py_DECREF(code); return function;
 }
 API intptr_t rp_thin_token(PyObject *f) {
     RpThinLink *link = rp_thin_find(f);

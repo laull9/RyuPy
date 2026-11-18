@@ -312,5 +312,9 @@ class PortableContracts(unittest.TestCase):
                     portable.complete_licenses({'root': str(root), 'url': 'u', 'build': '20260623'})
 
 
+from test_macho_audit import MachoAuditTests  # 真实部署rpath合同随python-baseline执行。
+from test_product_layout import ProductLayoutTests  # 公共布局门随python-baseline执行。
+
+
 if __name__ == '__main__':
     unittest.main()

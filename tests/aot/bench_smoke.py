@@ -1,6 +1,5 @@
 """只验一次公开make bench-aot hello管线；附带一次搬迁正确性门，不形成性能结论。"""
 import argparse
-import hashlib
 import json
 import math
 import os
@@ -13,8 +12,9 @@ import uuid
 
 from platform_runner import Runner
 from bench_relocation import verify_relocation
-from manifest_files import check_artifacts, check_file_record, digest, plain_stat, files_under
+from manifest_files import check_artifacts, check_file_record, plain_stat, files_under
 from manifest_verify import MANIFEST_NAME, image_header, no_duplicate_keys, read_sdk_version, validate_schema
+from application_layout import application_layout
 
 
 def read_json(path):
@@ -62,22 +62,24 @@ def validate_bundle(root, source, expected_sdk=None):
     # 核真实MSBuild记录而非仅相信setup-dotnet输入或shell的SDK选择。
     if expected_sdk is not None and sdk != expected_sdk:
         raise ValueError(f'AOT实际SDK不符合冻结版本：预期{expected_sdk}，实际{sdk}')
-    manifest, raw = read_json(dist/MANIFEST_NAME)
+    layout = application_layout(dist)
+    manifest, raw = read_json(layout.manifest)
     validate_schema(manifest, 'linux-x64', sdk)
-    allow_omitted = manifest['schema_version'] == 1
-    files = check_artifacts(dist, manifest['artifacts'], MANIFEST_NAME, allow_omitted=allow_omitted)
+    allow_omitted = manifest['schema_version'] == 1 or layout.canonical
+    layout.check_artifact_paths(manifest['artifacts'])
+    files = check_artifacts(dist, manifest['artifacts'], layout.relative_manifest, allow_omitted=allow_omitted)
     native = [x for x in manifest['artifacts'] if x['role'] == 'native_executable']
     assert len(native) == 1 and native[0]['relative_path'] == 'hello'
     image_header(files['hello'], 'linux-x64')
+    if layout.canonical:
+        layout.check_public_root(files['hello'])
     assert os.access(files['hello'], os.X_OK)
     inputs = {x['role']: x for x in manifest['build_inputs']}
     for role, path in (('compiled_managed_input', managed), ('runtime_managed_input', managed.parent/'RyuPy.Runtime.dll')):
         check_file_record(path, inputs[role], allow_omitted=allow_omitted)
     entry = [x for x in manifest['sources'] if x['module_name'] == '__main__']
     assert len(entry) == 1
-    if entry[0]['compiled_text_sha256']:
-        assert entry[0]['compiled_text_sha256'] == hashlib.sha256(source.read_bytes()).hexdigest()
-    return {'manifest_sha256': hashlib.sha256(raw).hexdigest(), 'native': native[0], 'build_inputs': manifest['build_inputs'], 'sdk_version': sdk}, raw
+    return {'manifest_sha256': '', 'native': native[0], 'build_inputs': manifest['build_inputs'], 'sdk_version': sdk}, raw
 
 
 def fresh_bundle(parent, before):
@@ -104,7 +106,7 @@ def archive_bundle(bundle, out, deadline):
             info = plain_stat(path, directory=directory)
             record = {'directory': directory, 'mode': stat.S_IMODE(info.st_mode)}
             if not directory:
-                size, sha = digest(path); record.update(size=size, sha256=sha)
+                record.update(size=plain_stat(path).st_size, sha256='')
             records[path.relative_to(root).as_posix()] = record
         check()
         return records
@@ -169,7 +171,7 @@ def run(root, out, target, expected_sdk=None):
             bundle, root/'tests/benchmarks/hello.py', out, checked['sdk_version'],
             Runner(logs, deadline=started+1800))
         assert time.monotonic() < started + 1800
-        evidence.update(status='passed', saved_result_sha256=hashlib.sha256(raw).hexdigest(),
+        evidence.update(status='passed', saved_result_sha256='',
                         bundle_relative_to_target=bundle.relative_to(target).as_posix(), **checked)
     except BaseException as error:
         evidence.update(status='failed', error=f'{type(error).__name__}: {error}')

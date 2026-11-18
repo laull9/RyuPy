@@ -47,6 +47,8 @@ pub fn lower_module_with_native_exceptions(
     if info.instance_globals {
         let diagnostics = if info.stock_thin_functions {
             crate::stock_thin::validate(parsed)
+        } else if info.instance_capabilities.provider_namespace {
+            crate::provider_namespace::validate_provider_namespace_aot(parsed)
         } else {
             crate::instance_globals::validate(
                 &parsed.module.body,
@@ -74,6 +76,7 @@ pub fn lower_module_with_native_exceptions(
     let mut global_scope = GlobalScope {
         source_text: source.to_owned(),
         instance_globals: info.instance_globals,
+        provider_namespace: info.instance_capabilities.provider_namespace,
         foreign_class_construction: info.foreign_class_construction,
         deleted_names: crate::module_deletions::collect(&parsed.module.body),
         postponed_annotations: crate::future_imports::annotations(&parsed.module.body),
@@ -401,7 +404,7 @@ pub fn lower_module_with_native_exceptions(
     };
     // `__name__` / `__package__` / `__file__` 在模块代码执行前写入。
     main_lower_ctx.emit_special_module_vars(info, parsed.module.range);
-    if global_scope.postponed_annotations
+    if (global_scope.postponed_annotations || global_scope.provider_namespace)
         && crate::annotation_stmts::has_module_annotations(&parsed.module.body)
     {
         main_lower_ctx.setup_annotations(parsed.module.range);

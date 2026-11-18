@@ -46,6 +46,7 @@ public sealed partial class CPythonHost
         writer.WriteString("python_library", pythonPath);
         writer.WriteString("shim_library", shimPath);
         WriteStockProgramReport(writer);
+        WriteCallCarrierReport(writer);
         WriteExecutionAudit(writer);
         WriteInspectReport(writer);
         writer.WriteStartObject("module_paths");

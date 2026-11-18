@@ -125,14 +125,20 @@ python3 -B tests/cpython/stock_thin_compiler.py --python /absolute/path/python3.
 早期 `081037`、`081202`、`082811`、`082927` 与 `083052` 日志保留原始 disposed、
 owned 关闭拒绝及 Runtime 字典缺属性失败；生命周期和字典协议修复后原场景全部参与最终验收。
 
-`wrapped_frame_pending.py` 是完整业务 frame 的独立回归，包含 `partial(locals)` 与
-`partial(eval)`。两版 CPython 基线为 `locals ['business', 'x'] 17 True` 与 `eval 23`。
-直接对象守卫的验收范围由上述四项负合同界定；包装 callable 与 C 扩展间接读取 frame 的
-业务 locals/求值 scope 随完整 frame 合同推进，普通值调用保持开放。
+`wrapped_frame_boundaries.py` 使用两个业务函数验证 exact stdlib `partial(locals)` 与
+`partial(eval)` 的精确 NI 负合同，同时保留显式 `vars(obj)`、`eval(source, globals)`、
+`compile(..., dont_inherit=True)` 与普通 `partial(str, value)` 的正常能力。
+通过 `--negative-case wrapped_frame_boundaries --mode all` 运行，计量为 `PASS-NEGATIVE`。
 
-通过 `--pending-case wrapped_frame_pending --mode jit` 独立复现：2026-11-17 两版实际
-候选均输出 `locals ['p', 'x'] None True`，`partial(eval)` 报缺少 `hidden` 的 `NameError`，
-随后业务断言退出 1。Host 同时拒绝 owned 关闭，`terminal=false`；这项完整 frame 与
-生命周期缺口保持 pending。日志为 `stock-thin-compiler-3.12.13-jit-20261117T091630.057546Z.log`
-与 `stock-thin-compiler-3.13.3-jit-20261117T091631.217353Z.log`，包含完整三流、Host 报告和清理记录。
-驱动以 `PENDING-OBSERVED` 单列这一实际失败形状，正例和直接负合同成绩分别维护。
+2026-11-17 最终 checkpoint 同源复验：正例 **24/24**，直接 frame 负合同 **6/6**，
+partial frame 负合同 **6/6**。partial 每格 6 次静态调用、2 个 owner 析构；所有报告终态
+归零，输入、venv、build 和产品全部删除，OneFile 临时解包目录自动清理。
+日志为 `stock-thin-compiler-3.12.13-all-20261117T101522.528624Z.log` 与
+`stock-thin-compiler-3.13.3-all-20261117T101523.623728Z.log`。
+
+历史 `wrapped_frame_pending.py` 的实际失败证据继续保留：两版候选曾输出
+`locals ['p', 'x'] None True`、缺少 `hidden` 的 `NameError`，最终 `AssertionError` 退出 1，
+Host 因 owned 未闭合拒绝关闭。日志为 `stock-thin-compiler-3.12.13-jit-20261117T091630.057546Z.log`
+与 `stock-thin-compiler-3.13.3-jit-20261117T091631.217353Z.log`。当前 exact partial 守卫
+与 Runtime 诊断临时 scope 已使上述形状在执行前明确拒绝并正常归零；完整业务 frame
+的 locals、函数捕获 builtins 与逐语句行号继续由独立差分输入推进。

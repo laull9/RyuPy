@@ -1,11 +1,14 @@
 //! 类命名空间可选绑定必须先查存在性，再在冷分支读取全局；条件方法按源码range登记。
+#[path = "../src/test_temp.rs"]
+mod layout_temp;
 use ryupy_driver::{Session, Stage};
 mod support;
 use support::dump;
 
 #[test]
 fn snapshots_class_if_source_order_and_lazy_lookup() {
-    let path = std::env::temp_dir().join("ryupy_class_if_snapshot.py");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let path = _layout_temp.join("ryupy_class_if_snapshot.py");
     std::fs::write(&path, "value=7\nclass C:\n    if value:\n        value=8\n        def method(self, x=value):\n            return x\n    else:\n        def method(self, x=value):\n            return x\n    after=value\n").unwrap();
     for (stage, name) in [
         (Stage::Hir, "class_if_hir"),
@@ -57,8 +60,9 @@ fn snapshots_class_if_source_order_and_lazy_lookup() {
 
 #[test]
 fn unsupported_builtin_fallback_is_only_rejected_when_executed() {
+    let _layout_temp = layout_temp::Root::new("driver-integration");
     // locals已有真实builtin值；本测试仍以未实现globals验证惰性fallback，不改断言。
-    let root = ryupy_driver::runtime::workspace_root().join("target/test_class_if_fallback");
+    let root = _layout_temp.join("test_class_if_fallback");
     std::fs::create_dir_all(&root).unwrap();
     let input = root.join("main.py");
     std::fs::write(&input, "flag=True\nclass Present:\n    if flag:\n        globals='bound'\n    value=globals\nprint(Present.value)\nflag=False\ntry:\n    class Absent:\n        if flag:\n            globals='bound'\n        value=globals\nexcept NotImplementedError:\n    print('明确拒绝未实现内建回退')\n").unwrap();
@@ -72,7 +76,11 @@ fn unsupported_builtin_fallback_is_only_rejected_when_executed() {
         },
     )
     .expect("不应提前求值或诊断类命名空间的未执行回退");
-    let output = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
+    let output = ryupy_driver::dotnet::run_executable_with(
+        artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+        &Default::default(),
+    )
+    .unwrap();
     assert!(
         output.status.success(),
         "{}",

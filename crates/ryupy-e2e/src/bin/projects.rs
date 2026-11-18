@@ -256,14 +256,20 @@ fn run_project(options: &Options, project: &Project, out: &Path) -> Result<Outco
     let stderr_file = std::fs::File::create(out.join("jit.stderr")).map_err(|e| e.to_string())?;
     let jit_cwd = out.join("jit-cwd");
     std::fs::create_dir(&jit_cwd).map_err(|e| e.to_string())?;
-    let status = Command::new(dotnet::dotnet_exe())
-        .arg(&artifacts.dll)
+    let mut command = if let Some(entry) = &artifacts.native_exe {
+        Command::new(entry)
+    } else {
+        let mut command = Command::new(dotnet::dotnet_exe());
+        command.arg(&artifacts.dll);
+        command
+    };
+    let status = command
         .current_dir(&jit_cwd)
         .stdin(Stdio::null())
         .stdout(stdout_file)
         .stderr(stderr_file)
         .status()
-        .map_err(|e| format!("启动/等待 dotnet 失败：{e:#}"))?;
+        .map_err(|e| format!("启动/等待应用入口失败：{e:#}"))?;
     let stdout = std::fs::read(out.join("jit.stdout")).map_err(|e| e.to_string())?;
     let stderr = std::fs::read(out.join("jit.stderr")).map_err(|e| e.to_string())?;
     let mut outcome = if !status.success() {

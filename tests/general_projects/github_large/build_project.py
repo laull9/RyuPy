@@ -12,8 +12,12 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+import sys
 
 from inspect_sources import CACHE, CATALOG, REPO, analyze
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / 'tests/cpython'))
+from support import provider_data
 
 
 def main():
@@ -23,6 +27,7 @@ def main():
     parser.add_argument('--ryupy', type=Path, required=True)
     parser.add_argument('--cache', type=Path, default=CACHE)
     parser.add_argument('--mode', choices=['jit', 'standalone', 'onefile'], action='append')
+    parser.add_argument('--stock-module-namespaces', action='store_true')
     parser.add_argument('--native-components', type=Path, help='显式原生组件来源/许可/ABI声明')
     parser.add_argument('--evidence', type=Path, default=Path.home() / '.cache/ryupy/validation/github-large-build')
     args = parser.parse_args()
@@ -56,6 +61,8 @@ def main():
         shutil.copytree(source, tree, ignore=shutil.ignore_patterns('.git', '.venv', '__pycache__'))
         for mode in args.mode or ['jit']:
             command = [str(cli), str(tree / project['entry']), '--mode', mode, '-o', str(work / mode)]
+            if args.stock_module_namespaces:
+                command.append('--experimental-stock-module-namespaces')
             if args.native_components:
                 command.extend(['--cpython-native-components', str(args.native_components.expanduser().resolve())])
             for root in project['import_roots']:
@@ -68,11 +75,14 @@ def main():
                     code = result.returncode
                 except subprocess.TimeoutExpired:
                     code = 124
+            if code == 0:
+                selected_report = provider_data(work / mode, Path(project['entry']).stem, mode) / 'cpython-provider.json'
+                shutil.copy2(selected_report, evidence / (mode + '-provider.json'))
             rows = (evidence / (mode + '-build.log')).read_text(errors='replace').splitlines()
             first = next((line for line in rows if '[E' in line or line.startswith('error:')), '')
             item = {'project': args.project, 'mode': mode, 'build_exit': code,
                     'first_diagnostic': first, 'runtime': 'not-run', 'relocation': 'not-run',
-                    'business_delegations': [], 'requested_cil_roots': project['ownership']['cil_target']}
+                    'business_delegations': [], 'stock_module_namespaces': args.stock_module_namespaces, 'requested_cil_roots': project['ownership']['cil_target']}
             results.append(item)
             print(json.dumps(item, ensure_ascii=False), flush=True)
     (evidence / 'results.json').write_text(json.dumps(results, ensure_ascii=False, indent=2) + '\n')

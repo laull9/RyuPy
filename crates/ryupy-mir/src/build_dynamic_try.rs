@@ -45,6 +45,7 @@ impl FunctionBuilder<'_> {
             self.source_handler_contracts
                 .push(crate::SourceHandlerContract {
                     try_start: start_bb,
+                    generator: None,
                 });
             Some(id)
         } else {

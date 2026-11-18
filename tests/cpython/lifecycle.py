@@ -8,6 +8,7 @@ import sys
 # 验收驱动本身也不在源码目录留下字节码缓存。
 sys.dont_write_bytecode = True
 
+from support import product_layout
 from support import ROOT, checked, environment, execute, external_workspace
 
 
@@ -34,7 +35,7 @@ def main():
         for case in ('steady-state', 'exception-release', 'numpy-lifetime', 'disposal', 'late-release', 'mixed-limit'):
             cwd = root / case
             cwd.mkdir()
-            result = execute([dotnet, output / 'Lifecycle.dll', distribution / 'ryupy-cpython.json', case], cwd=cwd, env=env)
+            result = execute([dotnet, output / 'Lifecycle.dll', product_layout(distribution).provider_config, case], cwd=cwd, env=env)
             print(case, result.returncode, result.stdout.decode(), result.stderr.decode(), flush=True)
             if result.returncode != 0:
                 failures.append(case)

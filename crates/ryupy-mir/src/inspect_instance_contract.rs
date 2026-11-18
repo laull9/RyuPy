@@ -119,6 +119,8 @@ fn allowed_context<'a>(value: &'a Rvalue, contexts: &FxHashSet<LocalId>) -> Opti
                     | RuntimeFn::InstanceClassCellGuard
                     | RuntimeFn::InstanceMakeClass
                     | RuntimeFn::InstanceImportGuard
+                    | RuntimeFn::InstanceImportName
+                    | RuntimeFn::InstanceImportAttribute
                     | RuntimeFn::InstanceRelativeImport
                     | RuntimeFn::InstanceRelativeImportAttr
                     | RuntimeFn::InstanceDirectGlobals,

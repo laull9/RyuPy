@@ -14,7 +14,8 @@ public partial class PyTraceStateArtifactTests
             .Concat(DirectGlobalsPublicAdditions()).Concat(OrdinaryMiPublicAdditions())
             .Concat(RuntimeDerivedPublicAdditions()).Concat(ResourceContextPublicAdditions())
             .Concat(NativeAbiPublicAdditions()).Concat(CompressionPublicAdditions())
-            .Concat(BinaryCryptoPublicAdditions()).Concat(ProviderPublicAdditions()).Concat(GeneratorSumPublicAdditions()).ToArray();
+            .Concat(BinaryCryptoPublicAdditions()).Concat(ProviderPublicAdditions()).Concat(GeneratorSumPublicAdditions())
+            .Concat(ApplicationLayoutPublicAdditions()).ToArray();
         Assert.Equal(required.Length, required.Distinct(StringComparer.Ordinal).Count());
         foreach (string signature in required) Assert.Contains(signature, actual);
     }

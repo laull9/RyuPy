@@ -196,6 +196,7 @@ fn stmt_writes_local(body: &ryupy_hir::Body, stmt: &ryupy_hir::Stmt, local_id: L
         | StmtKind::Break
         | StmtKind::Continue
         | StmtKind::Pass
+        | StmtKind::SetupAnnotations
         | StmtKind::Raise { .. } => false,
     }
 }

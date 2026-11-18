@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+from support import built_product
 from pathlib import Path
 import shutil
 import subprocess
@@ -90,7 +91,8 @@ def main():
             for idx, proc in enumerate(procs):
                 stdout, stderr = proc.communicate(timeout=120)
                 assert proc.returncode == 0, f'并发JIT分支 {idx} 失败：{stderr.decode(errors="replace")}'
-                files = {path.name for path in outs[idx].iterdir()}
+                layout = built_product(stderr, outs[idx], 'entry', 'jit')
+                files = {path.name for path in layout.data.iterdir()}
                 assert 'entry.dll' in files, f'产物缺失entry.dll：{files}'
                 assert 'RyuPy.Runtime.dll' in files, f'产物缺失RyuPy.Runtime.dll：{files}'
                 assert 'RyuPy.CPython.dll' not in files, f'纯原生JIT产物不应包含CPython桥：{files}'

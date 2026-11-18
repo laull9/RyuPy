@@ -43,6 +43,8 @@ public sealed partial class CPythonHost
             {
                 writer.WriteStartObject();
                 writer.WriteString("phase", phases[phase]);
+                writer.WriteString("origin", Native.rp_execution_audit_row_origin(index) switch
+                { 1 => "stock_thin_glue", 2 => "call_carrier_glue", _ => "python" });
                 writer.WriteString("file", Marshal.PtrToStringUTF8(file));
                 writer.WriteString("function", Marshal.PtrToStringUTF8(function));
                 writer.WriteNumber("calls", calls);

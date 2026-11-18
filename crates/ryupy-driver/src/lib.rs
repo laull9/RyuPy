@@ -65,8 +65,12 @@ mod session;
 mod source_catalog;
 mod source_probe;
 mod source_scan;
+mod stock_module_namespaces;
 mod stock_thin;
 pub use source_probe::probe_sources;
+mod application_layout;
+mod application_native_relocate;
+mod jit_apphost;
 mod source_deployment;
 pub use session::Session;
 
@@ -151,7 +155,8 @@ fn compile_module(
     );
     sess.diagnostics.extend(diags);
     stop_if_errors(sess)?;
-    if plan.automatic && !hir.protected_exports.is_empty() {
+    if (plan.automatic || plan.capabilities.provider_namespace) && !hir.protected_exports.is_empty()
+    {
         bail!("内部错误：实例计划仍依赖静态异常导出保护");
     }
     trace.mark("end", "hir", &module.name);
@@ -309,7 +314,7 @@ pub fn build_configured(
                 binding_build::build_in_attempt(sess, inner, path, resources, owned)
             })
         } else {
-            binding_build::build(sess, opts, path)
+            cpython_jit::build(opts, |inner| binding_build::build(sess, inner, path))
         };
     }
     build_with_resources(sess, opts, resources)
@@ -331,12 +336,9 @@ pub fn build_with_resources(
             build_with_resources_inner(sess, inner, resource_request, Some(owned))
         });
     }
-    if sess.cpython_provider.is_some() {
-        return cpython_jit::build(opts, |inner| {
-            build_with_resources_inner(sess, inner, resource_request, None)
-        });
-    }
-    build_with_resources_inner(sess, opts, resource_request, None)
+    cpython_jit::build(opts, |inner| {
+        build_with_resources_inner(sess, inner, resource_request, None)
+    })
 }
 
 fn build_with_resources_inner(
@@ -423,6 +425,7 @@ fn build_with_resources_inner(
             &context,
             resource_plan.as_ref(),
             owned,
+            !sess.legacy_onefile_layout,
         )?;
         (Some(published.executable), Some(published.manifest))
     } else {
@@ -482,3 +485,11 @@ mod records_options_tests;
 
 #[cfg(test)]
 mod stock_thin_tests;
+
+#[cfg(test)]
+mod stock_namespace_probe_tests;
+
+#[cfg(test)]
+mod stage_audit_tests;
+#[cfg(test)]
+mod stock_module_namespaces_tests;

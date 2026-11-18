@@ -84,6 +84,7 @@ pub(crate) mod generator_readonly_params;
 #[cfg(test)]
 mod generator_readonly_params_tests;
 mod generators;
+mod provider_import;
 
 mod async_iteration;
 mod async_iteration_abi;
@@ -216,6 +217,10 @@ mod class_cell_tests;
 #[cfg(test)]
 mod relative_import_tests;
 
+mod generator_handler_frame;
+#[cfg(test)]
+mod generator_source_handler_tests;
+mod generator_source_handlers;
 mod source_handler_contract;
 pub use source_handler_contract::SourceHandlerContract;
 #[cfg(test)]
@@ -312,3 +317,8 @@ mod stock_thin_contract;
 
 #[cfg(test)]
 mod unicode_literal_tests;
+
+#[cfg(test)]
+mod provider_generator_tests;
+#[cfg(test)]
+mod provider_namespace_tests;

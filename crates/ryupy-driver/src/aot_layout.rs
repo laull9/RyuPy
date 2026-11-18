@@ -272,7 +272,7 @@ fn install(
         "本轮产物不在owned attempt"
     );
     ensure!(
-        manifest == &source.join(manifest_files::MANIFEST_NAME),
+        manifest == &crate::application_layout::manifest_path(source)?,
         "manifest不属于本轮publish"
     );
     // 逐级检查owned边界内路径，不让产物中的链接绕到外部。
@@ -289,7 +289,9 @@ fn install(
         .file_name()
         .and_then(|s| s.to_str())
         .context("native名不是UTF8")?;
-    let name = if cfg!(windows) {
+    let name = if crate::application_layout::is_canonical(source)? {
+        crate::application_layout::entry_name(stem)
+    } else if cfg!(windows) {
         format!("{stem}.exe")
     } else {
         stem.to_owned()
@@ -318,7 +320,7 @@ fn install(
         return Err(error);
     }
     artifacts.native_exe = Some(dist.join(name));
-    artifacts.manifest = Some(dist.join(manifest_files::MANIFEST_NAME));
+    artifacts.manifest = Some(crate::application_layout::manifest_path(dist)?);
     Ok(artifacts)
 }
 // 小私有提交原语允许纯测试用不存在的candidate触发真实rename错误，无生产故障开关。

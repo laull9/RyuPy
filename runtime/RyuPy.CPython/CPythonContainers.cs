@@ -53,21 +53,26 @@ public sealed partial class CPythonHost
         try
         {
             using Lease lease = Enter();
-            using var handled = new PythonHandledScope(this);
-            EnterPythonCall();
-            T result;
-            try { result = operation(); }
-            catch
-            {
-                try { LeavePythonCall(); }
-                catch (Exception error) { synchronizationFailure = error.Message; }
-                throw;
-            }
-            LeavePythonCall(); return result;
+            if (TryCallCarrier(operation, out T carried)) return carried;
+            return ExecutePythonCall(operation);
         }
         // delegate强持协议receiver；CLR不能在C API消费borrowed指针或同步/异常清理期间提前终结它。
         // 外层finally覆盖全部using清理和嵌套重入，finalizer始终只负责纯托管Release入队。
         finally { GC.KeepAlive(operation); }
+    }
+    private T ExecutePythonCall<T>(Func<T> operation)
+    {
+        using var handled = new PythonHandledScope(this);
+        EnterPythonCall();
+        T result;
+        try { result = operation(); }
+        catch
+        {
+            try { LeavePythonCall(); }
+            catch (Exception error) { synchronizationFailure = error.Message; }
+            throw;
+        }
+        LeavePythonCall(); return result;
     }
     internal void EnterPythonCall()
     {

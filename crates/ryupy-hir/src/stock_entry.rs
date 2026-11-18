@@ -6,6 +6,7 @@ use ryupy_syntax::{ParsedModule, ast};
 
 pub fn stock_entry_capabilities() -> InstanceCapabilities {
     InstanceCapabilities {
+        provider_namespace: false,
         entry_namespace: true,
         aot_class_guards: true,
         direct_globals: true,

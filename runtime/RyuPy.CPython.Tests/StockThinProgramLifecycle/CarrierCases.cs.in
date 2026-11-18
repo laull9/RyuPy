@@ -1,0 +1,76 @@
+// 两个独立真实原生扩展从CIL读取D/源码、重入/异常及逃逸thunk；不借Python业务frame制造绿色。
+using RyuPy.CPython;
+using RyuPy.Runtime;
+using System.Runtime.CompilerServices;
+namespace RyuPy.CPython.Tests;
+internal static partial class ProgramLifecycle
+{
+    private static PythonObject carrierReplay = null!, carrierForget = null!;
+    private static object? NativeInvoke(PyModule source, string name, params object?[] args) =>
+        PyOps.CallValue(source.GetAttr(name)!, args, [], []);
+    private static object? CarrierItem(object? value, long index) => PyOps.GetItem(value!, index);
+    private static string CarrierText(object? value) => value is PythonObject foreign ? (string)foreign.ReadScalar("exact_str") : (string)value!;
+    private static object? CarrierRead(IStockThinFunctionLease env, object? value) => PyOps.CallValue(value!, [], [], []);
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void CarrierEntry()
+    {
+        PyModule scope = host.Import("native_scope_probe"), callback = host.Import("native_callback_probe");
+        object? first = NativeInvoke(scope, "facts"), second = NativeInvoke(scope, "facts");
+        Require(ReferenceEquals(CarrierItem(first, 0), d) && ReferenceEquals(CarrierItem(first, 1), d), "C API模块globals/locals必须为原D");
+        Require(ReferenceEquals(CarrierItem(first, 4), CarrierItem(second, 4)), "模块体复用同一carrier frame");
+        Require(CarrierText(CarrierItem(first, 2)) == module.File, "C API保留实际模块源文件");
+        // 独立Python A进入无新增CIL帧的普通managed协议；外层模块来源不能覆盖A。
+        module.SetAttr("native_protocol", PyNativeFunctions.CreateVariadic("native_protocol", _ => NativeInvoke(scope, "facts")));
+        Run("""
+import builtins
+protocol_environment={'__builtins__':dict(builtins.__dict__), '__file__':'独立Python A.py', 'callback':native_protocol}
+exec(compile("def check():\n observed=callback()\n assert observed[0] is globals()\n assert observed[1] is not globals()\n assert observed[4].f_builtins is globals()['__builtins__']\n assert observed[3].co_name=='check'\n assert observed[2]=='独立Python A.py'\n", "独立Python A.py", "exec"), protocol_environment)
+protocol_environment['check']()
+del protocol_environment
+""");
+        Require(NativeInvoke(callback, "remember") is true, "扩展保存真实frame/code/thunk");
+        try { NativeInvoke(callback, "replay"); throw new Exception("活动thunk重复执行未拒绝"); }
+        catch (PyRuntimeError error) { Require(error.Message == "compiled execution context already used", "活动重入诊断"); }
+        try { NativeInvoke(scope, "fail"); throw new Exception("原生异常丢失"); }
+        catch (PyKeyError error) { Require(error.Args.Length == 1, "原生异常args保持"); }
+        var reader = host.CreateStockThinFunction(d, new("carrier-source", "__main__", "native_reader", "真实 thin 来源.py", 7),
+            CarrierRead);
+        object? thinFacts = reader.Invoke(scope.GetAttr("facts"));
+        object? thinCode = CarrierItem(thinFacts, 3);
+        Require(ReferenceEquals(CarrierItem(thinFacts, 0), d), "薄函数真实globals");
+        Require(CarrierText(CarrierItem(thinFacts, 2)) == "真实 thin 来源.py", "薄函数原生code来源");
+        Require(CarrierText(PyObject.GetAttr(thinCode!, "co_name")) == "native_reader", "薄函数原生code名");
+        Require(PyObject.GetAttr(thinCode!, "co_firstlineno") is 7L, "薄函数真实定义首行");
+        // 同file/name的真实Python code必须保留python归属，不能继承native code身份。
+        Run("exec(compile('def native_reader(x): return x\\nnative_reader(1)\\n', '真实 thin 来源.py', 'exec'))\n");
+        carrierReplay = (PythonObject)callback.GetAttr("replay")!;
+        carrierForget = (PythonObject)callback.GetAttr("forget")!;
+        // 第二个真实D的嵌套CIL模块现场，返回后恢复A；没有借__main__伪装B。
+        PythonObject other;
+        using (host.Enter()) other = (PythonObject)host.FromOwned(host.Check(Native.rp_op(16)))!;
+        host.ExecuteWithCallCarrier(other, "独立 CIL 模块B.py", () =>
+        {
+            object? facts = NativeInvoke(scope, "facts");
+            Require(ReferenceEquals(CarrierItem(facts, 0), other) && ReferenceEquals(CarrierItem(facts, 1), other), "嵌套CIL现场切真实D");
+            Require(CarrierText(CarrierItem(facts, 2)) == "独立 CIL 模块B.py", "嵌套源文件");
+            GC.Collect(); GC.WaitForPendingFinalizers();
+        });
+        Require(ReferenceEquals(CarrierItem(NativeInvoke(scope, "facts"), 0), d), "嵌套返回恢复原模块D");
+    }
+    private static void CarrierAfterEntry()
+    {
+        // 原始C API验证逃逸权限已失效；不把测试主动导入的外部错误owned收编进入入口。
+        using var lease = host.Enter();
+        nint args = host.Check(Native.rp_op(14, n: 0));
+        try
+        {
+            nint result = Native.rp_op(5, carrierReplay.Pointer, args);
+            Require(result == 0, "逃逸thunk应抛错");
+            nint error = host.Check(Native.rp_take_error());
+            try { Require(host.ReadTextOwned(Native.rp_op(12, error)) == "compiled execution context expired", "逃逸失效诊断"); }
+            finally { Native.rp_decref(error); }
+            Native.rp_decref(host.Check(Native.rp_op(5, carrierForget.Pointer, args)));
+        }
+        finally { Native.rp_decref(args); }
+    }
+}

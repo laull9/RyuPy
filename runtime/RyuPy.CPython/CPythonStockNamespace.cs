@@ -5,10 +5,18 @@ using RyuPy.Runtime;
 
 namespace RyuPy.CPython;
 
-public sealed partial class CPythonHost : IPyCompiledModuleNamespaceProvider
+public sealed partial class CPythonHost : IPyCompiledModuleNamespaceProvider, IPyCompiledSourceNamespaceProvider,
+    IPyCompiledClassProvider
 {
     private readonly ConditionalWeakTable<PythonObject, StockNamespace> stockNamespaces = new();
     private bool stockEntryCreated;
+    // 真实namespace已创建才授予canonical builtins能力，与薄函数业务形状/专用关闭权限独立。
+    private bool stockNamespaceCreated;
+
+    /// <inheritdoc />
+    public object GetDefaultClassBase() => PythonCall(() =>
+        FromOwned(Check(ModuleNamespaceNative.rp_default_object_type()))
+            ?? throw new PyRuntimeError("default class base returned null"));
 
     /// <inheritdoc />
     public PyCompiledModuleNamespace CreateEntryNamespace(string name) => PythonCall(() =>
@@ -20,18 +28,49 @@ public sealed partial class CPythonHost : IPyCompiledModuleNamespaceProvider
         {
             var storage = new PyCompiledModuleNamespace(StockModuleNamespace(module), module);
             stockEntryCreated = true;
+            stockNamespaceCreated = true;
             return storage;
         }
         catch { module.Dispose(); throw; }
     });
 
     /// <inheritdoc />
+    public PyCompiledModuleNamespace CreateModuleNamespace(string name)
+    {
+        // __main__是语言入口身份，沿现原D；普通源码模块由loader事务决定何时进入缓存。
+        if (name == "__main__") return CreateEntryNamespace(name);
+        return PythonCall(() =>
+        {
+            nint key = ToPython(name);
+            try
+            {
+                var module = new PythonObject(this, Check(ModuleNamespaceNative.rp_compiled_module(key)));
+                try
+                {
+                    var storage = new PyCompiledModuleNamespace(StockModuleNamespace(module), module);
+                    stockNamespaceCreated = true;
+                    return storage;
+                }
+                catch { module.Dispose(); throw; }
+            }
+            finally { Native.rp_decref(key); }
+        });
+    }
+
+    /// <inheritdoc />
     public void PublishEntryNamespace(PyModule module, PyCompiledModuleNamespace storage)
+        => PublishStockNamespace(module, storage);
+
+    /// <inheritdoc />
+    public void PublishModuleNamespace(PyModule module, PyCompiledModuleNamespace storage)
+        => PublishStockNamespace(module, storage);
+
+    private void PublishStockNamespace(PyModule module, PyCompiledModuleNamespace storage)
     {
         using Lease lease = Enter();
         if (storage.Module is not PythonObject foreign || !ReferenceEquals(foreign.Host, this)
             || !ReferenceEquals(module.ForeignObject, foreign))
-            throw new PyRuntimeError("compiled entry namespace has a different module owner");
+            throw new PyRuntimeError("compiled namespace has a different module owner");
         // 原生module持字典；这里只有CLR->CP owned边，没有CP->CLR模块代理根。
         reverse.Add(module, new ManagedReference(0, foreign.Pointer, foreign));
         objects[foreign.Pointer] = new(module);
@@ -52,9 +91,15 @@ public sealed partial class CPythonHost : IPyCompiledModuleNamespaceProvider
         return (IPyModuleNamespace)stockNamespaces.GetValue(dictionary, key => new StockNamespace(this, key));
     });
 
-    private sealed class StockNamespace(CPythonHost host, PythonObject dictionary) : IPyModuleNamespace
+    private sealed class StockNamespace(CPythonHost host, PythonObject dictionary)
+        : IPyModuleNamespace, IPyModuleDictionaryNamespace
     {
         public object ViewObject => dictionary;
+
+        // SETUP_ANNOTATIONS必须创建目标解释器的精确dict，不能经过可覆盖builtins或容器proxy。
+        public object CreateDictionary() => host.PythonCall(() =>
+            host.FromOwned(host.Check(Native.rp_op(16)))
+                ?? throw new PyRuntimeError("new module dictionary returned null"));
 
         public bool TryGet(string name, out object? value)
         {

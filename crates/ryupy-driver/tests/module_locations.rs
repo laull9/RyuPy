@@ -147,8 +147,8 @@ fn actual_build_file_identity_cycles_and_unicode_source_work_outside_source_cwd(
     )
     .unwrap();
     for cwd in [&cwd_a, &cwd_b] {
-        let actual = ryupy_driver::dotnet::run_dll_with(
-            &artifacts.dll,
+        let actual = ryupy_driver::dotnet::run_executable_with(
+            artifacts.native_exe.as_ref().expect("应用必须有公开入口"),
             &ryupy_driver::dotnet::RunOptions {
                 cwd: Some(cwd.clone()),
                 ..Default::default()
@@ -161,8 +161,8 @@ fn actual_build_file_identity_cycles_and_unicode_source_work_outside_source_cwd(
     std::fs::write(source.join("left/data.txt"), "left-v2\n").unwrap();
     let changed = reference(&python, &input, &cwd_b);
     assert_ne!(changed.stdout, expected.stdout);
-    let actual = ryupy_driver::dotnet::run_dll_with(
-        &artifacts.dll,
+    let actual = ryupy_driver::dotnet::run_executable_with(
+        artifacts.native_exe.as_ref().expect("应用必须有公开入口"),
         &ryupy_driver::dotnet::RunOptions {
             cwd: Some(cwd_b),
             ..Default::default()

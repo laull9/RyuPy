@@ -118,6 +118,7 @@ fn build_prepared(
                 &plan,
                 resource_plan.as_ref(),
                 owned,
+                !sess.legacy_onefile_layout,
             )?;
             return Ok(Artifacts {
                 dll,

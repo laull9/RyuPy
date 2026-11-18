@@ -25,7 +25,9 @@ public static partial class PyModuleInstances
     {
         if (!Context(outerContext).TryBuiltin("__build_class__", out object? hook))
             throw new PyNameError("__build_class__ not found");
-        if (!ReferenceEquals(hook, PyInstanceClassHook.Function))
+        if (!ReferenceEquals(hook, PyInstanceClassHook.Function)
+            && !(PyProvider.Current is IPyCompiledBuiltinsProvider provider
+                && provider.IsCanonicalCompiledBuiltin(hook, "__build_class__")))
             throw new PyNotImplementedError("custom __build_class__ hooks are not implemented for instance modules");
     }
 
@@ -36,9 +38,11 @@ public static partial class PyModuleInstances
         if (bases.Length > 1) throw UnsupportedBase();
         if (bases.Length == 1) ValidateOrdinaryBase(bases[0]);
         // stock入口的普通类直接构造真实CP类型；object不是业务委派，类体仍由CIL顺序执行。
-        if (context.State.Code?.StockEntry == true
+        if (context.State.Code is { StockEntry: true } or { StockModule: true }
             && (bases.Length == 0 || ReferenceEquals(bases[0], PyBaseObject.Type)))
-            bases = [PyProvider.Current!.Import("builtins").GetAttr("object")];
+            bases = [PyProvider.Current is IPyCompiledClassProvider provider
+                ? provider.GetDefaultClassBase()
+                : throw new PyNotImplementedError("compiled class provider cannot supply the default object base")];
         var cls = (PyClass)PyOps.MakeClassCore(name, bases, null, captureAmbientMetadata: false);
         // 类体的LOAD_NAME与函数__module__捕获不同：缺global可回退本class frame的builtins。
         try

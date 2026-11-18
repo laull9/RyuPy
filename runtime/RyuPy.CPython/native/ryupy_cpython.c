@@ -142,12 +142,15 @@ static int rp_install_current_builtins(PyObject *globals) {
     if (!dict) { PyErr_SetString(PyExc_RuntimeError, "builtins unavailable"); return -1; }
     return PyDict_SetItemString(globals, "__builtins__", dict);
 }
+#include "module_namespace.h"
+#include "code_origin.h"
 #include "execution_audit.h"
 #include "method_descriptor.h"
 #include "class_construction.h"
 #include "import_hooks.h"
 #include "signature_bridge.h"
 #include "stock_thin_function.h"
+#include "call_carrier.h"
 
 /* 回调失败必须已设置Python异常，绝不能让托管异常穿过C栈。 */
 static PyObject *forward(Managed *self, int op, PyObject *a, PyObject *b, PyObject *c, int64_t n, const char *s) {
@@ -259,8 +262,12 @@ API int rp_start(const char *home, const char **paths, int path_count, const cha
     }
     if (fail_status(Py_InitializeFromConfig(&config))) goto error;
     PyConfig_Clear(&config); dispatch = callback;
+    if (rp_namespace_start() < 0) {
+        strcpy(init_error, "canonical builtins snapshot failed");
+        PyErr_Clear(); rp_namespace_stop(); Py_FinalizeEx(); return -1;
+    }
     managed_type = (PyTypeObject *)PyType_FromSpec(&managed_spec);
-    if (!managed_type) { strcpy(init_error, "managed proxy type creation failed"); PyErr_Clear(); Py_FinalizeEx(); return -1; }
+    if (!managed_type) { strcpy(init_error, "managed proxy type creation failed"); PyErr_Clear(); rp_namespace_stop(); Py_FinalizeEx(); return -1; }
     initial_thread = PyEval_SaveThread(); return 0;
 error:
     /* 初始化失败可能已经建立部分解释器；只在真实已初始化时同线程清理。 */
@@ -300,6 +307,7 @@ API int rp_stop(void) {
     PyEval_RestoreThread(initial_thread); initial_thread = NULL;
     rp_execution_audit_phase(2);
     native_import_hooks_clear();
+    rp_namespace_stop();
     Py_CLEAR(native_method_type); Py_CLEAR(native_static_method_type); Py_CLEAR(managed_descriptor_type);
     int result = Py_FinalizeEx();
     rp_reference_closed = 1; rp_thin_program_closed();
@@ -475,11 +483,6 @@ API const char *rp_builtin_exception(PyObject *value) {
     }
     return "BaseException";
 }
-API PyObject *rp_builtin(const char *name) {
-    PyObject *value = rp_builtin_item(name);
-    if (!value) { PyErr_SetString(PyExc_TypeError, "unknown builtin type"); return NULL; }
-    return Py_NewRef(value);
-}
 /* 精确内建容器同步原语，不执行包名相关逻辑。 */
 API PyObject *rp_list(void) { return PyList_New(0); }
 API int rp_list_append(PyObject *list, PyObject *item) { return PyList_Append(list,item); }
@@ -593,6 +596,5 @@ API int rp_contains(PyObject *container, PyObject *item) { return PySequence_Con
 API PyObject *rp_dir(PyObject *value) { return PyObject_Dir(value); }
 API PyObject *rp_borrowed_type(PyObject *value) { return value ? (PyObject *)Py_TYPE(value) : NULL; }
 
-#include "module_namespace.h"
 #include "exact_scalar.h"
 #include "unicode_codepoints.h"

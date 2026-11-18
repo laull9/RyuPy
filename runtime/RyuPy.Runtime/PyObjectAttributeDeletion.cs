@@ -13,6 +13,11 @@ public static partial class PyObject
                 origin.DelAttr(name); error.ForeignObject.SynchronizeException(error, false); return;
             case PyBaseException when name == "__traceback__":
                 throw new PyNotImplementedError("native exception traceback deletion is not supported");
+            case PyModule { ForeignObject: PyNativeObject foreign } module when !PyModuleInstances.IsInstance(module):
+                // provider模块的属性由同一真实对象负责；不能误入Legacy静态槽或复制成动态字典。
+                // 已绑定源码实例继续走下面的权威D路径，避免绕过其实际存储合同。
+                foreign.DelAttr(name);
+                return;
             case PyModule module:
                 PyModuleInstances.DeleteAttr(module, name);
                 return;

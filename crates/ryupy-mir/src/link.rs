@@ -208,7 +208,10 @@ pub(crate) fn link_with_origins(
                         fact
                     })
                     .collect(),
-                source_handler_contracts: func.body.source_handler_contracts.clone(),
+                source_handler_contracts: crate::generator_source_handlers::remap(
+                    &func.body.source_handler_contracts,
+                    &global_map,
+                ),
                 locals,
                 blocks: remap_blocks(&func.body.blocks, &fn_map, &class_map, &global_map),
                 entry: func.body.entry,

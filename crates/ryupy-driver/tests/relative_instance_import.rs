@@ -102,7 +102,11 @@ fn compare(entry: &str) {
         )
         .unwrap();
         if explicit {
-            let actual = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
+            let actual = ryupy_driver::dotnet::run_executable_with(
+                artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+                &Default::default(),
+            )
+            .unwrap();
             std::fs::write(root.join("actual.stdout"), &actual.stdout).unwrap();
             std::fs::write(root.join("actual.stderr"), &actual.stderr).unwrap();
             assert!(

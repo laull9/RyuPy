@@ -13,6 +13,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT))
 from tests.cpython.dependencies.run import wheel
+from tests.cpython.support import built_product
 
 
 def invoke(command, cwd, env, log, success=True):
@@ -57,7 +58,6 @@ def main():
                work, env, evidence / 'install.log')
         build_env = dict(env, VIRTUAL_ENV=str(venv))
         products = []
-        dotnet = shutil.which('dotnet')
         for case, module in [('absent', 'ryupy_absent_optional'), ('present', 'optional_feature')]:
             entry = inputs / (case + '.py')
             entry.write_text('"""手写可选依赖产品合同；不执行安装或修改业务输入。"""\n'
@@ -76,13 +76,15 @@ def main():
                              if line.startswith('已生成 ')]
                 assert len(generated) == 1, built.stderr
                 executable = generated[0]
-                report = json.loads((executable.parent / 'cpython-provider.json').read_text())
+                public = built_product(built.stderr, output, entry.stem, mode)
+                assert public.entry == executable
+                report = json.loads(public.provider_report.read_text())
                 collection = report['dependency_collection']
                 audit = next(row for row in collection['optional_imports'] if row['module'] == module)
                 assert audit['installed'] == (case == 'present'), audit
                 names = {row['name'] for row in collection['distributions']}
                 assert names == ({'optional-feature', 'optional-leaf'} if case == 'present' else set()), names
-                shutil.copy2(executable.parent / 'cpython-provider.json', evidence / (label + '-provider.json'))
+                shutil.copy2(public.provider_report, evidence / (label + '-provider.json'))
                 relocated = work / ('搬迁 空格 ' + label)
                 shutil.move(executable.parent, relocated)
                 products.append((label, mode, relocated / executable.name, oracle, oracle_cwd))
@@ -116,7 +118,7 @@ def main():
         for label, mode, executable, oracle, oracle_cwd in products:
             cwd = work / ('run-' + label)
             cwd.mkdir()
-            command = [dotnet, executable] if mode == 'jit' else [executable]
+            command = [executable]
             actual = invoke(command, cwd, polluted, evidence / (label + '-run.log'))
             assert (actual.returncode, actual.stdout, actual.stderr) == (oracle.returncode, oracle.stdout, oracle.stderr)
             if label.startswith('present'):

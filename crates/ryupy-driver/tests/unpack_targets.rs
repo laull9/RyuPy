@@ -1,11 +1,14 @@
 //! 平坦属性/下标解包的 HIR、动态类型与 MIR 顺序回归；递归解包逐层准备。
+#[path = "../src/test_temp.rs"]
+mod layout_temp;
 use ryupy_driver::{Session, Stage};
 mod support;
 use support::dump;
 
 #[test]
 fn snapshot_unpack_before_ordered_leaf_stores() {
-    let path = std::env::temp_dir().join("ryupy_m3_7_unpack_targets.py");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let path = _layout_temp.join("ryupy_m3_7_unpack_targets.py");
     std::fs::write(&path, "def bind(target, values):\n    target.first, target[0] = values\n    first, *target.rest = values\n    return first\ndef paused(target, values):\n    target.first, target[(yield 0)] = values\n").unwrap();
     for (stage, name) in [
         (Stage::Hir, "m3_7_unpack_targets_hir"),
@@ -69,7 +72,8 @@ fn snapshot_unpack_before_ordered_leaf_stores() {
 
 #[test]
 fn recursive_targets_prepare_each_layer() {
-    let path = std::env::temp_dir().join("ryupy_m3_7_nested_unpack.py");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let path = _layout_temp.join("ryupy_m3_7_nested_unpack.py");
     for source in ["a, (b, c) = [1, [2, 3]]\n", "a, *(b, c) = [1, 2, 3]\n"] {
         std::fs::write(&path, source).unwrap();
         let mut session = Session::default();

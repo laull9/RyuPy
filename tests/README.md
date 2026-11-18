@@ -112,7 +112,9 @@ make bench ARGS="--no-cpython --runs 9" # 其它参数见 python3 tests/run_benc
 
 ## 结果记录
 
-每次 e2e 运行都会重写 `target/e2e/results.jsonl`，一行一个用例：
+e2e的工作目录与发布产物使用独占仓外临时目录，结束后清理。需要保留JSONL结果时，
+显式设置仓外路径，例如`RYUPY_E2E_RESULTS=/tmp/ryupy-e2e-results.jsonl cargo test -p ryupy-e2e`。
+结果一行一个用例：
 
 ```json
 {"name":"phase1/m1_0_print_int","status":"passed","detail":""}

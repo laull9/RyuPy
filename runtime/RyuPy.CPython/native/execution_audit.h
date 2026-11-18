@@ -16,7 +16,7 @@
 #endif
 
 typedef struct {
-    int phase;
+    int phase, origin;
     char *file, *function;
     int64_t calls;
 } rp_audit_row;
@@ -34,11 +34,12 @@ static void audit_record(PyCodeObject *code) {
     PyObject *saved = PyErr_GetRaisedException();
     const char *file = PyUnicode_AsUTF8(code->co_filename);
     const char *function = file ? PyUnicode_AsUTF8(code->co_name) : NULL;
+    int origin = rp_code_origin_kind((PyObject *)code);
     audit_counts[audit_phase]++;
     if (!file || !function) { audit_dropped++; goto done; }
     for (int i = 0; i < audit_row_count; i++) {
         rp_audit_row *row = &audit_rows[i];
-        if (row->phase == audit_phase && !strcmp(row->file, file) && !strcmp(row->function, function)) {
+        if (row->phase == audit_phase && row->origin == origin && !strcmp(row->file, file) && !strcmp(row->function, function)) {
             row->calls++; goto done;
         }
     }
@@ -50,7 +51,7 @@ static void audit_record(PyCodeObject *code) {
     }
     memcpy(file_copy, file, file_size); memcpy(function_copy, function, function_size);
     rp_audit_row *row = &audit_rows[audit_row_count++];
-    row->phase = audit_phase; row->file = file_copy; row->function = function_copy; row->calls = 1;
+    row->phase = audit_phase; row->origin = origin; row->file = file_copy; row->function = function_copy; row->calls = 1;
 done:
     PyErr_Clear(); PyErr_SetRaisedException(saved);
 }
@@ -123,3 +124,6 @@ API int rp_execution_audit_row(int index, int *phase, const char **file, const c
     *phase = row->phase; *file = row->file; *function = row->function; *calls = row->calls;
     return 1;
 }
+
+/* 来源只按原生注册code身份读取；0普通Python，1静态薄体胶水，2原生调用现场胶水。 */
+API int rp_execution_audit_row_origin(int index) { return index >= 0 && index < audit_row_count ? audit_rows[index].origin : 0; }

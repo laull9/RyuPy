@@ -34,19 +34,19 @@ fn build_and_dump_reject_original_fixtures_and_all_stable_xml_forms() {
         );
         let mut build = Session::default();
         let out_dir = root.0.join("out");
-        assert!(
-            crate::build(
-                &mut build,
-                &BuildOptions {
-                    input,
-                    out_dir: out_dir.clone(),
-                    aot: false,
-                    search_paths: vec![],
-                }
-            )
-            .is_err(),
-            "{source}"
-        );
+        let error = match crate::build(
+            &mut build,
+            &BuildOptions {
+                input,
+                out_dir: out_dir.clone(),
+                aot: false,
+                search_paths: vec![],
+            },
+        ) {
+            Err(error) => error,
+            Ok(_) => panic!("原始fixture必须继续被语义门拒绝"),
+        };
+        assert!(error.is::<crate::HasErrors>(), "{error:#}");
         for session in [&dump, &build] {
             let expected_start = if source.contains("class Child(SyntaxError)") {
                 source.rfind("SyntaxError").unwrap()
@@ -71,15 +71,35 @@ fn build_and_dump_reject_original_fixtures_and_all_stable_xml_forms() {
                 "{source}: {diagnostic}"
             );
         }
-        // 来源审计先于语义门落盘，拒绝后只允许该报告，绝不能发射 PE。
-        let files: Vec<_> = std::fs::read_dir(&out_dir)
+        // 失败报告独立于公开产品根；原语义拒绝、报告内容与未发射PE合同均保持。
+        assert!(!out_dir.exists());
+        let attempts: Vec<_> = std::fs::read_dir(&root.0)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| {
+                path.file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .starts_with("out.build-")
+            })
+            .collect();
+        assert_eq!(attempts.len(), 1);
+        let diagnostics = attempts[0].join("attempt");
+        assert!(
+            error
+                .to_string()
+                .contains(&diagnostics.display().to_string()),
+            "{error:#}"
+        );
+        let files: Vec<_> = std::fs::read_dir(&diagnostics)
             .unwrap()
             .map(|entry| entry.unwrap().file_name())
             .collect();
         assert_eq!(files, ["main.source-plan.json"]);
-        let report: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(out_dir.join("main.source-plan.json")).unwrap())
-                .unwrap();
+        let report: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(diagnostics.join("main.source-plan.json")).unwrap(),
+        )
+        .unwrap();
         assert_eq!(report["compiler_verified"], false);
     }
 }

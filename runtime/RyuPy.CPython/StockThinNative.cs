@@ -11,6 +11,8 @@ internal static unsafe partial class Native
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern nint rp_thin_make(nint globals, nint token, int failure);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern nint rp_thin_make_source(nint globals, nint token, int failure, nint filename, long line, nint name);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern nint rp_thin_token(nint function);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern int rp_thin_validate(nint function);

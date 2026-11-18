@@ -1,0 +1,55 @@
+// 普通Host未启薄函数时的真实namespace/canonical builtins门；独立确认工厂授权与执行授权分离。
+using RyuPy.CPython;
+using RyuPy.Runtime;
+namespace RyuPy.CPython.Tests;
+internal static partial class ProgramLifecycle
+{
+    private static int NamespaceBuiltins(string config, bool entry)
+    {
+        Bootstrap.Start(config, ["namespace-builtins-product"]); host = Bootstrap.Host;
+        Require(!host.TryGetCompiledBuiltins(out _), "创建真实namespace前不授canonical builtins");
+        Require(ModuleNamespaceNative.rp_namespace_snapshot_count() == 4, "初始化实际保活dict及3个规范函数");
+        PyModule actual = host.Import("builtins");
+        string[] names = ["globals", "__import__", "__build_class__"];
+        object?[] original = names.Select(actual.GetAttr).ToArray();
+        PyCompiledModuleNamespace storage = null!;
+        Run("import builtins\ndef replacement(*args, **kwargs): return None\nbuiltins.globals=replacement\nbuiltins.__import__=replacement\nbuiltins.__build_class__=replacement\n");
+        try
+        {
+            storage = entry ? host.CreateEntryNamespace("__main__") : host.CreateModuleNamespace("ordinary_frame_namespace");
+            Require(host.TryGetCompiledBuiltins(out var builtins) && builtins is not null,
+                "成功namespace创建独立授canonical builtins");
+            Require(ReferenceEquals(actual.GetAttr("__dict__"), builtins!.ViewObject), "原生builtins字典身份");
+            using (host.Enter()) Require(Native.rp_container_kind(((PythonObject)builtins.ViewObject).Pointer) == 2, "精确CP dict");
+            for (int i = 0; i < names.Length; i++)
+            {
+                Require(host.IsCanonicalCompiledBuiltin(original[i], names[i]), "初始化时原规范对象身份");
+                Require(!host.IsCanonicalCompiledBuiltin(actual.GetAttr(names[i]), names[i]), "提前replacement不能冒领规范身份");
+                using var lease = host.Enter();
+                Require(Native.rp_identity(((PythonObject)original[i]!).Pointer) == 0, "内建不是managed proxy");
+            }
+            using (host.Enter())
+            {
+                Require(Native.rp_thin_program_check() < 0, "namespace创建不启薄函数native能力");
+                nint error = host.Check(Native.rp_take_error()); Native.rp_decref(error);
+            }
+            Require(!host.HasStockProgramPermission, "namespace创建不授闭域程序生命周期");
+        }
+        finally { for (int i = 0; i < names.Length; i++) actual.SetAttr(names[i], original[i]); }
+        if (!entry)
+        {
+            var modules = (PythonObject)host.SystemAttribute("modules")!;
+            using var lease = host.Enter();
+            nint key = host.ToPython("ordinary_frame_namespace");
+            try
+            {
+                int status = ModuleNamespaceNative.rp_namespace_lookup(modules.Pointer, key, out nint found);
+                Native.rp_decref(found); Require(status == 0, "普通namespace不提前发布sys.modules");
+            }
+            finally { Native.rp_decref(key); }
+        }
+        GC.KeepAlive(storage); Bootstrap.Stop();
+        Require(ModuleNamespaceNative.rp_namespace_snapshot_count() == 0, "停止时4个规范owned实际交还");
+        Console.WriteLine("PASS " + mode + " canonical=True thin=False program=False"); return 0;
+    }
+}

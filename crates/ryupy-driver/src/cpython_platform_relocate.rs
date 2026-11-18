@@ -12,6 +12,12 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 #[path = "cpython_macho_identity.rs"]
 pub(crate) mod macho_identity;
+#[path = "cpython_macho_relocation_plan.rs"]
+mod macho_relocation_plan;
+#[path = "cpython_macho_relocation_signature.rs"]
+pub(crate) mod macho_relocation_signature;
+#[path = "cpython_macho_slice.rs"]
+mod macho_slice;
 
 /// 判断文件是否为目标平台原生二进制动态库或扩展。
 pub(super) fn is_native_image(path: &Path) -> bool {
@@ -116,7 +122,7 @@ pub(super) fn relative_path(base: &Path, target: &Path) -> Result<String> {
 
 /// macOS Mach-O 映像重定位与代码签名（保持 macOS 原有严格行为不变）。
 pub(super) fn relocate_macos(output: &Path, shim_name: &str, system_deps: &[&str]) -> Result<()> {
-    relocate_macos_with_components(output, shim_name, system_deps, &[])
+    relocate_macos_with_components(output, shim_name, system_deps, &[]).map(|_| ())
 }
 
 pub(super) fn relocate_macos_with_components(
@@ -124,20 +130,45 @@ pub(super) fn relocate_macos_with_components(
     shim_name: &str,
     system_deps: &[&str],
     aliases: &[macho_identity::Alias],
-) -> Result<()> {
+) -> Result<serde_json::Value> {
     use std::collections::BTreeMap;
     let output = output.canonicalize()?;
     let mut all = Vec::new();
     collect_images(&output.join("python"), &mut all)?;
     all.push(output.join(shim_name));
+    // 收敛只消费原重定位的拥有集合；先保留源fat事实，再按选中slice冻结加载身份。
+    let mut convergence = all
+        .iter()
+        .map(|image| macho_slice::converge(image, &output, super::rid()?))
+        .collect::<Result<Vec<_>>>()?;
+    // Apple codesign在macOS15起默认丢弃库entitlements；每轮查询一次宿主能力，同时覆盖原本thin映像的重签。
+    let force_library_entitlements = {
+        let version = Command::new("/usr/bin/sw_vers")
+            .arg("-productVersion")
+            .output()?;
+        ensure!(version.status.success(), "无法读取codesign宿主系统版本");
+        let version = std::str::from_utf8(&version.stdout)?;
+        version
+            .trim()
+            .split('.')
+            .next()
+            .context("codesign宿主版本为空")?
+            .parse::<u32>()?
+            >= 15
+    };
     // 修改部署副本前冻结全部原始身份，不能让前一映像的-id改写改变后续候选证据。
     let mut images = BTreeMap::new();
     for image in &all {
         super::platform_abi::check_architecture(image, super::rid()?)?;
         images.insert(image.clone(), macho_identity::read(image)?);
     }
-    for image in &all {
+    let plan = macho_relocation_plan::Plan::new(&output, &images);
+    for (index, image) in all.iter().enumerate() {
         let info = &images[image];
+        let original_entitlements = macho_relocation_signature::snapshot(image)?;
+        let mut changed = false;
+        let mut preserved_edges = 0;
+        let mut rewritten_edges = 0;
         for dependency in &info.dependencies {
             if system_deps
                 .iter()
@@ -228,6 +259,14 @@ pub(super) fn relocate_macos_with_components(
             if target == image {
                 continue;
             }
+            // 原闭包、显式别名及ABI版本验证全部完成后，才允许保留等价局部加载边。
+            if declared.is_empty()
+                && plan.dependency(image, &dependency.name, target)
+                    == macho_relocation_plan::Decision::Preserve
+            {
+                preserved_edges += 1;
+                continue;
+            }
             let relative = relative_path(image.parent().context("原生映像缺少父目录")?, target)?;
             let replacement = format!("@loader_path/{relative}");
             if dependency.name != replacement {
@@ -240,9 +279,13 @@ pub(super) fn relocate_macos_with_components(
                         image.as_os_str(),
                     ],
                 )?;
+                changed = true;
+                rewritten_edges += 1;
             }
         }
-        if info.identity.is_some() {
+        if let Some(identity) = &info.identity
+            && plan.identity(image) != macho_relocation_plan::Decision::Preserve
+        {
             let id = format!(
                 "@rpath/{}",
                 image
@@ -250,22 +293,39 @@ pub(super) fn relocate_macos_with_components(
                     .context("Mach-O映像缺少文件名")?
                     .to_string_lossy()
             );
-            run_command(
-                "install_name_tool",
-                &["-id".as_ref(), id.as_ref(), image.as_os_str()],
-            )?;
+            if identity.name != id {
+                run_command(
+                    "install_name_tool",
+                    &["-id".as_ref(), id.as_ref(), image.as_os_str()],
+                )?;
+                changed = true;
+            }
         }
-        run_command(
-            "codesign",
-            &[
-                "--force".as_ref(),
-                "--sign".as_ref(),
-                "-".as_ref(),
-                image.as_os_str(),
-            ],
+        let converted = convergence[index]["action"] == "selected_target_slice";
+        let signature = macho_relocation_signature::finish(
+            image,
+            plan.preserve_signature(image, changed, true),
+            converted,
+            force_library_entitlements,
+            &original_entitlements,
         )?;
+        convergence[index]["signature"] = signature.into();
+        convergence[index]["preserved_dependency_edges"] = preserved_edges.into();
+        convergence[index]["rewritten_dependency_edges"] = rewritten_edges.into();
+        convergence[index]["load_commands_changed"] = changed.into();
     }
-    Ok(())
+    // 最终大小在install-name改写与签名后冻结，不能把源slice长度冒充最终产物长度。
+    for record in &mut convergence {
+        let path = record["path"]
+            .as_str()
+            .context("架构收敛记录缺少部署路径")?;
+        record["output_bytes"] = serde_json::json!(std::fs::metadata(output.join(path))?.len());
+    }
+    convergence.sort_by(|left, right| left["path"].as_str().cmp(&right["path"].as_str()));
+    Ok(serde_json::json!({"schema":1,"policy":"frozen_target_rid",
+        "scope":"existing_native_relocation_owned_images_only", "target_rid":super::rid()?,
+        "path_base":"provider_configuration_directory",
+        "preserved_action_scope":"slice_and_load_commands_reported_separately; original_signature_requires_platform_verification", "files":convergence}))
 }
 
 /// universal2 的分架构标题不是加载边；只解析携带依赖版本信息的真实条目。

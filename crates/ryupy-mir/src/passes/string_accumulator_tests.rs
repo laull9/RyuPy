@@ -25,6 +25,7 @@ fn compile_module(source: &str) -> (Program, FnId) {
         ryupy_hir::ModuleInfo {
             instance_globals: true,
             instance_capabilities: ryupy_base::InstanceCapabilities {
+                provider_namespace: false,
                 direct_globals: true,
                 ..Default::default()
             },

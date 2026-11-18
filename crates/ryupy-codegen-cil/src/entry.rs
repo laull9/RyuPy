@@ -141,9 +141,10 @@ pub(crate) fn emit_entry_wrapper(
             ],
         );
         shift += 3;
-        // Finish 在 finally 中关闭宿主；刷新或关闭失败由同一 ABI 保留稳定退出诊断。
+        // provider的Finish移到独立外层；内层catch已返回后才允许自然GC/宿主关闭。
+        // CLR即使不显式stloc，也可能在EH栈中保留异常至当前方法结束。
         let finish = instructions.len() - 2;
-        instructions[finish] = Instruction::call(refs.finish);
+        instructions.remove(finish);
     }
     // 成功路径直接返回槽 0：with_locals 在真实 PE 方法头启用清零，
     // 不能仅依赖转储文本的 .locals init 或某个平台偶然为零的栈内容。
@@ -175,7 +176,37 @@ pub(crate) fn emit_entry_wrapper(
             handler_length: 4,
         },
     ])];
-    res[wrapper].body = Some(method_body);
+    if let Some((_, refs)) = provider {
+        emit_provider_boundary(res, wrapper, method_body, refs.finish);
+    } else {
+        res[wrapper].body = Some(method_body);
+    }
+}
+
+/// 真实方法边界结束EH异常强根；禁止JIT/NativeAOT内联回持有宿主的Main。
+/// 只传递退出码，不清除用户字典、别名或异常对象，也不改变原typed catch与报告顺序。
+fn emit_provider_boundary(
+    res: &mut Resolution<'static>,
+    wrapper: MethodIndex,
+    body: body::Method,
+    finish: MethodRefIndex,
+) {
+    let mut inner = Method::new(
+        Accessibility::Private,
+        res[wrapper].signature.clone(),
+        "__run_provider_body",
+        Some(body),
+    );
+    inner.no_inlining = true;
+    let inner = res.push_method(wrapper.parent_type(), inner);
+    let mut outer = body::Method::new(vec![
+        Instruction::LoadArgument(0),
+        Instruction::call(inner),
+        Instruction::call(finish),
+        Instruction::Return,
+    ]);
+    outer.header.maximum_stack_size = 8;
+    res[wrapper].body = Some(outer);
 }
 
 pub fn emit(program: &LinkedProgram, opts: &EmitOptions) -> Result<Vec<u8>, CodegenError> {

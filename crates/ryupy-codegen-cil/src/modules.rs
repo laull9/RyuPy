@@ -236,7 +236,9 @@ pub(crate) fn append_module_registration(
         instructions.pop();
     }
     for (index, (module_id, module)) in program.modules.iter().enumerate() {
-        let candidate = program.candidate_modules.contains(&module.name);
+        // provider全图是显式硬选择，不能再通过候选注册替换真实字典factory。
+        let candidate = program.candidate_modules.contains(&module.name)
+            && !module.instance_capabilities.provider_namespace;
         if module.execution == ryupy_mir::ModuleExecutionKind::InstanceGlobals {
             crate::instance_refs::append_registration(
                 instructions,
@@ -247,6 +249,9 @@ pub(crate) fn append_module_registration(
                 program.functions[module.init]
                     .instance_capabilities
                     .entry_namespace,
+                program.functions[module.init]
+                    .instance_capabilities
+                    .provider_namespace,
             );
             continue;
         }

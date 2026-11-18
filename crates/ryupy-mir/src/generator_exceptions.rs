@@ -29,6 +29,43 @@ impl Plan {
         }
     }
 
+    pub(super) fn typed_targets(
+        &self,
+        exceptions: &rustc_hash::FxHashMap<String, GlobalId>,
+    ) -> Vec<Vec<Operand>> {
+        self.regions
+            .iter()
+            .map(|region| match &region.kind {
+                RegionKind::Catch { type_names } => type_names
+                    .iter()
+                    .map(|name| {
+                        exceptions.get(name).map_or_else(
+                            || Operand::Const(Constant::Str(name.clone())),
+                            |id| Operand::Global(*id),
+                        )
+                    })
+                    .collect(),
+                _ => Vec::new(),
+            })
+            .collect()
+    }
+
+    pub(super) fn source_routes(&self) -> Vec<crate::generator_source_handlers::SourceRoute> {
+        self.regions
+            .iter()
+            .enumerate()
+            .filter_map(|(route, region)| {
+                region.source_handler_chain.map(|chain| {
+                    crate::generator_source_handlers::SourceRoute {
+                        chain,
+                        route,
+                        exception: region.exc_local,
+                    }
+                })
+            })
+            .collect()
+    }
+
     pub(super) fn handlers(&self) -> impl Iterator<Item = BlockId> + '_ {
         self.regions.iter().map(|region| region.handler)
     }

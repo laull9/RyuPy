@@ -1,9 +1,12 @@
 //! 项目驱动的 Unicode 内建：直接调用与一等内建函数值共享运行时分派。
+#[path = "../src/test_temp.rs"]
+mod layout_temp;
 use ryupy_driver::{Session, Stage, dump};
 
 #[test]
 fn snapshot_unicode_builtins() {
-    let path = std::env::temp_dir().join("ryupy_test_unicode_builtins.py");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let path = _layout_temp.join("ryupy_test_unicode_builtins.py");
     std::fs::write(&path, "print(ord('🎉'), chr(65))\n").unwrap();
     let mut session = Session::default();
     let output = dump(&mut session, &path, Stage::Mir).expect("ord/chr应走动态内建分派");
@@ -19,7 +22,8 @@ fn snapshot_unicode_builtins() {
 
 #[test]
 fn snapshot_unicode_builtin_values() {
-    let path = std::env::temp_dir().join("ryupy_test_unicode_builtin_value.py");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let path = _layout_temp.join("ryupy_test_unicode_builtin_value.py");
     std::fs::write(&path, "f = ord\ng = chr\nprint(f(g(65)))\n").unwrap();
     let mut session = Session::default();
     let output = dump(&mut session, &path, Stage::Mir).expect("ord/chr作为可调用内建值");

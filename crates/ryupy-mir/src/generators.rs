@@ -138,6 +138,8 @@ fn lower_one(
     let original_block_count = body.blocks.len();
     let exceptions = crate::generator_exceptions::Plan::take(&mut body);
     let exception_routes = exceptions.frame_routes();
+    let source_routes = exceptions.source_routes();
+    let typed_targets = exceptions.typed_targets(exception_globals);
     let mut exit_pcs = Vec::new();
     let mut resume_targets = vec![original_entry];
     for handler in exceptions.handlers() {
@@ -412,7 +414,7 @@ fn lower_one(
     });
     factory.blocks[factory.entry].terminator = Terminator::Return(Some(Operand::Local(result)));
     program.functions[id].body = factory;
-    crate::trace_lowering::GeneratorLayout {
+    let layout = crate::trace_lowering::GeneratorLayout {
         factory: id,
         resume,
         initial_pc: original_entry.into_raw().into_u32() as i64,
@@ -434,5 +436,13 @@ fn lower_one(
             .collect(),
         physical_region,
         saved_locals: original.into_iter().map(|(local, _)| local).collect(),
-    }
+    };
+    crate::generator_source_handlers::install(
+        &mut program.functions[resume],
+        &layout,
+        source_routes,
+        typed_targets,
+        product,
+    );
+    layout
 }

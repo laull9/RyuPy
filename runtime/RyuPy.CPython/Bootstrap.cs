@@ -86,7 +86,7 @@ internal sealed record HostConfiguration(string Home, string Library, string Shi
 {
     internal static HostConfiguration Read(string filename)
     {
-        filename = Path.GetFullPath(filename, AppContext.BaseDirectory);
+        filename = Path.GetFullPath(filename, PyApplicationLayout.DependencyRoot);
         using JsonDocument document = JsonDocument.Parse(File.ReadAllText(filename));
         JsonElement root = document.RootElement;
         if (root.GetProperty("schema").GetInt32() != 1)

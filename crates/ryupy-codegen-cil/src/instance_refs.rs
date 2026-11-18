@@ -8,14 +8,18 @@ pub(crate) struct InstanceRefs {
     pub definition_module: MethodRefIndex,
     pub load_name: MethodRefIndex,
     pub direct_globals: MethodRefIndex,
+    pub setup_annotations: MethodRefIndex,
     pub store_name: MethodRefIndex,
     pub execution_source: MethodRefIndex,
     pub import_guard: MethodRefIndex,
+    pub import_name: MethodRefIndex,
+    pub import_attribute: MethodRefIndex,
     pub relative_import: MethodRefIndex,
     pub relative_attribute: MethodRefIndex,
     pub execute_ctor: MethodRefIndex,
     pub register: MethodRefIndex,
     pub register_stock_entry: MethodRefIndex,
+    pub register_stock_module: MethodRefIndex,
 }
 
 impl InstanceRefs {
@@ -34,15 +38,19 @@ impl InstanceRefs {
             capture_definition: res.push_method_reference(method_ref! { static object @instances::CaptureDefinitionContext(object) }),
             definition_module: res.push_method_reference(method_ref! { static object @instances::DefinitionModule(object) }),
             direct_globals: res.push_method_reference(method_ref! { static object @instances::CallDirectGlobals(object, object) }),
+            setup_annotations: res.push_method_reference(method_ref! { static void @instances::SetupAnnotations(object) }),
             load_name: res.push_method_reference(method_ref! { static object @instances::LoadName(object, string) }),
             store_name: res.push_method_reference(method_ref! { static void @instances::StoreName(object, string, object) }),
             execution_source: res.push_method_reference(method_ref! { static object @instances::ExecutionSource(object) }),
             relative_import: res.push_method_reference(method_ref! { static object @instances::RelativeImport(object, string, long, object[]) }),
             relative_attribute: res.push_method_reference(method_ref! { static object @instances::RelativeImportAttr(object, object, string) }),
+            import_name: res.push_method_reference(method_ref! { static object @instances::ImportName(object, string, long, object, bool) }),
+            import_attribute: res.push_method_reference(method_ref! { static object @instances::ImportAttribute(object, object, string) }),
             import_guard: res.push_method_reference(method_ref! { static void @instances::ImportGuard(object) }),
             execute_ctor: res.push_method_reference(method_ref! { void @execute::.ctor(object, nint) }),
             register: res.push_method_reference(method_ref! { static void @modules::RegisterInstanceSourceLocated(string, string, string, long, string, bool, @execute) }),
             register_stock_entry: res.push_method_reference(method_ref! { static void @modules::RegisterStockEntrySourceLocated(string, string, string, long, string, bool, @execute) }),
+            register_stock_module: res.push_method_reference(method_ref! { static void @modules::RegisterStockModuleSourceLocated(string, string, string, long, string, bool, @execute) }),
         }
     }
 }
@@ -55,6 +63,7 @@ pub(crate) fn append_registration(
     refs: &InstanceRefs,
     candidate_register: Option<MethodRefIndex>,
     stock_entry: bool,
+    provider_namespace: bool,
 ) {
     let (kind, location) = match &module.location {
         ryupy_mir::ModuleLocation::LegacyDiagnostic => (0, ""),
@@ -72,11 +81,15 @@ pub(crate) fn append_registration(
         Instruction::LoadNull,
         Instruction::LoadMethodPointer(MethodSource::User(UserMethod::Definition(execute))),
         Instruction::NewObject(UserMethod::Reference(refs.execute_ctor)),
-        Instruction::call(candidate_register.unwrap_or(if stock_entry {
-            refs.register_stock_entry
+        Instruction::call(if provider_namespace {
+            refs.register_stock_module
         } else {
-            refs.register
-        })),
+            candidate_register.unwrap_or(if stock_entry {
+                refs.register_stock_entry
+            } else {
+                refs.register
+            })
+        }),
     ]);
 }
 

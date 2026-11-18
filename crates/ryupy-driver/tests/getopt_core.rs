@@ -99,8 +99,8 @@ fn execute(
     )
     .unwrap();
     let artifacts = built.unwrap();
-    let actual = ryupy_driver::dotnet::run_dll_with(
-        &artifacts.dll,
+    let actual = ryupy_driver::dotnet::run_executable_with(
+        artifacts.native_exe.as_ref().expect("应用必须有公开入口"),
         &ryupy_driver::dotnet::RunOptions {
             cwd: Some(jit_cwd),
             env: vec![("LC_ALL".to_owned(), "C".to_owned())],

@@ -54,6 +54,7 @@ fn main() -> ExitCode {
         experimental_records_increment: cli.experimental_records_increment,
         experimental_leaf_inline: cli.experimental_leaf_inline,
         experimental_stock_thin_functions: cli.experimental_stock_thin_functions,
+        experimental_stock_module_namespaces: cli.experimental_stock_module_namespaces,
         diagnostic_scalar_slp: cli.diagnostic_scalar_slp,
         experimental_packed_slp: cli.experimental_packed_slp,
         ..Session::default()
@@ -68,7 +69,16 @@ fn main() -> ExitCode {
     }
     match result {
         Ok(code) => code,
-        Err(e) if e.is::<HasErrors>() => ExitCode::FAILURE,
+        Err(e) if e.is::<HasErrors>() => {
+            // 语义诊断已单独渲染；保留发布事务附加的诊断目录等context，不能吞掉可操作路径。
+            let mut causes = e.chain().peekable();
+            while let Some(context) = causes.next() {
+                if causes.peek().is_some() {
+                    eprintln!("{context}");
+                }
+            }
+            ExitCode::FAILURE
+        }
         Err(e) => {
             eprintln!("error: {e:#}");
             ExitCode::FAILURE
@@ -143,6 +153,7 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
                 native_binding.as_deref(),
             )?;
             if let Some(exe) = artifacts.native_exe {
+                eprintln!("CIL 中间产物：{}", artifacts.dll.display());
                 eprintln!("已生成 {}", exe.display());
             } else {
                 eprintln!("已生成 {}", artifacts.dll.display());
@@ -184,14 +195,16 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
                     search_paths,
                 },
             )?;
-            let status = std::process::Command::new(dotnet::dotnet_exe())
-                .arg(&artifacts.dll)
-                .status()?;
-            Ok(if status.success() {
-                ExitCode::SUCCESS
+            // 公开run与交付使用同一apphost；继承终端stdin/stdout，保留真实退出码。
+            let mut command = if let Some(executable) = artifacts.native_exe {
+                std::process::Command::new(executable)
             } else {
-                ExitCode::FAILURE
-            })
+                let mut command = std::process::Command::new(dotnet::dotnet_exe());
+                command.arg(&artifacts.dll);
+                command
+            };
+            let status = command.status()?;
+            Ok(ExitCode::from(status.code().unwrap_or(1) as u8))
         }
         Command::Dump { input, emit } => {
             if !sess.cpython_modules.is_empty()

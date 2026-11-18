@@ -88,6 +88,7 @@ fn relative_capability_does_not_admit_class_body_imports_or_handlers() {
         let info = ryupy_hir::ModuleInfo {
             instance_globals: true,
             instance_capabilities: ryupy_base::InstanceCapabilities {
+                provider_namespace: false,
                 entry_namespace: false,
                 aot_class_guards: false,
                 direct_globals: false,

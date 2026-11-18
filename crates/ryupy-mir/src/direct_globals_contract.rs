@@ -52,15 +52,21 @@ pub(crate) fn validate_functions(functions: &la_arena::Arena<Function>, errors: 
             let mut snapshot_writes = 0;
             let mut result_writes = 0;
             let mut snapshot_reads = 0;
-            for (_, block) in function.body.blocks.iter() {
+            for (block_id, block) in function.body.blocks.iter() {
                 for (index, stmt) in block.stmts.iter().enumerate() {
                     if let Statement::Assign { dest, .. } = stmt {
-                        snapshot_writes += usize::from(*dest == fact.snapshot);
-                        result_writes += usize::from(*dest == fact.result);
+                        // GeneratorFrame由独立工厂/恢复证明核验；固定槽恢复不是新的源码赋值。
+                        let restored = generator_restore(function, block_id, stmt, *dest);
+                        snapshot_writes += usize::from(*dest == fact.snapshot && !restored);
+                        result_writes += usize::from(*dest == fact.result && !restored);
                     }
                     let mut read = FxHashSet::default();
                     read_statement(stmt, &mut read);
-                    snapshot_reads += usize::from(read.contains(&fact.snapshot));
+                    // ArraySet只写已证明的私有帧，不调用用户协议；其余快照用途仍精确拒绝。
+                    snapshot_reads += usize::from(
+                        read.contains(&fact.snapshot)
+                            && !generator_save(function, stmt, fact.snapshot),
+                    );
                     if matches!(stmt, Statement::Assign { dest, value: Rvalue::Call {
                         callee: Callee::Runtime(RuntimeFn::InstanceDirectGlobals), args } }
                         if *dest == fact.result && args == &[Operand::Local(fact.context), Operand::Local(fact.snapshot)])
@@ -109,6 +115,32 @@ pub(crate) fn validate_functions(functions: &la_arena::Arena<Function>, errors: 
             }
         }
     }
+}
+
+fn generator_restore(
+    function: &Function,
+    block: BlockId,
+    statement: &Statement,
+    local: LocalId,
+) -> bool {
+    let Some(InstanceStateSource::GeneratorFrame { frame, .. }) = function.module_state_source
+    else {
+        return false;
+    };
+    block == function.body.entry
+        && matches!(statement,
+        Statement::Assign { dest, value: Rvalue::Call { callee: Callee::Runtime(RuntimeFn::ArrayGet), args } }
+        if *dest == local && args == &[Operand::Local(frame), Operand::Const(Constant::I64(local.into_raw().into_u32() as i64 + 4))])
+}
+
+fn generator_save(function: &Function, statement: &Statement, local: LocalId) -> bool {
+    let Some(InstanceStateSource::GeneratorFrame { frame, .. }) = function.module_state_source
+    else {
+        return false;
+    };
+    matches!(statement,
+        Statement::Eval(Rvalue::Call { callee: Callee::Runtime(RuntimeFn::ArraySet), args })
+        if args == &[Operand::Local(frame), Operand::Const(Constant::I64(local.into_raw().into_u32() as i64 + 4)), Operand::Local(local)])
 }
 
 fn read_statement(statement: &Statement, reads: &mut FxHashSet<LocalId>) {

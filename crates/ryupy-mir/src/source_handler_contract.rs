@@ -3,10 +3,23 @@ use crate::*;
 #[derive(Debug, Clone)]
 pub struct SourceHandlerContract {
     pub try_start: BlockId,
+    pub(crate) generator: Option<std::sync::Arc<crate::generator_source_handlers::Evidence>>,
 }
 pub(crate) fn validate_functions(functions: &la_arena::Arena<Function>, errors: &mut Vec<String>) {
     for (_, function) in functions.iter() {
         let contracts = &function.body.source_handler_contracts;
+        if contracts
+            .iter()
+            .any(|contract| contract.generator.is_some())
+        {
+            if let Err(error) = crate::generator_source_handlers::validate(function) {
+                errors.push(format!(
+                    "函数 `{}` 的源码异常链生成器路由非法：{error}",
+                    function.name
+                ));
+            }
+            continue;
+        }
         if !contracts.is_empty()
             && (function.module_state.is_none()
                 || !function.instance_capabilities.ordinary_name_handlers

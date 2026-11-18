@@ -46,7 +46,9 @@ public static class PyModuleLocations
             throw new PyNotImplementedError("actual NativeAOT executable path is unavailable");
         string directory = Path.GetDirectoryName(processPath)
             ?? throw new PyRuntimeError("NativeAOT executable has no directory");
-        return Path.GetFullPath(Path.Combine(directory, value.Replace('/', Path.DirectorySeparatorChar)));
+        var layout = PyApplicationLayout.ResolveForDirectory(directory);
+        return Path.GetFullPath(Path.Combine(layout.DependencyRoot,
+            PyApplicationLayout.MapLegacyRelative(value, layout).Replace('/', Path.DirectorySeparatorChar)));
     }
 
     /// <summary>只接受编译器冻结的随包源码树；不加入 CPython 的模块搜索域。</summary>
@@ -59,7 +61,8 @@ public static class PyModuleLocations
                 throw new PyRuntimeError("invalid bundled module location component");
         if (!Path.IsPathFullyQualified(directory))
             throw new PyRuntimeError("bundle directory is not absolute");
-        return Path.GetFullPath(Path.Combine(directory, value.Replace('/', Path.DirectorySeparatorChar)));
+        var layout = PyApplicationLayout.ResolveForDirectory(directory);
+        return Path.GetFullPath(Path.Combine(layout.DependencyRoot, value.Replace('/', Path.DirectorySeparatorChar)));
     }
 }
 

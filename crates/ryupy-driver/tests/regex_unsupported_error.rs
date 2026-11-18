@@ -44,7 +44,10 @@ fn unsupported_regex_keeps_exact_user_call_lines_and_original_context() {
         artifact.dll
     );
     std::fs::write(root.join("jit.command"), command).unwrap();
-    let result = ryupy_driver::dotnet::run_dll(&artifact.dll);
+    let result = ryupy_driver::dotnet::run_executable_with(
+        artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+        &Default::default(),
+    );
     let output = match result {
         Ok(output) => output,
         Err(error) => {

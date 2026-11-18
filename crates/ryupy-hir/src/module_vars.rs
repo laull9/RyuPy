@@ -58,7 +58,8 @@ pub(crate) fn collect_module_vars(
             ensure_var(&Name::from(name), parsed.module.range, None);
         }
     }
-    if crate::future_imports::annotations(&parsed.module.body)
+    if (crate::future_imports::annotations(&parsed.module.body)
+        || info.instance_capabilities.provider_namespace)
         && crate::annotation_stmts::has_module_annotations(&parsed.module.body)
     {
         ensure_var(&Name::from("__annotations__"), parsed.module.range, None);

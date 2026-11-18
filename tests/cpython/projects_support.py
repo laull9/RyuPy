@@ -26,6 +26,8 @@ if str(_REPO_ROOT) not in sys.path:
 
 # 引用共用 support 中的环境与路径工具
 from tests.cpython.support import (
+    built_product,
+    product_layout,
     ROOT,
     VERSION,
     require_python,
@@ -356,14 +358,8 @@ def run_ryupy_process(project: ProjectSpec, work_dir: Path, dist_dir: Path,
     build = subprocess.run(list(map(str, command)), cwd=work_dir, env=env, capture_output=True, timeout=600)
     if build.returncode:
         return build.returncode, build.stdout.decode('utf-8'), '[BUILD FAILED]\n' + build.stderr.decode('utf-8'), {}
-    configs = list(build_dir.rglob('ryupy-cpython.json'))
-    if mode != 'jit':
-        configs = [path for path in configs if path.parent.name.endswith('.dist')]
-    assert len(configs) == 1, configs
-    product = configs[0].parent
-    suffix = '.dll' if mode == 'jit' else ('.exe' if sys.platform == 'win32' else '')
-    executable = product / (entry.stem + suffix)
-    assert executable.is_file(), executable
+    layout = built_product(build.stderr, build_dir, entry.stem, 'jit' if mode == 'jit' else 'aot')
+    product, executable = layout.root, layout.entry
     if mode == 'reloc':
         relocated = work_dir / '搬迁 目录 & 中文'
         shutil.move(product, relocated)
@@ -378,11 +374,9 @@ def run_ryupy_process(project: ProjectSpec, work_dir: Path, dist_dir: Path,
     runtime_env.update(PYTHONHOME='/不可访问 Python', PYTHONPATH='/不可访问 依赖')
     host_report = work_dir / 'host_report.json'
     runtime_env['RYUPY_CPYTHON_REPORT'] = str(host_report)
-    # AOT直接执行；JIT显式使用开发机dotnet，保持两种后端边界。
+    # 所有产品均使用marker指定的公开入口。
     run_command = [str(executable)]
-    if mode == 'jit':
-        run_command.insert(0, shutil.which('dotnet'))
-    else:
+    if mode != 'jit':
         empty_path = work_dir / 'empty-path'
         empty_path.mkdir()
         runtime_env['PATH'] = str(empty_path)
@@ -393,5 +387,5 @@ def run_ryupy_process(project: ProjectSpec, work_dir: Path, dist_dir: Path,
         inspect_host_report(host_report, product)
     aliases = {str(source.resolve()): '<site-packages>/' + (source.name if source.is_file() else name)
                for name, source in collect_project_payloads(project)}
-    aliases[str(product / 'python/lib/python3.12/site-packages')] = '<site-packages>'
+    aliases[str(product_layout(product).data / 'python/lib/python3.12/site-packages')] = '<site-packages>'
     return actual.returncode, actual.stdout.decode('utf-8'), actual.stderr.decode('utf-8'), aliases

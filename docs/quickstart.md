@@ -79,8 +79,8 @@ Windows编译器静态链接C运行时。各平台实际结果见[平台验收](
 
 ```sh
 ryupy build main.py -o out
-# 运行生成的托管产物
-dotnet out/main.dll
+# 从公开入口运行JIT应用；Windows使用out\main.exe
+./out/main
 ryupy run main.py
 ryupy probe main.py
 ryupy dump main.py --emit hir
@@ -89,6 +89,11 @@ make dump FILE=tests/e2e/phase1/m1_0_print_int.py EMIT=cil
 make e2e
 make bench
 ```
+
+非OneFile交付的公开根只含入口与`internal/`。托管程序集、运行配置、Python和原生依赖、
+资源、类型声明及发布清单统一放在`internal/`；搬迁时整体复制目录。JIT入口由官方.NET SDK
+生成，构建机需要.NET SDK 10及以上，运行机需要.NET Runtime 10及以上；NativeAOT运行机
+直接执行原生入口。缺SDK时CLI提供官方下载页及macOS/Linux的一键安装命令。
 
 原生执行域、CPython对象桥和各标准库API的实际覆盖分别登记在[兼容性清单](compatibility.md)、
 [语义规范](semantics.md)和[CPython provider合同](cpython-provider.md)。历史Decimal/tzinfo专项与

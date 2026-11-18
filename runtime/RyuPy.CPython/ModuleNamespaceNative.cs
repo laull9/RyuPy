@@ -7,7 +7,17 @@ internal static class ModuleNamespaceNative
 {
     private const string Library = "ryupy_cpython";
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern nint rp_initial_builtins();
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern nint rp_initial_builtin([MarshalAs(UnmanagedType.LPUTF8Str)] string name);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern int rp_namespace_snapshot_count();
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern nint rp_default_object_type();
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern nint rp_entry_module();
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern nint rp_compiled_module(nint name);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     internal static extern nint rp_module_namespace(nint value);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]

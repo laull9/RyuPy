@@ -133,10 +133,10 @@ fn protected_exception_alias_rebinding_is_explicit_and_other_exports_stay_mutabl
         },
     )
     .unwrap_or_else(|error| panic!("{error}: {}", session.render_diagnostics(false)));
-    let output = std::process::Command::new(ryupy_driver::dotnet::dotnet_exe())
-        .arg(artifact.dll)
-        .output()
-        .unwrap();
+    let output =
+        std::process::Command::new(artifact.native_exe.as_ref().expect("应用必须有公开入口"))
+            .output()
+            .unwrap();
     assert_eq!(
         output.status.code(),
         Some(0),

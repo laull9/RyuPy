@@ -12,9 +12,14 @@ import subprocess
 import sys
 import tempfile
 
+ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT / 'tests/cpython'))
+from support import built_product, product_layout
+
 def inspect_interface(bundle, declaration, rid):
     """只信manifest精确路径与角色；逐导出交叉核对实际PInvoke和原始声明。"""
-    manifest = json.loads((bundle / 'ryupy-artifact.json').read_text())
+    layout = product_layout(bundle)
+    manifest = json.loads((layout.data / 'ryupy-artifact.json').read_text())
     interface = manifest['binding_interfaces']
     root = bundle / interface['search_root']
     stub = bundle / interface['python_stub']
@@ -67,6 +72,7 @@ def main():
     parser.add_argument('--python', default=sys.executable)
     args = parser.parse_args()
     args.ryupy = args.ryupy.resolve()
+    assert not args.out.resolve().is_relative_to(ROOT), '构建/验收产物必须放仓库外'
     args.out.mkdir(parents=True, exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix='binding-stubs-', dir=args.out.resolve()))
     logs = work / 'logs'
@@ -74,8 +80,6 @@ def main():
     print(work, flush=True)
     record = {'status': 'failed', 'steps': [], 'interfaces': {}}
     env = {**os.environ, 'DOTNET_CLI_UI_LANGUAGE': 'en-US', 'PYTHONUTF8': '1'}
-    dotnet = shutil.which(os.environ.get('DOTNET', 'dotnet'))
-    assert dotnet
 
     def run(label, command, *, cwd=work, timeout=120, environment=env):
         command = list(map(str, command))
@@ -149,23 +153,22 @@ def main():
                 output = work / (label + '-build')
                 command = [args.ryupy, 'build', source / 'app.py', '--native-binding', binding, '-o', output]
                 built = run(label + '-build', command + (['--aot'] if mode == 'aot' else []), timeout=600)
-                paths = [Path(line.removeprefix('已生成 ')) for line in built.stderr.decode().splitlines()
-                         if line.startswith('已生成 ')]
-                assert len(paths) == 1 and paths[0].is_absolute() and paths[0].is_file()
-                entry = paths[0]
+                layout = built_product(built.stderr, output, 'app', mode)
+                entry = layout.entry
                 if mode == 'aot':
                     assert entry == output / 'app.dist' / ('app.exe' if win else 'app')
-                bundle = entry.parent
+                bundle = layout.root
                 record['interfaces'][label] = inspect_interface(bundle, declaration, rid)
                 moved = work / (label + '-relocated')
                 shutil.move(bundle, moved)
                 products.append((label, moved / entry.name, mode))
-                shutil.rmtree(output)
+                if output.exists():
+                    shutil.rmtree(output)
             # 原声明、C输入、静/动态库与中间构建树全部删除后，仅运行搬迁交付物。
             shutil.rmtree(source)
             for label, entry, mode in products:
                 record['interfaces'][label + '-relocated'] = inspect_interface(entry.parent, declaration, rid)
-                actual = run(label + '-relocated', [entry] if mode == 'aot' else [dotnet, entry],
+                actual = run(label + '-relocated', [entry],
                              cwd=unrelated, environment=restricted)
                 assert (actual.returncode, actual.stdout, actual.stderr) == (
                     oracle.returncode, oracle.stdout, oracle.stderr), label

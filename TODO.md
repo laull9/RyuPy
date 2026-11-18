@@ -92,9 +92,9 @@ CreateSuper 历史 Object 返回公共 ABI 已恢复，真实 `5d36db1e` 的 184
   503 e2e通过；长循环RSS与正式耗时分列，见[第四轮验收](docs/cil-execution-fourth-slices-validation.md)。
 - [x] **可选依赖通用收集**：词法ImportError保护、必需优先与已装无metadata拒绝；四项
   JIT/NativeAOT搬迁、三负例、六组边界及FastAPI/SanBudget各一项真实NativeAOT回归通过。
-- [ ] **大型项目下一阻塞**：FBA已按冻结Python版本解析并越过PEP695误诊，当前需要模块
-  活globals合同；ExplorerPro已越过共享归属、递归解包、动态格式、oct与字典解包，当前
-  验证原生插件依赖闭包和显式部署选择。完整原入口、隔离GUI业务与发布搬迁分别验收。
+- [ ] **大型项目下一阻塞**：FBA新stock profile已越过PEP695与模块globals，完整原入口当前
+  E0100拒绝实例模块async def；ExplorerPro新profile已越过生成器except，当前实例dataclass。
+  固定版本、原入口、完整业务与发布搬迁分别验收，详见大型项目catalog的最新构建证据。
 - [x] **通用共享分发与静态接口导出子合同（2026-11-17）**：多owner、实际原生导出、pyi目录
   与固定C ABI机器合同；独立命名/布局的JIT/AOT/OneFile删除输入搬迁通过。
   禁止第三方库名特判，允许有依据并经测试的ABI推导，后续C++调用推导逐合同扩围。
@@ -102,6 +102,28 @@ CreateSuper 历史 Object 返回公共 ABI 已恢复，真实 `5d36db1e` 的 184
   直接/wrapped frame各六项精确NI负合同独立记录，发布/关闭76正4环负通过。
 - [~] **权威模块globals与通用C API调用现场**：复用InstanceGlobals接真实CP字典，按独立
   语义合同推进推导式、注解、复杂except及AOT资格；两模块与真实Cocoa先验，完整原业务继续。
+- [x] **显式权威namespace语义子合同**：推导式/注解/两套独立模块环境双版16个JIT/AOT
+  产品通过；生成器/genexpr另四个搬迁产品通过，源码、venv、build均删除，真实归属与关闭核验。
+- [x] **通用导入hook与最小原生窗口子合同**：两独立hook双版JIT/AOT八产品，保原属性
+  del与任意hook返回；真实Cocoa最小输入JIT/AOT/OneFile三产品搬迁显示成功，无库名分支。
+- [x] **精确本地键热路恢复（ADR-0238）**：六输入独占AOT对照、19项协议测试及独立
+  完整make check通过，`207ebd6c`已推送；推导式RSS增加2.219MiB等不利保留。
+- [x] **定义点builtins与回调来源子合同**：两独立模块双版JIT/AOT八产品、真实dict类型
+  四产品、反向Python协议现场四产品通过，业务D保持原样；完整函数locals/name/line继续开发。
+- [x] **生成器源码异常链子合同**：实际窗口/typed/PC/私有帧证明与二十IR破坏拒绝通过，
+  两模块双版JIT/AOT八产品搬迁通过；原ExplorerPro已越过except OSError。
+- [~] **原生交互与完整原业务下一阻塞**：持续QTimer、真实鼠标/键盘和关闭在CP/JIT/目录AOT
+  已通过；OneFile有7.200/8.208秒心跳间隔待定位。完整ExplorerPro新profile到实例dataclass。
+- [x] **目录交付与架构收敛子合同（ADR-0239/0240/0241）**：非OneFile根部仅入口与
+  `internal/`，依赖/配置/资源/接口/清单集中内部；macOS arm64实际JIT/AOT、SDK缺席引导、六组原生产品
+  删输入搬迁与授权/签名/关闭通过。默认严格目标架构，最小改写仅保留默认关闭Cargo实验。
+- [~] **OneFile启动成本**：八轮同次对照目标架构裁剪使434MB降至255MB，时点RSS和
+  590.508降至421.227MiB，首Qt心跳中位10.5868降至9.4762秒，目录AOT约0.3981秒。
+  提取及macOS镜像评估继续优化；Fastest压缩、延迟builtins和最小改写未确认收益，保留负结果。
+- [x] **第六轮联合门（2026-11-18）**：完整make check退出0，3478 Runtime通过/3既有跳过、
+  514真实e2e通过/299既有pending跳过；默认v7六组原生产品与CPython.Tests两模式各45项通过。
+  目录布局、权威namespace和真实调用现场的已验子合同见[第六轮验收](docs/cil-execution-sixth-slices-validation.md)，
+  完整frame、大型原项目闭包及OneFile长期交互继续待办。
 - [ ] **可选严格内核研究（ADR-0221）**：Host Slice 1/2 源码完整保存在远端 WIP，已撤出
   stock 主线工作树；最终内核与十二项 Host 子进程门尚未完成，暂停扩展。
   已有 22 内核/10 stock 探针保留原快照范围。
@@ -954,7 +976,7 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
   - [ ] 完整标准库 provider 与版本化 catalog 逐 API 落地（路线和合同已通过交叉评审）（[ADR0172](docs/adr/0172-aot-stdlib-provider-plan.md)）。
 - [ ] N4：逐真实OS/架构/ABI扩大平台CI，不把RID字符串当实机通过
   - [x] macOS arm64 / Windows x64 MSVC同宿主真实ILC、搬迁及args/exit/error通过（[证据](docs/validation/aot-host-platforms/README.md)）；SDK仍安装，干净目标机未勾完成
-- [ ] N5：静态能力优先，必要外置依赖集中 `_internal`；目录交付成熟后独立评估onefile，不为形式强加自解包，资源寻址/生命周期/性能另验
+- [x] N5目录交付子合同：非OneFile公开根仅入口与`internal/`，依赖/配置/资源/接口及清单同根加载；macOS arm64 JIT/AOT实际搬迁、六组原生产品和SDK缺席引导通过，OneFile长期交互与后续启动成本继续单列（ADR-0239/0240/0241）
   - [x] 无资源 smoke 产物的三平台仅exe复制/搬迁四模式验证（[证据](docs/validation/aot-single-executable/README.md)）；复用原ILC，Mac/Win仍同SDK宿主，不代表任意项目onefile
 - [ ] B：桥接AOT仍独立验收libpython/扩展/stdlib部署，不因N项通过勾完成
 

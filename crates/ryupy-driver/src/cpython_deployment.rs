@@ -92,7 +92,7 @@ pub(super) fn stage(plan: &Plan, output: &Path) -> Result<()> {
     );
     std::fs::copy(&plan.shim, output.join(native::shim_name()))?;
     let aliases = super::components::aliases(&plan.dependency_report, &site_packages, output)?;
-    native::relocate_with_components(output, &aliases)?;
+    let architecture_convergence = native::relocate_with_components(output, &aliases)?;
     let mut files = Vec::new();
     list_files(&python, output, &mut files)?;
     // 冻结第三方附属DLL目录，运行时注册相同搜索闭包，避免审计与实际加载脱节。
@@ -160,6 +160,8 @@ pub(super) fn stage(plan: &Plan, output: &Path) -> Result<()> {
         "entry_provider": if delegated_entry { "cpython_delegated_source" } else { "ryupy_compiled_source" },
         "entry_script": entry_script,
         "files": files,
+        "file_path_base": "provider_configuration_directory",
+        "native_architecture_convergence": architecture_convergence,
         "dependency_collection": plan.dependency_report,
         "interface_catalog": crate::interface_catalog::analyze(plan, output, &files)?,
         "payloads": plan.payloads.iter().map(|payload| &payload.destination).collect::<Vec<_>>(),

@@ -105,9 +105,7 @@ fn verify(aot: bool) {
         command.env("PATH", empty_path);
         command
     } else {
-        let mut command = Command::new(ryupy_driver::dotnet::dotnet_exe());
-        command.arg(artifacts.dll);
-        command
+        Command::new(artifacts.native_exe.as_ref().expect("应用必须有公开入口"))
     };
     let actual = command
         .current_dir(&jit_cwd)

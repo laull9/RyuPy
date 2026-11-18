@@ -61,8 +61,9 @@ public static class PyNativeBindingLibrary
                 if (c > 127 || char.IsControl(c) || "<>\"|?*".Contains(c))
                     throw new PyRuntimeError("invalid native binding path character");
         }
-        return System.IO.Path.GetFullPath(System.IO.Path.Combine(root,
-            relativeFile.Replace('/', System.IO.Path.DirectorySeparatorChar)));
+        var layout = PyApplicationLayout.ResolveForDirectory(root);
+        return System.IO.Path.GetFullPath(System.IO.Path.Combine(layout.DependencyRoot,
+            PyApplicationLayout.MapLegacyRelative(relativeFile, layout).Replace('/', System.IO.Path.DirectorySeparatorChar)));
     }
 
     private static void ValidateName(string name)

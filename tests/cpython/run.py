@@ -11,6 +11,7 @@ import sys
 sys.dont_write_bytecode = True
 
 from native_import_audit import verify_import_audit
+from support import built_product
 from support import (ROOT, audit_native_paths, checked, declaration, environment, execute,
                      external_workspace, inspect_host_report, private_distribution,
                      require_python, rid, standalone_layout, write_json)
@@ -215,13 +216,11 @@ def main():
                 if args.mode in ('jit', 'all'):
                     jit = root / (case.stem + '-jit')
                     build = run(case.stem + '-jit-build', common + ['-o', jit])
-                    dlls = [Path(line.removeprefix('已生成 ')) for line in build.stderr.decode().splitlines()
-                            if line.startswith('已生成 ')]
-                    assert len(dlls) == 1, dlls
+                    public = built_product(build.stderr, jit, 'app', 'jit')
                     jit_cwd = root / (case.stem + '-jit-cwd')
                     jit_cwd.mkdir()
                     jit_env = dict(env, RYUPY_CPYTHON_REPORT=str(jit_cwd / 'host.json'))
-                    matching(run(case.stem + '-jit', [shutil.which('dotnet'), dlls[0]] + application_args, cwd=jit_cwd, env=jit_env, check=False), expected, case.stem)
+                    matching(run(case.stem + '-jit', [public.entry] + application_args, cwd=jit_cwd, env=jit_env, check=False), expected, case.stem)
                     provider_report(jit, MODULES)
                     inspect_host_report(jit_cwd / 'host.json', jit)
                     if args.audit_import_hooks:
