@@ -135,7 +135,8 @@ macOS/Linux安装命令；真实无SDK、有Runtime环境中的两个程序已�
 执行、原授权/identifier/runtime标志、声明资源逐字节读取、退出终态清零均参与核验。
 fat64测试先签真实thin slice再组容器，平台generic外层签名不充当架构内授权证据；实际
 重签发现preserve-metadata会丢授权，改为修改前读取完整plist、重签显式传回。证据
-`macho-slices/20261117T153001.854797Z/results.json`，合同见ADR-0240/0241。
+默认严格目标架构的最终v7证据`macho-slices/20261117T164724.828152Z/results.json`，
+18项映像实际走保授权严格重签；早期v5实验结果单独保留。合同见ADR-0240/0241。
 
 显式ResourcePlan优先驱动模块定位与真实D.__file__，provider编译源码库存继续登记，
 无声明时保持原BundleRelative。两独立AOT资源应用完成相邻/子目录读取、删除所有输入

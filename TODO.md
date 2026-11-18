@@ -114,9 +114,12 @@ CreateSuper 历史 Object 返回公共 ABI 已恢复，真实 `5d36db1e` 的 184
   两模块双版JIT/AOT八产品搬迁通过；原ExplorerPro已越过except OSError。
 - [~] **原生交互与完整原业务下一阻塞**：持续QTimer、真实鼠标/键盘和关闭在CP/JIT/目录AOT
   已通过；OneFile有7.200/8.208秒心跳间隔待定位。完整ExplorerPro新profile到实例dataclass。
-- [~] **启动与目录交付整理**：同次启动中位数CP 0.338秒、目录AOT 0.481秒、OneFile 8.848秒；
-  已分离提取与macOS首次原生镜像评估，Fastest压缩与延迟builtins候选均无收益，保留负结果。
-  非OneFile根部仅保留入口，其余依赖/配置/资源/接口导出集中`internal/`，加载路径和真实搬迁在做。
+- [x] **目录交付与架构收敛子合同（ADR-0239/0240/0241）**：非OneFile根部仅入口与
+  `internal/`，依赖/配置/资源/接口/清单集中内部；实际JIT/AOT、SDK缺席引导、六组原生产品
+  删输入搬迁与授权/签名/关闭通过。默认严格目标架构，最小改写仅保留默认关闭Cargo实验。
+- [~] **OneFile启动成本**：八轮同次对照目标架构裁剪使434MB降至255MB，时点RSS和
+  590.508降至421.227MiB，首Qt心跳中位10.5868降至9.4762秒，目录AOT约0.3981秒。
+  提取及macOS镜像评估继续优化；Fastest压缩、延迟builtins和最小改写未确认收益，保留负结果。
 - [ ] **可选严格内核研究（ADR-0221）**：Host Slice 1/2 源码完整保存在远端 WIP，已撤出
   stock 主线工作树；最终内核与十二项 Host 子进程门尚未完成，暂停扩展。
   已有 22 内核/10 stock 探针保留原快照范围。
@@ -969,7 +972,7 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
   - [ ] 完整标准库 provider 与版本化 catalog 逐 API 落地（路线和合同已通过交叉评审）（[ADR0172](docs/adr/0172-aot-stdlib-provider-plan.md)）。
 - [ ] N4：逐真实OS/架构/ABI扩大平台CI，不把RID字符串当实机通过
   - [x] macOS arm64 / Windows x64 MSVC同宿主真实ILC、搬迁及args/exit/error通过（[证据](docs/validation/aot-host-platforms/README.md)）；SDK仍安装，干净目标机未勾完成
-- [~] N5：非OneFile公开根仅入口与`internal/`，依赖/配置/资源/接口及清单同根加载；目录与OneFile的搬迁、生命周期和启动分别验收（ADR-0239/0240/0241）
+- [x] N5目录交付子合同：非OneFile公开根仅入口与`internal/`，依赖/配置/资源/接口及清单同根加载；JIT/AOT实际搬迁、六组原生产品和SDK缺席引导通过，OneFile长期交互与后续启动成本继续单列（ADR-0239/0240/0241）
   - [x] 无资源 smoke 产物的三平台仅exe复制/搬迁四模式验证（[证据](docs/validation/aot-single-executable/README.md)）；复用原ILC，Mac/Win仍同SDK宿主，不代表任意项目onefile
 - [ ] B：桥接AOT仍独立验收libpython/扩展/stdlib部署，不因N项通过勾完成
 
