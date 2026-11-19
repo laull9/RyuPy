@@ -134,6 +134,8 @@ def run():
                          ensure_ascii=False), flush=True)
     except BaseException:
         failure.append(traceback.format_exc())
+        # 窗口可能尚未赋值，后续清理也可能失败；先保留真正的业务异常。
+        (evidence / 'business-error.log').write_text(failure[-1], encoding='utf-8')
     finally:
         phase('close')
         if window is not None:

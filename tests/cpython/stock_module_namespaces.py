@@ -10,7 +10,7 @@ import tempfile
 
 from support import ROOT, environment, audit_native_paths, inspect_host_report, standalone_layout, rid, built_product, product_layout
 
-CASES = ('eager', 'annotations', 'harbor_pair', 'frost_pair', 'generators', 'courier_hooks', 'marsh_hooks', 'sunrise_context', 'quartz_context', 'inlet_handlers', 'quarry_handlers')
+CASES = ('eager', 'annotations', 'harbor_pair', 'frost_pair', 'generators', 'courier_hooks', 'marsh_hooks', 'sunrise_context', 'quartz_context', 'inlet_handlers', 'quarry_handlers', 'synchronized_maps')
 
 
 def audit_sources(bundle, count, version):

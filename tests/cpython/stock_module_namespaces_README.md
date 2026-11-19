@@ -42,3 +42,8 @@ Name/tuple/属性目标重绑、as局部删除、getter异常越过同级、嵌�
 以及for/with的continue和close清理。双版JIT/NativeAOT八产品通过；MIR独立核验实际
 物理catch→区间首次匹配→handler PC→Retry槽保存→恢复分派与异常槽读取/清除，含20组
 破坏输入。旧Instance的生成器handler资格保持原诊断。详细决定见ADR-0237。
+
+`synchronized_maps` 通过真实 `types.SimpleNamespace`、`operator` 与 `json` 跨域共享
+字典，不引入业务委派。覆盖大字典不变边界、双向覆盖与删除重插、小字典中原键身份及
+子容器别名，并保留缺键异常前已经写入的数据。降复杂度设计见
+[ADR-0243](../../docs/adr/0243-linear-synchronized-dictionary-deltas.md)。

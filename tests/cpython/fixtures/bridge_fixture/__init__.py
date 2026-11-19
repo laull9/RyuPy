@@ -55,6 +55,13 @@ def mutate_then_fail(value):
     raise ValueError('写回异常')
 
 
+def reorder_dictionary_then_fail(value, key):
+    """在同一次外部调用内把同一键移到末尾，触发整表顺序同步。"""
+    item = value.pop(key)
+    value[key] = item
+    raise ValueError('重排后的异常')
+
+
 def verify_shared_cycle(value):
     assert value['left'] is value['right']
     assert value['left'][0] is value

@@ -82,7 +82,7 @@
       "entry": "src/main.py",
       "start": "python src/main.py",
       "pytest": "python -m pytest tests",
-      "first_blocker": "2026-11-19复验：显式stock-module-namespaces完整原入口三形态构建通过；JIT与目录AOT隔离Cocoa原业务搬迁后在window.show()超时",
+      "first_blocker": "2026-11-19复验：显式stock-module-namespaces完整原入口三形态构建通过；同步成本降低后，JIT与目录AOT隔离Cocoa业务的窗口构造复现Qt临时包装类型错误",
       "ownership": {
         "cil_target": [
           "src",
@@ -107,7 +107,7 @@
         "onefile",
         "删除私有输入后搬迁"
       ],
-      "status": "CPython真实Cocoa隔离原业务基线重复通过；显式stock profile完整原入口JIT、目录AOT、OneFile构建通过，无本地业务委派。真实Cocoa隔离业务首次显示超时，完整项目运行与搬迁尚未验收。独立最小窗口通过不计为项目通过。",
+      "status": "CPython真实Cocoa隔离原业务基线重复通过；显式stock profile完整原入口JIT、目录AOT、OneFile构建通过，无本地业务委派。完整项目运行与搬迁尚未通过；独立最小窗口通过不计为项目通过。",
       "frontend_blocker": "实例dataclass已越过。三形态构建使用显式Cocoa/SQLite插件选择，不改变默认全插件闭包的缺客户端约束。",
       "cpython_baseline": {
         "driver": "baseline.py --project explorerpro",
@@ -142,9 +142,9 @@
       },
       "latest_cil_probe": {
         "profile": "--experimental-stock-module-namespaces + Cocoa/SQLite组件选择 + --bundle-data",
-        "jit": "~/.cache/ryupy/validation/explorerpro-products/20261118T235604.188134Z",
-        "standalone": "~/.cache/ryupy/validation/explorerpro-products/20261119T000149.020378Z",
-        "runtime": "timeout-show",
+        "jit": "~/.cache/ryupy/validation/explorerpro-products/20261119T002100.889303Z",
+        "standalone": "~/.cache/ryupy/validation/explorerpro-products/20261119T002341.044731Z",
+        "runtime": "qt-temporary-wrapper-type",
         "relocation": "failed"
       }
     },

@@ -325,5 +325,17 @@ Python frame，得到NULL。证据
   `CPythonHost.PushContainer`／`PullContainer` 在同步字典上反复扫描键；先降低该成本，
   再复验整个窗口，不能把非配对的诊断时点当成发布性能数据。
 
+同步字典现按引用线性比较（[ADR-0243](../../../docs/adr/0243-linear-synchronized-dictionary-deltas.md)）。
+四轮配对的 JIT 热态中位数 2.945→0.145 秒。优化后原业务 JIT 两次、目录 NativeAOT
+一次在窗口构造报
+`AttributeError: 'PySide6.QtWidgets.QWidget' object has no attribute 'addSeparator'`
+（`explorerpro-products/` 下的 `20261119T001648.245885Z/`、`20261119T002100.889303Z/`、
+`20261119T002341.044731Z/`），不能记为通过。最小
+`explorerpro_qt_wrapper_probe.py` 保留待验：只安装事件过滤器然后构造原 Qt 菜单；
+同次 CPython 通过，搬迁 JIT 在 `isinstance(bar, QMenuBar)` 明确失败
+（`explorerpro-products/20261119T002738.391743Z/`）。独立 CPython 对照中不持有构造回调参数时
+五轮均返回 `QMenuBar`，显式保留该参数时
+五轮均返回 `QWidget`。后续按通用回调临时引用/逃逸合同定位，不按 Qt 方法名绕过。
+
 本资源与桥接切片 `make check` 通过：3484 项 Runtime、353 项 driver 单测及 514 项
 编译端到端通过；既有跳过保留。

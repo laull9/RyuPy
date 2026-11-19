@@ -128,20 +128,27 @@ public sealed partial class CPythonHost
         }
         var dict = (PyDict)transfer.Value;
         (object? Key, object? Value)[] entries = [.. dict.Entries()];
-        foreach ((object? key, _) in entries) RequireTransferKey(key);
-        object?[] expectedKeys = transfer.DictSnapshot.Where(old => entries.Any(entry => ReferenceEquals(entry.Key, old.Key))).Select(entry => entry.Key)
-            .Concat(entries.Where(entry => !transfer.DictSnapshot.Any(old => ReferenceEquals(old.Key, entry.Key))).Select(entry => entry.Key)).ToArray();
-        bool orderChanged = !SameReferences(expectedKeys, entries.Select(entry => entry.Key).ToArray());
-        foreach ((object? key, _) in transfer.DictSnapshot)
+        var previous = transfer.DictSnapshot;
+        if (SameEntries(previous, entries))
         {
-            if (!orderChanged && entries.Any(entry => ReferenceEquals(entry.Key, key))) continue;
+            RetainStockProgramContainer(transfer.Value);
+            return;
+        }
+        foreach ((object? key, _) in entries) RequireTransferKey(key);
+        var positions = IndexKeys(entries);
+        bool orderChanged = !KeepsSurvivorOrder(previous, positions);
+        foreach ((object? key, _) in previous)
+        {
+            if (!orderChanged && positions.ContainsKey(key!)) continue;
             nint nativeKey = ToPython(key);
             try { if (Native.rp_dict_delete(transfer.Owner.Pointer, nativeKey) < 0) ThrowError(); }
             finally { Native.rp_decref(nativeKey); }
         }
+        var priorPositions = orderChanged ? null : IndexKeys(previous);
         foreach ((object? key, object? value) in entries)
         {
-            if (!orderChanged && transfer.DictSnapshot.Any(entry => ReferenceEquals(entry.Key, key) && ReferenceEquals(entry.Value, value))) continue;
+            if (priorPositions is not null && priorPositions.TryGetValue(key!, out int prior)
+                && ReferenceEquals(previous[prior].Value, value)) continue;
             nint nativeKey = ToPython(key), nativeValue = 0;
             try
             {
@@ -172,34 +179,66 @@ public sealed partial class CPythonHost
         }
         var dict = (PyDict)transfer.Value;
         nint keys = Check(Native.rp_op(19, transfer.Owner.Pointer)); nint tuple = 0;
-        var entries = new List<(object? Key, object? Value)>();
+        (object? Key, object? Value)[] entries;
         try
         {
             tuple = Check(Native.rp_op(26, keys));
             int count = checked((int)Native.rp_length(tuple)); ThrowIfError();
+            entries = new (object?, object?)[count];
             for (int i = 0; i < count; i++)
             {
                 nint key = Check(Native.rp_op(18, tuple, n: i));
                 try
                 {
                     object? managedKey = FromBorrowed(key); RequireTransferKey(managedKey);
-                    entries.Add((managedKey, FromOwned(Native.rp_op(6, transfer.Owner.Pointer, key))));
+                    entries[i] = (managedKey, FromOwned(Native.rp_op(6, transfer.Owner.Pointer, key)));
                 }
                 finally { Native.rp_decref(key); }
             }
         }
         finally { Native.rp_decref(tuple); Native.rp_decref(keys); }
-        object?[] currentKeys = dict.Keys.ToArray();
-        object?[] expectedKeys = currentKeys.Where(key => entries.Any(entry => ReferenceEquals(entry.Key, key)))
-            .Concat(entries.Where(entry => !currentKeys.Any(key => ReferenceEquals(key, entry.Key))).Select(entry => entry.Key)).ToArray();
-        bool reordered = !SameReferences(expectedKeys, entries.Select(entry => entry.Key).ToArray());
-        if (reordered) dict.Clear();
-        else foreach (object? key in currentKeys) if (!entries.Any(entry => ReferenceEquals(entry.Key, key))) dict.Delete(key);
-        foreach ((object? key, object? value) in entries)
-            if (!dict.TryGet(key, out object? prior) || !ReferenceEquals(prior, value)) dict.Set(key, value);
-        transfer.DictSnapshot = [.. entries];
+        (object? Key, object? Value)[] current = [.. dict.Entries()];
+        if (!SameEntries(current, entries))
+        {
+            var positions = IndexKeys(entries);
+            if (!KeepsSurvivorOrder(current, positions)) dict.Clear();
+            else foreach ((object? key, _) in current) if (!positions.ContainsKey(key!)) dict.Delete(key);
+            foreach ((object? key, object? value) in entries)
+                if (!dict.TryGet(key, out object? prior) || !ReferenceEquals(prior, value)) dict.Set(key, value);
+        }
+        transfer.DictSnapshot = entries;
         RetainStockProgramContainer(transfer.Value);
     }
+
+    // 未变字典走一次顺序身份比较；连覆盖值也算变化，不误用只跟踪结构的 PyDict.Version。
+    private static bool SameEntries(ReadOnlySpan<(object? Key, object? Value)> before,
+        ReadOnlySpan<(object? Key, object? Value)> after)
+    {
+        if (before.Length != after.Length) return false;
+        for (int i = 0; i < before.Length; i++)
+            if (!ReferenceEquals(before[i].Key, after[i].Key) || !ReferenceEquals(before[i].Value, after[i].Value))
+                return false;
+        return true;
+    }
+
+    // 只按真实引用建立临时索引，不调用 Python 哈希或相等协议。None 键是 PyNone，不是 CLR null。
+    private static Dictionary<object, int> IndexKeys(ReadOnlySpan<(object? Key, object? Value)> entries)
+    {
+        var positions = new Dictionary<object, int>(entries.Length, ReferenceEqualityComparer.Instance);
+        for (int i = 0; i < entries.Length; i++) positions.Add(entries[i].Key!, i);
+        return positions;
+    }
+
+    // 先删旧键、再写新值和追加新键只能保留旧存活键的前缀顺序；否则沿用整表重排。
+    private static bool KeepsSurvivorOrder(ReadOnlySpan<(object? Key, object? Value)> previous,
+        Dictionary<object, int> positions)
+    {
+        int expected = 0;
+        foreach ((object? key, _) in previous)
+            if (positions.TryGetValue(key!, out int position) && position != expected++) return false;
+        return true;
+    }
+
     private static void ValidateGraph(object? value, HashSet<object> seen)
     {
         if (value is null || !seen.Add(value)) return;

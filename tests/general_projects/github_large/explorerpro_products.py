@@ -41,8 +41,11 @@ def execute(command, cwd, env, evidence, label, timeout=900):
             try:
                 if label == 'product' and isinstance(error, subprocess.TimeoutExpired):
                     with (evidence / 'product-sample.log').open('wb') as diagnostic:
-                        subprocess.run(['/usr/bin/sample', str(process.pid), '2'], timeout=10,
-                                       stdout=diagnostic, stderr=subprocess.STDOUT, check=False)
+                        try:
+                            subprocess.run(['/usr/bin/sample', str(process.pid), '2'], timeout=10,
+                                           stdout=diagnostic, stderr=subprocess.STDOUT, check=False)
+                        except (OSError, subprocess.TimeoutExpired) as sample_error:
+                            diagnostic.write(f'\n采样未完成：{sample_error}\n'.encode())
             finally:
                 os.killpg(process.pid, signal.SIGTERM)
                 try:

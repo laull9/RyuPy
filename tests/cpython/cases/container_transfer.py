@@ -30,4 +30,13 @@ assert shared[0] is cycle
 assert shared[1] == '环内Python写入'
 shared.clear()
 cycle.clear()
+reordered = {'first': shared, 'middle': 23, 'last': shared}
+try:
+    bridge_fixture.reorder_dictionary_then_fail(reordered, 'first')
+except ValueError as error:
+    assert str(error) == '重排后的异常'
+else:
+    raise AssertionError('重排后的异常未传播')
+assert list(reordered) == ['middle', 'last', 'first']
+assert reordered['first'] is reordered['last'] is shared
 print('精确容器同步、共享环、回调与异常写回通过')

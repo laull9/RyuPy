@@ -142,3 +142,4 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 - [0234：stock回调发布结果的所有权](0234-stock-callback-published-ownership.md)（76正与4跨堆环负例通过；实际CIL产品继续验收）
 - [0235：源码常量与对象桥保留Python Unicode码点](0235-unicode-codepoint-constants.md)（源码/桥/严格编码核心已验；方法生态逐项推进）
 - [0242：声明与编译源码相邻的随包应用数据](0242-declared-provider-application-data.md)（两布局三形态搬迁通过，完整应用另验）
+- [0243：同步字典的线性快照比较](0243-linear-synchronized-dictionary-deltas.md)（双版定向产品与原翻译子链配对，完整应用另验）
