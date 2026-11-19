@@ -228,6 +228,7 @@ static PyMethodDef bridge_methods[] = {
 static PyType_Spec managed_spec = {"ryupy.ManagedObject", sizeof(Managed), 0, Py_TPFLAGS_DEFAULT, managed_slots};
 #include "managed_descriptor.h"
 #include "managed_coroutine.h"
+#include "dict_snapshot.h"
 
 static int fail_status(PyStatus status) {
     if (!PyStatus_Exception(status)) return 0;

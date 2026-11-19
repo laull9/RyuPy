@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "components": [],
+  "payload_pruning": [
+    {
+      "distribution": "pyside6-addons",
+      "version": "6.9.2",
+      "reason": "固定 ExplorerPro 的预览以文本、PyMuPDF 和表格组件实现；原项目不导入 Qt WebEngine。只裁浏览器能力及经原生加载边核对的关联项，Qt Widgets、Cocoa、SQLite、图像插件和许可保留。",
+      "omit": [
+        "PySide6/Qt/lib/QtWebEngineCore.framework",
+        "PySide6/Qt/lib/QtWebEngineQuick.framework",
+        "PySide6/Qt/lib/QtWebEngineQuickDelegatesQml.framework",
+        "PySide6/Qt/lib/QtWebEngineWidgets.framework",
+        "PySide6/Qt/plugins/webview/libqtwebview_webengine.dylib",
+        "PySide6/Qt/qml/QtWebEngine",
+        "PySide6/QtWebEngineCore.abi3.so",
+        "PySide6/QtWebEngineQuick.abi3.so",
+        "PySide6/QtWebEngineWidgets.abi3.so"
+      ]
+    },
+    {
+      "distribution": "pyside6-essentials",
+      "version": "6.9.2",
+      "reason": "此 Designer 插件的 Mach-O 依赖已裁剪的 WebEngine；原应用不使用 Designer 预览。",
+      "omit": ["PySide6/Qt/plugins/designer/libqwebengineview.dylib"]
+    }
+  ],
+  "payload_selection": [
+    {
+      "name": "explorerpro-cocoa-sqlite-product",
+      "scope": "PySide6/Qt/plugins/sqldrivers",
+      "members": [
+        "PySide6/Qt/plugins/sqldrivers/libqsqlite.dylib",
+        "PySide6/Qt/plugins/sqldrivers/libqsqlmimer.dylib",
+        "PySide6/Qt/plugins/sqldrivers/libqsqlodbc.dylib",
+        "PySide6/Qt/plugins/sqldrivers/libqsqlpsql.dylib"
+      ],
+      "selected": [
+        "PySide6/Qt/plugins/sqldrivers/libqsqlite.dylib"
+      ],
+      "reason": "固定PySide6 6.9.2的隔离Cocoa/SQLite产品合同。只部署此产品明确声明的SQLite数据库驱动，其它三种外部数据库能力未部署；完整原入口默认闭包缺Mimer客户端证据另存，所有未选插件及其加载依赖仍写入审计。"
+    }
+  ]
+}

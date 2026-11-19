@@ -12,7 +12,7 @@ use std::path::PathBuf;
     override_usage = "ryupy [OPTIONS] <ENTRY.py>\n       ryupy <COMMAND> [ARGS]",
     subcommand_negates_reqs = true,
     arg_required_else_help = true,
-    after_help = "常用：ryupy main.py --onefile\n目录发布：ryupy main.py --mode standalone\n原生执行域：ryupy main.py --native\n高级参数：ryupy --help-advanced"
+    after_help = "常用：ryupy main.py --onefile\n目录发布：ryupy main.py --mode standalone\nmacOS 应用：ryupy main.py --mode app --app-name MyApp\n原生执行域：ryupy main.py --native\n高级参数：ryupy --help-advanced"
 )]
 pub(super) struct Cli {
     /// CPython provider 声明路径，或 auto 自动匹配当前 Python 环境
@@ -105,6 +105,9 @@ pub(super) struct Application {
     /// 发布形态，默认 onefile
     #[arg(long, value_enum, conflicts_with_all = ["onefile", "standalone"])]
     pub mode: Option<Mode>,
+    /// macOS .app 显示名（默认采用入口文件名）
+    #[arg(long, requires = "mode")]
+    pub app_name: Option<String>,
     /// 发布单一原生可执行文件（默认）
     #[arg(long, conflicts_with = "standalone")]
     pub onefile: bool,
@@ -126,6 +129,7 @@ pub(super) struct Application {
 pub(super) enum Mode {
     Onefile,
     Standalone,
+    App,
     Jit,
 }
 
@@ -144,12 +148,27 @@ impl Cli {
         } else {
             Mode::Onefile
         });
+        anyhow::ensure!(
+            app.app_name.is_none() || matches!(mode, Mode::App),
+            "--app-name 仅可与 --mode app 同用"
+        );
+        let input = app.input.context("请提供Python入口文件")?;
+        let macos_app = matches!(mode, Mode::App).then(|| {
+            app.app_name.unwrap_or_else(|| {
+                input
+                    .file_stem()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+        });
         Ok(Command::Build {
-            input: app.input.context("请提供Python入口文件")?,
+            input,
             diagnostic_stages: false,
             out_dir: Some(app.out_dir.unwrap_or(std::env::current_dir()?.join("dist"))),
             aot: !matches!(mode, Mode::Jit),
             onefile: matches!(mode, Mode::Onefile),
+            macos_app,
             resources: None,
             native_binding: None,
             search_paths: app.search_paths,
@@ -199,6 +218,9 @@ pub(super) enum Command {
         /// 将完整 NativeAOT 依赖封装为唯一可执行文件（隐含 --aot）
         #[arg(long)]
         onefile: bool,
+        /// 新入口的 macOS 应用显示名；旧子命令不改变原交付形态。
+        #[arg(skip)]
+        macos_app: Option<String>,
         /// 显式资源清单（AOT / onefile；目标相对路径首切限 ASCII）
         #[arg(long, requires = "native_publication")]
         resources: Option<PathBuf>,

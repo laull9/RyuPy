@@ -9,10 +9,12 @@ from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
+import plistlib
 import re
 import shutil
 import signal
 import subprocess
+import time
 import traceback
 
 from inspect_sources import CACHE, CATALOG, REPO, analyze
@@ -26,16 +28,22 @@ from support import audit_native_paths, built_product, provider_data
 
 
 
-def execute(command, cwd, env, evidence, label, timeout=900):
+def execute(command, cwd, env, evidence, label, timeout=900, sample_startup=0):
     """保存双流与退出码；超时只回收本次独立进程组，包含上游容量查询子进程。"""
     command = list(map(str, command))
     (evidence / (label + '-command.json')).write_text(json.dumps(command, ensure_ascii=False) + '\n')
     stdout_path, stderr_path = evidence / (label + '-stdout.log'), evidence / (label + '-stderr.log')
     # 实际窗口与原生崩溃诊断需要实时双流，不能等全部业务结束才落盘。
     with stdout_path.open('wb') as stdout_log, stderr_path.open('wb') as stderr_log:
+        started = time.monotonic_ns()
         process = subprocess.Popen(command, cwd=cwd, env=env, stdout=stdout_log,
                                    stderr=stderr_log, start_new_session=True)
+        sampler = None
         try:
+            if sample_startup:
+                sampler = subprocess.Popen(['/usr/bin/sample', str(process.pid), str(sample_startup),
+                                            '5', '-file', evidence / 'startup-sample.log'],
+                                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             process.wait(timeout=timeout)
         except BaseException as error:
             try:
@@ -54,8 +62,16 @@ def execute(command, cwd, env, evidence, label, timeout=900):
                     os.killpg(process.pid, signal.SIGKILL)
                     process.wait(timeout=5)
             raise
+        finally:
+            if sampler is not None:
+                try:
+                    sampler.wait(timeout=8)
+                except subprocess.TimeoutExpired:
+                    sampler.terminate()
+                    sampler.wait(timeout=5)
     stdout, stderr = stdout_path.read_bytes(), stderr_path.read_bytes()
-    (evidence / (label + '-exit.json')).write_text(json.dumps({'exit': process.returncode}))
+    (evidence / (label + '-exit.json')).write_text(json.dumps(
+        {'exit': process.returncode, 'started_monotonic_ns': started}))
     return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
 
 
@@ -145,6 +161,8 @@ def product(args, project, evidence):
             native_declaration = inputs / 'native-components.json'
             native_declaration.write_text(json.dumps(declaration, ensure_ascii=False))
             extra.extend(['--cpython-native-components', native_declaration])
+        if args.mode == 'app':
+            extra.extend(['--app-name', 'ExplorerPro'])
         built = execute([args.ryupy.resolve(), entry, '--mode', args.mode, '-o', output,
                          '-I', tree / 'src', '-I', tree, *extra], work, dict(env, VIRTUAL_ENV=str(venv)),
                         evidence, 'build')
@@ -153,10 +171,20 @@ def product(args, project, evidence):
                      if line.startswith('已生成 ')]
         assert len(generated) == 1, built.stderr
         executable = generated[0]
-        report_path = provider_data(output, entry.stem, args.mode) / 'cpython-provider.json'
-        if args.mode != 'onefile':
+        if args.mode == 'app':
+            bundle = executable
+            assert bundle.name == 'ExplorerPro.app'
+            layout = plistlib.loads((bundle / 'Contents/Info.plist').read_bytes())
+            assert layout['CFBundleExecutable'] == entry.stem and layout['CFBundlePackageType'] == 'APPL'
+            executable = bundle / 'Contents/MacOS' / entry.stem
+            report_path = executable.parent / 'internal/cpython-provider.json'
+        else:
+            report_path = provider_data(output, entry.stem, args.mode) / 'cpython-provider.json'
+        if args.mode not in ('app', 'onefile'):
             assert built_product(built.stderr, output, entry.stem, args.mode).entry == executable.resolve()
         report = json.loads(report_path.read_text())
+        python_bytes = sum(path.stat().st_size for path in (report_path.parent / 'python').rglob('*')
+                           if path.is_file())
         assert report['delegated_local_modules'] == [], report['delegated_local_modules']
         assert report['entry_provider'] == 'ryupy_compiled_source', report['entry_provider']
         if full_probe:
@@ -166,9 +194,14 @@ def product(args, project, evidence):
             assert decisions and all(d['compiled'] and d['provider_namespace'] and d['execution'] == 'InstanceGlobals' for d in decisions), decisions
         shutil.copy2(report_path, evidence / 'cpython-provider.json')
         relocated = work / ('搬迁 空格 ' + args.mode)
+        launch_path = Path(executable.name)
         if args.mode == 'onefile':
             relocated.mkdir()
             shutil.copy2(executable, relocated / executable.name)
+        elif args.mode == 'app':
+            relocated.mkdir()
+            shutil.copytree(bundle, relocated / bundle.name)
+            launch_path = executable.relative_to(bundle.parent)
         else:
             shutil.copytree(executable.parent, relocated)
         if args.mode != 'onefile':
@@ -180,14 +213,25 @@ def product(args, project, evidence):
         cwd.mkdir()
         polluted = dict(runtime_env('product'), PATH=str(empty_path),
                         PYTHONHOME='/missing-python', PYTHONPATH='/missing-site')
-        command = relocated_command(relocated / executable.name, cache, original_venv, evidence, cwd, polluted)
+        command = relocated_command(relocated / launch_path, cache, original_venv, evidence, cwd, polluted)
         actual = checked(execute([*command, profiles['product'], evidence / 'product'], cwd,
-                                 polluted, evidence, 'product', timeout=150), '搬迁Cocoa原业务')
+                                 polluted, evidence, 'product', timeout=150,
+                                 sample_startup=args.sample_startup), '搬迁Cocoa原业务')
         assert normalize(actual.stdout, profiles['product']) == normalize(oracle.stdout, profiles['oracle'])
         assert normalize(actual.stderr, profiles['product']) == normalize(oracle.stderr, profiles['oracle'])
-        return {'mode': args.mode, 'oracle': 'pass', 'product': 'deleted_inputs_relocated_pass',
+        result = {'mode': args.mode, 'oracle': 'pass', 'product': 'deleted_inputs_relocated_pass',
                 'business_delegations': [], 'probe_entry': 'cil', 'display': 'cocoa',
-                'stock_module_namespaces': args.stock_module_namespaces}
+                'stock_module_namespaces': args.stock_module_namespaces, 'python_payload_bytes': python_bytes,
+                'startup_sampled': bool(args.sample_startup)}
+        if full_probe:
+            result['startup_milliseconds'] = {}
+            for arm in ('oracle', 'product'):
+                start = json.loads((evidence / (arm + '-exit.json')).read_text())['started_monotonic_ns']
+                phases = [line.split('\t') for line in (evidence / arm / 'startup.tsv').read_text().splitlines()]
+                result['startup_milliseconds'][arm] = {
+                    label: round((int(stamp) - start) / 1_000_000, 1) for label, stamp in phases
+                }
+        return result
 
 
 def main():
@@ -195,11 +239,13 @@ def main():
     parser.add_argument('--ryupy', type=Path, required=True)
     parser.add_argument('--python', type=Path, required=True)
     parser.add_argument('--cache', type=Path, default=CACHE)
-    parser.add_argument('--mode', choices=['jit', 'standalone', 'onefile'], default='jit')
+    parser.add_argument('--mode', choices=['jit', 'standalone', 'onefile', 'app'], default='jit')
     parser.add_argument('--oracle-only', action='store_true')
     parser.add_argument('--probe-entry', type=Path, default=HERE / 'explorerpro_probe.py', help='同次CP/CIL诊断入口，默认保持完整原业务合同')
     parser.add_argument('--native-components', type=Path)
     parser.add_argument('--stock-module-namespaces', action='store_true', help='显式全图Instance/provider权威globals合同')
+    parser.add_argument('--sample-startup', type=int, default=0, choices=range(0, 61),
+                        metavar='0..60', help='诊断臂启动时采样秒数；采样结果不得计入正式耗时')
     parser.add_argument('--evidence', type=Path, default=Path.home() / '.cache/ryupy/validation/explorerpro-products')
     args = parser.parse_args()
     evidence = args.evidence.expanduser().resolve() / datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ')

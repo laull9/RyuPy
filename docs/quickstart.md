@@ -19,12 +19,16 @@ ryupy main.py --onefile
 
 ```sh
 ryupy main.py --mode standalone       # 完整独立目录 ./dist/main.dist
+ryupy main.py --mode app --app-name MyApp  # macOS NativeAOT：./dist/MyApp.app
 ryupy main.py --mode jit              # 托管程序集
 ryupy main.py --native                # 显式纯RyuPy执行域
 ryupy main.py -o release              # 选择输出根
 ryupy main.py -I src                  # 补充源码搜索根
 ryupy main.py --include-module plugin # 补充动态引用的本地模块
 ```
+
+`.app` 在 macOS 本机构建，可通过 Finder 打开或使用 `open ./dist/MyApp.app`。
+搬运时保留整个应用包；已有同名应用包不会被覆盖。不自动申请签名或公证。
 
 静态导入会自动跟随本地文件和包，包内相对导入保持原来的初始化顺序。字符串动态导入、
 自定义导入器及应用自己的任意外部数据按具体声明和兼容合同处理；包数据随第三方安装RECORD收集。

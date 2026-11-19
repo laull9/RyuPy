@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Component, Path, PathBuf};
 
+#[path = "cpython_payload_pruning.rs"]
+mod pruning;
 #[path = "cpython_payload_selection.rs"]
 mod selection;
 
@@ -17,6 +19,8 @@ struct Declaration {
     components: Vec<ComponentDeclaration>,
     #[serde(default)]
     payload_selection: Vec<selection::Group>,
+    #[serde(default)]
+    payload_pruning: Vec<pruning::Request>,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -234,12 +238,23 @@ pub(super) fn extend(sess: &mut Session) -> Result<()> {
     let mut selected_payloads = plan.payloads.clone();
     selected_payloads.extend(payloads);
     let selection_report = selection::apply(declaration.payload_selection, &mut selected_payloads)?;
+    let pruning_report = pruning::apply(
+        declaration.payload_pruning,
+        &plan.dependency_report,
+        &mut selected_payloads,
+    )?;
     plan.payloads = selected_payloads;
     if plan.dependency_report.is_null() {
         plan.dependency_report = serde_json::json!({});
     }
     plan.dependency_report["native_components"] = serde_json::to_value(reports)?;
     plan.dependency_report["payload_selection"] = selection_report;
+    if pruning_report
+        .as_array()
+        .is_some_and(|rows| !rows.is_empty())
+    {
+        plan.dependency_report["payload_pruning"] = pruning_report;
+    }
     Ok(())
 }
 
