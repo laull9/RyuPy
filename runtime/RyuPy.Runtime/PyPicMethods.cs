@@ -30,12 +30,12 @@ public static partial class PyPic
         public PyClass? SelfClass;
     }
 
-    private static readonly MethodEntry[] MethodEntries = new MethodEntry[MaxSites * EntriesPerSite];
+    private static readonly PagedEntries<MethodEntry> MethodEntries = new(MaxSites * EntriesPerSite);
 
     /// <summary>`CallMethodN`：0 个位置实参。</summary>
     public static object? CallMethod0(int site, object? obj, string name)
     {
-        if (Enabled && (uint)site < MaxSites && obj is PyInstance instance)
+        if (Enabled && (uint)site < MaxSites && obj is PyInstance instance && instance.ForeignInstance is null && !instance.Class.HasSlotLayout && !instance.Class.HasDictC3Layout)
         {
             long classVersion = PyClass.GlobalVersion;
             if (TryGetMethodEntry(site, instance, name, classVersion, out MethodEntry entry))
@@ -46,6 +46,8 @@ public static partial class PyPic
             }
             return CallMethodSlow(site, instance, name, classVersion, ArgFor(site, 0));
         }
+        // 精确sealed容器无法覆盖方法；固定零参入口省去scratch及通用属性/参数分派。
+        if (Enabled && obj is PyList exactList && name == "pop") return exactList.Pop();
         object?[] fallback = (uint)site < MaxSites ? ArgFor(site, 0) : PyOps.EmptyArray();
         return CallMethodFallback(site, obj, name, fallback);
     }
@@ -53,7 +55,7 @@ public static partial class PyPic
     /// <summary>`CallMethodN`：1 个位置实参。</summary>
     public static object? CallMethod1(int site, object? obj, string name, object? a0)
     {
-        if (Enabled && (uint)site < MaxSites && obj is PyInstance instance)
+        if (Enabled && (uint)site < MaxSites && obj is PyInstance instance && instance.ForeignInstance is null && !instance.Class.HasSlotLayout && !instance.Class.HasDictC3Layout)
         {
             long classVersion = PyClass.GlobalVersion;
             if (TryGetMethodEntry(site, instance, name, classVersion, out MethodEntry entry))
@@ -67,6 +69,16 @@ public static partial class PyPic
             args[0] = a0;
             return CallMethodSlow(site, instance, name, classVersion, args);
         }
+        // 单一语法实参仍可能是*标记；只有普通值才能直接进入原容器正文。
+        if (Enabled && !PyOps.IsStarredArgument(a0))
+        {
+            if (obj is PyList exactList && name == "append")
+            { exactList.Append(a0); return PyNone.Instance; }
+            if (obj is PyDict exactDict && name == "get")
+                return exactDict.GetOrDefault(a0, PyNone.Instance);
+            if (obj is PySet exactSet && name == "add")
+            { exactSet.Add(a0); return PyNone.Instance; }
+        }
         object?[] fallbackArgs = ArgFor(site, 1);
         fallbackArgs[0] = a0;
         return CallMethodFallback(site, obj, name, fallbackArgs);
@@ -75,7 +87,7 @@ public static partial class PyPic
     /// <summary>`CallMethodN`：2 个位置实参。</summary>
     public static object? CallMethod2(int site, object? obj, string name, object? a0, object? a1)
     {
-        if (Enabled && (uint)site < MaxSites && obj is PyInstance instance)
+        if (Enabled && (uint)site < MaxSites && obj is PyInstance instance && instance.ForeignInstance is null && !instance.Class.HasSlotLayout && !instance.Class.HasDictC3Layout)
         {
             long classVersion = PyClass.GlobalVersion;
             if (TryGetMethodEntry(site, instance, name, classVersion, out MethodEntry entry))
@@ -91,6 +103,10 @@ public static partial class PyPic
             args[1] = a1;
             return CallMethodSlow(site, instance, name, classVersion, args);
         }
+        // get的缺省值保留原引用；用户hash/eq由原GetOrDefault执行，支持重入。
+        if (Enabled && obj is PyDict exactDict && name == "get"
+            && !PyOps.IsStarredArgument(a0) && !PyOps.IsStarredArgument(a1))
+            return exactDict.GetOrDefault(a0, a1);
         object?[] fallbackArgs = ArgFor(site, 2);
         fallbackArgs[0] = a0;
         fallbackArgs[1] = a1;
@@ -107,7 +123,7 @@ public static partial class PyPic
         object? a2
     )
     {
-        if (Enabled && (uint)site < MaxSites && obj is PyInstance instance)
+        if (Enabled && (uint)site < MaxSites && obj is PyInstance instance && instance.ForeignInstance is null && !instance.Class.HasSlotLayout && !instance.Class.HasDictC3Layout)
         {
             long classVersion = PyClass.GlobalVersion;
             if (TryGetMethodEntry(site, instance, name, classVersion, out MethodEntry entry))
@@ -184,6 +200,7 @@ public static partial class PyPic
         out MethodEntry found
     )
     {
+        instance.Class.RequireLexicalFactoryReady();
         int baseIndex = site * EntriesPerSite;
         for (int i = 0; i < EntriesPerSite; i++)
         {
@@ -200,7 +217,7 @@ public static partial class PyPic
 
     private static object? CallMethodFast(int site, object? obj, string name, object?[] args)
     {
-        if (!Enabled || (uint)site >= MaxSites || obj is not PyInstance instance)
+        if (!Enabled || (uint)site >= MaxSites || obj is not PyInstance instance || instance.ForeignInstance is not null || instance.Class.HasSlotLayout || instance.Class.HasDictC3Layout)
         {
             return CallMethodFallback(site, obj, name, args);
         }
@@ -258,12 +275,13 @@ public static partial class PyPic
         if (!Enabled
             || (uint)site >= MaxSites
             || PyOps.NeedsFlatten(rawArgs, rawNames)
-            || obj is not PyInstance instance)
+            || obj is not PyInstance instance || instance.ForeignInstance is not null || instance.Class.HasSlotLayout || instance.Class.HasDictC3Layout)
         {
             return PyOps.CallMethod(obj, name, rawArgs, rawNames, rawValues);
         }
 
         long classVersion = PyClass.GlobalVersion;
+        instance.Class.RequireLexicalFactoryReady();
         int baseIndex = site * EntriesPerSite;
         for (int i = 0; i < EntriesPerSite; i++)
         {

@@ -1,0 +1,7 @@
+# 环境丢失后的新候选身份
+
+本目录不是旧7ec候选的完整逐字恢复。fixtures/ORACLE.json保持已上传Git blob原字节；README.md保留历史正文并新增入口说明，仅记历史窗口；不据其旧source哈希证明重构源。REBUILT-ORACLE.json绑定本次全fixture和两个自然CP进程：semantic288B、boundary148B，均exit0/空stderr；非新JIT或Native结果。
+
+checking、contract、native_entry、boundary、旧ORACLE、metadata/entry_points和父workflow取自真实远端blob。semantic源/黄金与旧哈希相等；十个probe源和top_level是重新编写的新身份。run/support/native_checks/schema4/pe_checks及对应纯测、子workflow重新构造，旧门仅增加精确新标题许可。不能以重构检查器通过代替产品。
+
+保持3图/3ELF/8Native/4独立JIT和原77/102业务，CP旧黄金和本次微fixture黄金分账。边界NI、旧显式无资源拒绝和全部旧保护仍执行；schema4直接审、发射前MIR作为oracle、实际CLI PE/冷ABI/ldftn独核。新来源目录的任何修订必须更新新oracle并按影响复验。

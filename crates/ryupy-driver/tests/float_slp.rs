@@ -1,4 +1,6 @@
 //! 真packed SLP与相同守卫标量控制的集成验证；ISA关闭仍运行完整Python语义。
+#[path = "../src/test_temp.rs"]
+mod layout_temp;
 use ryupy_driver::{BuildOptions, Session, Stage};
 mod support;
 
@@ -52,6 +54,7 @@ fn fresh_independent_pairs_really_vectorize_but_aliases_do_not() {
 
 #[test]
 fn packed_scalar_control_and_disabled_isa_match_pinned_python() {
+    let _layout_temp = layout_temp::Root::new("driver-integration");
     let root = ryupy_driver::runtime::workspace_root();
     let input = root.join("tests/e2e/phase3/m3_10_float_slp.py");
     let python = std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into());
@@ -76,15 +79,16 @@ fn packed_scalar_control_and_disabled_isa_match_pinned_python() {
             &mut session,
             &BuildOptions {
                 input: input.clone(),
-                out_dir: root.join(format!("target/test_float_slp_{scalar}")),
+                out_dir: _layout_temp.join(format!("test_float_slp_{scalar}")),
                 aot: false,
                 search_paths: vec![],
             },
         )
         .unwrap();
         for hardware_off in [false, true] {
-            let mut command = std::process::Command::new("dotnet");
-            command.arg(&artifact.dll);
+            let mut command = std::process::Command::new(
+                artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+            );
             if hardware_off {
                 command.env("DOTNET_EnableHWIntrinsic", "0");
                 command.env("COMPlus_EnableHWIntrinsic", "0");

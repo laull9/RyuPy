@@ -1,0 +1,600 @@
+# 保留 Legacy 门禁；显式 Instance AOT 独立资格/PE门和两产物，不扩大自动选择。
+name: wcwidth 原四调用 Legacy NativeAOT
+on: {push: {branches: [ci/wcwidth-legacy-aot-2909056]}, workflow_dispatch: null}
+permissions:
+  contents: read
+concurrency: {group: 'wcwidth-legacy-aot-${{ github.ref }}', cancel-in-progress: false}
+jobs:
+  select-mode:
+    name: 精确选择诊断或原验收链
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs: {ordinary_mi: "${{ steps.mode.outputs.ordinary_mi }}", default_source_aot: "${{ steps.mode.outputs.default_source_aot }}", instance_class: "${{ steps.mode.outputs.instance_class }}", warm: "${{ steps.mode.outputs.warm }}", a1: "${{ steps.mode.outputs.a1 }}", factory: "${{ steps.mode.outputs.factory }}", deployment: "${{ steps.mode.outputs.deployment }}", closure: "${{ steps.mode.outputs.closure }}", diagnostic: "${{ steps.mode.outputs.diagnostic }}", markdown: "${{ steps.mode.outputs.markdown }}", noreturn: "${{ steps.mode.outputs.noreturn }}", search: "${{ steps.mode.outputs.search }}", metadata: "${{ steps.mode.outputs.metadata }}", dedent: "${{ steps.mode.outputs.dedent }}", scanner: "${{ steps.mode.outputs.scanner }}", percent: "${{ steps.mode.outputs.percent }}", keyerror: "${{ steps.mode.outputs.keyerror }}"}
+    steps:
+      # Actions字符串比较不区分大小写，因此不以表达式==冒充标题字节精确匹配。
+      # 不checkout、不执行仓库源码、不把提交消息插入shell；普通提交/dispatch保持原链。
+      - id: mode
+        run: |
+          python3 - <<'PY'
+          import json, os; from pathlib import Path; event = json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text())
+          head = event.get('head_commit'); title = head.get('message') if isinstance(head, dict) else None; is_push = (isinstance(head, dict) and os.environ.get('GITHUB_EVENT_NAME') == 'push' and os.environ.get('GITHUB_REF') == event.get('ref') == 'refs/heads/ci/wcwidth-legacy-aot-2909056')
+          diagnostic = is_push and title == 'diagnostic-not-acceptance: trace-v1-first-edge-001'; markdown = is_push and title == 'diagnostic-not-acceptance: markdown-preflight-001'; noreturn = is_push and title in ('validation: typing-noreturn-001', 'validation: text-expandtabs-001'); search = is_push and title == 'validation: text-search-002'; metadata = is_push and title in ('validation: distribution-metadata-001', 'validation: textwrap-dedent-001', 'validation: re-scanner-001', 'validation: decimal-percent-001', 'validation: keyerror-construction-001', 'validation: treebuilder-state-001', 'validation: lexical-class-factory-001', 'validation: instance-direct-globals-001', 'validation: wcwidth-warm-kernel-001', 'validation: instance-class-aot-001', 'validation: default-source-aot-001', 'validation: ordinary-mi-c3-001')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
+              stream.writelines(name + '=' + str(value).lower() + '\n' for name, value in zip(('diagnostic', 'markdown', 'noreturn', 'search', 'metadata'), (diagnostic, markdown, noreturn, search, metadata)))
+              if is_push and title == 'diagnostic-not-acceptance: markdown-closure-001': stream.write('closure=true\n')
+              if is_push and title in ('validation: textwrap-dedent-001', 'validation: re-scanner-001', 'validation: decimal-percent-001', 'validation: keyerror-construction-001', 'validation: treebuilder-state-001'): stream.write('dedent=true\n')
+              if is_push and title in ('validation: re-scanner-001', 'validation: decimal-percent-001', 'validation: keyerror-construction-001', 'validation: treebuilder-state-001'): stream.write('scanner=true\n')
+              if is_push and title in ('validation: decimal-percent-001', 'validation: keyerror-construction-001', 'validation: treebuilder-state-001'): stream.write('percent=true\n')
+              if is_push and title in ('validation: keyerror-construction-001', 'validation: treebuilder-state-001'): stream.write('keyerror=true\n')
+              if is_push and title in ('validation: default-source-deployment-001', 'validation: lexical-class-factory-001'): stream.write('deployment=true\n')
+              if is_push and title == 'validation: lexical-class-factory-001': stream.write('factory=true\n')
+              if is_push and title == 'validation: wcwidth-warm-kernel-001': stream.write('warm=true\n')
+              if is_push and title == 'validation: instance-direct-globals-001': stream.write('a1=true\n')
+              if is_push and title in ('validation: instance-class-aot-001', 'validation: default-source-aot-001', 'validation: ordinary-mi-c3-001'): stream.write('instance_class=true\n')
+              if is_push and title in ('validation: default-source-aot-001', 'validation: ordinary-mi-c3-001'): stream.write('default_source_aot=true\n')
+              if is_push and title == 'validation: ordinary-mi-c3-001': stream.write('ordinary_mi=true\n')
+          PY
+  trace-edge-diagnostic:
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && github.event_name == 'push' && needs.select-mode.outputs.diagnostic == 'true'
+    uses: ./.github/workflows/trace-edge-diagnostic.yml
+  markdown-preflight:
+    name: NOT-ACCEPTANCE Markdown原双调用预检
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && github.event_name == 'push' && needs.select-mode.outputs.markdown == 'true' && github.run_attempt == '1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: 新控制流及原selector纯自测
+        run: |
+          python3 -B tests/validation/markdown_preflight.py --self-test
+          python3 -B -m unittest discover -s tests/validation/generator_product -p test_diagnostic_once.py
+      - name: 复用固定官方Rust、SDK及CP工具
+        run: |
+          mkdir -p target/markdown-preflight-prepare
+          status=0
+          python3 -B tests/aot/wcwidth_ci/prepare.py > target/markdown-preflight-prepare/stdout 2> target/markdown-preflight-prepare/stderr || status=$?
+          printf '%s\n' "$status" > target/markdown-preflight-prepare/exit
+          exit "$status"
+      - name: 一次1200秒工具构建及180秒原入口预检
+        run: '"$PYTHON" -B tests/validation/markdown_preflight.py'
+      - name: 明示旧保护门not-run、不更新accepted或默认分子
+        if: always()
+        run: |
+          printf '%s\n' '## NOT-ACCEPTANCE: Markdown explicit preflight' \
+            '仅原双调用CP及显式JIT诊断。第一段48B不是完整77B项目通过；显式通过也不增加默认分子。' \
+            'not-run: full make check(default/pilot)、固定20及旧11逐ID保护、NativeAOT/搬迁、Legacy/Instance/Trace回归、source provenance/import-path回归、性能、Markdown上游整库及完整扩展功能。' \
+            '既有失败与accepted保持；本轮不是发布或兼容性全验收。' >> "$GITHUB_STEP_SUMMARY"
+      - name: 保留精确输入及首次原流（排除大工具文件）
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: markdown-preflight-evidence-NOT-ACCEPTANCE-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/markdown-preflight
+            !target/markdown-preflight/tools/**
+            target/markdown-preflight-prepare
+            ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
+          if-no-files-found: error
+          retention-days: 3
+      - name: 独立保留普通CLI及Runtime（同工具身份绑定，可稍后单取）
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: markdown-preflight-tools-NOT-ACCEPTANCE-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/markdown-preflight/tools/ryupy
+            target/markdown-preflight/tools/RyuPy.Runtime.dll
+            target/markdown-preflight/tools.json
+          if-no-files-found: error
+          retention-days: 3
+  markdown-closure:
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && github.event_name == 'push' && needs.select-mode.outputs.closure == 'true' && github.run_attempt == '1'
+    uses: ./.github/workflows/markdown-closure.yml
+  typing-noreturn:
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && github.event_name == 'push' && needs.select-mode.outputs.noreturn == 'true' && github.run_attempt == '1'
+    uses: ./.github/workflows/typing-noreturn.yml
+  text-search:
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && github.event_name == 'push' && needs.select-mode.outputs.search == 'true' && github.run_attempt == '1'
+    uses: ./.github/workflows/text-search.yml
+  instance-class:
+    needs: select-mode
+    if: needs.select-mode.outputs.instance_class == 'true'
+    uses: ./.github/workflows/instance-class.yml
+  distribution-metadata:
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && github.event_name == 'push' && needs.select-mode.outputs.metadata == 'true' && github.run_attempt == '1'
+    uses: ./.github/workflows/distribution-metadata.yml
+  textwrap-dedent:
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && github.event_name == 'push' && needs.select-mode.outputs.dedent == 'true' && github.run_attempt == '1'
+    uses: ./.github/workflows/textwrap-dedent.yml
+  re-scanner:
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && github.event_name == 'push' && needs.select-mode.outputs.scanner == 'true' && github.run_attempt == '1'
+    uses: ./.github/workflows/re-scanner.yml
+  decimal-percent:
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && github.event_name == 'push' && needs.select-mode.outputs.percent == 'true' && github.run_attempt == '1'
+    uses: ./.github/workflows/decimal-percent.yml
+  keyerror-construction:
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && github.event_name == 'push' && needs.select-mode.outputs.keyerror == 'true' && github.run_attempt == '1'
+    uses: ./.github/workflows/keyerror-construction.yml
+  default-source-deployment:
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && github.event_name == 'push' && needs.select-mode.outputs.deployment == 'true' && github.run_attempt == '1'
+    uses: ./.github/workflows/default-source-deployment.yml
+  lexical-class-factory:
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && github.event_name == 'push' && needs.select-mode.outputs.factory == 'true' && github.run_attempt == '1'
+    uses: ./.github/workflows/lexical-class-factory.yml
+  baseline:
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false' && needs.select-mode.outputs.markdown == 'false' && needs.select-mode.outputs.closure != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      UNICODE_VERSION: latest
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONHASHSEED: '0'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # 官方 v4，2026-11-07 核验
+        with:
+          persist-credentials: false
+      - name: 核验固定官方工具下载
+        run: |
+          mkdir -p target/wcwidth-aot-evidence
+          python3 tests/aot/wcwidth_ci/prepare.py 2>&1 | tee target/wcwidth-aot-evidence/prepare.log
+      - name: 发布前格式硬门
+        timeout-minutes: 3
+        run: |
+          status=0
+          cargo fmt --all --check > target/wcwidth-aot-evidence/preflight-fmt.stdout 2> target/wcwidth-aot-evidence/preflight-fmt.stderr || status=$?
+          printf '%s\n' "$status" > target/wcwidth-aot-evidence/preflight-fmt.exit
+          cat target/wcwidth-aot-evidence/preflight-fmt.stdout
+          cat target/wcwidth-aot-evidence/preflight-fmt.stderr >&2
+          exit "$status"
+      - name: 检查 hosted Linux 原生编译依赖
+        run: |
+          command -v clang
+          command -v readelf
+          command -v ldd
+          dpkg-query -W zlib1g-dev
+      - name: 原四调用、真实 publish、ELF 与搬移
+        id: legacy
+        run: '"$PYTHON" -B tests/aot/wcwidth_ci/run.py'
+      - name: 实际来源新消费者Native原位、搬移与源码隔离
+        if: ${{ !cancelled() && steps.legacy.outcome == 'success' }}
+        timeout-minutes: 30
+        run: '"$PYTHON" -B tests/validation/source_provenance/ci/bootstrap.py native'
+      - name: 原A/B/HOT无flag及显式V1整流（同源工具，历史红灯不覆写）
+        id: generator_product_v1
+        if: ${{ !cancelled() && hashFiles('target/wcwidth-aot-evidence/compiler-identity.json') != '' }}
+        timeout-minutes: 68
+        run: '"$PYTHON" -B tests/validation/generator_product/bootstrap.py'
+      - name: 普通CLI域外与同候选Legacy API完整对照
+        if: ${{ !cancelled() && steps.generator_product_v1.outcome == 'success' }}
+        timeout-minutes: 21
+        run: '"$PYTHON" -B tests/validation/generator_default/default_gate.py'
+      - name: 显式Instance资格与PE前置、两Native产物及隔离搬迁
+        if: ${{ !cancelled() && steps.legacy.outcome == 'success' }}
+        run: '"$PYTHON" -B tests/aot/wcwidth_ci/instance_gate.py'
+      - name: 显式super三分合同与独立Legacy Native及隔离搬迁
+        if: ${{ !cancelled() && steps.legacy.outcome == 'success' }}
+        run: '"$PYTHON" -B tests/aot/wcwidth_ci/explicit_super_gate.py'
+      # 后段故障前先保存已完成阶段的小文本；不能替代最终产物或恢复正在崩溃的阶段。
+      - name: resource前保存已完成阶段原流检查点
+        if: ${{ !cancelled() && steps.legacy.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: wcwidth-legacy-aot-pre-resource-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/wcwidth-aot-evidence/**/*.json
+            target/wcwidth-aot-evidence/**/*.stdout
+            target/wcwidth-aot-evidence/**/*.stderr
+            target/wcwidth-aot-evidence/**/*.log
+            target/wcwidth-aot-evidence/**/*.exit
+            target/source-provenance-native/*.json
+            target/source-provenance-native/cp/native_consumers/result.json
+            target/source-provenance-native/publish/*.json
+            target/source-provenance-native/publish/sdk-evidence/**/*.log
+            target/source-provenance-native/publish/product/entry.dist/ryupy-artifact.json
+            target/source-provenance-native/run/*.json
+            target/source-provenance-native/run/moved/ryupy-artifact.json
+            target/source-provenance-native/logs/*.json
+            target/source-provenance-native/logs/*.stdout
+            target/source-provenance-native/logs/*.stderr
+            target/source-provenance-native/publish/logs/*.json
+            target/source-provenance-native/publish/logs/*.stdout
+            target/source-provenance-native/publish/logs/*.stderr
+            target/source-provenance-native/run/logs/*.json
+            target/source-provenance-native/run/logs/*.stdout
+            target/source-provenance-native/run/logs/*.stderr
+            target/generator-product-evidence/**/*.json
+            target/generator-product-evidence/**/*.stdout
+            target/generator-product-evidence/**/*.stderr
+            target/generator-product-evidence/**/*.log
+            target/generator-product-evidence/**/*.exit
+            target/generator-default-evidence/**/*.json
+            target/generator-default-evidence/**/*.stdout
+            target/generator-default-evidence/**/*.stderr
+            target/generator-default-evidence/**/*.log
+            target/generator-default-evidence/**/*.exit
+            target/instance-aot-evidence/**/*.json
+            target/instance-aot-evidence/**/*.stdout
+            target/instance-aot-evidence/**/*.stderr
+            target/instance-aot-evidence/**/*.log
+            target/instance-aot-evidence/**/*.exit
+            target/explicit-super-evidence/**/*.json
+            target/explicit-super-evidence/**/*.stdout
+            target/explicit-super-evidence/**/*.stderr
+            target/explicit-super-evidence/**/*.log
+            target/explicit-super-evidence/**/*.exit
+            target/generator-product-bootstrap/*.json
+            target/generator-product-bootstrap/*.stdout
+            target/generator-product-bootstrap/*.stderr
+            target/source-provenance-native/cp/native_consumers/stdout
+            target/source-provenance-native/cp/native_consumers/stderr
+            !target/**/obj/**
+            !target/**/bin/**
+            !target/source-provenance-native/INPUT/**
+          if-no-files-found: error
+          retention-days: 3
+      - name: 既有Kind1 JIT与Kind2资源AOT及搬移
+        if: ${{ !cancelled() && steps.legacy.outcome == 'success' }}
+        run: '"$PYTHON" -B tests/aot/resource_smoke.py --ryupy "$PWD/target/debug/ryupy" --python "$PYTHON" --dotnet "$DOTNET" --rid linux-x64 --out target/resource-ci-evidence'
+      - name: Legacy动态生成器独立前置与综合Native合同
+        if: ${{ !cancelled() && steps.legacy.outcome == 'success' }}
+        run: '"$PYTHON" -B tests/aot/wcwidth_ci/generator_dynamic_gate.py'
+      - name: 保留成功或首次失败证据
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # 官方 v4，2026-11-07 核验
+        with:
+          name: wcwidth-legacy-aot-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/wcwidth-aot-evidence
+            target/source-provenance-native
+            !target/source-provenance-native/publish/product/**
+            target/instance-aot-evidence
+            target/explicit-super-evidence
+            target/generator-dynamic-evidence
+            target/generator-product-evidence
+            target/generator-default-evidence
+            target/generator-product-bootstrap/*.json
+            target/generator-product-bootstrap/*.stdout
+            target/generator-product-bootstrap/*.stderr
+            target/generator-product-bootstrap/decoder
+            target/resource-ci-evidence/**/logs/**
+            target/resource-ci-evidence/**/result.json
+          if-no-files-found: warn
+          retention-days: 3
+  full-check:
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false' && needs.select-mode.outputs.markdown == 'false' && needs.select-mode.outputs.closure != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [default, pilot]
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONHASHSEED: '0'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 固定官方工具
+        run: |
+          mkdir -p target/wcwidth-aot-evidence
+          python3 tests/aot/wcwidth_ci/prepare.py 2>&1 | tee target/wcwidth-aot-evidence/prepare.log
+      - name: 取固定旧运行时用于S1 ABI比对
+        if: matrix.mode == 'default'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: bd5d7dbe1f09bd3ba649e9b1c1928845784e4fe8
+          path: target/trace-s1-baseline
+          persist-credentials: false
+      - name: 独立S1事务和真实PE门
+        if: matrix.mode == 'default'
+        id: trace_s1
+        continue-on-error: true
+        run: '"$PYTHON" -B tests/aot/wcwidth_ci/trace_state_s1.py'
+      - name: 完整make check及脚本门禁
+        env:
+          CHECK_MODE: ${{ matrix.mode }}
+        run: '"$PYTHON" -B tests/aot/wcwidth_ci/full_check.py'
+      - name: 强制S1专用门结果
+        if: always() && matrix.mode == 'default'
+        env:
+          TRACE_S1_OUTCOME: ${{ steps.trace_s1.outcome }}
+        run: test "$TRACE_S1_OUTCOME" = success
+      - name: 保存完整检查原流
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: full-check-${{ matrix.mode }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/full-check-evidence
+            target/trace-state-s1-evidence
+            target/foreach-new-run/**/*.bin
+            target/foreach-new-run/**/status.json
+            target/foreach-new-run/**/summary.json
+            target/foreach-new-run/**/result.json
+            target/foreach-new-run/**/manifest.json
+            target/foreach-new-run/**/diagnostics.txt
+            target/foreach-new-run/**/compile-meta.json
+            target/foreach-new-run/**/module-plan.json
+            target/wcwidth-aot-evidence/prepare.log
+          retention-days: 3
+  projects:
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false' && needs.select-mode.outputs.markdown == 'false' && needs.select-mode.outputs.closure != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 80
+    defaults:
+      run:
+        shell: bash
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONHASHSEED: '0'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 固定官方工具
+        run: |
+          mkdir -p target/wcwidth-aot-evidence
+          python3 tests/aot/wcwidth_ci/prepare.py 2>&1 | tee target/wcwidth-aot-evidence/prepare.log
+      - name: 固定20项pilot编译配置默认JIT逐ID保护
+        run: '"$PYTHON" -B tests/aot/wcwidth_ci/project_gate.py'
+      - name: 保存项目证据
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: project-preserve-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/project-ci-evidence
+            target/wcwidth-aot-evidence/prepare.log
+          retention-days: 3
+  trace-adapter-s2:
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false' && needs.select-mode.outputs.markdown == 'false' && needs.select-mode.outputs.closure != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONHASHSEED: '0'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 固定官方工具（仅hosted）
+        run: |
+          mkdir -p target/wcwidth-aot-evidence
+          python3 tests/aot/wcwidth_ci/prepare.py 2>&1 | tee target/wcwidth-aot-evidence/prepare.log
+      - name: 六JIT及三Native配置轻量Build与检查器预门
+        id: managed_preflight
+        run: '"$PYTHON" -B tests/aot/wcwidth_ci/trace_adapter_s2.py'
+      - name: 三例专用静态入口NativeAOT及搬迁最小环境
+        if: ${{ success() && steps.managed_preflight.outcome == 'success' }}
+        run: '"$PYTHON" -B tests/aot/wcwidth_ci/trace_adapter_native_s2.py'
+      - name: 保留S2a实际原流和隔离产物
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trace-adapter-s2-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/trace-adapter-s2/*.json
+            target/trace-adapter-s2/*.stdout
+            target/trace-adapter-s2/*.stderr
+            target/trace-adapter-s2/trx
+            target/trace-adapter-s2/trx-native
+            target/trace-adapter-s2/native-preflight
+            target/trace-adapter-native-s2
+            target/trace-adapter-s2/observed
+            target/trace-adapter-s2/generated
+            target/trace-adapter-s2/default-generated
+            target/trace-adapter-s2/hosts/**/bin
+            target/trace-adapter-s2/probe-runtime/bin
+            target/trace-adapter-s2/default-runtime/bin
+            target/wcwidth-aot-evidence/prepare.log
+          if-no-files-found: error
+          retention-days: 3
+  trace-rust-preflight:
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false' && needs.select-mode.outputs.markdown == 'false' && needs.select-mode.outputs.closure != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Rust前置采集与结果聚合器自测
+        run: python3 -B -m unittest discover -s tests/aot/wcwidth_ci -p 'test_trace*.py'
+      - name: 无flag产品与域外脚本纯mock门
+        run: |
+          python3 -B -m unittest discover -s tests/validation/generator_product -p 'test_*.py'
+          python3 -B -m unittest discover -s tests/validation/generator_default -p 'test_*.py'
+      - name: 仅准备固定SHA的官方Rust组件
+        run: |
+          mkdir -p target/trace-rust-prepare
+          printf '%s\n' '["python3", "-B", "tests/aot/wcwidth_ci/prepare.py", "--rust-only"]' > target/trace-rust-prepare/prepare.argv.json
+          pwd > target/trace-rust-prepare/prepare.cwd
+          status=0
+          python3 -B tests/aot/wcwidth_ci/prepare.py --rust-only > target/trace-rust-prepare/prepare.stdout 2> target/trace-rust-prepare/prepare.stderr || status=$?
+          printf '%s\n' "$status" > target/trace-rust-prepare/prepare.exit
+          cat target/trace-rust-prepare/prepare.stdout
+          cat target/trace-rust-prepare/prepare.stderr >&2
+          exit "$status"
+      - name: 格式、MIR资格与default/pilot结构Rust测试（无产品执行）
+        run: python3 -B tests/aot/wcwidth_ci/trace_rust_preflight.py
+      - name: 保留首次Rust检查原流与精确身份
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trace-rust-preflight-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/trace-rust-preflight
+            target/trace-rust-prepare
+            ${{ runner.temp }}/wcwidth-rust-tools/download-identity.json
+          if-no-files-found: error
+          retention-days: 3
+
+  pyfiglet-explicit-deployment:
+    name: 原pyfiglet显式外置字体有界部署
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false' && needs.select-mode.outputs.markdown == 'false' && needs.select-mode.outputs.closure != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    env:
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 脚本纯合成自测（无CP/产品/构建）
+        run: python3 -B -m unittest discover -s tests/aot/pyfiglet_ci -p 'test_*.py'
+      - name: 复用固定官方CP与SDK准备
+        run: |
+          mkdir -p target/pyfiglet-prepare
+          status=0
+          python3 -B tests/aot/wcwidth_ci/prepare.py > target/pyfiglet-prepare/stdout 2> target/pyfiglet-prepare/stderr || status=$?
+          printf '%s\n' "$status" > target/pyfiglet-prepare/exit
+          exit "$status"
+      - name: 一次CP与两JIT、唯一发布和四次Native
+        run: '"$PYTHON" -B tests/aot/pyfiglet_ci/run.py'
+      - name: 通用资源PE判定器拒绝自测（无产品）
+        run: python3 -B -m unittest discover -s tests/aot/resource_discovery -p 'test_*.py'
+      - name: 同工具通用空包发现、原Static反例与显式资源Native
+        run: '"$PYTHON" -B tests/aot/resource_discovery/run.py'
+      - name: 首次失败也收件完整原流、真实dist及发布树
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pyfiglet-explicit-deployment-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/pyfiglet-deployment-evidence
+            target/resource-discovery-evidence
+            target/pyfiglet-prepare
+            ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
+          if-no-files-found: error
+          retention-days: 3
+
+  source-import-paths:
+    name: 普通Import路径C#早门及原include反例JIT
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false' && needs.select-mode.outputs.markdown == 'false' && needs.select-mode.outputs.closure != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    env:
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 判定器纯合成自测（不启动产品）
+        run: python3 -B -m unittest discover -s tests/validation/source_import_paths -p 'test_*.py'
+      - name: 复用固定官方CP与SDK准备
+        run: |
+          mkdir -p target/source-import-prepare
+          status=0
+          python3 -B tests/aot/wcwidth_ci/prepare.py > target/source-import-prepare/stdout 2> target/source-import-prepare/stderr || status=$?
+          printf '%s\n' "$status" > target/source-import-prepare/exit
+          exit "$status"
+      - name: 一次C#构建与定向测试、原反例两JIT及路径/caller JIT
+        run: '"$PYTHON" -B tests/validation/source_import_paths/gate.py'
+      - name: 来源判定器纯合成自测（不启动产品）
+        run: python3 -B -m unittest discover -s tests/validation/source_provenance/ci -p 'test_*.py'
+      - name: 固定同树旧源码，仅供真实host对照
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 7545eae82270797cbac2da68e996a7a8a5ba98af
+          path: target/source-provenance-baseline
+          persist-credentials: false
+      - name: 来源Runtime、原J1/J2、新语义与旧新host一次闭环
+        timeout-minutes: 30
+        run: '"$PYTHON" -B tests/validation/source_provenance/ci/bootstrap.py jit'
+      - name: 保留首次失败原流及实际托管产物
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: source-import-paths-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/source-import-path-evidence
+            target/source-provenance-evidence
+            !target/source-provenance-evidence/host/old/graph/**/RyuPy.Runtime.dll
+            target/source-import-prepare
+            ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
+          if-no-files-found: error
+          retention-days: 3
+  instance-direct-globals:
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && github.event_name == 'push' && needs.select-mode.outputs.a1 == 'true' && github.run_attempt == '1'
+    uses: ./.github/workflows/instance-globals.yml
+  wcwidth-warm:
+    needs: select-mode
+    if: needs.select-mode.outputs.warm == 'true'
+    uses: ./.github/workflows/wcwidth-warm.yml
+
+  default-source-aot:
+    needs: select-mode
+    if: needs.select-mode.outputs.default_source_aot == 'true'
+    uses: ./.github/workflows/default-source-aot.yml
+
+  ordinary-mi:
+    needs: select-mode
+    if: needs.select-mode.outputs.ordinary_mi == 'true'
+    uses: ./.github/workflows/ordinary-mi.yml
+  decimal-finite-native:
+    needs: select-mode
+    if: needs.select-mode.outputs.ordinary_mi == 'true'
+    uses: ./.github/workflows/decimal-finite-native.yml

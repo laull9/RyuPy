@@ -21,11 +21,14 @@ mod work_paths;
 
 /// 在 build 的任何产物写入之前调用。运行时保留名对 JIT 同样适用，避免 DLL 被覆盖。
 pub(crate) fn validate_before_build(input: &Path, aot: bool) -> Result<()> {
-    if input.file_stem().is_some_and(|name| {
-        name.to_string_lossy()
-            .eq_ignore_ascii_case(RUNTIME_ASSEMBLY)
-    }) {
-        bail!("输入程序集名 RyuPy.Runtime 为运行时保留名，不能生成同名产物");
+    if let Some(name) = input.file_stem() {
+        let name = name.to_string_lossy();
+        if [RUNTIME_ASSEMBLY, "RyuPy.CPython"]
+            .iter()
+            .any(|reserved| name.eq_ignore_ascii_case(reserved))
+        {
+            bail!("输入程序集名 {name} 为运行时保留名，不能生成同名产物");
+        }
     }
     if aot {
         validate_platform()?;
@@ -38,7 +41,7 @@ fn validate_platform() -> Result<()> {
 }
 
 /// SDK 使用绝对 HintPath；先转义 MSBuild 特殊字符，再转义 XML，不经过 shell。
-fn literal(value: &str) -> String {
+pub(crate) fn literal(value: &str) -> String {
     let mut escaped = String::new();
     for ch in value.chars() {
         match ch {
@@ -61,7 +64,7 @@ fn literal(value: &str) -> String {
     escaped
 }
 
-fn path_literal(path: &Path) -> Result<String> {
+pub(crate) fn path_literal(path: &Path) -> Result<String> {
     let text = path
         .to_str()
         .context("AOT 项目引用路径必须可表示为 UTF-8")?;
@@ -79,6 +82,9 @@ fn project(
     sdk_record: Option<&Path>,
 ) -> Result<String> {
     let framework = ryupy_codegen_cil::runtimeconfig::TARGET_FRAMEWORK_MAJOR;
+    let dependencies = runtime
+        .parent()
+        .map(|parent| parent.join("RuntimeDependencies.props"));
     let dll = path_literal(dll)?;
     let runtime = path_literal(runtime)?;
     let input_name = literal(input_name);
@@ -90,6 +96,12 @@ fn project(
   </Target>
 "#
         )
+    } else {
+        String::new()
+    };
+    // SDK 根据唯一 NuGet 版本表解析托管依赖、ILC 引用与当前 RID 的 SQLite native 资产。
+    let dependency_import = if let Some(path) = dependencies.filter(|path| path.is_file()) {
+        format!("  <Import Project=\"{}\" />\n", path_literal(&path)?)
     } else {
         String::new()
     };
@@ -109,7 +121,7 @@ fn project(
     <Reference Include="{input_name}"><HintPath>{dll}</HintPath></Reference>
     <Reference Include="RyuPy.Runtime"><HintPath>{runtime}</HintPath></Reference>
   </ItemGroup>
-{sdk_target}</Project>
+{dependency_import}{sdk_target}</Project>
 "#
     ))
 }
@@ -155,7 +167,7 @@ fn short_owned_root(
 }
 
 pub(crate) fn publish(dll: &Path, out: &Path) -> Result<PathBuf> {
-    Ok(publish_internal(dll, out, None, None, None)?.executable)
+    Ok(publish_internal(dll, out, None, None, None, true)?.executable)
 }
 
 /// 本次编译入口必须携带真实报告；不能因上下文缺失而悄悄退回低层无清单成功。
@@ -173,6 +185,7 @@ pub(crate) fn publish_with_manifest(
     context: &crate::manifest::ManifestContext,
     resources: Option<&crate::resources::ResourcePlan>,
     owned: Option<&crate::aot_layout::OwnedAttempt>,
+    canonical: bool,
 ) -> Result<ManifestPublication> {
     let result = publish_internal(
         dll,
@@ -180,6 +193,7 @@ pub(crate) fn publish_with_manifest(
         Some(AotManifest::Ordinary(context)),
         resources,
         owned,
+        canonical,
     )?;
     Ok(ManifestPublication {
         executable: result.executable,
@@ -221,24 +235,33 @@ impl AotManifest<'_> {
             Self::Binding(c, plan) => {
                 let mut inputs = inputs.to_vec();
                 inputs.push(plan.input.digest.clone());
+                inputs.extend(
+                    plan.dependencies
+                        .iter()
+                        .map(|(_, input)| input.digest.clone()),
+                );
                 c.render(plan, Some(sdk), artifacts, &inputs)
             }
         }
     }
 }
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn publish_binding(
     dll: &Path,
     out: &Path,
     context: &crate::native_binding_manifest::BindingManifest,
     plan: &crate::native_binding::BindingPlan,
+    resources: Option<&crate::resources::ResourcePlan>,
     owned: Option<&crate::aot_layout::OwnedAttempt>,
+    canonical: bool,
 ) -> Result<ManifestPublication> {
     let result = publish_internal(
         dll,
         out,
         Some(AotManifest::Binding(context, plan)),
-        None,
+        resources,
         owned,
+        canonical,
     )?;
     Ok(ManifestPublication {
         executable: result.executable,
@@ -252,6 +275,7 @@ fn publish_internal(
     context: Option<AotManifest<'_>>,
     resources: Option<&crate::resources::ResourcePlan>,
     owned: Option<&crate::aot_layout::OwnedAttempt>,
+    canonical: bool,
 ) -> Result<Publication> {
     validate_platform()?;
     validate_before_build(dll, true)?;
@@ -270,7 +294,9 @@ fn publish_internal(
     } else {
         owned_root(&out, input_name)?
     };
-    let result = publish_owned(&root, &host, input_name, &dll, &runtime, context, resources);
+    let result = publish_owned(
+        &root, &host, input_name, &dll, &runtime, context, resources, canonical,
+    );
     if owned.is_some() {
         result
     } else {
@@ -292,6 +318,7 @@ fn finish_owned<T>(root: &Path, result: Result<T>) -> Result<T> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn publish_owned(
     root: &Path,
     host: &str,
@@ -300,12 +327,13 @@ fn publish_owned(
     runtime: &Path,
     context: Option<AotManifest<'_>>,
     resources: Option<&crate::resources::ResourcePlan>,
+    canonical: bool,
 ) -> Result<Publication> {
     let platform = HostPlatform::current()?;
     // SDK只见已完成资源快照；冻结失败由外层按高层留证/低层清理策略处理。
     let staged = resources.map(|plan| plan.stage(root)).transpose()?;
     let archive = match context {
-        Some(AotManifest::Binding(_, plan)) => {
+        Some(AotManifest::Binding(_, plan)) if !plan.dynamic => {
             Some(plan.input.freeze(&root.join("binding-static.a"))?)
         }
         _ => None,
@@ -337,11 +365,24 @@ fn publish_owned(
         &sdk_runtime,
         context.map(|_| sdk_record_path.as_path()),
     )?;
+    project_text = crate::cpython_provider::extend_project(project_text, runtime)?;
     if let (Some(AotManifest::Binding(_, plan)), Some(archive)) = (context, &archive) {
         let path = path_literal(&sdk_paths::sdk_path(&archive.path)?)?;
-        let exact = literal(&format!("{}!{}", plan.library, plan.symbol));
-        // 仅精确单库/单符号，不加入 broad roots，不复制 shared 补救静态链接。
-        project_text=project_text.replace("</Project>",&format!("  <ItemGroup><DirectPInvoke Include=\"{exact}\" /><NativeLibrary Include=\"{path}\" /></ItemGroup>\n</Project>"));
+        // 同一archive只登记一次，每个实际符号精确DirectPInvoke；显式别名去重。
+        let mut symbols = std::collections::HashSet::new();
+        let mut direct = String::new();
+        for export in &plan.exports {
+            if symbols.insert(&export.symbol) {
+                let exact = literal(&format!("{}!{}", plan.library, export.symbol));
+                direct.push_str(&format!("<DirectPInvoke Include=\"{exact}\" />"));
+            }
+        }
+        project_text = project_text.replace(
+            "</Project>",
+            &format!(
+                "  <ItemGroup>{direct}<NativeLibrary Include=\"{path}\" /></ItemGroup>\n</Project>"
+            ),
+        );
     }
     std::fs::write(&project_path, project_text)?;
     std::fs::write(
@@ -393,6 +434,10 @@ fn publish_owned(
             String::from_utf8_lossy(&output.stderr)
         );
     }
+    let shared = match context {
+        Some(AotManifest::Binding(_, plan)) if plan.dynamic => plan.stage_shared(&publish)?,
+        _ => Vec::new(),
+    };
     let checked = (|| -> Result<Publication> {
         if context.is_some() {
             anyhow::ensure!(
@@ -433,9 +478,31 @@ fn publish_owned(
             if let Some(staged) = &staged {
                 staged.publish(&publish)?;
             }
+            crate::cpython_provider::publish(
+                runtime.parent().context("运行时缺父目录")?,
+                &publish,
+            )?;
+            if let AotManifest::Binding(_, plan) = context {
+                plan.write_interfaces(&publish)?;
+            }
+            if canonical {
+                crate::application_layout::canonicalize(&publish, &executable, "native_aot")?;
+            }
             let mut artifacts = crate::manifest_files::collect(&publish, &executable)?;
+            if canonical {
+                crate::application_layout::logical_artifacts(&mut artifacts);
+            }
             if let Some(staged) = &staged {
                 staged.mark_artifacts(&mut artifacts)?;
+            }
+            if let AotManifest::Binding(_, plan) = context {
+                plan.mark_interfaces(&mut artifacts);
+                if plan.dynamic {
+                    plan.mark_shared(&mut artifacts);
+                }
+            }
+            for input in &shared {
+                input.verify()?;
             }
             if let Some(archive) = &archive {
                 archive.verify()?;
@@ -446,8 +513,19 @@ fn publish_owned(
             } else {
                 bytes
             };
-            Some(crate::manifest_files::write_atomic(&publish, &bytes)?)
+            if canonical {
+                let bytes = crate::application_layout::manifest_bytes(
+                    &bytes,
+                    &platform.executable_name(host),
+                )?;
+                Some(crate::application_layout::write_manifest(&publish, &bytes)?)
+            } else {
+                Some(crate::manifest_files::write_atomic(&publish, &bytes)?)
+            }
         } else {
+            if canonical {
+                crate::application_layout::canonicalize(&publish, &executable, "native_aot")?;
+            }
             None
         };
         Ok(Publication {

@@ -1,0 +1,17 @@
+# ryupy: pending
+# 从首次原流独立提取的合法__index__边界；本standalone尚未运行。
+events = []
+
+
+class Index:
+    def __index__(self):
+        events.append('INDEX CALLED')
+        return 0
+
+
+values = [10, 20]
+try:
+    result = values.pop(Index())
+    print('scope=boundary valid index protocol returned', result, values, events)
+except Exception as error:
+    print('scope=boundary valid index protocol', type(error).__name__, str(error), values, events)

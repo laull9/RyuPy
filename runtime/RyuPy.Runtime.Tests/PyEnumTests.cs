@@ -40,7 +40,7 @@ public class PyEnumTests
     public void MemberProxyDoesNotExposeMutableDictionaryProtocol()
     {
         PyClass cls = Color(); Assert.True(PyEnum.TryGetClassAttr(cls, "__members__", out object? proxy));
-        Assert.IsType<PyEnumMembers>(proxy); Assert.False(proxy is IPyNativeMapping);
-        Assert.Throws<PyAttributeError>(() => ((PyEnumMembers)proxy!).GetAttr("__setitem__"));
+        Assert.IsType<PyMappingProxy>(proxy); Assert.False(proxy is IPyNativeMapping);
+        Assert.Throws<PyAttributeError>(() => ((PyMappingProxy)proxy!).GetAttr("__setitem__"));
     }
 }

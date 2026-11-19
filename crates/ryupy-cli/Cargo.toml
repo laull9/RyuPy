@@ -6,11 +6,26 @@ edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
+[features]
+# ADR-0208 C3 显式原生协程候选；默认关闭。
+native-coroutines = ["ryupy-driver/native-coroutines"]
+# 生成器消费融合候选；真实差分与性能验收前默认关闭。
+generator-sum-experiment = ["ryupy-driver/generator-sum-experiment"]
+records-increment-experiment = ["ryupy-driver/records-increment-experiment"]
+records-increment-diagnostics = ["records-increment-experiment", "ryupy-driver/records-increment-diagnostics"]
+# 仅隔离S2a测试产物；不用于默认项目或发布。
+trace-adapter-test = ["ryupy-driver/trace-adapter-test"]
+# ADR-0241显式实验构建；发行默认保持严格重定位。
+experimental-minimal-macho-relocation = ["ryupy-driver/experimental-minimal-macho-relocation"]
+
 [dependencies]
 ryupy-driver.workspace = true
 ryupy-base.workspace = true
 clap.workspace = true
 anyhow.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
 
 [[bin]]
 name = "ryupy"

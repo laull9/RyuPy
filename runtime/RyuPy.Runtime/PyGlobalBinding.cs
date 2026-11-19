@@ -48,8 +48,8 @@ public static partial class PyOps
             or "set" or "setattr" or "slice" or "sorted" or "staticmethod"
             or "str" or "sum" or "super" or "tuple" or "type"
             or "vars" or "zip")
-            throw new PyNotImplementedError($"builtin fallback for unbound module name '{name}' is not supported");
-        throw new PyNameError($"name '{name}' is not defined");
+            throw PyTraceProduct.NativeFresh(new PyNotImplementedError($"builtin fallback for unbound module name '{name}' is not supported"));
+        throw PyTraceProduct.NativeFresh(new PyNameError($"name '{name}' is not defined"));
     }
 
 }

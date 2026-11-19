@@ -1,0 +1,231 @@
+# 集成候选只在隔离分支先验证；不把各单项通过当成组合通过。
+name: Integrated optimization validation
+on:
+  push:
+    branches: [ci/integrated-optimization-20261115]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    defaults:
+      run:
+        shell: bash
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+      CARGO_TERM_COLOR: never
+      MSBUILDDISABLENODEREUSE: '1'
+      DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+      UseSharedCompilation: 'false'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 准备同提交off/on隔离目录
+        run: |
+          set -euo pipefail
+          EVIDENCE="$RUNNER_TEMP/integrated-evidence"
+          mkdir -p "$EVIDENCE"
+          echo "EVIDENCE=$EVIDENCE" >> "$GITHUB_ENV"
+          echo "DOTNET_INSTALL_DIR=$RUNNER_TEMP/generator-product-dotnet" >> "$GITHUB_ENV"
+          git rev-parse HEAD > "$EVIDENCE/candidate.txt"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git worktree add --detach "$RUNNER_TEMP/generator-fixed-dev" 81758bb477729aee4636f2ca6d6b0815b949849a
+          git -C "$RUNNER_TEMP/generator-fixed-dev" rev-parse HEAD > "$EVIDENCE/fixed-dev.txt"
+          df -h > "$EVIDENCE/disk-before.txt"
+          lscpu > "$EVIDENCE/cpu.txt"
+          uname -a > "$EVIDENCE/kernel.txt"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - uses: actions/setup-python@v5
+        id: python
+        with:
+          python-version: '3.12.13'
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
+        with:
+          toolchain: '1.99.1'
+          components: rustfmt, clippy
+      - name: 固定工具链与本机依赖
+        timeout-minutes: 15
+        env:
+          FIXED_PYTHON: ${{ steps.python.outputs.python-path }}
+        run: |
+          set -euo pipefail
+          test "$(dotnet --version)" = 10.0.403
+          test "$(readlink -f "$(command -v dotnet)")" = "$DOTNET_INSTALL_DIR/dotnet"
+          "$FIXED_PYTHON" -c 'import sys,os; assert sys.version_info[:3] == (3,12,13); assert os.path.isabs(sys.executable); print(sys.version)' | tee "$EVIDENCE/python.txt"
+          echo "PYTHON=$FIXED_PYTHON" >> "$GITHUB_ENV"
+          echo "RYUPY_FOREACH_PYTHON=$FIXED_PYTHON" >> "$GITHUB_ENV"
+          # 产品driver优先读取DOTNET，不能仅依靠PATH上的dotnet版本。
+          for key in DOTNET DOTNET_HOST_PATH; do echo "$key=$DOTNET_INSTALL_DIR/dotnet" >> "$GITHUB_ENV"; done
+          for key in DOTNET_ROOT DOTNET_ROOT_X64; do echo "$key=$DOTNET_INSTALL_DIR" >> "$GITHUB_ENV"; done
+          echo "DOTNET_MULTILEVEL_LOOKUP=0" >> "$GITHUB_ENV"
+          dotnet --info > "$EVIDENCE/dotnet.txt"
+          rustc --version > "$EVIDENCE/rust.txt"
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev patchelf binutils
+      - name: 组合证据门负例
+        run: python3 -B tests/perf/test_integration_gate.py
+      - name: 固定dev实际DLL
+        run: |
+          set -euo pipefail
+          "$PYTHON" -B tests/perf/generator-product/prepare_abi_baseline.py --source "$RUNNER_TEMP/generator-fixed-dev" --evidence "$EVIDENCE/frozen-dev-abi"
+          echo "RYUPY_GENERATOR_BASELINE_MANIFEST=$EVIDENCE/frozen-dev-abi/manifest.json" >> "$GITHUB_ENV"
+          echo "GeneratorAbiBaselineTest=true" >> "$GITHUB_ENV"
+      - name: 默认与双feature完整make check及精确11项ABI
+        run: |
+          set -euo pipefail
+          for arm in off on; do
+            mkdir -p "$EVIDENCE/check-$arm/pe"
+            feature=""
+            if [ "$arm" = on ]; then feature='ryupy-driver/generator-sum-experiment,ryupy-driver/records-increment-experiment'; fi
+            args=(); if [ -n "$feature" ]; then args=(--features "$feature"); fi
+            cargo metadata --locked --format-version 1 "${args[@]}" > "$EVIDENCE/check-$arm/metadata.json"
+            "$PYTHON" -B tests/perf/integration_gate.py features "$EVIDENCE/check-$arm/metadata.json" "$arm"
+            RYUPY_TRACE_EVIDENCE_DIR="$EVIDENCE/check-$arm/pe" CARGO_TARGET_DIR="$RUNNER_TEMP/integrated-check-target" make check CARGO_FEATURES="$feature" DOTNET_TEST_ARGS="--logger 'trx;LogFileName=runtime.trx' --logger 'console;verbosity=normal' --results-directory '$EVIDENCE/check-$arm'" 2>&1 | tee "$EVIDENCE/check-$arm/check.log"
+            "$PYTHON" -B tests/perf/integration_gate.py runtime "$EVIDENCE/check-$arm/runtime.trx" 2>&1 | tee "$EVIDENCE/check-$arm/verified.log"
+          done
+          rm -rf -- "$RUNNER_TEMP/integrated-check-target"
+      - name: 构建精确dev及默认双开诊断四CLI
+        run: |
+          set -euo pipefail
+          (cd "$RUNNER_TEMP/generator-fixed-dev"; CARGO_TARGET_DIR="$RUNNER_TEMP/integrated-build-dev" make build RELEASE_DIR="$RUNNER_TEMP/integrated-cli-dev") 2>&1 | tee "$EVIDENCE/build-dev.log"
+          rm -rf -- "$RUNNER_TEMP/integrated-build-dev"
+          for arm in off on diagnostic; do
+            feature=""
+            if [ "$arm" = on ]; then feature='generator-sum-experiment,records-increment-experiment'; fi
+            if [ "$arm" = diagnostic ]; then feature='generator-sum-experiment,records-increment-diagnostics'; fi
+            CARGO_TARGET_DIR="$RUNNER_TEMP/integrated-build-$arm" make build CARGO_FEATURES="$feature" RELEASE_DIR="$RUNNER_TEMP/integrated-cli-$arm" 2>&1 | tee "$EVIDENCE/build-$arm.log"
+            sha256sum "$RUNNER_TEMP/integrated-cli-$arm/ryupy" > "$EVIDENCE/cli-$arm.sha256"
+            rm -rf -- "$RUNNER_TEMP/integrated-build-$arm"
+          done
+      - name: 生成器普通已知差异跨模块JIT及AOT搬迁
+        run: |
+          set -euo pipefail
+          "$PYTHON" -B tests/perf/generator-product/semantic.py --output "$EVIDENCE/generator-semantic" --python "$PYTHON" --old "$RUNNER_TEMP/integrated-cli-off/ryupy" --new "$RUNNER_TEMP/integrated-cli-on/ryupy" 2>&1 | tee "$EVIDENCE/generator-semantic.log"
+      - name: 同源混合发射与list所有权JIT及AOT搬迁
+        run: |
+          set -euo pipefail
+          "$PYTHON" -B tests/perf/integration_semantic.py --off "$RUNNER_TEMP/integrated-cli-off/ryupy" --on "$RUNNER_TEMP/integrated-cli-on/ryupy" --output "$EVIDENCE/integrated-semantic" 2>&1 | tee "$EVIDENCE/integrated-semantic.log"
+      - name: 双feature records真实CP对照与PE隔离
+        run: |
+          set -euo pipefail
+          dotnet build tests/perf/records_runtime_audit/Audit.csproj -c Release -o "$EVIDENCE/audit" 2>&1 | tee "$EVIDENCE/audit-build.log"
+          "$PYTHON" -B tests/perf/records_source_trial.py --cli "$RUNNER_TEMP/integrated-cli-on/ryupy" --diagnostic-cli "$RUNNER_TEMP/integrated-cli-diagnostic/ryupy" --baseline-cli "$RUNNER_TEMP/integrated-cli-dev/ryupy" --baseline-repo "$RUNNER_TEMP/generator-fixed-dev" --audit "$EVIDENCE/audit/Audit.dll" --output "$EVIDENCE/trial" --expected-sha "$GITHUB_SHA" 2>&1 | tee "$EVIDENCE/trial.log"
+          "$PYTHON" -B tests/perf/check_records_source_trial.py "$EVIDENCE/trial" --expected-sha "$GITHUB_SHA" 2>&1 | tee "$EVIDENCE/trial-verified.log"
+          echo COMPLETE > "$EVIDENCE/complete.txt"
+      - name: Package complete evidence into bounded independent artifacts
+        id: package
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B tests/perf/package_records_evidence.py "$EVIDENCE" "$RUNNER_TEMP/integrated-parts" --github-output "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integrated-summary-${{ github.sha }}
+          path: ${{ runner.temp }}/integrated-parts/summary
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 1
+        with:
+          name: integrated-part-01-${{ github.sha }}
+          path: ${{ runner.temp }}/integrated-parts/part-01.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 2
+        with:
+          name: integrated-part-02-${{ github.sha }}
+          path: ${{ runner.temp }}/integrated-parts/part-02.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 3
+        with:
+          name: integrated-part-03-${{ github.sha }}
+          path: ${{ runner.temp }}/integrated-parts/part-03.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 4
+        with:
+          name: integrated-part-04-${{ github.sha }}
+          path: ${{ runner.temp }}/integrated-parts/part-04.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 5
+        with:
+          name: integrated-part-05-${{ github.sha }}
+          path: ${{ runner.temp }}/integrated-parts/part-05.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 6
+        with:
+          name: integrated-part-06-${{ github.sha }}
+          path: ${{ runner.temp }}/integrated-parts/part-06.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 7
+        with:
+          name: integrated-part-07-${{ github.sha }}
+          path: ${{ runner.temp }}/integrated-parts/part-07.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 8
+        with:
+          name: integrated-part-08-${{ github.sha }}
+          path: ${{ runner.temp }}/integrated-parts/part-08.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 9
+        with:
+          name: integrated-part-09-${{ github.sha }}
+          path: ${{ runner.temp }}/integrated-parts/part-09.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 10
+        with:
+          name: integrated-part-10-${{ github.sha }}
+          path: ${{ runner.temp }}/integrated-parts/part-10.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 11
+        with:
+          name: integrated-part-11-${{ github.sha }}
+          path: ${{ runner.temp }}/integrated-parts/part-11.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 12
+        with:
+          name: integrated-part-12-${{ github.sha }}
+          path: ${{ runner.temp }}/integrated-parts/part-12.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14

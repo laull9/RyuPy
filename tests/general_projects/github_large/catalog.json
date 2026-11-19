@@ -1,0 +1,181 @@
+{
+  "schema": 1,
+  "reviewed_on": "2026-11-17",
+  "scope": "独立补充大型外部项目；固定二十项目的版本、入口和成功标准保持原样",
+  "projects": [
+    {
+      "id": "fba",
+      "repo": "fastapi-practices/fastapi-best-architecture",
+      "commit": "dd391ee5df510ec334d4426a5ba8e58b23ddf190",
+      "selected": true,
+      "license": "MIT",
+      "python": ">=3.12",
+      "baseline_python": "3.12.13",
+      "qt": null,
+      "import_roots": [
+        "."
+      ],
+      "entry": "backend/main.py",
+      "start": "python -m uvicorn backend.main:app --host 127.0.0.1 --port <私有端口>",
+      "pytest": "python -m pytest backend/app/admin/tests/api_v1/test_auth.py",
+      "first_blocker": "2026-11-19复验：显式stock-module-namespaces完整原入口JIT仍以E0100拒绝实例模块异步函数；原入口运行与AOT尚待验收",
+      "ownership": {
+        "cil_target": [
+          "backend"
+        ],
+        "provider_candidates": [
+          "标准库",
+          "FastAPI/Starlette/Pydantic",
+          "SQLAlchemy/Alembic/asyncpg",
+          "Redis/Celery 及原生依赖"
+        ],
+        "approved_business_delegations": []
+      },
+      "gates": [
+        "CPython 私有服务与原 pytest",
+        "原 HTTP 登录/RBAC/插件 CRUD",
+        "原 ORM 事务提交与异常回滚",
+        "原 Alembic 私有库迁移",
+        "Celery 私有 Redis worker",
+        "JIT",
+        "NativeAOT standalone",
+        "onefile",
+        "删除私有输入后搬迁"
+      ],
+      "status": "CPython 3.12.13 原 app startup/OpenAPI/ORM提交回滚/退出清理已通过且重复通过；完整业务矩阵和 RyuPy 产品待验",
+      "frontend_blocker": "backend/app/admin/api/v1/auth/auth.py:18起的async def需要真实模块环境与异步调度合同；保留明确E0100，业务委派为空。",
+      "cpython_baseline": {
+        "driver": "baseline.py --project fba",
+        "evidence": "~/.cache/ryupy/validation/adr0208-20261117/github-large/fba-20261117T065728.962181Z",
+        "passed": [
+          "private_pg18_redis",
+          "original_app_lifespan",
+          "openapi_78_routes",
+          "role_orm_commit_rollback",
+          "original_atexit_threads_empty",
+          "service_stop_and_temporary_cleanup"
+        ],
+        "monkeypatches": []
+      },
+      "latest_cil_build": {
+        "profile": "--experimental-stock-module-namespaces",
+        "evidence": "~/.cache/ryupy/validation/github-large-build/fba-20261118T234943.997860Z",
+        "mode": "jit",
+        "build_exit": 1,
+        "runtime": "not-run",
+        "relocation": "not-run"
+      }
+    },
+    {
+      "id": "explorerpro",
+      "repo": "file-bricks/ExplorerPro",
+      "commit": "f4f65982128e5d0478556febfef2380b39409e2c",
+      "selected": true,
+      "license": "AGPL-3.0",
+      "python": ">=3.10",
+      "baseline_python": "3.12.13",
+      "qt": "基线固定 PySide6/Addons/Essentials/shiboken6/Qt 6.9.2；上游范围 >=6.5.0,<7.0.0",
+      "import_roots": [
+        "src",
+        "."
+      ],
+      "entry": "src/main.py",
+      "start": "python src/main.py",
+      "pytest": "python -m pytest tests",
+      "first_blocker": "2026-11-19复验：显式stock-module-namespaces完整原入口三形态构建通过；同步成本降低后，三形态的隔离Cocoa业务均在窗口构造复现Qt临时包装类型错误",
+      "ownership": {
+        "cil_target": [
+          "src",
+          "translator.py"
+        ],
+        "provider_candidates": [
+          "标准库",
+          "PySide6/shiboken6/Qt plugins",
+          "PyMuPDF",
+          "pandas/NumPy",
+          "openpyxl"
+        ],
+        "approved_business_delegations": []
+      },
+      "gates": [
+        "CPython 隔离配置与原 pytest",
+        "真实 Cocoa/Windows Qt 主窗口",
+        "导航/预览/编辑/FTS5/翻译交互",
+        "Qt 线程与退出清理",
+        "JIT",
+        "NativeAOT standalone",
+        "onefile",
+        "删除私有输入后搬迁"
+      ],
+      "status": "CPython真实Cocoa隔离原业务基线重复通过；显式stock profile完整原入口JIT、目录AOT、OneFile构建通过，无本地业务委派。完整项目运行与搬迁尚未通过；独立最小窗口通过不计为项目通过。",
+      "frontend_blocker": "实例dataclass已越过。三形态构建使用显式Cocoa/SQLite插件选择，不改变默认全插件闭包的缺客户端约束。",
+      "cpython_baseline": {
+        "driver": "baseline.py --project explorerpro",
+        "evidence": "~/.cache/ryupy/validation/adr0208-20261117/github-large/explorerpro-20261117T070122.463120Z",
+        "passed": [
+          "cocoa_visible_exposed_event_loop",
+          "unicode_navigation_preview",
+          "original_sqlite_index_search_without_hash",
+          "clipboard_untouched",
+          "window_close_no_qt_python_workers",
+          "temporary_cleanup"
+        ],
+        "monkeypatches": [
+          "Path.home",
+          "QStandardPaths.writableLocation/standardLocations",
+          "QDir.homePath/drives",
+          "QSettings default IniFormat/private scope paths",
+          "cloud_locations.find_cloud_locations => empty private cloud set",
+          "QApplication.clipboard => fail access",
+          "FileBrowser.navigate_to => assert private root then original"
+        ]
+      },
+      "latest_cil_build": {
+        "profile": "--experimental-stock-module-namespaces + Cocoa/SQLite组件选择 + --bundle-data",
+        "evidence": "~/.cache/ryupy/validation/github-large-build/explorerpro-20261118T235604.187877Z",
+        "onefile_evidence": "~/.cache/ryupy/validation/github-large-build/explorerpro-20261119T000120.321711Z",
+        "mode": "jit",
+        "other_passed_build_modes": ["standalone", "onefile"],
+        "build_exit": 0,
+        "runtime": "not-run",
+        "relocation": "not-run"
+      },
+      "latest_cil_probe": {
+        "profile": "--experimental-stock-module-namespaces + Cocoa/SQLite组件选择 + --bundle-data",
+        "jit": "~/.cache/ryupy/validation/explorerpro-products/20261119T002100.889303Z",
+        "standalone": "~/.cache/ryupy/validation/explorerpro-products/20261119T002341.044731Z",
+        "onefile": "~/.cache/ryupy/validation/explorerpro-products/20261119T002712.756145Z",
+        "runtime": "qt-temporary-wrapper-type",
+        "relocation": "failed"
+      }
+    },
+    {
+      "id": "fullstack",
+      "repo": "fastapi/full-stack-fastapi-template",
+      "commit": "77e550a73bb49dd2967622c5ed11bf7a49603c93",
+      "selected": false,
+      "license": "MIT",
+      "python": ">=3.14,<4.0；.python-version 为 3.14",
+      "qt": null,
+      "import_roots": [
+        "backend"
+      ],
+      "entry": "backend/app/main.py",
+      "reason": "原 SQLModel 同步 Session CRUD 与 Alembic 很适合对照；后端 Python 规模和异步/插件复杂度低于 fba"
+    },
+    {
+      "id": "pyvideotrans",
+      "repo": "jianchang512/pyvideotrans",
+      "commit": "5e287b1a05de2c47910eaba9ba5ad8d8cc3efd78",
+      "selected": false,
+      "license": "GPL-3.0",
+      "python": ">=3.10,<3.11；.python-version 为 3.10.19",
+      "qt": "PySide6/Addons/Essentials ==6.9.2",
+      "import_roots": [
+        "."
+      ],
+      "entry": "sp.py",
+      "reason": "大型真实应用，但 torch/torchaudio/FFmpeg/模型/付费 API 闭包很重；tests/conftest.py 对缺失依赖自动 mock。当前优先离线 ExplorerPro，保留候选"
+    }
+  ]
+}

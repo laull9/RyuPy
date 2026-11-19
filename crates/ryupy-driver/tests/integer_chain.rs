@@ -3,6 +3,8 @@
 use ryupy_driver::{BuildOptions, Session, Stage};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+#[path = "../src/test_temp.rs"]
+mod layout_temp;
 mod support;
 
 fn section<'a>(mir: &'a str, name: &str) -> &'a str {
@@ -27,20 +29,20 @@ fn python() -> std::ffi::OsString {
     python
 }
 
-fn build(input: &Path, directory: &str) -> PathBuf {
-    let root = ryupy_driver::runtime::workspace_root();
+fn build(input: &Path, directory: &str) -> (layout_temp::Root, PathBuf) {
+    let root = layout_temp::Root::new("integer-chain");
     let mut session = Session::default();
-    ryupy_driver::build(
+    let artifacts = ryupy_driver::build(
         &mut session,
         &BuildOptions {
             input: input.into(),
-            out_dir: root.join("target").join(directory),
+            out_dir: root.join(directory),
             aot: false,
             search_paths: vec![],
         },
     )
-    .unwrap_or_else(|error| panic!("{error:#}\n{}", session.render_diagnostics(false)))
-    .dll
+    .unwrap_or_else(|error| panic!("{error:#}\n{}", session.render_diagnostics(false)));
+    (root, artifacts.native_exe.expect("应用必须有公开入口"))
 }
 
 #[test]
@@ -124,8 +126,8 @@ fn original_protocol_fixture_matches_pinned_python_with_real_hits() {
         "{}",
         String::from_utf8_lossy(&expected.stderr)
     );
-    let dll = build(&input, "test_integer_chain");
-    let actual = ryupy_driver::dotnet::run_dll(&dll).unwrap();
+    let (_output, entry) = build(&input, "test_integer_chain");
+    let actual = ryupy_driver::dotnet::run_executable_with(&entry, &Default::default()).unwrap();
     assert_eq!(actual.status.code(), expected.status.code());
     assert_eq!(actual.stdout, expected.stdout);
     assert_eq!(actual.stderr, expected.stderr);
@@ -162,7 +164,7 @@ fn fallback_and_overflow_preserve_complete_user_traceback() {
     let input = root.join("tests/fixtures/integer_chain_traceback.py");
     let mir = support::dump(&mut Session::default(), &input, Stage::Mir).unwrap();
     assert_chain(section(&mir, "chain"), 2, 3);
-    let dll = build(&input, "test_integer_chain_trace");
+    let (_output, entry) = build(&input, "test_integer_chain_trace");
     let python = python();
     for (mode, method, message) in [
         ("add", "__add__", "chain-add"),
@@ -173,11 +175,7 @@ fn fallback_and_overflow_preserve_complete_user_traceback() {
             .arg(mode)
             .output()
             .unwrap();
-        let actual = Command::new(ryupy_driver::dotnet::dotnet_exe())
-            .arg(&dll)
-            .arg(mode)
-            .output()
-            .unwrap();
+        let actual = Command::new(&entry).arg(mode).output().unwrap();
         assert_eq!(expected.status.code(), Some(1));
         assert_eq!(actual.status.code(), expected.status.code());
         assert_eq!(actual.stdout, expected.stdout);

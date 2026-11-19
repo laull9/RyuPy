@@ -1,0 +1,133 @@
+# ryupy: pending
+# CPython 3.12.13 正期待，由唯一参考原流整理；本组合文件未执行。
+# 覆盖泛型、完整反射、派生 slots/hook 等待实现域；不接受 NI 代替 CP 行为。
+# .py.pending 不进入默认 .py 发现；来源与断言映射见 BOUNDARIES.md。
+from typing import AnyStr, BinaryIO, Generic, IO, TextIO, TypeVar
+from typing import get_args, get_origin
+
+
+def expect_error(kind, message, operation):
+    try:
+        operation()
+    except Exception as error:
+        assert type(error) is kind
+        assert str(error) == message
+        assert error.args == (message,)
+    else:
+        raise AssertionError("缺少预期的 CP 异常")
+
+
+# 唯一参考第1、10组：完整继承含 Generic，不能伪造 object 根。
+assert IO.__bases__ == (Generic,)
+assert IO.__mro__ == (IO, Generic, object)
+assert IO.__orig_bases__ == (Generic[AnyStr],)
+assert IO.__parameters__ == (AnyStr,)
+assert IO.__parameters__[0] is AnyStr
+for cls, parameter in ((BinaryIO, bytes), (TextIO, str)):
+    assert cls.__bases__ == (IO,)
+    assert cls.__mro__ == (cls, IO, Generic, object)
+    assert cls.__orig_bases__ == (IO[parameter],)
+    assert cls.__parameters__ == ()
+for cls in (IO, BinaryIO, TextIO):
+    assert cls.__bases__ is cls.__bases__
+    assert cls.__mro__ is cls.__mro__
+    assert get_origin(cls) is None and get_args(cls) == ()
+    assert isinstance(cls(), Generic) and issubclass(cls, Generic)
+
+
+# 第7–9组：别名不是类，调用仍产生 IO 槽实例；开放参数可继续替换。
+for parameter in (bytes, str, AnyStr):
+    alias = IO[parameter]
+    assert not isinstance(alias, type)
+    assert get_origin(alias) is IO and alias.__origin__ is IO
+    assert get_args(alias) == (parameter,) and alias.__args__ == (parameter,)
+    assert alias.__parameters__ == ((AnyStr,) if parameter is AnyStr else ())
+    assert alias.read is IO.read
+    value = alias()
+    assert type(value) is IO
+    assert not hasattr(value, "__dict__")
+    assert not hasattr(value, "__weakref__")
+    assert not hasattr(value, "__orig_class__")
+assert IO[bytes] is IO[bytes] and IO[bytes] != IO[str]
+assert IO[AnyStr][bytes] == IO[bytes]
+assert IO[AnyStr][str] == IO[str]
+assert isinstance(AnyStr, TypeVar)
+assert AnyStr.__constraints__ == (bytes, str) and AnyStr.__bound__ is None
+assert not AnyStr.__covariant__ and not AnyStr.__contravariant__
+assert get_origin(AnyStr) is None and get_args(AnyStr) == ()
+
+
+# 第6组：普通派生得到实例字典，显式空 slots 的参数化派生没有字典。
+class BareIO(IO):
+    pass
+
+
+class SlottedIO(IO[bytes]):
+    __slots__ = ()
+
+
+bare = BareIO()
+bare.extra = 1
+assert bare.__dict__ == {"extra": 1}
+assert hasattr(bare, "__weakref__") and bare.read() is None
+assert BareIO.__parameters__ == ()
+assert SlottedIO.__bases__ == (IO,)
+assert SlottedIO.__mro__ == (SlottedIO, IO, Generic, object)
+assert SlottedIO.__orig_bases__ == (IO[bytes],)
+assert SlottedIO.__parameters__ == ()
+slotted = SlottedIO()
+assert not hasattr(slotted, "__dict__") and not hasattr(slotted, "__weakref__")
+expect_error(AttributeError, "'SlottedIO' object has no attribute 'extra'",
+             lambda: setattr(slotted, "extra", 1))
+hook_events = []
+
+
+class HookedIO(IO):
+    def __init_subclass__(cls, *, tag=None, **kwargs):
+        hook_events.append(("enter", cls.__name__, tag, tuple(kwargs.items())))
+        super().__init_subclass__(**kwargs)
+        hook_events.append(("exit", cls.__name__, cls.__parameters__))
+
+
+class HookedChild(HookedIO, tag="small"):
+    pass
+
+
+assert hook_events == [("enter", "HookedChild", "small", ()), ("exit", "HookedChild", ())]
+assert HookedChild.__mro__ == (HookedChild, HookedIO, IO, Generic, object)
+
+
+def declare_bad_hooked():
+    class BadHooked(HookedIO, unexpected=True):
+        pass
+    return BadHooked.__bases__
+
+
+expect_error(TypeError,
+             "declare_bad_hooked.<locals>.BadHooked.__init_subclass__() takes no keyword arguments",
+             declare_bad_hooked)
+assert hook_events == [("enter", "HookedChild", "small", ()),
+                       ("exit", "HookedChild", ()),
+                       ("enter", "BadHooked", None, (("unexpected", True),))]
+
+
+# 第9组：约束 TypeVar 只用于 IO 派生；普通实例可保存真实来源别名。
+Payload = TypeVar("Payload", bytes, str)
+
+
+class PayloadIO(IO[Payload]):
+    pass
+
+
+assert PayloadIO.__bases__ == (IO,)
+assert PayloadIO.__orig_bases__ == (IO[Payload],)
+assert PayloadIO.__parameters__ == (Payload,)
+assert PayloadIO.__parameters__[0] is Payload
+assert get_origin(PayloadIO[bytes]) is PayloadIO and get_args(PayloadIO[bytes]) == (bytes,)
+assert PayloadIO[bytes]().__orig_class__ == PayloadIO[bytes]
+assert PayloadIO[int]().__orig_class__ == PayloadIO[int]
+for alias in (IO[bytes], IO[str], IO[AnyStr]):
+    message = "Subscripted generics cannot be used with class and instance checks"
+    expect_error(TypeError, message, lambda: isinstance(IO(), alias))
+    expect_error(TypeError, message, lambda: issubclass(BinaryIO, alias))
+print("typing-io-extended-cp-positive")

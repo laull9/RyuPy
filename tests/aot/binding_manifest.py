@@ -1,9 +1,11 @@
 """恢复版schema3独立核验，按本轮driver实体；非ABI安全/保根/依赖闭包证明。"""
 import json
+from manifest_options import validate_options
 from pathlib import Path
 import re
 import shutil
 from manifest_files import check_artifacts, plain_stat, relative_path
+from runtime_dependencies import RUNTIME_ROLES, validate_runtime_dependencies
 from manifest_verify import (MANIFEST_NAME, TARGETS, SCOPE, digest_text, file_entry,
     image_header, integer, method, no_duplicate_keys, require, shape, text)
 
@@ -26,9 +28,8 @@ def validate_schema(data, rid, linkage, sdk):
     compiler = data['compiler']; shape(compiler,'package_version build_revision codegen_report_version options')
     text(compiler['package_version']); revision = compiler['build_revision']
     require(revision is None or isinstance(revision,str) and re.fullmatch('[0-9a-f]{40}',revision), 'revision错误')
-    require(type(compiler['codegen_report_version']) is int and compiler['codegen_report_version']==1, 'report版本错误')
-    shape(compiler['options'],'experimental_direct_accumulator experimental_leaf_inline diagnostic_scalar_slp experimental_packed_slp')
-    require(all(type(v) is bool for v in compiler['options'].values()), '非bool选项')
+    require(type(compiler['codegen_report_version']) is int and compiler['codegen_report_version'] in (1, 2), 'report版本错误')
+    validate_options(compiler['options'])
     shape(data['toolchain'],'sdk_version target_framework_major')
     require(type(data['toolchain']['target_framework_major']) is int and data['toolchain']['target_framework_major']==10, '非net10')
     require(data['toolchain']['sdk_version']==sdk, 'SDK不等于同次记录')
@@ -68,7 +69,8 @@ def validate_schema(data, rid, linkage, sdk):
     require(all(not n.startswith(b['module']+'.') and not b['module'].startswith(n+'.') for n in names), '源码父子冲突')
     modules = {}
     for m in data['modules']:
-        shape(m,'id name init getter setter exports origin'); integer(m['id'])
+        shape(m,'id name init getter setter exports origin environment_reason'); integer(m['id'])
+        text(m['environment_reason'])
         require(m['id'] not in modules, '重复模块ID')
         for key in ('init','getter','setter'): method(m[key])
         require(isinstance(m['exports'],list) and all(isinstance(x,str) for x in m['exports']), 'exports错误')
@@ -104,12 +106,14 @@ def validate_schema(data, rid, linkage, sdk):
         ('managed-entry.dll','compiled_managed_input'),('RyuPy.Runtime.dll','runtime_managed_input'),
         ('selected-native-input','native_static_archive' if aot else 'native_shared')}, '输入角色错误')
     require(len({x['relative_path'] for x in artifacts})==len(artifacts), '重复产物')
+    validate_runtime_dependencies(artifacts, rid)
     if aot:
-        require(all(x['role'] in ('native_executable','unclassified_sidecar') for x in artifacts), 'AOT产物角色错误')
+        require(all(x['role'] in {'native_executable','unclassified_sidecar'} | RUNTIME_ROLES for x in artifacts), 'AOT产物角色错误')
         require(sum(x['role']=='native_executable' for x in artifacts)==1, '缺唯一native')
     else:
-        require(len(artifacts)==4 and {x['role'] for x in artifacts}=={'managed_entry','runtime_managed','runtimeconfig','native_shared'}, 'JIT四产物错误')
-        by_role = {x['role']:x for x in artifacts}; managed = by_role['managed_entry']['relative_path']
+        core = [row for row in artifacts if row['role'] not in RUNTIME_ROLES]
+        require(len(core)==4 and {x['role'] for x in core}=={'managed_entry','runtime_managed','runtimeconfig','native_shared'}, 'JIT四项核心产物错误')
+        by_role = {x['role']:x for x in core}; managed = by_role['managed_entry']['relative_path']
         require('/' not in managed and managed.endswith('.dll'), '托管入口名错误')
         require(by_role['runtime_managed']['relative_path']=='RyuPy.Runtime.dll' and by_role['runtimeconfig']['relative_path']==managed[:-4]+'.runtimeconfig.json', '托管部署名错误')
         require(by_role['native_shared']['relative_path']==RELATIVE[rid], 'shared部署名错误')

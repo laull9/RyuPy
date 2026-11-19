@@ -1,4 +1,6 @@
 //! 真实源码的双局部形态与数值岛：普通dump优化必须看到新表示，不靠手造PE冒命中。
+#[path = "../src/test_temp.rs"]
+mod test_temp;
 use ryupy_driver::{Session, Stage};
 mod support;
 
@@ -12,12 +14,7 @@ fn function<'a>(mir: &'a str, name: &str) -> &'a str {
 }
 #[test]
 fn actual_method_calls_freeze_two_values_before_arguments_without_new_cfg() {
-    let unique = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let root = std::env::temp_dir().join(format!("ryupy-pair-{}-{unique}", std::process::id()));
-    std::fs::create_dir(&root).unwrap();
+    let root = test_temp::Root::new("module-call-pair");
     let input = root.join("main.py");
     std::fs::write(&input,"def fixed(module, value):\n    return module.f(value)\ndef arrays(module, args, kwargs):\n    return module.f(*args, **kwargs)\n").unwrap();
     let mir = support::dump(&mut Session::default(), &input, Stage::Mir).unwrap();
@@ -62,7 +59,6 @@ fn actual_method_calls_freeze_two_values_before_arguments_without_new_cfg() {
         );
         assert!(!body.contains("branch "), "{body}");
     }
-    std::fs::remove_dir_all(root).unwrap();
 }
 #[test]
 fn actual_numeric_island_keeps_raw_append_without_pair_on_typed_edge() {

@@ -80,10 +80,7 @@ fn build_resolution_core(
     res.assembly = Some(Assembly::new(opts.assembly_name.clone()));
 
     let (mut runtime_refs, extras) = build_runtime_refs(&mut res);
-    // 纯标量程序不引入向量程序集/泛型引用，避免无关冷模块和快照扩大。
-    if crate::vector_refs::is_required(program) {
-        runtime_refs.vectors = Some(crate::vector_refs::VectorRefs::build(&mut res));
-    }
+    crate::program_refs::initialize(&mut res, program, extras.ryupy_runtime, &mut runtime_refs);
     let RefExtras {
         object_ref,
         object_ctor_ref,
@@ -100,6 +97,7 @@ fn build_resolution_core(
         clr_exc_type,
     } = extras;
 
+    let provider_refs = crate::provider_refs::ProviderRefs::for_program(&mut res, program);
     let binding_refs = (!bindings.is_empty()).then(|| {
         crate::fixed_binding_refs::BindingRefs::build(&mut res, sys_runtime, ryupy_runtime)
     });
@@ -123,7 +121,7 @@ fn build_resolution_core(
     );
     let mut class_defs: Vec<(ryupy_mir::ClassDefId, TypeIndex)> = Vec::new();
     for (cls_id, cls) in program.classes.iter() {
-        if !cls.is_dataclass {
+        if !cls.is_dataclass && !cls.is_generator_state {
             continue;
         }
         let type_idx = res.push_type_definition(TypeDefinition::new(
@@ -382,7 +380,11 @@ fn build_resolution_core(
         let method_idx = res.push_method(
             module_class,
             Method::new(
-                Accessibility::Public,
+                if matches!(func.core, ryupy_mir::FunctionCore::GenericCompanion { .. }) {
+                    Accessibility::Private
+                } else {
+                    Accessibility::Public
+                },
                 sig,
                 Cow::Owned(func.codegen_name.clone()),
                 None,
@@ -406,48 +408,39 @@ fn build_resolution_core(
     // 每个用户函数生成统一签名的 thunk，供 PyFunction 的委托调用。
     // 顶层函数与嵌套函数（M3.0）都有签名槽位；模块初始化函数跳过
     //（它们由导入机制通过委托调用）。
-    let mut thunks: FxHashMap<FnId, MethodIndex> = FxHashMap::default();
-    let mut thunk_index = 0usize;
-    for (fn_id, func) in program.functions.iter() {
-        if func.signature_global.is_none() {
-            continue;
-        }
-        let thunk = crate::callables::emit_thunk(
-            &mut res,
-            module_class,
-            func,
-            fn_indices[&fn_id],
-            &runtime_refs,
-            &class_types,
-            thunk_index,
-        );
-        thunks.insert(fn_id, thunk);
-        thunk_index += 1;
-    }
-
-    // 模块初始化：构造函数对象、默认值数组与签名。
-    let init_functions = crate::callables::emit_init_functions(
+    let thunks = crate::generic_callables::emit_all_thunks(
         &mut res,
         module_class,
         program,
+        &fn_indices,
         &runtime_refs,
-        &thunks,
+        &class_types,
     );
-    // 字面量池必须先初始化，模块代码与函数默认值才可能读取它。
-    if let Some(body) = res[init_functions].body.as_mut() {
-        body.instructions
-            .insert(0, Instruction::call(init_literals));
-        body.header.maximum_stack_size = body.header.maximum_stack_size.max(8);
-    }
 
-    // 模块对象的属性读写入口 + 注册表。注册追加到 `__init_functions` 末尾，
-    // 此时函数对象与类工厂都已就绪。
+    // 先定义访问器，再冷建source，最后关联signature；这些步骤不执行getter或模块正文。
     let accessors = crate::modules::emit_module_accessors(
         &mut res,
         module_class,
         program,
         &runtime_refs,
         &class_types,
+    );
+    let init_sources = crate::source_provenance::initialize(
+        &mut res,
+        module_class,
+        program,
+        &runtime_refs,
+        &accessors,
+        ryupy_runtime,
+    );
+    let init_functions = crate::owned_function_refs::initialize(
+        &mut res,
+        module_class,
+        program,
+        &mut runtime_refs,
+        &thunks,
+        init_literals,
+        init_sources,
     );
     crate::modules::append_module_registration(
         &mut res,
@@ -456,13 +449,14 @@ fn build_resolution_core(
         &fn_indices,
         init_functions,
         &accessors,
+        (module_class, sys_runtime, ryupy_runtime),
         binding_refs.as_ref().map(|refs| (bindings, refs)),
     );
 
     // 所有原生注册已由入口System.Initialize完成；检查置于任何生成初始化写之前。
     if let Some(refs) = &binding_refs {
         let mut prefix = Vec::new();
-        for binding in bindings {
+        if let Some(binding) = bindings.first() {
             prefix.push(Instruction::load_string(
                 program.modules[binding.module].name.clone(),
             ));
@@ -488,13 +482,16 @@ fn build_resolution_core(
     let mut binding_methods = Vec::new();
     for (fn_id, func) in program.functions.iter() {
         let method_idx = fn_indices[&fn_id];
-        if let Some(binding) = bindings.iter().find(|binding| binding.initializer == fn_id) {
+        if bindings
+            .first()
+            .is_some_and(|binding| binding.initializer == fn_id)
+        {
             // 已验证记录选择专用body，不按生成名称覆盖普通函数。
-            let (body, wrapper, native) = crate::fixed_binding_emit::initializer(
+            let (body, methods) = crate::fixed_binding_emit::initializer(
                 &mut res,
                 module_class,
                 program,
-                binding,
+                bindings,
                 binding_refs
                     .as_ref()
                     .expect("validated nonempty binding references"),
@@ -502,7 +499,7 @@ fn build_resolution_core(
             );
             res[method_idx].body = Some(body);
             if report_requested {
-                binding_methods.push((binding, wrapper, native));
+                binding_methods.extend(methods);
             }
             continue;
         }
@@ -537,7 +534,10 @@ fn build_resolution_core(
         ),
     );
     let mut run_main_body = body::Method::new(vec![
-        Instruction::call(runtime_refs.module_run_main),
+        Instruction::call(crate::provider_refs::run_main(
+            provider_refs.as_ref(),
+            runtime_refs.module_run_main,
+        )),
         Instruction::Return,
     ]);
     run_main_body.header.maximum_stack_size = 8;
@@ -545,15 +545,8 @@ fn build_resolution_core(
 
     // 包装器最后生成：需要 `__run_main` 的方法下标
     {
-        let py_system_exit_ref = res.push_type_reference(ExternalTypeReference::new(
-            Some("RyuPy.Runtime".into()),
-            "PySystemExit",
-            ResolutionScope::Assembly(ryupy_runtime),
-        ));
-        let py_system_exit_type: MethodType = BaseType::class(py_system_exit_ref).into();
-        let system_exit_code = res.push_method_reference(
-            method_ref! { static int @traceback_type::SystemExitCode(@py_system_exit_type) },
-        );
+        let (py_system_exit_type, system_exit_code) =
+            crate::entry::system_exit_refs(&mut res, ryupy_runtime, &traceback_type);
         emit_entry_wrapper(
             &mut res,
             wrapper,
@@ -564,7 +557,11 @@ fn build_resolution_core(
             clr_exc_type,
             py_system_exit_type,
             set_file,
-            runtime_refs.system.initialize,
+            if program.native_modules.inspect {
+                runtime_refs.system.initialize
+            } else {
+                runtime_refs.system.initialize_compiled_base
+            },
             system_exit_code,
             runtime_refs.system.exit_flush,
             init_functions,
@@ -573,6 +570,11 @@ fn build_resolution_core(
             opts.entry_source_path
                 .as_deref()
                 .unwrap_or(&program.modules[program.entry].file),
+            runtime_refs.trace_product.as_ref().map(|refs| refs.enter),
+            program
+                .external_provider
+                .as_deref()
+                .zip(provider_refs.as_ref()),
         );
     }
 

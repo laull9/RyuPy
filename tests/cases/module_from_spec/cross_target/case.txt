@@ -1,0 +1,4 @@
+entry = entry.py
+pending = true
+instance_module = source_a
+instance_module = source_b

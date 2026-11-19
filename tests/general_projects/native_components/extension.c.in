@@ -1,0 +1,73 @@
+/* 通用原生依赖输入：真实CPython mapping/index协议经独立C共享库取值，库名和布局由fixture数据提供。 */
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
+#include <string.h>
+extern long @SYMBOL@(long value);
+typedef struct { PyObject_HEAD long calls; } Record;
+static PyObject *record_type;
+static PyObject *keys(PyObject *self, PyObject *unused) {
+    (void)self; (void)unused;
+    return Py_BuildValue("[ss]", "left", "right");
+}
+static PyObject *get(PyObject *self, PyObject *key) {
+    const char *text = PyUnicode_AsUTF8(key);
+    if (!text) return NULL;
+    Record *record = (Record *)self;
+    if (strcmp(text, "left") && strcmp(text, "right")) { PyErr_SetObject(PyExc_KeyError, key); return NULL; }
+    return PyLong_FromLong(@SYMBOL@(++record->calls));
+}
+static PyObject *index_value(PyObject *self) { (void)self; return PyLong_FromLong(@SYMBOL@(5)); }
+static PyMethodDef record_methods[] = {{"keys", keys, METH_NOARGS, "返回真实mapping键。"}, {NULL, NULL, 0, NULL}};
+static PyType_Slot slots[] = {
+    {Py_tp_new, PyType_GenericNew}, {Py_tp_methods, record_methods},
+    {Py_mp_subscript, get}, {Py_nb_index, index_value}, {0, NULL}
+};
+static PyType_Spec spec = {"@MODULE@.NativeRecord", sizeof(Record), 0, Py_TPFLAGS_DEFAULT, slots};
+static PyObject *make(PyObject *self, PyObject *unused) { (void)self; (void)unused; return PyObject_CallNoArgs(record_type); }
+static PyObject *mapping(PyObject *self, PyObject *unused) {
+    (void)self; (void)unused;
+    return Py_BuildValue("{s:l,s:l}", "left", @SYMBOL@(1), "right", @SYMBOL@(2));
+}
+/* 精确布局输入覆盖码点、超大整数和浮点；不通过业务Python构造或转换。 */
+static PyObject *scalar(PyObject *self, PyObject *name) {
+    (void)self;
+    const char *text = PyUnicode_AsUTF8(name);
+    if (!text) return NULL;
+    if (!strcmp(text, "text")) return PyUnicode_FromString("left");
+    if (!strcmp(text, "emoji")) { Py_UCS4 p[] = {0x1f600}; return PyUnicode_FromKindAndData(PyUnicode_4BYTE_KIND, p, 1); }
+    if (!strcmp(text, "pair")) { Py_UCS4 p[] = {0xd83d, 0xde00}; return PyUnicode_FromKindAndData(PyUnicode_4BYTE_KIND, p, 2); }
+    if (!strcmp(text, "lone")) { Py_UCS4 p[] = {0xd800, 'x'}; return PyUnicode_FromKindAndData(PyUnicode_4BYTE_KIND, p, 2); }
+    if (!strcmp(text, "big")) {
+        PyObject *one = PyLong_FromLong(1), *shift = PyLong_FromLong(20000);
+        if (!one || !shift) { Py_XDECREF(one); Py_XDECREF(shift); return NULL; }
+        PyObject *result = PyNumber_Lshift(one, shift); Py_DECREF(one); Py_DECREF(shift); return result;
+    }
+    if (!strcmp(text, "one")) return PyLong_FromLong(1);
+    if (!strcmp(text, "float")) return PyFloat_FromDouble(1.0);
+    if (!strcmp(text, "zero")) return PyFloat_FromDouble(-0.0);
+    if (!strcmp(text, "nan")) return PyFloat_FromString(name); /* name is exactly 'nan'. */
+    if (!strcmp(text, "bool")) return Py_NewRef(Py_True);
+    if (!strcmp(text, "none")) return Py_NewRef(Py_None);
+    PyErr_SetObject(PyExc_KeyError, name); return NULL;
+}
+static PyObject *key_mapping(PyObject *self, PyObject *args) {
+    (void)self; PyObject *key, *value;
+    if (!PyArg_ParseTuple(args, "OO", &key, &value)) return NULL;
+    PyObject *result = PyDict_New();
+    if (result && PyDict_SetItem(result, key, value) < 0) { Py_DECREF(result); return NULL; }
+    return result;
+}
+static PyMethodDef methods[] = {
+    {"scalar", scalar, METH_O, "精确标量与实际Unicode码点。"},
+    {"key_mapping", key_mapping, METH_VARARGS, "保留原key身份的真实CP字典。"},
+    {"make", make, METH_NOARGS, "返回原生mapping与index对象。"},
+    {"mapping", mapping, METH_NOARGS, "返回真实CPython字典。"}, {NULL, NULL, 0, NULL}
+};
+static struct PyModuleDef module = {PyModuleDef_HEAD_INIT, "@MODULE@", NULL, -1, methods};
+PyMODINIT_FUNC PyInit_@MODULE@(void) {
+    PyObject *result = PyModule_Create(&module);
+    if (!result) return NULL;
+    record_type = PyType_FromSpec(&spec);
+    if (!record_type || PyModule_AddObject(result, "NativeRecord", record_type) < 0) { Py_DECREF(result); return NULL; }
+    return result;
+}

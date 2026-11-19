@@ -1,0 +1,22 @@
+# ryupy: pending
+# CP3.12仍支持的state/pickle真实正例，不执行、不视为普通zip_longest核心通过。
+import pickle
+import warnings
+from itertools import zip_longest
+
+old = []
+new = ['new']
+z = zip_longest([1, 2], [], fillvalue=old)
+first = next(z)
+with warnings.catch_warnings():
+    warnings.simplefilter('ignore', DeprecationWarning)
+    z.__setstate__(new)
+    state = z.__reduce__()
+    assert state[0] is zip_longest and state[2] is new
+    original = zip_longest([3, 4], [], fillvalue=['fill'])
+    restored = pickle.loads(pickle.dumps(original))
+second = next(z)
+assert first[1] is old and second[1] is new
+assert list(restored) == [(3, ['fill']), (4, ['fill'])]
+assert list(original) == [(3, ['fill']), (4, ['fill'])]
+print(first, second)

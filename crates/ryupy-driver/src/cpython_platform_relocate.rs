@@ -1,0 +1,594 @@
+//! CPython 原生映像的重定位与依赖封闭性检查：
+//! macOS 下维护 Mach-O install name 与签名；
+//! Linux 下检查 ELF DT_NEEDED、rpath 与系统库闭包（支持版本化 .so.N 与全路径 rpath）；
+//! Windows 下检查 PE 导入表与延迟加载表（Delay Import Table），防止外部未授权绝对依赖。
+
+#![allow(dead_code)]
+
+use anyhow::{Context, Result, bail, ensure};
+use std::fs::File;
+use std::io::Read;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+#[path = "cpython_macho_identity.rs"]
+pub(crate) mod macho_identity;
+#[path = "cpython_macho_relocation_plan.rs"]
+mod macho_relocation_plan;
+#[path = "cpython_macho_relocation_signature.rs"]
+pub(crate) mod macho_relocation_signature;
+#[path = "cpython_macho_slice.rs"]
+mod macho_slice;
+
+/// 判断文件是否为目标平台原生二进制动态库或扩展。
+pub(super) fn is_native_image(path: &Path) -> bool {
+    let Ok(rid) = super::rid() else {
+        return false;
+    };
+    is_native_image_for_rid(path, rid)
+}
+
+pub(super) fn is_native_image_for_rid(path: &Path, rid: &str) -> bool {
+    if !path.is_file() {
+        return false;
+    }
+    let Some(name) = path.file_name().and_then(|s| s.to_str()) else {
+        return false;
+    };
+    // 忽略非 Windows 平台上的跨平台启动器二进制资源（如 pip distlib 中的 *.exe）
+    if rid != "win-x64" && name.ends_with(".exe") {
+        return false;
+    }
+
+    let mut magic = [0u8; 4];
+    let Ok(mut f) = File::open(path) else {
+        return false;
+    };
+    if f.read_exact(&mut magic).is_err() {
+        return false;
+    }
+
+    match rid {
+        "osx-arm64" => {
+            let is_macho = magic == [0xFE, 0xED, 0xFA, 0xCF]
+                || magic == [0xCF, 0xFA, 0xED, 0xFE]
+                || magic == [0xCA, 0xFE, 0xBA, 0xBE];
+            let has_ext = name.ends_with(".dylib") || name.ends_with(".so");
+            is_macho || (has_ext && !magic.starts_with(b"\x7fELF") && !magic.starts_with(b"MZ"))
+        }
+        "linux-x64" => {
+            let is_elf = magic.starts_with(b"\x7fELF");
+            let has_ext = name.ends_with(".so") || name.contains(".so.");
+            is_elf || (has_ext && !magic.starts_with(b"MZ"))
+        }
+        "win-x64" => {
+            let is_pe = magic.starts_with(b"MZ");
+            let has_ext = name.ends_with(".dll") || name.ends_with(".pyd");
+            is_pe || has_ext
+        }
+        _ => false,
+    }
+}
+
+/// 递归收集指定根目录下的所有原生映像。
+pub(super) fn collect_images(root: &Path, found: &mut Vec<PathBuf>) -> Result<()> {
+    if !root.is_dir() {
+        return Ok(());
+    }
+    for entry in std::fs::read_dir(root)? {
+        let path = entry?.path();
+        if path.is_dir() {
+            collect_images(&path, found)?;
+        } else if is_native_image(&path) {
+            found.push(path);
+        }
+    }
+    Ok(())
+}
+
+/// 执行外部命令并确保退出码成功，附带标准错误输出。
+fn run_command(program: &str, args: &[&std::ffi::OsStr]) -> Result<()> {
+    let output = Command::new(program)
+        .args(args)
+        .output()
+        .with_context(|| format!("无法启动外部命令：{program}"))?;
+    ensure!(
+        output.status.success(),
+        "{program} 执行失败 (退出码 {:?})：{}",
+        output.status.code(),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    Ok(())
+}
+
+/// 计算 target 相对于 base 的相对路径（用于 @loader_path / $ORIGIN）。
+pub(super) fn relative_path(base: &Path, target: &Path) -> Result<String> {
+    let base: Vec<_> = base.components().collect();
+    let target: Vec<_> = target.components().collect();
+    let shared = base
+        .iter()
+        .zip(&target)
+        .take_while(|(left, right)| left == right)
+        .count();
+    ensure!(shared > 0, "原生依赖与目标映像不属于同一文件系统根");
+    let mut result = PathBuf::new();
+    for _ in shared..base.len() {
+        result.push("..");
+    }
+    for component in &target[shared..] {
+        result.push(component.as_os_str());
+    }
+    Ok(result.to_str().context("原生库相对路径不是 UTF-8")?.into())
+}
+
+/// macOS Mach-O 映像重定位与代码签名（保持 macOS 原有严格行为不变）。
+pub(super) fn relocate_macos(output: &Path, shim_name: &str, system_deps: &[&str]) -> Result<()> {
+    relocate_macos_with_components(output, shim_name, system_deps, &[]).map(|_| ())
+}
+
+pub(super) fn relocate_macos_with_components(
+    output: &Path,
+    shim_name: &str,
+    system_deps: &[&str],
+    aliases: &[macho_identity::Alias],
+) -> Result<serde_json::Value> {
+    use std::collections::BTreeMap;
+    let output = output.canonicalize()?;
+    let mut all = Vec::new();
+    collect_images(&output.join("python"), &mut all)?;
+    all.push(output.join(shim_name));
+    // 收敛只消费原重定位的拥有集合；先保留源fat事实，再按选中slice冻结加载身份。
+    let mut convergence = all
+        .iter()
+        .map(|image| macho_slice::converge(image, &output, super::rid()?))
+        .collect::<Result<Vec<_>>>()?;
+    // Apple codesign在macOS15起默认丢弃库entitlements；每轮查询一次宿主能力，同时覆盖原本thin映像的重签。
+    let force_library_entitlements = {
+        let version = Command::new("/usr/bin/sw_vers")
+            .arg("-productVersion")
+            .output()?;
+        ensure!(version.status.success(), "无法读取codesign宿主系统版本");
+        let version = std::str::from_utf8(&version.stdout)?;
+        version
+            .trim()
+            .split('.')
+            .next()
+            .context("codesign宿主版本为空")?
+            .parse::<u32>()?
+            >= 15
+    };
+    // 修改部署副本前冻结全部原始身份，不能让前一映像的-id改写改变后续候选证据。
+    let mut images = BTreeMap::new();
+    for image in &all {
+        super::platform_abi::check_architecture(image, super::rid()?)?;
+        images.insert(image.clone(), macho_identity::read(image)?);
+    }
+    let plan = macho_relocation_plan::Plan::new(&output, &images);
+    for (index, image) in all.iter().enumerate() {
+        let info = &images[image];
+        let original_entitlements = macho_relocation_signature::snapshot(image)?;
+        let mut changed = false;
+        let mut preserved_edges = 0;
+        let mut rewritten_edges = 0;
+        for dependency in &info.dependencies {
+            if system_deps
+                .iter()
+                .any(|prefix| dependency.name.starts_with(prefix))
+            {
+                continue;
+            }
+            let declared: Vec<_> = aliases
+                .iter()
+                .filter(|alias| alias.load_name == dependency.name)
+                .collect();
+            ensure!(
+                declared.len() <= 1,
+                "Mach-O显式加载名有多个目标：{}",
+                dependency.name
+            );
+            let local = dependency
+                .name
+                .strip_prefix("@loader_path/")
+                .and_then(|relative| image.parent().map(|parent| parent.join(relative)))
+                .and_then(|path| path.canonicalize().ok())
+                .filter(|path| path.starts_with(&output) && images.contains_key(path));
+            let runpath = if declared.is_empty() {
+                macho_identity::local_runpath(image, &info.rpaths, &dependency.name, &output)?
+            } else {
+                None
+            };
+            let target = if let Some(alias) = declared.first() {
+                ensure!(
+                    all.contains(&alias.target),
+                    "Mach-O声明目标未部署：{}",
+                    alias.target.display()
+                );
+                let actual = images[&alias.target]
+                    .identity
+                    .as_ref()
+                    .context("Mach-O声明目标缺少LC_ID_DYLIB")?;
+                ensure!(
+                    actual.name == alias.install_name,
+                    "Mach-O声明LC_ID与部署副本不符：{}",
+                    alias.target.display()
+                );
+                &alias.target
+            } else if let Some(ref local) = local {
+                // 加载边相对当前映像的位置先于全局候选；多个组件可携带同名不同ABI库。
+                local
+            } else if let Some(ref runpath) = runpath {
+                ensure!(
+                    images.contains_key(runpath),
+                    "Mach-O runpath目标未部署为原生映像：{}",
+                    runpath.display()
+                );
+                runpath
+            } else {
+                // basename只作候选hint；真正替换前仍核实LC_ID身份、目标架构及版本。
+                let name = Path::new(&dependency.name)
+                    .file_name()
+                    .context("Mach-O依赖缺少文件名")?;
+                let exact: Vec<_> = all
+                    .iter()
+                    .filter(|candidate| {
+                        images[*candidate]
+                            .identity
+                            .as_ref()
+                            .is_some_and(|identity| identity.name == dependency.name)
+                    })
+                    .collect();
+                let matches: Vec<_> = if exact.is_empty() {
+                    all.iter()
+                        .filter(|candidate| candidate.file_name() == Some(name))
+                        .collect()
+                } else {
+                    exact
+                };
+                ensure!(
+                    matches.len() == 1,
+                    "CPython 原生依赖未唯一收集：{} → {}",
+                    image.display(),
+                    dependency.name
+                );
+                matches[0]
+            };
+            let identity = images[target]
+                .identity
+                .as_ref()
+                .context("Mach-O加载目标缺少LC_ID_DYLIB")?;
+            macho_identity::require_compatible(dependency, identity)?;
+            if target == image {
+                continue;
+            }
+            // 原闭包、显式别名及ABI版本验证全部完成后，才允许保留等价局部加载边。
+            if declared.is_empty()
+                && plan.dependency(image, &dependency.name, target)
+                    == macho_relocation_plan::Decision::Preserve
+            {
+                preserved_edges += 1;
+                continue;
+            }
+            let relative = relative_path(image.parent().context("原生映像缺少父目录")?, target)?;
+            let replacement = format!("@loader_path/{relative}");
+            if dependency.name != replacement {
+                run_command(
+                    "install_name_tool",
+                    &[
+                        "-change".as_ref(),
+                        dependency.name.as_ref(),
+                        replacement.as_ref(),
+                        image.as_os_str(),
+                    ],
+                )?;
+                changed = true;
+                rewritten_edges += 1;
+            }
+        }
+        if let Some(identity) = &info.identity
+            && plan.identity(image) != macho_relocation_plan::Decision::Preserve
+        {
+            let id = format!(
+                "@rpath/{}",
+                image
+                    .file_name()
+                    .context("Mach-O映像缺少文件名")?
+                    .to_string_lossy()
+            );
+            if identity.name != id {
+                run_command(
+                    "install_name_tool",
+                    &["-id".as_ref(), id.as_ref(), image.as_os_str()],
+                )?;
+                changed = true;
+            }
+        }
+        let converted = convergence[index]["action"] == "selected_target_slice";
+        let signature = macho_relocation_signature::finish(
+            image,
+            plan.preserve_signature(image, changed, true),
+            converted,
+            force_library_entitlements,
+            &original_entitlements,
+        )?;
+        convergence[index]["signature"] = signature.into();
+        convergence[index]["preserved_dependency_edges"] = preserved_edges.into();
+        convergence[index]["rewritten_dependency_edges"] = rewritten_edges.into();
+        convergence[index]["load_commands_changed"] = changed.into();
+    }
+    // 最终大小在install-name改写与签名后冻结，不能把源slice长度冒充最终产物长度。
+    for record in &mut convergence {
+        let path = record["path"]
+            .as_str()
+            .context("架构收敛记录缺少部署路径")?;
+        record["output_bytes"] = serde_json::json!(std::fs::metadata(output.join(path))?.len());
+    }
+    convergence.sort_by(|left, right| left["path"].as_str().cmp(&right["path"].as_str()));
+    Ok(serde_json::json!({"schema":1,"policy":"frozen_target_rid",
+        "scope":"existing_native_relocation_owned_images_only", "target_rid":super::rid()?,
+        "path_base":"provider_configuration_directory",
+        "preserved_action_scope":"slice_and_load_commands_reported_separately; original_signature_requires_platform_verification", "files":convergence}))
+}
+
+/// universal2 的分架构标题不是加载边；只解析携带依赖版本信息的真实条目。
+fn macho_dependencies(report: &str) -> impl Iterator<Item = &str> {
+    report.lines().filter_map(|line| {
+        line.trim()
+            .split_once(" (compatibility version ")
+            .map(|(path, _)| path)
+    })
+}
+
+#[cfg(test)]
+mod macho_report_tests {
+    #[test]
+    fn universal_headers_are_not_native_dependencies() {
+        let report = "extension.so (architecture x86_64):\n\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1.0.0)\nextension.so (architecture arm64):\n\t@loader_path/含 空格/libx.dylib (compatibility version 1.0.0, current version 1.0.0)\n";
+        assert_eq!(
+            super::macho_dependencies(report).collect::<Vec<_>>(),
+            [
+                "/usr/lib/libSystem.B.dylib",
+                "@loader_path/含 空格/libx.dylib"
+            ]
+        );
+    }
+}
+
+/// Linux ELF 共享库依赖与 rpath 封闭性校验及重定位。
+pub(super) fn relocate_linux(output: &Path, shim_name: &str, system_deps: &[&str]) -> Result<()> {
+    #[path = "cpython_platform_linux.rs"]
+    mod linux;
+    linux::relocate(output, shim_name, system_deps)
+}
+
+/// 从 readelf -d 的输出行中提取 NEEDED 库名称。
+fn extract_needed_library(line: &str) -> Option<String> {
+    let start = line.find('[')? + 1;
+    let end = line.find(']')?;
+    if start < end {
+        Some(line[start..end].to_string())
+    } else {
+        None
+    }
+}
+
+/// Windows PE 依赖封闭性校验：读取 PE 导入表及延迟导入表，确保外部依赖仅限 Windows 系统 DLL 白名单。
+pub(super) fn relocate_windows(output: &Path, shim_name: &str, system_deps: &[&str]) -> Result<()> {
+    let mut all = Vec::new();
+    collect_images(&output.join("python"), &mut all)?;
+    all.push(output.join(shim_name));
+
+    for image in &all {
+        super::platform_abi::check_architecture(image, super::rid()?)?;
+        let imported = read_pe_imports(image)
+            .with_context(|| format!("无法读取 Windows PE 导入表：{}", image.display()))?;
+        for dep in imported {
+            let dep_lower = dep.to_ascii_lowercase();
+            if system_deps.iter().any(|sys| {
+                if sys.ends_with('-') {
+                    dep_lower.starts_with(&sys.to_ascii_lowercase())
+                } else {
+                    dep.eq_ignore_ascii_case(sys)
+                }
+            }) {
+                continue;
+            }
+            let matches: Vec<_> = all
+                .iter()
+                .filter(|c| {
+                    c.file_name()
+                        .and_then(|f| f.to_str())
+                        .is_some_and(|name| name.eq_ignore_ascii_case(&dep))
+                })
+                .collect();
+            ensure!(
+                matches.len() == 1,
+                "Windows CPython 原生依赖未封闭：{} 依赖 {}，但不在系统白名单或随包分发中",
+                image.display(),
+                dep
+            );
+        }
+    }
+    Ok(())
+}
+
+/// 根据OptionalHeader和节表解析普通/延迟导入；每次RVA映射均限制在文件实际原始节范围。
+pub(super) fn read_pe_imports(path: &Path) -> Result<Vec<String>> {
+    parse_pe_imports(&std::fs::read(path)?)
+}
+fn parse_pe_imports(data: &[u8]) -> Result<Vec<String>> {
+    let u16_at = |offset: usize| -> Result<usize> {
+        let bytes = data.get(offset..offset + 2).context("PE字段截断")?;
+        Ok(u16::from_le_bytes(bytes.try_into()?) as usize)
+    };
+    let u32_at = |offset: usize| -> Result<usize> {
+        let bytes = data.get(offset..offset + 4).context("PE字段截断")?;
+        Ok(u32::from_le_bytes(bytes.try_into()?) as usize)
+    };
+    ensure!(data.get(..2) == Some(b"MZ"), "无效的PE/DOS签名");
+    let pe = u32_at(0x3c)?;
+    ensure!(data.get(pe..pe + 4) == Some(b"PE\0\0"), "无效的PE签名");
+    ensure!(u16_at(pe + 4)? == 0x8664, "PE机器架构必须为AMD64");
+    let sections = u16_at(pe + 6)?;
+    let optional_size = u16_at(pe + 20)?;
+    let optional = pe + 24;
+    ensure!(optional_size >= 112, "PE OptionalHeader截断");
+    let table = optional + optional_size;
+    ensure!(table + sections * 40 <= data.len(), "PE节表截断");
+    ensure!(u16_at(optional)? == 0x20b, "仅支持PE32+映像");
+    let directories = u32_at(optional + 108)?;
+    ensure!(
+        directories <= (optional_size - 112) / 8,
+        "PE数据目录越过OptionalHeader"
+    );
+    // 返回映射起点和剩余原始节长度，防止表跨越到不相邻节或虚拟零填充区域。
+    let map = |rva: usize| -> Result<(usize, usize)> {
+        for index in 0..sections {
+            let section = table + index * 40;
+            let address = u32_at(section + 12)?;
+            let raw_size = u32_at(section + 16)?;
+            let raw = u32_at(section + 20)?;
+            if rva >= address && rva - address < raw_size {
+                ensure!(raw + raw_size <= data.len(), "PE原始节越界或截断");
+                let delta = rva - address;
+                return Ok((raw + delta, raw_size - delta));
+            }
+        }
+        bail!("PE RVA {rva:#x} 未能匹配到任何有效节范围")
+    };
+    let mut imports = Vec::new();
+    for (index, stride, name_field) in [(1, 20, 12), (13, 32, 4)] {
+        if directories <= index {
+            continue;
+        }
+        let directory = optional + 112 + index * 8;
+        let rva = u32_at(directory)?;
+        let size = u32_at(directory + 4)?;
+        if rva == 0 && size == 0 {
+            continue;
+        }
+        ensure!(rva != 0 && size >= stride, "PE导入目录地址/大小无效");
+        let (offset, available) = map(rva)?;
+        ensure!(size <= available, "PE导入目录越界");
+        // 数据目录Size在部分链接器输出中省略全零项；扫描仍严格限制于当前原始节。
+        let mut terminated = false;
+        for descriptor in (offset..offset + available).step_by(stride) {
+            if descriptor + stride > offset + available {
+                break;
+            }
+            if data[descriptor..descriptor + stride]
+                .iter()
+                .all(|byte| *byte == 0)
+            {
+                terminated = true;
+                break;
+            }
+            if index == 13 {
+                ensure!(u32_at(descriptor)? == 1, "PE延迟导入仅支持RVA属性");
+            }
+            let (name, remaining) = map(u32_at(descriptor + name_field)?)?;
+            let bytes = &data[name..name + remaining];
+            let end = bytes
+                .iter()
+                .position(|byte| *byte == 0)
+                .context("PE导入名缺少终结符")?;
+            ensure!(
+                end > 0 && end < 260 && bytes[..end].is_ascii(),
+                "PE导入名格式错误"
+            );
+            let name = std::str::from_utf8(&bytes[..end])?.to_string();
+            ensure!(!name.contains(['/', '\\', ':']), "PE导入名不能携带路径");
+            if !imports.contains(&name) {
+                imports.push(name);
+            }
+        }
+        ensure!(terminated, "PE导入描述符缺少全零终结符");
+    }
+    Ok(imports)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // 手写最小PE输入，只包含产品解析需要的头部、节和两类导入表。
+    fn pe_input() -> Vec<u8> {
+        let mut data = vec![0u8; 0x600];
+        data[..2].copy_from_slice(b"MZ");
+        data[0x3c..0x40].copy_from_slice(&0x80u32.to_le_bytes());
+        data[0x80..0x84].copy_from_slice(b"PE\0\0");
+        data[0x84..0x86].copy_from_slice(&0x8664u16.to_le_bytes());
+        data[0x86..0x88].copy_from_slice(&1u16.to_le_bytes());
+        data[0x94..0x96].copy_from_slice(&0xf0u16.to_le_bytes());
+        data[0x98..0x9a].copy_from_slice(&0x20bu16.to_le_bytes());
+        data[0x104..0x108].copy_from_slice(&16u32.to_le_bytes());
+        for (index, rva, size) in [(1, 0x1000u32, 40u32), (13, 0x1040, 64)] {
+            let field = 0x108 + index * 8;
+            data[field..field + 4].copy_from_slice(&rva.to_le_bytes());
+            data[field + 4..field + 8].copy_from_slice(&size.to_le_bytes());
+        }
+        for (field, value) in [(0x194, 0x1000u32), (0x198, 0x400), (0x19c, 0x200)] {
+            data[field..field + 4].copy_from_slice(&value.to_le_bytes());
+        }
+        data[0x20c..0x210].copy_from_slice(&0x1100u32.to_le_bytes());
+        data[0x240..0x244].copy_from_slice(&1u32.to_le_bytes());
+        data[0x244..0x248].copy_from_slice(&0x1120u32.to_le_bytes());
+        data[0x300..0x30b].copy_from_slice(b"python.dll\0");
+        data[0x320..0x32d].copy_from_slice(b"optional.dll\0");
+        data
+    }
+    #[test]
+    fn pe_regular_and_delayed_imports_are_both_collected() {
+        assert_eq!(
+            parse_pe_imports(&pe_input()).unwrap(),
+            ["python.dll", "optional.dll"]
+        );
+    }
+    #[test]
+    fn pe_truncation_and_missing_descriptor_terminator_are_rejected() {
+        let data = pe_input();
+        for length in [0, 63, 0x98, 0x108, 0x19f, 0x220, 0x5ff] {
+            assert!(
+                parse_pe_imports(&data[..length]).is_err(),
+                "截断长度{length}"
+            );
+        }
+        let mut no_terminator = data.clone();
+        no_terminator[0x114..0x118].copy_from_slice(&20u32.to_le_bytes());
+        assert!(parse_pe_imports(&no_terminator).is_ok(), "Size可省略终结项");
+        no_terminator[0x214..0x600].fill(0xff);
+        assert!(
+            parse_pe_imports(&no_terminator).is_err(),
+            "原始节内无终结项必须拒绝"
+        );
+        let mut no_raw_bytes = data;
+        no_raw_bytes[0x198..0x19c].copy_from_slice(&16u32.to_le_bytes());
+        assert!(parse_pe_imports(&no_raw_bytes).is_err());
+    }
+
+    #[test]
+    fn test_corrupted_pe_rva_diagnostic_error() {
+        let mut data = vec![0u8; 512];
+        data[0..2].copy_from_slice(b"MZ");
+        data[0x3C..0x40].copy_from_slice(&0x80u32.to_le_bytes());
+        data[0x80..0x84].copy_from_slice(b"PE\0\0");
+        data[0x84..0x86].copy_from_slice(&0x8664u16.to_le_bytes()); // x64
+        data[0x94..0x96].copy_from_slice(&0xF0u16.to_le_bytes()); // opt header size
+        let opt = 0x80 + 24;
+        data[opt..opt + 2].copy_from_slice(&0x20Bu16.to_le_bytes()); // PE32+
+        data[opt + 108..opt + 112].copy_from_slice(&16u32.to_le_bytes());
+        // 设置 Import Directory RVA 为非法越界地址 0x999999
+        let import_dir = opt + 112 + 8;
+        data[import_dir..import_dir + 4].copy_from_slice(&0x999999u32.to_le_bytes());
+
+        data[import_dir + 4..import_dir + 8].copy_from_slice(&40u32.to_le_bytes());
+        let pe_file =
+            std::env::temp_dir().join(format!("ryupy_corrupted_pe_{}.dll", std::process::id()));
+        std::fs::write(&pe_file, &data).unwrap();
+
+        let result = read_pe_imports(&pe_file);
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("未能匹配到任何有效节") || err_msg.contains("越界"));
+
+        let _ = std::fs::remove_file(&pe_file);
+    }
+}

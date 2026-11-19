@@ -21,6 +21,7 @@
 entry = entry.py                 # 默认 entry.py，或缺省时唯一的 .py
 pending = true                   # 未实现，RyuPy 侧跳过
 args = --name value "a b"        # 命令行参数（支持引号与反斜杠转义）
+instance_module = example       # 可重复非空；仅选择图内模块的RyuPy实例能力，CPython忽略
 env = KEY=VALUE                  # 可重复
 stdin = 12\n34                   # 支持 \n \t \r \\ \" 转义
 cwd = work                       # case（默认：隔离工作目录）| 相对用例目录
@@ -111,7 +112,9 @@ make bench ARGS="--no-cpython --runs 9" # 其它参数见 python3 tests/run_benc
 
 ## 结果记录
 
-每次 e2e 运行都会重写 `target/e2e/results.jsonl`，一行一个用例：
+e2e的工作目录与发布产物使用独占仓外临时目录，结束后清理。需要保留JSONL结果时，
+显式设置仓外路径，例如`RYUPY_E2E_RESULTS=/tmp/ryupy-e2e-results.jsonl cargo test -p ryupy-e2e`。
+结果一行一个用例：
 
 ```json
 {"name":"phase1/m1_0_print_int","status":"passed","detail":""}
@@ -143,3 +146,13 @@ uv run --no-project --python 3.12.13 --with numpy==2.3.4 python tests/run_python
 ```
 
 这是用例自检结果，不能计入 RyuPy 的项目覆盖率或扩展可引入性验收。
+
+### 单文件预期异常旁车
+
+单文件默认仍要求退出 0。同名 `name.case.txt` 可严格声明两项：
+`expect_exit = 1` 与 `expect_exception = ValueError: 非空具体消息`。
+未知键、重复键、缺项、其它退出码或空消息均使发现失败，不跳过用例。
+异常类型须为 ASCII 标识符；末尾异常行匹配类型及消息子串，退出必须精确 1，
+信号、崩溃退出和超时不算预期异常。Python/Rust 使用同一合同，原 pending 注释不变。
+此通用基线不声明完整 traceback 兼容；factory 专用门仍保存并逐字比较完整归一化
+trace，类体缺帧继续报告 unaligned 与整体失败。旁车只是元数据，不改变固定 CP 原流。

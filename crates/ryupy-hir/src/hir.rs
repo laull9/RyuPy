@@ -38,7 +38,16 @@ impl std::fmt::Display for Name {
 /// 模块的身份信息，全部由 driver 提供（HIR 不读文件）。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ModuleInfo {
-    /// 仅实际构建开启：模块初始化从已注册对象获取冷解析的位置。
+    /// 显式候选合同；只允许顶层单参数return-name函数。
+    pub stock_thin_functions: bool,
+    /// driver 冻结的外部类构造能力；只有该域需要类体失败时的原生命名空间清理。
+    pub foreign_class_construction: bool,
+    /// 显式inspect provider profile才发布受信函数种类；普通构建保持原def发射。
+    pub introspection_profile: bool,
+    /// 模块真实名字绑定到每个模块对象独立的运行时命名空间。
+    pub instance_globals: bool,
+    pub instance_capabilities: ryupy_base::InstanceCapabilities,
+    /// 仅实际构建开启：前言从本次导入对象获取冷位置与四个元数据初值。
     pub resolve_file_at_runtime: bool,
     /// 点分绝对模块名；入口文件固定为 `__main__`。
     pub name: String,
@@ -60,6 +69,8 @@ pub struct ModuleVar {
     pub annotation: Option<TypeRef>,
     /// 被函数里的 `global` 声明过。这类名字的读写走动态路径。
     pub is_global: bool,
+    /// 源码可能删除此模块绑定；独立于值类型，普通数值仍保typed槽。
+    pub may_delete: bool,
 }
 
 #[derive(Debug)]
@@ -89,6 +100,10 @@ pub struct Module {
 
 #[derive(Debug)]
 pub struct Function {
+    /// 合成推导式来源，和用户def/lambda分开登记。
+    pub is_comprehension: bool,
+    /// 真实源码定义来源；隐式函数保持未知。
+    pub definition: Option<crate::DefinitionInfo>,
     pub name: Name,
     pub kind: FunctionKind,
     pub params: Vec<Param>,
@@ -100,10 +115,12 @@ pub struct Function {
     /// 由 `closures.rs` 在 lowering 之前分析整个 AST 填写；对顶层函数
     /// `free` / `cells` 通常为空，`has_nested` 标记体内是否有嵌套 def / lambda。
     pub closure: ClosureInfo,
-    /// 当前函数体含 yield（包括不可达分支），调用先返回生成器而非执行体。
+    /// 需要惰性显式状态机：含 yield（包括不可达分支）或 async def；具体协议由 is_coroutine 区分。
     pub is_generator: bool,
+    /// async def 的独立协程身份；同时使用生成器式显式状态机。
+    pub is_coroutine: bool,
     /// 首条字符串语句的文档内容；没有文档时为 None。
-    pub docstring: Option<String>,
+    pub docstring: Option<FunctionDocstring>,
     /// 定义位置求值的真实注解对象，与静态类型线索分开保存。
     pub annotation_values: Vec<(Name, ExprId)>,
 }
@@ -111,6 +128,8 @@ pub struct Function {
 /// 一个函数作用域的闭包分析结果。
 #[derive(Debug, Default, Clone)]
 pub struct ClosureInfo {
+    /// 真实隐式 __class__ 自由绑定的词法类来源；局部同名 cell 不使用此标记。
+    pub class_cell: Option<ClassId>,
     /// 本函数引用的外层 cell（含 `nonlocal`），顺序即 env 数组下标。
     ///
     /// 创建本函数对象时，外层按此顺序把对应的 cell 装进 env；
@@ -202,6 +221,10 @@ pub enum TypeRef {
 
 #[derive(Debug, Default)]
 pub struct Body {
+    /// AST零参直接Name globals调用的源码事实；MIR仍须独立能力/context。
+    pub direct_globals_calls: Vec<(ExprId, ExprId)>,
+    /// 可支持直接 locals() 的普通函数；源码可见槽按 CPython 编译访问顺序排列。
+    pub function_locals: Option<Vec<LocalId>>,
     pub locals: Arena<Local>,
     pub exprs: Arena<Expr>,
     pub stmts: Arena<Stmt>,
@@ -221,215 +244,14 @@ pub struct Local {
     pub range: TextRange,
 }
 
-#[derive(Clone, Debug)]
-pub struct Expr {
-    pub kind: ExprKind,
-    pub range: TextRange,
-}
-
-#[derive(Clone, Debug)]
-pub enum ExprKind {
-    /// 类体定义位置读取先前类命名空间绑定；不对descriptor做实例绑定。
-    ClassLocal(Name),
-    /// 条件可能绑定的类名字；仅命名空间缺值时求 fallback。
-    ClassLookup {
-        name: Name,
-        fallback: ExprId,
-    },
-    /// 暂停并在恢复后得到 send 的值；next 对应 None。
-    Yield(Option<ExprId>),
-    YieldFrom(ExprId),
-    /// 错误恢复占位：对应的错误已经报过，下游静默跳过。
-    Missing,
-    /// 降级期临时名称，模块完成前必须统一登记并替换为 ModuleVar。
-    UnresolvedGlobal(Name),
-    /// 编译器生成的模块初始化读取，不是可遮蔽的Python调用。
-    ModuleFile(Name),
-    Literal(Literal),
-    Local(LocalId),
-    /// 读取模块级变量（M2.7）。
-    ModuleVar(ModuleVarId),
-    /// 读取外层函数的 cell（M3.0 闭包）：下标对应当前函数 `ClosureInfo::free`。
-    Free(usize),
-    /// lambda 表达式（M3.0）：在求值位置创建匿名函数对象。
-    Lambda(FuncId),
-    Func(FuncId),
-    Class(ClassId),
-    Builtin(Builtin),
-    Unary {
-        op: UnaryOp,
-        operand: ExprId,
-    },
-    Binary {
-        op: BinOp,
-        lhs: ExprId,
-        rhs: ExprId,
-        /// 来自增量赋值 `x op= y`：可变对象（list / bytearray / set / dict / 带 `__iop__` 的实例）
-        /// 要原地修改并保留身份，不可变值与普通二元运算相同。
-        inplace: bool,
-    },
-    /// 链式比较 `a < b < c` 在 lowering 时展开为 `a < b and b < c`
-    /// （要求中间项无副作用，否则报「暂不支持」）。
-    Compare {
-        op: CmpOp,
-        lhs: ExprId,
-        rhs: ExprId,
-    },
-    /// 短路逻辑。注意 Python 的 `and/or` 返回操作数本身而不是 bool。
-    BoolOp {
-        op: BoolOp,
-        lhs: ExprId,
-        rhs: ExprId,
-    },
-    IfExp {
-        cond: ExprId,
-        then_: ExprId,
-        else_: ExprId,
-    },
-    Call {
-        callee: ExprId,
-        args: Vec<CallArg>,
-    },
-    /// 实参会暂停：调用目标必须先绑定并保存。
-    PreparedCall {
-        callee: ExprId,
-        args: Vec<CallArg>,
-    },
-    Attribute {
-        base: ExprId,
-        name: Name,
-    },
-    /// `[a, b]`；元素可以是 [`ExprKind::Starred`]。
-    List(Vec<ExprId>),
-    /// `(a, b)`；元素可以是 [`ExprKind::Starred`]。
-    Tuple(Vec<ExprId>),
-    /// `{a, b}`。
-    Set(Vec<ExprId>),
-    /// `{k: v}`；`**mapping` 暂不支持。
-    Dict(Vec<(ExprId, ExprId)>),
-    /// `b"..."`：源码里的字节串已经是字节序列，不需要再做编码。
-    Bytes(Box<[u8]>),
-    /// f-string：字面量与插值段交替。
-    FString(Vec<FStringPart>),
-    /// `obj[key]`，`key` 可以是 [`ExprKind::Slice`]。
-    Subscript {
-        base: ExprId,
-        index: ExprId,
-    },
-    /// `a[start:stop:step]`，三段都可以省略（`None`）。
-    Slice {
-        start: Option<ExprId>,
-        stop: Option<ExprId>,
-        step: Option<ExprId>,
-    },
-    /// `*seq`：只出现在容器字面量与赋值目标里。
-    Starred(ExprId),
-}
-
-/// f-string 的一段。
-#[derive(Clone, Debug, PartialEq)]
-pub enum FStringPart {
-    /// 原样输出的字面量（`{{` / `}}` 已由解析器还原成单个花括号）。
-    Literal(Box<str>),
-    /// `{expr}` / `{expr!r}` / `{expr:spec}`。
-    Value {
-        value: ExprId,
-        /// `!s` / `!r` / `!a` 的字节；没有转换时为 0。
-        conversion: u8,
-        /// 格式说明符；目前只支持纯字面量（含嵌套插值的规格暂不支持）。
-        spec: Option<Box<str>>,
-    },
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum Literal {
-    /// Python 整数。`i128` 是为了容纳 `-9223372036854775808`（`Neg(9223372036854775808)`
-    /// 的字面量本身超出 `i64`）。当前Small路径来自Ruff的u64表示。
-    Int(i128),
-    /// 超u64的正整数字面量，已在容量内正规化为有效十进制字符串。
-    BigInt(Box<str>),
-    Float(f64),
-    Bool(bool),
-    Str(Box<str>),
-    None,
-}
-
-/// 编译器内建识别的名字。`range` 不在这里：它只能出现在 `for` 头部，lowering 时直接变成 `ForRange`。
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Builtin {
-    Print,
-    Int,
-    Float,
-    Abs,
-    /// `str(x)`：动态路径走 `PyRepr.StrValue`。
-    Str,
-    /// `type(x)`：返回类型对象（最小实现，只有 `__name__`）。
-    Type,
-    /// Python 异常类（`ValueError` 等）。构造调用走运行时的 `PyOps.MakeException`。
-    Exception(&'static str),
-    /// 走运行时统一入口的内建函数（`len` / `sorted` / `list` …）。
-    ///
-    /// 它们的语义完全由运行时决定（容器协议），编译期不需要知道返回类型；
-    /// 名字本身是编译期常量，运行时的 `PyOps.CallBuiltin` 按名字分派。
-    Dynamic(&'static str),
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum UnaryOp {
-    Neg,
-    Pos,
-    Not,
-    Invert,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum BinOp {
-    Add,
-    Sub,
-    Mul,
-    /// `/`：结果总是 float。
-    TrueDiv,
-    /// `//`：向负无穷取整，与 CIL `div`（向零取整）不同！
-    FloorDiv,
-    /// `%`：结果符号跟随除数，与 CIL `rem` 不同！
-    Mod,
-    Pow,
-    BitAnd,
-    BitOr,
-    BitXor,
-    LShift,
-    RShift,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CmpOp {
-    Eq,
-    NotEq,
-    Lt,
-    LtE,
-    Gt,
-    GtE,
-    /// `in`：成员判断，走容器的 `__contains__`。
-    In,
-    /// `not in`。
-    NotIn,
-    /// `is`：引用身份。
-    Is,
-    /// `is not`。
-    IsNot,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum BoolOp {
-    And,
-    Or,
-}
+pub use crate::expr_types::*;
 
 #[derive(Debug)]
 pub struct Stmt {
     pub kind: StmtKind,
     pub range: TextRange,
     /// 语句起始行号（1 起）。traceback 直接用它，MIR 不需要再回查源码。
+    /// 0表示纯合成控制流，没有新的源码执行位置，不能覆盖最后一条真实语句行号。
     pub line: u32,
 }
 
@@ -476,10 +298,12 @@ pub enum StmtKind {
     Break,
     Continue,
     Pass,
-    /// 内部节点：在模块入口的**定义位置**求值该函数的参数默认值。
+    /// 在真实模块D中执行SETUP_ANNOTATIONS，不覆盖已存在的对象。
+    SetupAnnotations,
+    /// 内部节点：普通静态绑定def的执行点，准备默认值/注解并创建、发布新函数。
     ///
     /// Python 在 `def` 执行时求值默认值；把它保留成一条语句（而不是统一提到开头），
-    /// 默认值才能引用此前的模块变量。
+    /// 默认值才能引用此前的模块变量；节点不把该函数降级为动态公开绑定。
     FunctionDefaults(FuncId),
     /// 嵌套 `def`（M3.0）：在执行位置创建函数对象并写入绑定名。
     ///
@@ -501,7 +325,7 @@ pub enum StmtKind {
         value: Option<ExprId>,
         cause: Option<ExprId>,
     },
-    /// `del a[i]` / `del a[x:y]`；目标是下标表达式。
+    /// 顺序删除模块绑定、已支持局部或属性/下标；目标本身不执行普通名字读取。
     Delete(Vec<ExprId>),
     /// 顶层 `class` 定义。MIR 在**定义位置**创建类对象并顺序执行类体，
     /// 保证类属性求值、方法对象创建与模块语句的先后关系正确。
@@ -517,6 +341,8 @@ pub enum StmtKind {
     },
     /// `from x import a, b as c`（M2.7）。星号导入明确拒绝，由 lower 报诊断。
     ImportFrom {
+        /// 实例执行保留原始相对信息，静态发现不决定运行期包。
+        relative: Option<(u32, String)>,
         /// 绝对模块名。
         module: String,
         /// 依次绑定：导入方看到的名字 → 目标模块里的名字。
@@ -538,6 +364,8 @@ pub enum StmtKind {
 /// `except` 分支。独立分配在 [`Body::handlers`] 里，`Try` 只持有 ID。
 #[derive(Debug)]
 pub struct Handler {
+    /// 来源与分派显式保存，裸链不能从type_expr存在性推断。
+    pub semantics: crate::HandlerSemantics,
     /// 匹配的异常类型名；`None` 表示裸 `except:`。
     ///
     /// 之所以在 HIR 就把 `except ValueError` 解析成名字而不是保留表达式：
@@ -546,6 +374,11 @@ pub struct Handler {
     /// 接入：类名与内建异常名一样作为 catch 的类型标识（codegen 会生成对应的
     /// CLR 异常子类，保持 CLR 与 Python 继承树同构）。
     pub types: Option<Vec<String>>,
+    /// 动态链的真实目标表达式；与types互斥，两者皆None仅表示裸except。
+    /// 仅mixed链保存全部非bare目标，静态链不增加表达式arena或改变旧EH。
+    pub type_expr: Option<ExprId>,
+    /// 动态目标开始求值时使用的except头行；静态/裸handler不发射此行。
+    pub type_line: u32,
     /// `as name` 绑定的目标（函数内是局部变量，模块顶层是模块变量）。
     pub name: Option<Binding>,
     pub body: Vec<StmtId>,
@@ -563,3 +396,10 @@ pub enum Binding {
 }
 
 pub use crate::assign_target::{AssignTarget, SequenceItem, SequenceTarget};
+
+/// 函数文档字符串保留精确码点，避免非字符串值进入定义元数据。
+#[derive(Clone, Debug)]
+pub enum FunctionDocstring {
+    Text(Box<str>),
+    Unicode(Box<[u32]>),
+}

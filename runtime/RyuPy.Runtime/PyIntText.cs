@@ -115,7 +115,7 @@ public static class PyIntText
     private static PyValueError Invalid(object original, int radix) =>
         new($"invalid literal for int() with base {radix}: {PyRepr.Repr(original)}");
 
-    private static string NormalizeUnicode(string text)
+    internal static string NormalizeUnicode(string text)
     {
         bool ascii = true;
         foreach (char value in text) if (value > 127) { ascii = false; break; }

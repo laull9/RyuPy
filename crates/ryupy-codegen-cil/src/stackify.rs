@@ -32,12 +32,18 @@ pub struct ClassCodegenInfo {
 
 pub type ClassInfoMap = FxHashMap<ClassDefId, ClassCodegenInfo>;
 
+/// CIL 参数槽；只有经 MIR 准入的真实 Python 槽附带按需物化操作。
+pub(crate) struct ParamSlot {
+    pub(crate) index: u16,
+    pub(crate) read: Option<MethodRefIndex>,
+}
+
 pub(crate) struct LowerCtx<'a> {
     pub(crate) runtime_refs: &'a RuntimeRefs,
     pub(crate) fn_map: &'a FxHashMap<FnId, MethodIndex>,
     pub(crate) class_info: &'a ClassInfoMap,
     pub(crate) class_types: &'a ClassTypeMap,
-    pub(crate) param_slots: &'a FxHashMap<LocalId, u16>,
+    pub(crate) param_slots: &'a FxHashMap<LocalId, ParamSlot>,
     /// PIC 调用点编号由整程序共享的计数器分配。
     pub(crate) site_counter: &'a Cell<u32>,
     pub(crate) local_slots: &'a FxHashMap<LocalId, u16>,
@@ -97,9 +103,23 @@ pub fn lower_function(
     site_counter: &Cell<u32>,
 ) -> CompiledBody {
     // 区分形参（ldarg）与局部变量（ldloc）
-    let mut param_slots: FxHashMap<LocalId, u16> = FxHashMap::default();
+    let mut param_slots = FxHashMap::default();
+    let read = func.uses_deferred_callback_arguments().then(|| {
+        runtime_refs
+            .owned_functions
+            .as_ref()
+            .and_then(|owned| owned.deferred.as_ref())
+            .expect("已登记回调参数读取 ABI")
+            .read
+    });
     for (idx, &p) in func.params.iter().enumerate() {
-        param_slots.insert(p, idx as u16);
+        param_slots.insert(
+            p,
+            ParamSlot {
+                index: idx as u16,
+                read: read.filter(|_| idx < func.param_meta.len()),
+            },
+        );
     }
 
     let mut local_slots: FxHashMap<LocalId, u16> = FxHashMap::default();
@@ -214,8 +234,8 @@ pub fn lower_function(
             match stmt {
                 Statement::Assign { dest, value } => {
                     lower_rvalue(value, &mut instructions, &ctx);
-                    if let Some(&arg_idx) = param_slots.get(dest) {
-                        instructions.push(Instruction::StoreArgument(arg_idx));
+                    if let Some(slot) = param_slots.get(dest) {
+                        instructions.push(Instruction::StoreArgument(slot.index));
                     } else if let Some(&local_idx) = local_slots.get(dest) {
                         instructions.push(Instruction::StoreLocal(local_idx));
                     }

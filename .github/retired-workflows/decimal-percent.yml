@@ -1,0 +1,96 @@
+# 两图独立门；旧43/20/真实业务及完整项目门仍由原独立jobs同HEAD执行。
+name: 十进制百分号 flags/width 同源验收
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  decimal-percent:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 构建前纯控制自测与全部冻结输入校验
+        timeout-minutes: 2
+        run: |
+          python3 -B -m unittest discover -s scripts -p decimal_percent_selftest.py
+          python3 -B -m unittest discover -s scripts -p re_scanner_selftest.py
+          python3 -B -m unittest discover -s scripts -p textwrap_dedent_selftest.py
+          python3 -B -m unittest discover -s tests/validation -p distribution_metadata_selftest.py
+          python3 -B -m unittest discover -s tests/validation/generator_product -p test_diagnostic_once.py
+      - name: 原固定官方工具准备双流
+        timeout-minutes: 10
+        run: |
+          mkdir -p target/decimal-percent-prepare
+          printf '%s\n' '["python3", "-B", "tests/aot/wcwidth_ci/prepare.py"]' > target/decimal-percent-prepare/argv.json
+          status=0
+          python3 -B tests/aot/wcwidth_ci/prepare.py > target/decimal-percent-prepare/stdout 2> target/decimal-percent-prepare/stderr || status=$?
+          printf '%s\n' "$status" > target/decimal-percent-prepare/exit
+          exit "$status"
+      - name: 独立C#编译、42精确Fact及固定CP/JIT和旧消费者
+        timeout-minutes: 45
+        run: '"$PYTHON" -B scripts/decimal_percent_validation.py --phase jit'
+      - name: Native前保存原流与TRX和实际PE
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: percent-checkpoint-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/decimal-percent-evidence/*.json
+            target/decimal-percent-evidence/*.stdout
+            target/decimal-percent-evidence/*.stderr
+            target/decimal-percent-evidence/trx*
+            target/decimal-percent-evidence/products
+            target/decimal-percent-evidence/inputs
+            target/decimal-percent-prepare
+          if-no-files-found: warn
+          retention-days: 3
+      - name: 重核同源工具后真实ILC及撤编译输入原位和搬移
+        # 仅决定有无state可读；脚本仍先重核HEAD/tree/全部SHA和产品路径，不能恢复旧pass。
+        if: ${{ !cancelled() && hashFiles('target/decimal-percent-evidence/state.json') != '' }}
+        timeout-minutes: 85
+        run: '"$PYTHON" -B scripts/decimal_percent_validation.py --phase native'
+      - name: 失败仍保全部小证据与唯一候选源码
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: percent-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/decimal-percent-evidence
+            !target/decimal-percent-evidence/tools/**
+            !target/decimal-percent-evidence/**/native-build/**
+            !target/decimal-percent-evidence/**/relocated/**
+            !target/decimal-percent-evidence/**/native-dist.tar.gz
+            target/decimal-percent-prepare
+            ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
+          if-no-files-found: error
+          retention-days: 3
+      - name: 失败前实际ELF归档与唯一同轮工具
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: percent-tools-native-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/decimal-percent-evidence/tools
+            target/decimal-percent-evidence/**/native-dist.tar.gz
+          if-no-files-found: warn
+          retention-days: 3
+      - name: 明确有限支持与旧保护口径
+        if: always()
+        run: |
+          printf '%s\n' '## 十进制百分号有限合同；整体NOT_GO不自动升级' \
+            '两图五场景，支持/NI/宿主容量/未捕获异常分别统计，不增加默认项目分子。' \
+            '本地三个固定CP定golden；此job三次新源同源复核，普通baseline可能再执行；原662不重跑。' \
+            'NI及巨大容量宽度不送CP；异常exit1须完整用户栈，不以末行或任意stderr过关。' \
+            'termcolor仅一件已锁官方sdist；下载失败只阻断该旧保护，不挡两新Native图。' \
+            '原Scanner43/20、202B attr_list、77B full Markdown、固定20及public traceback红例同HEAD独立保留。' \
+            'ELF/工具单独保存，原位/搬移未执行或失败均原样分账。' >> "$GITHUB_STEP_SUMMARY"

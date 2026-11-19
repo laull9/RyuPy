@@ -1,0 +1,39 @@
+# ryupy: pending
+# Unicode字段原名与生成参数NFKC名不同；不能用ASCII拒绝当CP语义。
+from collections import namedtuple
+
+Unicode = namedtuple('Unicode', ['名字', '值'], module='fixture.pending')
+value = Unicode(1, 2)
+assert getattr(value, '名字') == 1 and getattr(value, '值') == 2
+assert Unicode._fields == ('名字', '值')
+print('unicode', value, Unicode._fields)
+
+Normalized = namedtuple('Normalized', ['K'], module='fixture.pending')
+normalized = Normalized(K=7)
+assert getattr(normalized, 'K') == 7 and Normalized._fields == ('K',)
+try:
+    Normalized(**{'K': 8})
+except TypeError as error:
+    print('unnormalized-keyword', type(error).__name__, str(error))
+else:
+    raise AssertionError('raw field name incorrectly became normalized parameter')
+
+try:
+    namedtuple('Collision', ['K', 'K'], module='fixture.pending')
+except SyntaxError as error:
+    print('normalized-collision', type(error).__name__, str(error))
+else:
+    raise AssertionError('NFKC duplicate parameters were accepted')
+
+Keyword = namedtuple('Keyword', ['ｉｆ'], module='fixture.pending')
+assert getattr(Keyword(**{'if': 4}), 'ｉｆ') == 4
+print('normalized-keyword', Keyword(**{'if': 4}))
+
+
+class Text(str):
+    pass
+
+
+SubclassInput = namedtuple(Text('SubclassInput'), Text('x'), module='fixture.pending')
+assert SubclassInput(1).x == 1
+print('str-subclass-input', SubclassInput(1))

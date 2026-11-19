@@ -1,0 +1,110 @@
+//! 编译会话与来源/诊断状态；显式部署请求不改变默认模块解析。
+use crate::{ModuleEnvironmentDecision, ModuleEnvironmentPolicy, TraceEntry};
+use anyhow::{Context, Result};
+use ryupy_base::{Diagnostics, FileId, SourceDb};
+use std::path::{Path, PathBuf};
+
+/// 一次编译会话。诊断累积在这里，由调用方（CLI / 测试）决定如何打印。
+#[derive(Default)]
+pub struct Session {
+    /// 单文件的私有解包载荷保留旧布局；其它应用交付统一canonical internal。
+    #[doc(hidden)]
+    pub legacy_onefile_layout: bool,
+    /// 候选薄函数静态竖切；默认关闭，必须显式冻结stock provider。
+    pub experimental_stock_thin_functions: bool,
+    /// 显式全图InstanceGlobals与provider真实模块字典；不选择薄函数core。
+    pub experimental_stock_module_namespaces: bool,
+    /// 显式冻结 CPython 执行域及基础发行；不从环境或系统解释器隐式选择。
+    pub cpython_provider: Option<PathBuf>,
+    /// 显式原生组件来源、许可证与ABI声明；不自动加载宿主开发库。
+    pub cpython_native_components: Option<PathBuf>,
+    /// 显式随包非 Python 应用数据清单（JIT / NativeAOT / OneFile 共用）。
+    pub bundle_data: Option<PathBuf>,
+    #[doc(hidden)]
+    pub cpython_provider_state: crate::CPythonProviderState,
+    /// 显式委派给随包 CPython 解释执行的本地整模块/包名列表（顶层名）；禁止静默回退。
+    pub cpython_modules: Vec<String>,
+    /// 显式将应用入口 `__main__` 委派给随包 CPython 解释执行；禁止静默回退。
+    pub cpython_entry: bool,
+    /// 显式补充动态导入的第三方 CPython 模块名（如 `aiosqlite`、`httpx`）。
+    pub cpython_dynamic_modules: Vec<String>,
+    /// 不透明编排状态；公开字段保留既有Session结构更新语法，内部authority不可外部构造。
+    #[doc(hidden)]
+    pub default_source_state: crate::DefaultSourceState,
+    /// 显式封闭分发请求；不隐含-I或宿主site-packages。
+    pub distribution_metadata: Option<PathBuf>,
+    /// 同次采集载荷的审计摘要，非运行时authority。
+    pub distribution_metadata_report: Option<serde_json::Value>,
+    /// 显式强制有限trace V1；合法域外E0310，内部损坏硬停。
+    pub trace_product_v1: bool,
+    /// 明确正常Main执行的请求；裸API默认Unknown，不从DLL扩展名推断宿主生命周期。
+    pub trace_entry: TraceEntry,
+    /// 已在实际依赖图中的源码模块显式启用实例全局，不隐式加入依赖。
+    pub instance_modules: Vec<String>,
+    /// 仅与显式instance_modules共同启用；不改变自动选择。
+    pub instance_direct_globals: bool,
+    /// 编译会话的隔离候选策略；无公开CLI开关，也不改变运行时模式数。
+    pub module_environment_policy: ModuleEnvironmentPolicy,
+    /// 当前实际源码图的编译计划；compiled区分已完成编译与首错后未执行者。
+    pub module_environment_report: Vec<ModuleEnvironmentDecision>,
+    /// 固定绑定编排期间禁止自动迁移，结束后恢复；显式能力仍按原边界。
+    #[doc(hidden)]
+    pub fixed_binding_build: bool,
+    /// 显式输出普通构建的编译阶段标记；默认关闭，不改变运行时 ABI。
+    pub diagnostic_stages: bool,
+    /// 本次编译显式包含的源码模块；只加入依赖图，仍在import时初始化。
+    pub include_modules: Vec<String>,
+    pub sources: SourceDb,
+    pub diagnostics: Diagnostics,
+    /// 显式启用直接 CIL 累加实验；默认保留已验证的 holder 路径。
+    /// 仅控制本次会话的 MIR 流水线，不从进程环境隐式读取，也不改变语言语义。
+    pub experimental_direct_accumulator: bool,
+    /// 显式records实体key实验；需Cargo feature，默认关闭，禁止固定Python绑定路径。
+    pub experimental_records_increment: bool,
+    /// 显式实验：仅在实际自动选择的普通动态实例模块启用严格ForEach holder。
+    /// 默认关闭，不提供公共CLI模式，也不影响显式实例模块与旧ForRange累加器。
+    pub experimental_foreach_accumulator: bool,
+    /// 实验：精确Int64实参的受守卫纯叶内联；guard失败性能未达默认门槛。
+    pub experimental_leaf_inline: bool,
+    /// 仅诊断：SLP保相同守卫/物化，但使用直接标量运算，隔离packed本身的收益。
+    pub diagnostic_scalar_slp: bool,
+    /// 实验：两lane packed SLP已实现，但相对同守卫标量无净收益，默认关闭。
+    pub experimental_packed_slp: bool,
+}
+
+impl Session {
+    /// 使用本次已冻结的Python版本解析；未选择provider的历史编译入口保持原版本合同。
+    pub(crate) fn parse_python(
+        &self,
+        file: FileId,
+        source: &str,
+    ) -> Result<(ryupy_syntax::ParsedModule, Vec<ryupy_base::Diagnostic>)> {
+        if let Some(plan) = &self.cpython_provider_state.plan {
+            let version = ryupy_syntax::ast::PythonVersion::from((
+                u8::try_from(plan.version.major).context("Python主版本越界")?,
+                u8::try_from(plan.version.minor).context("Python次版本越界")?,
+            ));
+            return Ok(ryupy_syntax::parse_for_version(
+                file,
+                source,
+                ryupy_syntax::ast::PySourceType::Python,
+                version,
+            ));
+        }
+        Ok(ryupy_syntax::parse(file, source))
+    }
+
+    pub fn load_file(&mut self, path: &Path) -> Result<FileId> {
+        let text = std::fs::read_to_string(path)
+            .with_context(|| format!("无法读取源文件 {}", path.display()))?;
+        Ok(self.sources.add(path.display().to_string(), text))
+    }
+
+    /// 把全部诊断渲染成文本。
+    pub fn render_diagnostics(&self, color: bool) -> String {
+        self.diagnostics
+            .iter()
+            .map(|d| ryupy_base::diagnostic::render(&self.sources, d, color))
+            .collect()
+    }
+}

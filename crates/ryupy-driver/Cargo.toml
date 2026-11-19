@@ -6,9 +6,27 @@ edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
+[features]
+# ADR-0208 C3 显式原生协程候选；默认关闭。
+native-coroutines = ["ryupy-hir/native-coroutines", "ryupy-mir/native-coroutines"]
+# 生成器消费融合候选；真实差分与性能验收前默认关闭。
+generator-sum-experiment = ["ryupy-mir/generator-sum-experiment"]
+records-increment-experiment = ["ryupy-mir/records-increment-experiment"]
+records-increment-diagnostics = ["records-increment-experiment"]
+# 仅隔离S2a测试产物；不用于默认项目或发布。
+trace-adapter-test = ["ryupy-mir/trace-adapter-test", "ryupy-codegen-cil/trace-adapter-test"]
+# 隔离JIT候选；尚未通过默认晋升条件，发行构建保持关闭。
+ordinary-dynamic-module-pilot = []
+# ADR-0241：完整启动对照收益未确认，最小Mach-O重定位仅编译期实验。
+experimental-minimal-macho-relocation = []
+
 [dependencies]
 # 仅构建期文件身份；Windows 同目标仍只放行同一已验证 lexical 记录。
 same-file = "1.0.6"
+# 静态读取实际原生导出；不加载库或依赖宿主nm，复用锁内版本。
+object = { version = "0.38.1", default-features = false, features = ["read_core", "std", "elf", "macho", "pe", "unaligned"] }
+# 标准File锁要求更高MSRV；仅用于内嵌运行时的短暂原子缓存提交。
+fs2 = "0.4.3"
 ryupy-base.workspace = true
 ryupy-syntax.workspace = true
 ryupy-hir.workspace = true
@@ -19,9 +37,6 @@ anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
-
-[dev-dependencies]
-insta.workspace = true
 
 [lints]
 workspace = true

@@ -21,7 +21,8 @@ impl MirPass for IntervalNarrow {
                         matches!(
                             s,
                             Statement::Assign {
-                                value: Rvalue::MakeGenerator { .. },
+                                value: Rvalue::MakeGenerator { .. }
+                                    | Rvalue::MakeStateGenerator { .. },
                                 ..
                             }
                         )

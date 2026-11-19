@@ -17,8 +17,8 @@
 //! 并行能让 `dotnet` 调用重叠，但完成顺序随机，输出会乱序；需要提速时再显式传
 //! `--test-threads=N`。
 //!
-//! 每次运行都会把结果写进 `target/e2e/results.jsonl`（`name` / `status` / `detail`），
-//! 供脚本统计；`pending` 不计入通过数，`unexpected-pass` 表示该去掉 pending 标记了。
+//! 工作树与产物位于独占仓外临时根，运行后清理。设置RYUPY_E2E_RESULTS可把结果JSONL
+//! 保存到指定仓外路径；`unexpected-pass` 表示该去掉pending标记了。
 
 use std::path::Path;
 use std::sync::Mutex;
@@ -31,6 +31,8 @@ use ryupy_e2e::{CaseResult, CaseSpec, Status, diff_stdout, fresh_dir};
 /// 结果按完成顺序收集，最后统一写盘。libtest-mimic 会在多个线程里跑用例，
 /// 所以必须是全局锁而不是 thread_local。
 static RESULTS: Mutex<Vec<CaseResult>> = Mutex::new(Vec::new());
+#[path = "../../ryupy-driver/src/test_temp.rs"]
+mod test_temp;
 
 fn main() {
     let mut args = Arguments::from_args();
@@ -42,7 +44,10 @@ fn main() {
     let python_only = std::env::var("E2E_PYTHON_ONLY").is_ok_and(|v| v == "1");
 
     let mut cases = Vec::new();
-    ryupy_e2e::discover_single_files(&root.join("tests/e2e"), &mut cases);
+    if let Err(err) = ryupy_e2e::discover_single_files(&root.join("tests/e2e"), &mut cases) {
+        eprintln!("单文件清单解析失败：{err}");
+        std::process::exit(2);
+    }
     match ryupy_e2e::discover_case_dirs(&root.join("tests/cases")) {
         Ok(mut dirs) => cases.append(&mut dirs),
         Err(err) => {
@@ -58,13 +63,15 @@ fn main() {
     }
 
     let total = cases.len();
+    let work = test_temp::Root::new("e2e");
     // 前缀宽度取总数位数，保证 `[ 3/67]` 与 `[67/67]` 对齐。
     let index_width = total.to_string().len();
     let trials: Vec<Trial> = cases
         .into_iter()
         .enumerate()
         .map(|(index, case)| {
-            let root = root.clone();
+            // 每条用例有不同的序号，原始名字净化后相同也不会共享可写目录。
+            let case_root = work.join(format!("{index}-{}", sanitize(&case.name)));
             // 名字前缀就是进度：串行模式下 libtest-mimic 会在用例**开始前**打印这一行，
             // 因此既能看到当前跑到第几个，也保证输出与名字排序一致。
             // 过滤仍按完整名字做子串匹配，前缀不影响 `cargo test -- fib` 这类用法。
@@ -75,7 +82,7 @@ fn main() {
                 width = index_width
             );
             let ignored = case.pending && !python_only;
-            Trial::test(label, move || run_case(&root, &case, python_only))
+            Trial::test(label, move || run_case(&case_root, &case, python_only))
                 .with_ignored_flag(ignored)
         })
         .collect();
@@ -84,36 +91,31 @@ fn main() {
 
     // 汇总结果文件；即使有失败也写出，便于定位。
     let results = RESULTS.lock().unwrap_or_else(|e| e.into_inner());
-    let path = root.join("target/e2e/results.jsonl");
-    if let Err(err) = ryupy_e2e::write_results(&path, &results) {
-        eprintln!("写入结果文件失败：{err}");
-    } else {
-        let passed = results
-            .iter()
-            .filter(|r| r.status == Status::Passed)
-            .count();
-        let pending = results
-            .iter()
-            .filter(|r| r.status == Status::Pending)
-            .count();
-        let unexpected = results
-            .iter()
-            .filter(|r| r.status == Status::UnexpectedPass)
-            .count();
-        println!(
-            "\n结果记录：{} 通过，{pending} pending，{unexpected} 可转正 → {}",
-            passed,
-            path.display()
-        );
+    if let Some(path) = std::env::var_os("RYUPY_E2E_RESULTS") {
+        let path = std::path::PathBuf::from(path);
+        if let Err(err) = ryupy_e2e::write_results(&path, &results) {
+            eprintln!("写入结果文件失败：{err}");
+        } else {
+            println!("\n结果文件：{}", path.display());
+        }
     }
+    let count = |status| results.iter().filter(|r| r.status == status).count();
+    println!(
+        "\n结果记录：{} 通过，{} pending，{} 可转正",
+        count(Status::Passed),
+        count(Status::Pending),
+        count(Status::UnexpectedPass)
+    );
     drop(results);
-
+    // Conclusion::exit直接结束进程；必须先显式释放临时工作树。
+    drop(work);
     conclusion.exit();
 }
 
-fn run_case(root: &Path, case: &CaseSpec, python_only: bool) -> Result<(), Failed> {
-    let out_dir = root.join("target/e2e").join(sanitize(&case.name));
-    let work_dir = out_dir.join("work");
+fn run_case(case_root: &Path, case: &CaseSpec, python_only: bool) -> Result<(), Failed> {
+    // 应用发布根不承载oracle/工作目录，保持事务只接收自有产品或空目录。
+    let out_dir = case_root.join("product");
+    let work_dir = case_root.join("work");
     fresh_dir(&work_dir).map_err(|e| format!("无法准备工作目录：{e}"))?;
     let cwd = case.resolve_cwd(&work_dir);
 
@@ -140,8 +142,11 @@ fn run_case(root: &Path, case: &CaseSpec, python_only: bool) -> Result<(), Faile
         return Ok(());
     }
 
-    // 2. 实际结果：RyuPy 编译 + dotnet 运行
-    let mut sess = Session::default();
+    // 2. 实际结果：RyuPy编译后走实际公开入口；纯托管输出继续走dotnet。
+    let mut sess = Session {
+        instance_modules: case.instance_modules.clone(),
+        ..Session::default()
+    };
     let opts = BuildOptions {
         input: case.entry.clone(),
         out_dir: out_dir.clone(),
@@ -162,7 +167,11 @@ fn run_case(root: &Path, case: &CaseSpec, python_only: bool) -> Result<(), Faile
         cwd: Some(cwd),
         stdin: case.stdin.clone(),
     };
-    let actual = dotnet::run_dll_with(&artifacts.dll, &run_opts).map_err(|e| format!("{e:#}"))?;
+    let actual = match &artifacts.native_exe {
+        Some(entry) => dotnet::run_executable_with(entry, &run_opts),
+        None => dotnet::run_dll_with(&artifacts.dll, &run_opts),
+    }
+    .map_err(|e| format!("{e:#}"))?;
 
     // 3. 比较
     let mut failures = Vec::new();

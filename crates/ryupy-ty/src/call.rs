@@ -42,7 +42,13 @@ impl FunctionChecker<'_> {
             }
             ExprKind::Builtin(Builtin::Float) => {
                 self.results.exprs.insert(callee, Ty::None);
-                self.check_unary_builtin(args, range, "float", Ty::Float)
+                if matches!(args, [CallArg::Positional(_)]) {
+                    self.check_unary_builtin(args, range, "float", Ty::Float)
+                } else {
+                    // float零参合法；其它非单位置形态需完整运行时绑定，不能丢实参。
+                    self.soft_demote = true;
+                    Ty::Dynamic
+                }
             }
             ExprKind::Builtin(Builtin::Abs) => {
                 self.results.exprs.insert(callee, Ty::None);
@@ -56,7 +62,15 @@ impl FunctionChecker<'_> {
             }
             ExprKind::Builtin(Builtin::Str) => {
                 self.results.exprs.insert(callee, Ty::None);
-                Ty::Str
+                if matches!(args, [CallArg::Positional(expr)] if matches!(
+                    self.results.expr_ty(*expr), Ty::Int | Ty::Float | Ty::Bool | Ty::Str | Ty::None
+                )) {
+                    Ty::Str
+                } else {
+                    // 用户__str__可能返回str子类对象；完整绑定结果不能强制CLR string。
+                    self.soft_demote = true;
+                    Ty::Dynamic
+                }
             }
             ExprKind::Builtin(Builtin::Type) => {
                 self.results.exprs.insert(callee, Ty::None);
@@ -221,6 +235,7 @@ impl FunctionChecker<'_> {
                 if let Some(expected) = expected
                     && expected != Ty::Error
                     && arg_ty != Ty::Error
+                    && expected != Ty::OpaqueStr
                     && expected != arg_ty
                     && !(expected == Ty::Float && arg_ty == Ty::Int)
                 {
@@ -260,6 +275,7 @@ impl FunctionChecker<'_> {
             let Some(field) = field else { continue };
             let expected_ty = module_type_ref_to_ty(self.module, &field.annotation);
             if expected_ty != Ty::Error
+                && expected_ty != Ty::OpaqueStr
                 && arg_ty != Ty::Error
                 && expected_ty != arg_ty
                 && !(expected_ty == Ty::Float && arg_ty == Ty::Int)

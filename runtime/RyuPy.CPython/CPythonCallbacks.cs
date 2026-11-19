@@ -1,0 +1,204 @@
+// 静态反向调用边界：C栈只看到Python对象/异常；注册根随Python代理析构或显式注销释放。
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using RyuPy.Runtime;
+
+namespace RyuPy.CPython;
+
+public sealed partial class CPythonHost
+{
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    private static nint Dispatch(nint identity, int op, nint a, nint b, nint c, long number, nint text)
+    {
+        CPythonHost? host = Instance;
+        if (host is null) { Native.rp_error_text("RuntimeError", "RyuPy host is closed"); return 0; }
+        if (identity == -2 && op == 30)
+        {
+            try { host.TryReleaseTerminalOwnerPool(); }
+            catch (Exception error) { host.stockCallbackFailure = error.ToString(); }
+            return 0;
+        }
+        if (op == 0)
+        {
+            if (host.Roots.TryRemove(identity, out object? root)) host.reverse.Remove(root);
+            host.ReleaseStockProgramProxy(identity);
+            host.ReleaseTerminalProxyOwners(identity);
+            return 0;
+        }
+        long callbackDepth = PyTraceback.CaptureDepth();
+        Lease? lease = null;
+        CallbackScope? callback = null;
+        ManagedHandledScope? handled = null;
+        ProgramRegistrationPause? externalOwnership = null;
+        ProgramOwnedScope? terminalOwnership = null;
+        var carrierBoundary = new ManagedCarrierCallbackScope(callbackDepth);
+        try
+        {
+            lease = host.Enter(callback: true);
+            if (identity != -1)
+            {
+                terminalOwnership = host.BeginTerminalProxyCallback(identity);
+                if (terminalOwnership is null) externalOwnership = host.PauseStockProgramRegistration();
+            }
+            callback = new CallbackScope(true);
+            handled = new ManagedHandledScope(host);
+            if (identity == -1)
+            {
+                string moduleName = host.ReadText(a);
+                object importResult = op switch
+                {
+                    20 => host.compiled.Contains(moduleName),
+                    21 => PyModules.Import(moduleName),
+                    22 => PyModules.TryGetRegisteredPackage(moduleName, out bool package) ? package
+                        : host.compiled.Any(n => n.StartsWith(moduleName + ".", StringComparison.Ordinal)),
+                    _ => throw new PyRuntimeError("invalid import hook operation")
+                };
+                return host.ToPython(importResult);
+            }
+            // 原生import组合根使用显式登记权限；其余第三方managed业务暂停内部owned收编。
+            if (!host.Roots.TryGetValue(identity, out object? target)) throw new PyRuntimeError("managed proxy has been unregistered");
+            string name = text == 0 ? "" : Marshal.PtrToStringUTF8(text)!;
+            // 在容器同步或实参转换产生 opaque 视图之前，先用 frozen 原生成员核实构造接收者。
+            if (op == 1) host.PrepareConstructionCallback(target, a);
+            else if (op == 24 && HasSetName(target)) host.AssociateConstructionReceiver(new SetNameTarget(target), a);
+            host.PullContainers();
+            object? result;
+            switch (op)
+            {
+                case 1: result = host.InvokeCallback(target, a, b); break;
+                case 2: result = host.InspectAttribute(target, name); break;
+                case 3: host.SetInspectAttribute(target, name, a); result = PyNone.Instance; break;
+                case 4: PyObject.DelAttr(target, name); result = PyNone.Instance; break;
+                case 5: result = PyOps.GetItem(target, host.ProtocolValue(a)); break;
+                case 6: PyOps.SetItem(target, host.ProtocolValue(a), host.FromBorrowed(b)); result = PyNone.Instance; break;
+                case 7: PyOps.DelItem(target, host.ProtocolValue(a)); result = PyNone.Instance; break;
+                case 8: result = PyOps.Len(target); break;
+                case 9: result = PyOps.Truthy(target); break;
+                case 10: result = PyRepr.Repr(target); break;
+                case 11: result = PyRepr.Str(target); break;
+                case 12: result = PyIter.Create(target); break;
+                case 13:
+                    // tp_iternext必须保留生成器本次完成的终值；MoveNext的布尔接口会丢弃它。
+                    // Next同时负责仅首次耗尽返回终值、后续为空以及PEP 479，不能另存终值镜像。
+                    if (target is PyGenerator generator) { result = generator.Next(null, false); break; }
+                    if (target is not IPyIterator iterator) throw new PyTypeError("managed object is not an iterator");
+                    if (!iterator.MoveNext()) { Native.rp_error_text("StopIteration", ""); return 0; }
+                    result = iterator.Current(); break;
+                case 14: result = PyHash.Of(target); break;
+                case 24: result = host.InvokeDescriptorSetName(target, a, b); break;
+                case 31 or 32 or 33 or 34: result = host.ResumeCoroutineProxy(target, op, a); break;
+                case 15:
+                    int comparison = number switch { 0 => PyOps.Lt, 1 => PyOps.Le, 2 => PyOps.Eq, 3 => PyOps.Ne, 4 => PyOps.Gt, 5 => PyOps.Ge, _ => throw new PyRuntimeError("unknown comparison") };
+                    object? compared = host.FromBorrowed(a);
+                    if (compared is PythonObject foreign && host.TryProxyComparison(foreign, comparison, target, true, out object proxyResult))
+                    { result = proxyResult; break; }
+                    // 不把Python已返回NotImplemented的混合比较再次送回同一C槽，避免无限互调。
+                    if (compared is IPyForeignObject) return Native.rp_notimplemented();
+                    result = PyOps.CompareValue(comparison, target, compared!); break;
+                default: throw new PyNotImplementedError("unknown managed protocol operation");
+            }
+            host.PushContainers();
+            return host.ToPython(result);
+        }
+        catch (PyBaseException error)
+        {
+            SuppressRetiredCarrierFrames();
+            if (lease is not null) host.RestoreCallbackError(error);
+            else Native.rp_error_text(error.PyTypeName, error.Message);
+            return 0;
+        }
+        catch (Exception error)
+        {
+            SuppressRetiredCarrierFrames();
+            if (lease is not null) host.RestoreCallbackError(PyErrors.FromClr(error));
+            else Native.rp_error_text("RuntimeError", error.Message);
+            return 0;
+        }
+        finally
+        {
+            // 租约与当前异常一直覆盖catch中的同步、CLR映射和异常导出，不能提前退出作用域。
+            try
+            {
+                handled?.Dispose(); callback?.Dispose();
+                // CLR异常展开越出编译函数时，CIL正常返回的PopTo不会执行；恢复入口深度，
+                // cause已保存的帧保持不变，外层随后抛出的新异常只捕获仍活动的编译调用者。
+                PyTraceback.PopTo(callbackDepth + 1);
+                if (terminalOwnership is not null) host.CompleteTerminalProxyCallback(terminalOwnership);
+                externalOwnership?.Dispose(); lease?.Dispose();
+            }
+            finally { carrierBoundary.Dispose(); }
+        }
+    }
+
+    private void RestoreCallbackError(PyBaseException error)
+    {
+        // 无论异常来自Python协议还是typed CIL算术，已发生的容器副作用都必须先出域。
+        try { PushContainers(); } catch (Exception sync) { synchronizationFailure = sync.Message; }
+        try { Native.rp_restore_error(ExportException(error)); }
+        catch (PyBaseException nested) { Native.rp_error_text(nested.PyTypeName, nested.Message); }
+        catch (Exception nested) { Native.rp_error_text("RuntimeError", nested.Message); }
+    }
+
+    private object? ProtocolValue(nint pointer)
+    {
+        object? result = FromBorrowed(pointer);
+        if (result is PythonObject foreign)
+        {
+            int kind = Native.rp_scalar_kind(foreign.Pointer);
+            if (kind is 1 or 2) return foreign.ReadScalar("int");
+            if (kind == 4) return foreign.ReadScalar("str");
+        }
+        return result;
+    }
+    private object?[] ReadTuple(nint pointer)
+    {
+        int length = checked((int)Native.rp_length(pointer)); ThrowIfError();
+        var result = new object?[length];
+        for (int i = 0; i < length; i++) result[i] = FromOwned(Native.rp_op(18, pointer, n: i));
+        return result;
+    }
+    private (string[], object?[]) ReadKeywords(nint pointer)
+    {
+        if (pointer == 0) return ([], []);
+        nint keys = Check(Native.rp_op(19, pointer));
+        nint tuple = 0;
+        try
+        {
+            tuple = Check(Native.rp_op(26, keys));
+            int count = checked((int)Native.rp_length(tuple)); ThrowIfError();
+            var names = new string[count]; var values = new object?[count];
+            for (int i = 0; i < count; i++)
+            {
+                nint key = Check(Native.rp_op(18, tuple, n: i));
+                try { names[i] = ReadText(key); values[i] = FromOwned(Native.rp_op(6, pointer, key)); }
+                finally { Native.rp_decref(key); }
+            }
+            return (names, values);
+        }
+        finally { Native.rp_decref(keys); Native.rp_decref(tuple); }
+    }
+    private nint ExportException(PyBaseException error, HashSet<PyBaseException>? visiting = null)
+    {
+        nint pointer;
+        if (error.ForeignObject is PythonObject original) pointer = original.Pointer;
+        else
+        {
+            RequireExportableException(error);
+            nint args = MakeTuple(error.Args);
+            try
+            {
+                nint type = ExceptionClass(error);
+                try { pointer = Check(Native.rp_op(5, type, args)); } finally { Native.rp_decref(type); }
+            }
+            finally { Native.rp_decref(args); }
+            var origin = new PythonObject(this, pointer); error.ForeignObject = origin; objects[pointer] = new(error);
+        }
+        visiting ??= new(ReferenceEqualityComparer.Instance);
+        if (!visiting.Add(error)) return pointer;
+        // 同一异常重抛也同步显式from None；按引用访问集合保留环与共享链。
+        nint cause = error.Cause is { } causeError ? ExportException(causeError, visiting) : 0;
+        nint context = error.Context is { } contextError ? ExportException(contextError, visiting) : 0;
+        Native.rp_exception_set_chain(pointer, cause, context, error.SuppressContextFlag ? 1 : 0);
+        return pointer;
+    }
+}

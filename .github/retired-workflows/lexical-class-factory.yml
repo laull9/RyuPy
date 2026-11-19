@@ -1,0 +1,92 @@
+# 单元1普通class有限门；旧保护独立fanout，新门红灯不能跳旧门。
+name: 普通定义位置class工厂同源验收
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  lexical-class-factory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 纯控制与旧selector及冻结就绪门
+        timeout-minutes: 2
+        run: |
+          python3 -B scripts/lexical_class_factory_selftest.py
+          python3 -B scripts/textwrap_dedent_selftest.py
+          python3 -B scripts/default_source_deployment_validation_selftest.py
+          python3 -B -m unittest discover -s tests/validation -p distribution_metadata_selftest.py
+          python3 -B scripts/lexical_class_factory_contract.py
+      - name: 固定官方工具准备双流
+        timeout-minutes: 10
+        run: |
+          mkdir -p target/lexical-class-factory-prepare
+          printf '%s\n' '["python3", "-B", "tests/aot/wcwidth_ci/prepare.py"]' > target/lexical-class-factory-prepare/argv.json
+          status=0
+          python3 -B tests/aot/wcwidth_ci/prepare.py > target/lexical-class-factory-prepare/stdout 2> target/lexical-class-factory-prepare/stderr || status=$?
+          printf '%s\n' "$status" > target/lexical-class-factory-prepare/exit
+          exit "$status"
+      - name: C#早门及精确Rust与真实CP编译JIT
+        timeout-minutes: 25
+        run: '"$PYTHON" -B scripts/lexical_class_factory_validation.py --phase jit'
+      - name: Native前保原双流TRX和实际PE
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: class-factory-checkpoint-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/lexical-class-factory-evidence/*.json
+            target/lexical-class-factory-evidence/*.stdout
+            target/lexical-class-factory-evidence/*.stderr
+            target/lexical-class-factory-evidence/trx
+            target/lexical-class-factory-evidence/products
+            target/lexical-class-factory-prepare
+          if-no-files-found: warn
+          retention-days: 3
+      - name: 重核同源后最多一正一负Native及搬移
+        if: ${{ !cancelled() && hashFiles('target/lexical-class-factory-evidence/state.json') != '' }}
+        timeout-minutes: 25
+        run: '"$PYTHON" -B scripts/lexical_class_factory_validation.py --phase native'
+      - name: 失败仍保全部小证据和唯一候选源
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: class-factory-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/lexical-class-factory-evidence
+            !target/lexical-class-factory-evidence/tools/**
+            !target/lexical-class-factory-evidence/**/native-build/**
+            !target/lexical-class-factory-evidence/**/relocated/**
+            !target/lexical-class-factory-evidence/**/native-dist.tar.gz
+            target/lexical-class-factory-prepare
+            ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
+          if-no-files-found: warn
+          retention-days: 3
+      - name: 唯一同轮工具和校验前已保存真实Native
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: class-factory-native-tools-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/lexical-class-factory-evidence/tools
+            target/lexical-class-factory-evidence/**/native-dist.tar.gz
+          if-no-files-found: warn
+          retention-days: 3
+      - name: 明确范围与未验项
+        if: always()
+        run: |
+          printf '%s\n' '## 单元1普通class工厂：项目增量0，toml仍不支持' \
+            '新factory私名改写静态拒绝；原正合同pending保留。CPerror与NI单列，signal/crash不算预期错误。' \
+            'JIT红灯仍使整体失败；AOT拒绝只记unsupported/pending，不扩allowlist。' \
+            '搬移仅隔离完整编译inputs并使用最小PATH，不声称机器或容器无SDK。' \
+            '固定20/旧12、Markdown77B、双check、S1公共CLR ABI及旧Native由独立同HEAD jobs保护。' >> "$GITHUB_STEP_SUMMARY"

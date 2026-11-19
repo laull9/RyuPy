@@ -1,7 +1,10 @@
 //! 大字典非标量键是明确未支持边界：不得为了判断可哈希而运行用户协议。
+#[path = "../src/test_temp.rs"]
+mod layout_temp;
 use ryupy_driver::Session;
 #[test]
 fn unsupported_large_dictionary_key_does_not_call_user_hash_equal_or_repr() {
+    let _layout_temp = layout_temp::Root::new("driver-integration");
     let root = ryupy_driver::runtime::workspace_root();
     let input = root.join("tests/e2e/phase3/m3_7_large_dict_custom_pending.py");
     let mut session = Session::default();
@@ -9,13 +12,17 @@ fn unsupported_large_dictionary_key_does_not_call_user_hash_equal_or_repr() {
         &mut session,
         &ryupy_driver::BuildOptions {
             input,
-            out_dir: root.join("target/test_large_dict_guard"),
+            out_dir: _layout_temp.join("test_large_dict_guard"),
             aot: false,
             search_paths: vec![],
         },
     )
     .unwrap();
-    let result = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
+    let result = ryupy_driver::dotnet::run_executable_with(
+        artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+        &Default::default(),
+    )
+    .unwrap();
     let stderr = String::from_utf8_lossy(&result.stderr);
     assert_eq!(result.status.code(), Some(0), "{stderr}");
     assert!(stderr.is_empty(), "不能泄漏CLR错误：{stderr}");

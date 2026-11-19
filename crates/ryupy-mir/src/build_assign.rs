@@ -2,14 +2,14 @@
 //!
 //! 覆盖三类目标：
 //! - `obj[key] = value`：运行时 `PyOps.SetItem`；
-//! - `a, b = ...` / `first, *middle, last = ...`：先取长度校验，再逐位置取下标冻结所有值，最后按序写入目标，
-//!   星号位置用切片一次性取中间部分，再转为 Python 规定的新 list；
+//! - 一般源由运行时完成非星号有界读取或星号余量收集，返回精确 tuple；
+//! - 直接无展开字面量保留长度、下标与星号切片结构；所有路径先冻结值，再按序写目标；
 //! - `del obj[key]`：运行时 `PyOps.DelItem`。
 //!
-//! 序列解包的长度校验放在**取元素之前**：CPython 对 `a, b = [1]` 抛
-//! `ValueError: not enough values to unpack`，而不是先做一半再报错。
+//! 受控字面量先校验长度；一般非星号有界读取，星号读取余量直到首次耗尽。
+//! 所有路径都在本层值准备成功后才求目标并写入，数量失败不会产生部分目标写入。
 
-use ryupy_hir::{Binding, ExprId, SequenceItem, SequenceTarget};
+use ryupy_hir::{Binding, ExprId, ExprKind, SequenceItem, SequenceTarget};
 
 use crate::build::FunctionBuilder;
 use crate::mir::{
@@ -48,11 +48,71 @@ impl FunctionBuilder<'_> {
             .expr_builder()
             .coerce(seq_op, &seq_ty, &MirType::Dynamic);
 
+        // 只有直接构造且无展开的字面量保留旧同块结构，使 tuple_scalar 继续消分配。
+        // 注解、名字或用户可覆写的构造调用都不能证明源是精确容器。
+        let body = &self.hir.functions[self.current_hir_fn].body;
+        let controlled_literal = match &body.exprs[value].kind {
+            ExprKind::Tuple(elements) | ExprKind::List(elements) => elements
+                .iter()
+                .all(|id| !matches!(body.exprs[*id].kind, ExprKind::Starred(_))),
+            _ => false,
+        };
+        self.build_sequence_value(items, seq, controlled_literal);
+    }
+
+    /// 递归层只能在轮到目标时解包；不能提前耗尽内层迭代器或跨过前一目标的副作用。
+    fn build_sequence_value(
+        &mut self,
+        items: &[SequenceItem],
+        seq: Operand,
+        controlled_literal: bool,
+    ) {
         let star_index = items
             .iter()
             .position(|item| matches!(item, SequenceItem::Rest(_)));
         let before = star_index.unwrap_or(items.len());
         let after = items.len() - before - if star_index.is_some() { 1 } else { 0 };
+
+        if star_index.is_some() && !controlled_literal {
+            // 星号 helper 完成两阶段迭代、提示与余量校验；原源不能再求长度或切片。
+            let unpacked = self.expr_builder().runtime_call(
+                RuntimeFn::UnpackEx,
+                vec![
+                    seq,
+                    Operand::Const(Constant::I64(before as i64)),
+                    Operand::Const(Constant::I64(after as i64)),
+                ],
+                MirType::Dynamic,
+            );
+            let mut prepared = Vec::with_capacity(items.len());
+            for index in 0..items.len() {
+                let key = self.box_index(Constant::I64(index as i64));
+                prepared.push(self.emit_get_item(unpacked.clone(), key));
+            }
+            // 中间 list 与后项均先固定到局部，目标暂停恢复时只复用原引用。
+            for (item, value) in items.iter().zip(prepared) {
+                self.store_sequence_target(sequence_target(item), value);
+            }
+            return;
+        }
+        if star_index.is_none() && !controlled_literal {
+            // helper 完成有界迭代和数量校验，返回精确 tuple；不对原源求长度或下标。
+            let unpacked = self.expr_builder().runtime_call(
+                RuntimeFn::UnpackSequence,
+                vec![seq, Operand::Const(Constant::I64(items.len() as i64))],
+                MirType::Dynamic,
+            );
+            let mut prepared = Vec::with_capacity(items.len());
+            for index in 0..items.len() {
+                let key = self.box_index(Constant::I64(index as i64));
+                prepared.push(self.emit_get_item(unpacked.clone(), key));
+            }
+            // 全部槽先冻结为局部，再按序求目标；目标 yield 恢复复用这些局部。
+            for (item, value) in items.iter().zip(prepared) {
+                self.store_sequence_target(sequence_target(item), value);
+            }
+            return;
+        }
 
         // 长度：`len(seq)`，再校验数量。星号形态只要求下限，非星号形态必须精确匹配
         // （多出来的值也要报错，否则 `a, b = [1, 2, 3]` 会静默丢掉第三个元素）。
@@ -150,6 +210,38 @@ impl FunctionBuilder<'_> {
             hir_body.exprs[target].kind.clone()
         };
         match kind {
+            ryupy_hir::ExprKind::ModuleVar(var) => self.build_module_delete(var, target),
+            ryupy_hir::ExprKind::Local(local) => {
+                let slot = self.local_map[&local];
+                if self.locals[slot].ty != MirType::Dynamic || self.locals[slot].is_cell {
+                    let range = self.hir.functions[self.current_hir_fn].body.exprs[target].range;
+                    self.diagnostics.push(
+                        ryupy_base::Diagnostic::error(
+                            ryupy_base::Span::new(self.hir.file, range),
+                            "暂不支持删除静态类型或cell局部槽；仅普通动态局部支持del",
+                        )
+                        .with_code("E0305"),
+                    );
+                    return;
+                }
+                let name = self.hir.functions[self.current_hir_fn].body.locals[local]
+                    .name
+                    .to_string();
+                // 即使数据流曾标为assigned，第二个del仍须在覆盖哨兵前检查实际绑定。
+                self.expr_builder().runtime_call(
+                    RuntimeFn::LoadChecked,
+                    vec![Operand::Local(slot), Operand::Const(Constant::Str(name))],
+                    MirType::Dynamic,
+                );
+                self.push_stmt(Statement::Assign {
+                    dest: slot,
+                    value: Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::MakeUnbound),
+                        args: Vec::new(),
+                    },
+                });
+                self.assigned_locals.remove(&local);
+            }
             ryupy_hir::ExprKind::Subscript { base, index } => {
                 let base_op = self.expr_builder().build_expr(base);
                 let base_ty = self.expr_builder().ty_of(base);
@@ -223,8 +315,23 @@ impl FunctionBuilder<'_> {
     /// 此处才求目标对象与下标；失败保留此前已经完成的目标写入。
     fn store_sequence_target(&mut self, target: &SequenceTarget, value: Operand) {
         match target {
+            SequenceTarget::Sequence(items) => self.build_sequence_value(items, value, false),
             SequenceTarget::Binding(binding) => {
-                self.store_binding(*binding, value, &MirType::Dynamic)
+                // 保护区内任意层都可能在此写入前抛错；成功路径的新赋值事实不能泄漏到handler。
+                // 槽值仍按实际写入保留，后继LoadChecked负责区分已完成的部分写入与未绑定。
+                let fresh = match binding {
+                    Binding::Local(local)
+                        if !self.protected_stack.is_empty()
+                            && !self.assigned_locals.contains(local) =>
+                    {
+                        Some(*local)
+                    }
+                    _ => None,
+                };
+                self.store_binding(*binding, value, &MirType::Dynamic);
+                if let Some(local) = fresh {
+                    self.assigned_locals.remove(&local);
+                }
             }
             SequenceTarget::Attribute { base, name } => {
                 let object = self.sequence_target_expr(*base);
@@ -256,9 +363,17 @@ impl FunctionBuilder<'_> {
 
     /// 记录解包目标已赋值（供确定赋值分析使用）。
     pub(crate) fn mark_sequence_targets(&mut self, items: &[SequenceItem]) {
+        // 同时覆盖平坦/嵌套解包；异常边没有经过所有目标，不能统一标记完成。
+        if !self.protected_stack.is_empty() {
+            return;
+        }
         for item in items {
-            if let SequenceTarget::Binding(Binding::Local(local)) = sequence_target(item) {
-                self.assigned_locals.insert(*local);
+            match sequence_target(item) {
+                SequenceTarget::Binding(Binding::Local(local)) => {
+                    self.assigned_locals.insert(*local);
+                }
+                SequenceTarget::Sequence(children) => self.mark_sequence_targets(children),
+                _ => {}
             }
         }
     }

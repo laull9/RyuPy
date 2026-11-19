@@ -1,5 +1,11 @@
 # 架构决策记录（ADR）
 
+最新仓库规则：[ADR-0182：源码仓库与即时 CPython 比较](0182-source-only-test-oracles.md)。
+旧文档的生成 golden、快照和原始结果保留约定由此替换。
+
+最新长期方向：[ADR-0208：全 CIL 执行与 libpython 底层化](0208-cil-execution-libpython-kernel.md)
+（C0 已完成，C1–C4 分切实施与验收中）；详细执行顺序见[实施路线](../cil-execution-roadmap.md)。
+
 每篇 ADR 记录一个**有取舍的决定**：当时的背景、考虑过的方案、最终选择及其代价。
 ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把旧的状态改为「已被 ADR-XXXX 取代」。
 
@@ -55,6 +61,23 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 | [0048](0048-default-site-quitters.md) | 默认 site 的真实 exit / quit | 三平台专项与组合CI通过；WIP未main，非完整 site |
 | [0049](0049-base-object-identity.md) | 真实 object 基础实例与身份 | 三平台有限专项通过；派生构造与富比较旧债独立保留 |
 | [0050](0050-ordinary-construction-protocol.md) | 普通单继承的有限 new/init | 本地候选；专用布局与槽历史限制明确 |
+| [0133](0133-ordered-dict-core.md) | 精确原生OrderedDict的双顺序与有限消费者 | 有限首切及完整门禁通过；性能风险开放，不等于远端发布 |
+
+## 当前主线决策
+
+| ADR | 主题 | 状态 |
+| --- | --- | --- |
+| [0208](0208-cil-execution-libpython-kernel.md) | 全 CIL 执行、移除 Python 胶水与 libpython 底层化 | C0 已完成，C1–C4 分切实施中 |
+| [0181](0181-cpython-provider-first.md) | 随包 CPython provider、通用对象桥与实测热点优化 | 既有宿主/分发资产保留；长期执行归属由 0208 接续 |
+| [0213](0213-native-two-phase-class-construction.md) | 两阶段原生外部类构造 | 三版本类桥、macOS产品与第二轮完整检查通过 |
+| [0214](0214-generic-default-function-companions.md) | typed 函数缺省实参的通用伴生核心 | 语义/产品、第二轮完整检查与性能复验通过 |
+| [0215](0215-native-async-with-traceback.md) | 原生async with与真实traceback冷视图 | 显式协程候选、清理回归及第二轮完整检查通过 |
+| [0216](0216-strict-kernel-native-stdio.md) | 严格内核原生 _io 与 UTF-8 codec | macOS arm64 原型与十五模式探针通过 |
+| [0218](0218-native-async-for.md) | 原生 async for 与窄耗尽保护 | 显式候选 21 项及七组真实 NativeAOT 搬迁通过 |
+| [0219](0219-native-inspect-signature.md) | 原生签名值对象、绑定与框架反射桥 | 核心、桥、三个框架消费者及冷 repr 修正 JIT/NativeAOT 搬迁通过 |
+| [0220](0220-native-compiled-import-hooks.md) | 编译模块原生 finder/loader | 三版本 198 类桥与两模式产品搬迁、关闭导入通过 |
+| [0221](0221-c4-2-strict-kernel-host-and-cil-import-integration.md) | 严格内核 Host 与模块事务接入 | 设计已接受，实施分切待落地 |
+| [0217](0217-strict-kernel-frozen-extensions-and-cil-import-abi.md) | 严格内核冻结扩展与静态 CIL 导入 ABI | macOS arm64 22 项内核探针及 10 项 stock 对照通过，产品接入待办 |
 
 ## 模板
 
@@ -79,3 +102,48 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 ## 后果
 带来的代价、需要后续跟进的事项、什么情况下应该重新审视。
 ```
+| [0142](0142-generator-trace-product-v1.md) | 显式生成器 trace 产品 V1：末端 lowering 与单一权威 | 未验收源码候选；默认关闭，完整产品/回归待执行 |
+
+| [0145](0145-compiled-source-provenance.md) | 实际代码来源与同帧warnings/功能式TypedDict | 有限源码候选；纯Rust门完成，真实C#/JIT/Native与完整保护待验 |
+
+| [0149](0149-string-search-windows.md) | 五个字符串搜索方法共享码点窗口 | 未编译源码候选；原槽/警告、同源JIT/AOT与项目保护待验 |
+- [0155：有限JIT默认来源候选与分发环境](0155-default-source-candidates.md)（实现候选，完整门待验）
+- [0158：显式普通实例直接globals冷路](0158-instance-direct-globals.md)（未验收；推导式保持拒绝）
+
+- [0169：固定 C ABI 单库多导出](0169-cabi-multiple-exports.md)（已整合，macOS arm64 搬迁验收）
+- [0170：文件系统 as_file 上下文](0170-filesystem-as-file-context.md)（已整合，CP/JIT/NativeAOT 验收）
+- [0171：C ABI 与资源组合发布](0171-aot-binding-resources.md)（已整合，综合搬迁验收）
+- [0172：AOT 与完整标准库 provider 路线](0172-aot-stdlib-provider-plan.md)（设计提案，待交叉评审）
+- [0193：有界字符串累加器与顶层模块观察语义](0193-bounded-string-accumulator.md)（已接受，差分/AOT/性能/完整门禁及异构复审通过）
+- [0195：PIC核心条目的固定容量按需分页](0195-pic-paged-storage.md)（已接受，全26项AOT/搬迁及完整门禁通过）
+
+- [0196：列表推导式私有收集器直接追加](0196-private-list-comprehension-append.md)（已接受，26项AOT对照/搬迁及完整门禁通过）
+
+- [0197：布尔重复列表紧凑存储](0197-boolean-repeat-list-storage.md)（已接受，26项AOT配对、对象桥/搬迁及完整门禁通过）
+
+- [0198：生成器只读形参挂起写回消除](0198-generator-readonly-param-spills.md)（已接受，有限默认，完整AOT与门禁通过，收益及负结果分列）
+
+- [0199：sum精确整数原生累计](0199-sum-native-integer-accumulator.md)（已接受，真实AOT/混合域搬迁及完整门禁通过，性能负结果保留）
+
+- [0210：原生协程显式状态机首切](0210-native-coroutine-state-machine.md)（显式 Cargo 候选，macOS JIT/AOT 搬迁已验，完整 C3 调度待办）
+
+- [0223：原版 libpython、受控必要胶水与性能验收](0223-stock-libpython-bounded-glue.md)（方向已接受；胶水清单产品化与性能门待验）
+- [0224：真实 CP 薄函数与独立 core/handle 的回收首证](0224-cpython-thin-function-core-handles.md)（独立 JIT/AOT 首证已验；产品接入与元数据扩围待办）
+- [0225：stock 编译入口的真实模块字典](0225-stock-entry-live-module-namespace.md)（无自定义 callable 的有限入口已验；完整函数所有权继续待办）
+- [0226：显式 stock 普通函数的 core/handle 接线合同](0226-stock-thin-function-product-contract.md)（A closure＋直接 GC owner 两版 Host JIT/AOT 已验；编译资格、搬迁与性能继续推进）
+
+- [0227：stock 薄函数 closure/GC owner 与有限元数据合同](0227-stock-thin-function-metadata-probe.md)（淘汰 raw witness/B 常量环；普通复活与 clear 期原生边界分列）
+
+- [0229：真实薄函数编译的中性冷 ABI](0229-stock-thin-compiler-cold-abi.md)（Rust接线、正常结束和三形态产品已验；完整闭包继续实施）
+- [0230：薄函数局部身份分支与入口弱登记](0230-stock-thin-local-identity.md)（显式CIL扩围18产品、56生命周期和完整门禁通过；默认关闭）
+- [0231：可选导入的依赖闭包](0231-optional-import-dependency-closure.md)（四产品搬迁、三负例及完整门禁通过）
+- [0232：通用原生接口与共享分发归属](0232-generic-native-interface-distribution.md)（跨场景共享归属已验；接口与原生组件验收实施中）
+- [0233：递归解包与动态格式规格](0233-recursive-unpack-and-dynamic-format.md)（定向差分与九产品搬迁通过）
+- [0234：stock回调发布结果的所有权](0234-stock-callback-published-ownership.md)（76正与4跨堆环负例通过；实际CIL产品继续验收）
+- [0235：源码常量与对象桥保留Python Unicode码点](0235-unicode-codepoint-constants.md)（源码/桥/严格编码核心已验；方法生态逐项推进）
+- [0242：声明与编译源码相邻的随包应用数据](0242-declared-provider-application-data.md)（两布局三形态搬迁通过，完整应用另验）
+- [0243：同步字典的线性快照比较](0243-linear-synchronized-dictionary-deltas.md)（双版定向产品与原翻译子链配对，完整应用另验）
+- [0244：外部回调未读参数按需物化](0244-deferred-provider-callback-arguments.md)（显式 stock 回调 ABI，转正范围见验收）
+- [0245：由原版 asyncio 驱动 stock 实例模块的 CIL 协程](0245-stock-cil-coroutine-task-bridge.md)（显式候选，FBA 完整业务另验）
+- [0246：macOS 应用包与显式 wheel 载荷裁剪](0246-macos-app-and-wheel-payload-pruning.md)
+- [0247：批量拉回跨域同步字典](0247-batch-cpython-dictionary-pull.md)

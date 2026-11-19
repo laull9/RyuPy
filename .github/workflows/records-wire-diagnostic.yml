@@ -1,0 +1,94 @@
+name: Records source MIR wire diagnostic
+on:
+  push:
+    branches: [work/records-mir-wire-20261115]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnostic:
+    if: github.ref == 'refs/heads/work/records-mir-wire-20261115'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Freeze source and fresh evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          EVIDENCE="$RUNNER_TEMP/records-wire-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          mkdir "$EVIDENCE"
+          printf 'EVIDENCE=%s\n' "$EVIDENCE" >> "$GITHUB_ENV"
+          git rev-parse HEAD | tee "$EVIDENCE/commit.txt"
+          test "$(cat "$EVIDENCE/commit.txt")" = "$GITHUB_SHA"
+          export GIT_INDEX_FILE="$RUNNER_TEMP/records-wire-index-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          git read-tree HEAD
+          git update-index --force-remove .github/workflows/records-wire-diagnostic.yml
+          git write-tree | tee "$EVIDENCE/source-tree.txt"
+          test "$(cat "$EVIDENCE/source-tree.txt")" = 'f842ce53c47f71ea34fb9eb08360812c1da848d4'
+          unset GIT_INDEX_FILE
+          printf '%s\n' '{"sdk":{"version":"10.0.403","rollForward":"disable","allowPrerelease":false}}' > global.json
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
+        with:
+          toolchain: '1.99.1'
+          components: rustfmt
+      - name: Execute formatting diagnostic and complete MIR independently
+        shell: bash
+        run: |
+          set +e
+          set -uo pipefail
+          dotnet --version | tee "$EVIDENCE/sdk.txt"
+          test "$(cat "$EVIDENCE/sdk.txt")" = '10.0.403' || exit 1
+          rustc --version > "$EVIDENCE/rustc.txt"
+          cargo fmt --all --check > "$EVIDENCE/fmt.log" 2>&1
+          fmt=$?
+          rustfmt --edition 2024 --emit stdout crates/ryupy-mir/src/records_increment_contract_tests.rs > "$EVIDENCE/formatted.rs" 2>&1
+          rustfmt --edition 2024 --emit stdout crates/ryupy-mir/src/records_increment_plan.rs > "$EVIDENCE/plan-formatted.rs" 2>&1
+          cargo test -p ryupy-mir --lib records_wire_ -- --nocapture > "$EVIDENCE/diagnostic.log" 2>&1
+          focused=$?
+          cargo test -p ryupy-mir --lib > "$EVIDENCE/full.log" 2>&1
+          full=$?
+          printf '{"fmt":%s,"focused":%s,"full":%s}\n' "$fmt" "$focused" "$full" > "$EVIDENCE/exits.json"
+          test "$fmt" = 0 && test "$focused" = 0 && test "$full" = 0
+      - name: Reject missing diagnostic and false test success
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - "$EVIDENCE" <<'PY'
+          import json,re,sys
+          from pathlib import Path
+          p=Path(sys.argv[1])
+          assert json.loads((p/'exits.json').read_text())==dict(fmt=0,focused=0,full=0)
+          text=(p/'diagnostic.log').read_text()
+          assert re.search(r'test result: ok\. 3 passed; 0 failed; 0 ignored; 0 measured;',text)
+          name='records_increment_contract_tests::records_wire_diagnostic_preserves_actual_before_and_after_mir'
+          assert len(re.findall(r'^test '+re.escape(name)+r' \.\.\. ok$',text,re.M))==1
+          for case in ('records_wire_plan_matches_only_closed_capture_window','records_wire_plan_rejects_overwrite_escape_observer_and_wrong_target'):
+              assert len(re.findall(r'^test records_increment_contract_tests::'+case+r' \.\.\. ok$',text,re.M))==1
+          assert 'records-wire plan-only Plan {' in text
+          for label in ('records','visible-key','callback-addend','observed-locals'):
+              for phase in ('before','after'):
+                  begin=f'records-wire begin {label} {phase}'
+                  end=f'records-wire end {label} {phase}'
+                  assert text.count(begin)==text.count(end)==1
+                  body=text.split(begin)[1].split(end)[0]
+                  assert all(word in body for word in ('Function {','DynCallMethod','captured:','DynBinary','SetItem'))
+          full=(p/'full.log').read_text()
+          assert re.search(r'test result: ok\. 393 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out;',full)
+          ignored=set(re.findall(r'^test ([\w:]+) \.\.\. ignored',full,re.M))
+          assert ignored=={'trace_frame_tests::original_frames_has_pc_partitioned_retry_frame_obligations','trace_frame_tests::renamed_generator_and_factory_alias_keep_frame_proof','trace_frame_tests::repeated_actual_match_block_converges_without_epoch_growth','trace_frame_dataflow::tests::actual_mir_diamond_reaches_fixed_point'}
+          print('source-diagnostic-only: 4 fixtures x before/after; no rewrite or product optimization claim')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: records-wire-diagnostic-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ env.EVIDENCE }}
+          if-no-files-found: error
+          retention-days: 14

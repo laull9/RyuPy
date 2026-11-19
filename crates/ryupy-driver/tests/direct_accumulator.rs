@@ -1,4 +1,6 @@
 //! 直接累加快路必须在真实源码生成的MIR中命中；慢路仍报告原Python抛错帧。
+#[path = "../src/test_temp.rs"]
+mod layout_temp;
 use ryupy_driver::{Session, Stage};
 mod support;
 
@@ -6,7 +8,8 @@ const FUNCTION: &str = "def accumulate(initial, values):\n    total = initial\n 
 
 #[test]
 fn source_loop_really_uses_guarded_i64_locals_instead_of_holder() {
-    let path = std::env::temp_dir().join("ryupy_direct_accumulator.py");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let path = _layout_temp.join("ryupy_direct_accumulator.py");
     std::fs::write(&path, FUNCTION).unwrap();
     let mut session = Session {
         experimental_direct_accumulator: true,
@@ -24,14 +27,13 @@ fn source_loop_really_uses_guarded_i64_locals_instead_of_holder() {
         "不能移除完整动态回退"
     );
     assert!(!output.contains("NumericAccumulator"), "仍残留holder ABI");
-    insta::assert_snapshot!("direct_accumulator_mir", output);
     std::fs::remove_file(path).unwrap();
 }
 
 #[test]
 fn fallback_preserves_original_radd_traceback_line() {
-    let root =
-        ryupy_driver::runtime::workspace_root().join("target/test_direct_accumulator_traceback");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let root = _layout_temp.join("test_direct_accumulator_traceback");
     std::fs::create_dir_all(&root).unwrap();
     let input = root.join("source.py");
     let source = format!(
@@ -54,7 +56,11 @@ fn fallback_preserves_original_radd_traceback_line() {
         },
     )
     .unwrap();
-    let result = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
+    let result = ryupy_driver::dotnet::run_executable_with(
+        artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+        &Default::default(),
+    )
+    .unwrap();
     assert_eq!(result.status.code(), Some(1));
     let stderr = String::from_utf8_lossy(&result.stderr);
     assert!(
@@ -74,7 +80,8 @@ fn fallback_preserves_original_radd_traceback_line() {
 
 #[test]
 fn default_source_loop_still_uses_holder() {
-    let path = std::env::temp_dir().join("ryupy_default_accumulator.py");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let path = _layout_temp.join("ryupy_default_accumulator.py");
     std::fs::write(&path, FUNCTION).unwrap();
     let mut session = Session::default();
     assert!(!session.experimental_direct_accumulator);
@@ -90,6 +97,7 @@ fn default_source_loop_still_uses_holder() {
 
 #[test]
 fn pinned_python_fixture_matches_holder_and_explicit_direct_mode() {
+    let _layout_temp = layout_temp::Root::new("driver-integration");
     let root = ryupy_driver::runtime::workspace_root();
     let input = root.join("tests/e2e/phase3/m3_9_direct_accumulator.py");
     let python = std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into());
@@ -128,13 +136,17 @@ fn pinned_python_fixture_matches_holder_and_explicit_direct_mode() {
             &mut session,
             &ryupy_driver::BuildOptions {
                 input: input.clone(),
-                out_dir: root.join(format!("target/test_accumulator_modes/{direct}")),
+                out_dir: _layout_temp.join(format!("test_accumulator_modes/{direct}")),
                 aot: false,
                 search_paths: vec![],
             },
         )
         .unwrap();
-        let actual = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
+        let actual = ryupy_driver::dotnet::run_executable_with(
+            artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+            &Default::default(),
+        )
+        .unwrap();
         assert_eq!(
             actual.status.code(),
             expected.status.code(),

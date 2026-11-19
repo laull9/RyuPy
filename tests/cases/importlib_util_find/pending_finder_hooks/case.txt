@@ -1,0 +1,3 @@
+entry = entry.py
+pending = true
+# 延期：自定义 meta_path finder 协议和异常，CP 原断言不改为 NI。

@@ -1,3 +1,4 @@
+// f-string格式化运行时：内建数值快路、通用Python实例协议与类型化格式诊断。
 using System;
 using System.Globalization;
 using System.Numerics;
@@ -16,7 +17,7 @@ namespace RyuPy.Runtime;
 /// <item>type：整数 <c>d b o x X c</c>，浮点 <c>f e E g G %</c>，字符串 <c>s</c>；</item>
 /// <item>未识别的规格抛 <c>ValueError</c>（与 CPython 一致），不静默忽略。</item>
 /// </list>
-/// 不做完整实现的部分（嵌套规格、本地化 <c>n</c>、复杂舍入）按需再补；当前覆盖项目里
+/// 不做完整实现的部分（本地化 <c>n</c>、复杂舍入）按需再补；当前覆盖项目里
 /// 常见的宽度、补零、精度与进制。
 /// </remarks>
 public static partial class PyOps
@@ -38,6 +39,13 @@ public static partial class PyOps
         {
             return ApplyTextSpec(PyRepr.Str(value), spec);
         }
+        // 普通Python实例复用类型级__format__协议，不能退化为先str再套文本规格。
+        if (value is PyInstance instance && PyBuiltinFormat.HandlesFString(instance))
+        {
+            object formatted = PyBuiltinFormat.Format(value, spec, spec);
+            PyStringLayout.TryGet(formatted, out string text);
+            return text;
+        }
         return value switch
         {
             bool b => FormatBool(b, spec),
@@ -51,7 +59,7 @@ public static partial class PyOps
 
     private static string FormatBool(bool value, string spec)
     {
-        var parsed = ParseSpec(spec);
+        var parsed = ParseSpec(spec, "bool");
         // `f"{True:s}"` 输出 True；数值类型（d/x/o）按 1/0 处理
         if (parsed.Type is '\0' or 's')
         {
@@ -62,7 +70,7 @@ public static partial class PyOps
 
     private static string FormatInteger(BigInteger value, string spec)
     {
-        var parsed = ParseSpec(spec);
+        var parsed = ParseSpec(spec, "int");
         char type = parsed.Type == '\0' ? 'd' : parsed.Type;
         bool negative = value.Sign < 0;
         BigInteger magnitude = BigInteger.Abs(value);
@@ -106,7 +114,7 @@ public static partial class PyOps
 
     private static string FormatFloat(double value, string spec)
     {
-        var parsed = ParseSpec(spec);
+        var parsed = ParseSpec(spec, "float");
         if (double.IsNaN(value))
         {
             return PadText(PyFormat.FloatRepr(value), parsed);
@@ -184,7 +192,7 @@ public static partial class PyOps
 
     private static string ApplyTextSpec(string text, string spec)
     {
-        var parsed = ParseSpec(spec);
+        var parsed = ParseSpec(spec, "str");
         if (parsed.Type is not ('\0' or 's'))
         {
             throw new PyValueError($"Unknown format code '{parsed.Type}' for object of type 'str'");
@@ -331,7 +339,7 @@ public static partial class PyOps
         public char Type;
     }
 
-    private static FormatSpec ParseSpec(string spec)
+    private static FormatSpec ParseSpec(string spec, string typeName)
     {
         var result = new FormatSpec
         {
@@ -403,7 +411,7 @@ public static partial class PyOps
             }
             if (i == start)
             {
-                throw new PyValueError($"Invalid format specifier '{spec}'");
+                throw new PyValueError($"Invalid format specifier '{spec}' for object of type '{typeName}'");
             }
             result.Precision = int.Parse(spec[start..i], CultureInfo.InvariantCulture);
         }
@@ -413,13 +421,13 @@ public static partial class PyOps
             char type = spec[i++];
             if (!"bcdoxXeEfFgGns%".Contains(type))
             {
-                throw new PyValueError($"Unknown format code '{type}'");
+                throw new PyValueError($"Unknown format code '{type}' for object of type '{typeName}'");
             }
             result.Type = type;
         }
         if (i != spec.Length)
         {
-            throw new PyValueError($"Invalid format specifier '{spec}'");
+            throw new PyValueError($"Invalid format specifier '{spec}' for object of type '{typeName}'");
         }
         return result;
     }

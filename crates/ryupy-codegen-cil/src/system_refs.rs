@@ -4,6 +4,7 @@ use dotnetdll::prelude::*;
 
 pub(crate) struct SystemRefs {
     pub initialize: MethodRefIndex,
+    pub initialize_compiled_base: MethodRefIndex,
     pub exit_flush: MethodRefIndex,
     pub print_target: MethodRefIndex,
     pub write_i64: MethodRefIndex,
@@ -22,6 +23,9 @@ impl SystemRefs {
         let builtins = res.push_type_reference(type_ref! { RyuPy.Runtime.Builtins in #runtime });
         let builtins: MethodType = BaseType::class(builtins).into();
         Self {
+            initialize_compiled_base: res.push_method_reference(
+                method_ref! { static void @system::InitializeCompiledBase(string, string[]) },
+            ),
             exit_flush: res
                 .push_method_reference(method_ref! { static int @builtins::FinishExit(int) }),
             write_i64: res.push_method_reference(

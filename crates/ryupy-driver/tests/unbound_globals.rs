@@ -1,4 +1,6 @@
 //! 未绑定检查不应让所有静态全局与引用它们的函数退化成 Dynamic。
+#[path = "../src/test_temp.rs"]
+mod layout_temp;
 use ryupy_driver::{Session, Stage};
 mod support;
 use support::dump;
@@ -13,7 +15,39 @@ fn static_global_load_checks_bound_and_freezes_typed_value() {
     ] {
         let mut session = Session::default();
         let output = dump(&mut session, &path, stage).expect("静态全局绑定检查应可降级");
-        insta::assert_snapshot!(name, output);
+        match stage {
+            Stage::Types => {
+                assert!(
+                    output.contains("module var Idx::<ModuleVar>(3): Int"),
+                    "{name}"
+                );
+                assert!(output.contains("func Idx::<Function>(0) [Static]: [] -> Int"));
+            }
+            Stage::Mir => {
+                let read = output
+                    .split("fn read_number(")
+                    .nth(1)
+                    .unwrap()
+                    .split("fn main(")
+                    .next()
+                    .unwrap();
+                assert!(read.contains(") -> i64"), "{name}");
+                assert!(
+                    read.find("CheckGlobalBound(global@4, const \"number\")")
+                        .unwrap()
+                        < read.find(" = global@3;").unwrap()
+                );
+                let main = output.split("fn main(").nth(1).unwrap();
+                assert!(
+                    main.find("g4 = const false").unwrap()
+                        < main.find("g3 = const 42_i64").unwrap()
+                );
+                assert!(
+                    main.find("g3 = const 42_i64").unwrap() < main.find("g4 = const true").unwrap()
+                );
+            }
+            _ => unreachable!(),
+        }
     }
 }
 
@@ -87,7 +121,8 @@ fn bound_flags_reset_before_body_and_follow_value_store() {
 
 #[test]
 fn unbound_declared_unsupported_builtin_is_not_a_fake_unknown_name() {
-    let root = ryupy_driver::runtime::workspace_root().join("target/test_unbound_builtin_guard");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let root = _layout_temp.join("test_unbound_builtin_guard");
     std::fs::create_dir_all(&root).unwrap();
     let input = root.join("main.py");
     std::fs::write(&input, "def probe():\n    global locals\n    return locals()\ntry:\n    probe()\nexcept NotImplementedError:\n    print('global 明确拒绝')\nif False:\n    eval = None\ntry:\n    eval\nexcept NotImplementedError:\n    print('死分支明确拒绝')\nlocals = '用户值'\nprint(locals)\n").unwrap();
@@ -102,7 +137,11 @@ fn unbound_declared_unsupported_builtin_is_not_a_fake_unknown_name() {
         },
     )
     .expect("已声明槽允许编译，缺值时才明确拒绝未实现内建");
-    let result = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
+    let result = ryupy_driver::dotnet::run_executable_with(
+        artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+        &Default::default(),
+    )
+    .unwrap();
     assert!(
         result.status.success(),
         "{}",

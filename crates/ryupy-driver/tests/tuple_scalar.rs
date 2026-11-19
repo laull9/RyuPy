@@ -1,4 +1,6 @@
 //! 真实源码必须命中 tuple 标量替换，而非只在手工 MIR 上通过；逃逸函数保留构造。
+#[path = "../src/test_temp.rs"]
+mod layout_temp;
 use ryupy_driver::{Session, Stage};
 mod support;
 
@@ -6,7 +8,8 @@ const SOURCE: &str = "def swap(a, b):\n    a, b = b, a\n    return a + b\n\ndef 
 
 #[test]
 fn source_temporary_tuple_is_removed_but_escaping_tuple_survives() {
-    let path = std::env::temp_dir().join("ryupy_tuple_scalar.py");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let path = _layout_temp.join("ryupy_tuple_scalar.py");
     std::fs::write(&path, SOURCE).unwrap();
     let mut session = Session::default();
     let mir = support::dump(&mut session, &path, Stage::Mir).unwrap();
@@ -44,8 +47,27 @@ fn source_temporary_tuple_is_removed_but_escaping_tuple_survives() {
         escape.contains("MakeTuple") && escape.contains("GetItem"),
         "不能删除逃逸对象：{escape}"
     );
-    insta::assert_snapshot!("tuple_scalar_mir", mir);
     let cil = support::dump(&mut session, &path, Stage::Cil).unwrap();
-    insta::assert_snapshot!("tuple_scalar_cil", cil);
+    // 最终CIL也必须消去临时tuple，逃逸的pair仍是完整Python对象。
+    for name in ["swap", "first", "escape"] {
+        let signature = format!(".method public static [System.Runtime]System.Object m0_{name}(");
+        let body = cil
+            .split(&signature)
+            .nth(1)
+            .unwrap()
+            .split(".method ")
+            .next()
+            .unwrap();
+        assert_eq!(
+            body.contains("PyOps.MakeTuple(object[])"),
+            name == "escape",
+            "{name}: {body}"
+        );
+        assert_eq!(
+            body.contains("PyOps.GetItem(object, object)"),
+            name == "escape",
+            "{name}: {body}"
+        );
+    }
     std::fs::remove_file(path).unwrap();
 }

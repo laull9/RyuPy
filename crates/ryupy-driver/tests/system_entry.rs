@@ -1,10 +1,13 @@
 //! M3.4 系统入口：实际 CLR Main 参数、退出规则及缺源码原生模块边界。
+#[path = "../src/test_temp.rs"]
+mod layout_temp;
 use ryupy_driver::{BuildOptions, Session, Stage, dump};
 use std::process::Command;
 
 #[test]
 fn open_builtin_supports_direct_and_first_class_lowering() {
-    let input = std::env::temp_dir().join("ryupy_system_open_lowering.py");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let input = _layout_temp.join("ryupy_system_open_lowering.py");
     std::fs::write(
         &input,
         "reader = open\nprint(reader is open)\nopen('missing.txt')\n",
@@ -26,7 +29,8 @@ fn open_builtin_supports_direct_and_first_class_lowering() {
 
 #[test]
 fn absent_native_modules_remain_runtime_imports() {
-    let root = std::env::temp_dir().join(format!("ryupy_native_imports_{}", std::process::id()));
+    let _layout_temp = layout_temp::Root::new("native-imports");
+    let root = _layout_temp.join("imports");
     std::fs::create_dir_all(&root).unwrap();
     let input = root.join("main.py");
     std::fs::write(
@@ -45,23 +49,22 @@ fn absent_native_modules_remain_runtime_imports() {
 
 #[test]
 fn actual_main_arguments_and_exit_status_are_preserved() {
-    let root = ryupy_driver::runtime::workspace_root();
-    let input = std::env::temp_dir().join("ryupy_system_entry_arguments.py");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let input = _layout_temp.join("ryupy_system_entry_arguments.py");
     std::fs::write(&input, "import sys\nprint(sys.argv[0])\nfor argument in sys.argv[1:]:\n    print('[' + argument + ']')\nif len(sys.argv) > 1:\n    if sys.argv[1] == 'exit':\n        sys.exit(7)\n    if sys.argv[1] == 'raise_exit':\n        raise SystemExit(7)\n    if sys.argv[1] == 'error':\n        raise ValueError('expected')\n").unwrap();
     let mut session = Session::default();
     let artifact = ryupy_driver::build(
         &mut session,
         &BuildOptions {
             input: input.clone(),
-            out_dir: root.join("target/test_system_entry"),
+            out_dir: _layout_temp.join("test_system_entry"),
             aot: false,
             search_paths: vec![],
         },
     )
     .unwrap();
     let run = |args: &[&str]| {
-        Command::new(ryupy_driver::dotnet::dotnet_exe())
-            .arg(&artifact.dll)
+        Command::new(artifact.native_exe.as_ref().expect("应用必须有公开入口"))
             .args(args)
             .output()
             .unwrap()
@@ -99,7 +102,8 @@ fn actual_main_arguments_and_exit_status_are_preserved() {
 
 #[test]
 fn directory_error_types_have_hir_and_cil_bindings() {
-    let input = std::env::temp_dir().join("ryupy_directory_error_types.py");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let input = _layout_temp.join("ryupy_directory_error_types.py");
     std::fs::write(
         &input,
         "try:
@@ -124,7 +128,8 @@ except NotADirectoryError:
 
 #[test]
 fn print_target_is_captured_once_after_argument_evaluation() {
-    let input = std::env::temp_dir().join("ryupy_print_target_lowering.py");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let input = _layout_temp.join("ryupy_print_target_lowering.py");
     std::fs::write(&input, "print(1, 2)\nprint(3, file=None, flush=True)\n").unwrap();
     let mut session = Session::default();
     let result = dump(&mut session, &input, Stage::Mir).unwrap();

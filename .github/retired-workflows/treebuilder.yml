@@ -1,0 +1,58 @@
+# 新竖切独立job；旧所有jobs依赖不变，JIT红不吞独立Native原流。
+name: TreeBuilder状态机与真实Markdown
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  treebuilder-state:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 纯合同自测和冻结oracle身份
+        run: python3 -B -m unittest discover -s scripts -p treebuilder_selftest.py
+      - name: 原固定官方工具准备双流
+        timeout-minutes: 10
+        run: |
+          mkdir -p target/treebuilder-prepare
+          printf '%s\n' '["python3", "-B", "tests/aot/wcwidth_ci/prepare.py"]' > target/treebuilder-prepare/argv.json
+          status=0
+          python3 -B tests/aot/wcwidth_ci/prepare.py > target/treebuilder-prepare/stdout 2> target/treebuilder-prepare/stderr || status=$?
+          printf '%s\n' "$status" > target/treebuilder-prepare/exit
+          exit "$status"
+      - name: 同源typed及CP/JIT和独立Native与完整Markdown边界
+        timeout-minutes: 85
+        run: '"$PYTHON" -B scripts/treebuilder_validation.py'
+      - name: 失败仍保全部新原流、输入、实际PE及单份core分发
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: treebuilder-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/treebuilder-evidence
+            !target/treebuilder-evidence/tools/**
+            !target/treebuilder-evidence/**/native-build/**
+            !target/treebuilder-evidence/markdown-aot-build/**
+            !target/treebuilder-evidence/**/relocated/**
+            target/treebuilder-prepare
+            ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
+          if-no-files-found: error
+          retention-days: 3
+      - name: 旧保护与原失败独立分账
+        if: always()
+        run: |
+          printf '%s\n' '## TreeBuilder有界竖切，默认项目分子变化0' \
+            '原pending完整typed/CP/JIT、六组同源正域、NI/E0100、唯一core Native分别留原流。' \
+            '原Markdown77B和真实HTML102B仍用原27模块/include/metadata/Instance配置。' \
+            '完整Markdown AOT补齐26空files锚点后只做一次真实尝试；失败仍红，不冒称AOT支持。' \
+            '同HEAD原baseline/full-check/S1/KeyError/Scanner/固定20全部独立，旧失败不豁免。' >> "$GITHUB_STEP_SUMMARY"

@@ -1,4 +1,3 @@
-# ryupy: pending
 # M4.2：非 NumPy 扩展的基本调用、约束异常与资源关闭。
 import sqlite3
 

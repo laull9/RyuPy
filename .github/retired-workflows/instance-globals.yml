@@ -1,0 +1,77 @@
+# A1独立验收；失败保红，不为旧保护增加依赖。
+name: 显式Instance直接globals有限域
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  instance-direct-globals:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONHASHSEED: '0'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 纯配置与runner反例先行
+        run: |
+          python3 -B -m unittest discover -s tests/validation/instance_globals -p test_product_runner.py
+          python3 -B -m unittest discover -s tests/validation/instance_globals -p test_hosted_common.py
+      - name: 固定官方工具准备及原流
+        timeout-minutes: 10
+        run: |
+          mkdir -p target/instance-globals-prepare
+          status=0
+          python3 -B tests/aot/wcwidth_ci/prepare.py >target/instance-globals-prepare/stdout 2>target/instance-globals-prepare/stderr || status=$?
+          printf '%s\n' "$status" >target/instance-globals-prepare/exit
+          exit "$status"
+      - name: 同源Runtime五具名测试及driver负门、轻量Host与三JIT
+        timeout-minutes: 45
+        run: '"$PYTHON" -B tests/validation/instance_globals/hosted.py --phase jit'
+      - name: Native前轻量原件检查点
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: instance-globals-checkpoint-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/instance-globals-evidence/*.json
+            target/instance-globals-evidence/*.stdout
+            target/instance-globals-evidence/*.stderr
+            target/instance-globals-evidence/trx
+            target/instance-globals-evidence/jit
+            target/instance-globals-prepare
+          if-no-files-found: warn
+          retention-days: 3
+      - name: 原公共AOT资格与同PE静态Host、原地及搬移六次
+        timeout-minutes: 40
+        run: '"$PYTHON" -B tests/validation/instance_globals/hosted.py --phase native'
+      - name: 原件与已构建产物始终保留
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: instance-globals-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/instance-globals-evidence
+            !target/instance-globals-evidence/**/obj/**
+            !target/instance-globals-evidence/managed/**
+            target/instance-globals-evidence/managed/RyuPy.Runtime.dll
+            target/instance-globals-evidence/managed/RyuPy.Runtime.Tests.dll
+            !target/instance-globals-evidence/**/.nuget/**
+            !target/instance-globals-evidence/**/*.build/**
+            target/instance-globals-prepare
+            ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
+          if-no-files-found: error
+          retention-days: 3
+      - name: 准确能力边界
+        if: always()
+        run: |
+          printf '%s\n' 'A1仅显式普通模块直接零参globals；不支持推导式、间接canonical及原trace债。' \
+            'JIT/Native独立发射，Native原地/搬移同ELF；公共AOT普通入口与Host两次ILC。' \
+            '固定20原12/8/0保护由独立jobs执行；本门不增加项目通过数，不声称性能收益。' >> "$GITHUB_STEP_SUMMARY"

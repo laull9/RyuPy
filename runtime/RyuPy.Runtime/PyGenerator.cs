@@ -1,26 +1,34 @@
+// Python可见生成器及其生命周期；同时支持旧数组帧和编译器生成的字段驻留状态。
 using System;
 
 namespace RyuPy.Runtime;
 
-/// <summary>恢复编译器生成的状态机；返回本次 yield 的值，完成状态由帧首槽指示。</summary>
-/// <param name="frame">每实例独立的状态及局部变量数组。</param>
+/// <summary>恢复编译器生成的状态机；返回本次 yield 的值，完成状态由控制载体的PC指示。</summary>
+/// <param name="frame">每实例独立的数组帧或字段状态控制载体。</param>
 public delegate object? PyResume(object frame);
 
 /// <summary>普通 yield 的惰性迭代器；暂停期间不占用运行时 traceback 帧。</summary>
 /// <remarks>
-/// 首槽为 boxed long 程序计数器，非负数表示可恢复，-1 表示完成。
+/// 字段状态采用原生long PC；旧数组首槽为boxed long。非负数可恢复，-1表示完成。
 /// 槽 1 为发送值，槽 2 为注入异常，槽 3 为逻辑异常路由暂存；局部值从槽 4 开始。
 /// 恢复循环吞掉内部 Retry 哨兵；只有真正 yield 才返回给调用者。
 /// </remarks>
-public sealed class PyGenerator : IPyIterator
+public sealed partial class PyGenerator : IPyIterator
 {
     private PyResume? _resume;
     private object?[]? _frame;
+    private PyGeneratorState? _state;
     private readonly string _source;
     private readonly string _name;
+    // 保存真实源函数，不快照module值；结束时清除，暂停时仍需保留身份。
+    private object? _origin;
     private object? _current;
+    internal PyNativeFrame? NativeFrame;
+    internal bool OwnsStorage(object frame) => ReferenceEquals(frame, (object?)_state ?? _frame);
     private bool _running;
     private bool _started;
+    // 协程包装仅改变自身 PEP 479 的语言名称，子委托错误保持原来源。
+    internal bool IsCoroutine { private get; set; }
     private readonly PyExceptionContext _contextRoot = new(null, null);
     private PyExceptionContext? _context;
 
@@ -30,23 +38,43 @@ public sealed class PyGenerator : IPyIterator
     /// <param name="source">源码文件名。</param>
     /// <param name="name">Python 函数名。</param>
     public PyGenerator(PyResume resume, object?[] frame, string source, string name)
+        : this(resume, frame, source, name, null) { }
+
+    /// <summary>编译函数创建的生成器保存实际来源；旧构造器保持明确未知来源。</summary>
+    public PyGenerator(PyResume resume, object?[] frame, string source, string name, object? origin)
     {
         _resume = resume;
         _frame = frame;
         _source = source;
         _name = name;
+        _origin = origin;
         _context = _contextRoot;
     }
+
+    /// <summary>字段状态机入口；载体由编译器生成，旧数组构造器继续支持复杂协议。</summary>
+    public PyGenerator(PyResume resume, object payload, long pc, string source, string name, object? origin)
+    {
+        _resume = resume;
+        _state = new PyGeneratorState(payload, pc);
+        _source = source;
+        _name = name;
+        _origin = origin;
+        _context = _contextRoot;
+    }
+
+    // 原生协程包装器据真实帧生命周期判断复用，错误发送不能提前关闭。
+    internal bool IsClosed => _frame is null && _state is null;
 
     /// <summary>执行到下一个 yield 或完成；None 是合法产出，不是耗尽哨兵。</summary>
     public bool MoveNext() => MoveNextCore(PyNone.Instance, out _);
 
     // 完成值只属于本次恢复；普通迭代直接丢弃，不能留给后续 next 领取。
-    private bool MoveNextCore(object? sentValue, out object? returnValue, PyBaseException? injected = null)
+    private bool MoveNextCore(object? sentValue, out object? returnValue, PyBaseException? injected = null,
+        PyGeneratorSumState? sum = null)
     {
         returnValue = null;
         if (_running) throw new PyValueError("generator already executing");
-        if (_frame is null) return false;
+        if (_frame is null && _state is null) return false;
         // 首次非 None 发送只是调用错误，不启动也不关闭生成器。
         if (!_started && sentValue is not (null or PyNone))
             throw new PyTypeError("can't send non-None value to a just-started generator");
@@ -58,11 +86,36 @@ public sealed class PyGenerator : IPyIterator
         PyErrors.ContextNode = _context;
         try
         {
-            depth = PyTraceback.PushFrame(_source, _name);
-            var frame = _frame;
+            depth = _origin is null ? PyTraceback.PushFrame(_source, _name)
+                : PyTraceback.PushFrameWithOrigin(_source, _name, _origin);
+            PyTraceback.BindGeneratorFrame(depth, this);
+            if (!_started && injected is not null)
+            {
+                try
+                {
+                    long line = _origin switch {
+                        PyFunction function => function.DefinitionFirstLine,
+                        PySignature signature => PyFunctionDefinition.GetFirstLine(signature),
+                        _ => 0,
+                    };
+                    if (line > 0 && line <= int.MaxValue) PyTraceback.SetLine((int)line);
+                }
+                catch (PyNotImplementedError) { /* 未登记的宿主来源不猜测Python定义行。 */ }
+            }
+            if (PyTraceProduct.Enabled) PyTraceProduct.EnterGenerator(depth);
+            object frame = (object?)_state ?? _frame!;
             if (ReadState(frame) == -1) { Finish(); return false; }
-            frame[1] = sentValue ?? PyNone.Instance;
-            frame[2] = injected;
+            if (frame is PyGeneratorState state)
+            {
+                state.Sent = sentValue ?? PyNone.Instance;
+                state.Injected = injected;
+            }
+            else
+            {
+                var slots = (object?[])frame;
+                slots[1] = sentValue ?? PyNone.Instance;
+                slots[2] = injected;
+            }
             // 新建生成器 throw 不执行函数体，连内部 try/finally 也尚未进入。
             if (!_started && injected is not null)
             {
@@ -74,7 +127,7 @@ public sealed class PyGenerator : IPyIterator
             object? value;
             while (true)
             {
-                value = _resume!(frame);
+                value = sum is null ? _resume!(frame) : _resumeSum!(frame, sum);
                 if (!ReferenceEquals(value, PyOps.GeneratorRetry())) break;
                 // 逻辑异常路由可能跳过被调用函数的正常弹帧，保留本生成器帧并清理其内层。
                 PyTraceback.PopTo(depth + 1);
@@ -92,16 +145,22 @@ public sealed class PyGenerator : IPyIterator
         {
             // PEP 479：函数体泄漏的 StopIteration 是错误，不能假装正常耗尽。
             PyErrors.PrepareRaise(stop);
-            var error = new PyRuntimeError("generator raised StopIteration").WithCause(stop);
+            var error = new PyRuntimeError(IsCoroutine ? "coroutine raised StopIteration" : "generator raised StopIteration").WithCause(stop);
             error.Context = stop;
             PyTraceback.Attach(error);
+            if (depth != 0 && !PyTraceProduct.Enabled) PyTraceback.ReceiveException(error, depth);
             Finish();
             throw error;
         }
         catch (PyBaseException error)
         {
+            if (depth != 0 && !PyTraceProduct.Enabled) PyTraceback.ReceiveException(error, depth);
             // 未进入逻辑handler的运行时错误也要保留当下上下文，之后才恢复caller。
-            PyErrors.PrepareRaise(error);
+            if (PyTraceProduct.Enabled)
+            {
+                if (depth != 0) PyTraceProduct.EscapeGenerator(error, depth);
+            }
+            else PyErrors.PrepareRaise(error);
             Finish();
             throw;
         }
@@ -113,8 +172,9 @@ public sealed class PyGenerator : IPyIterator
         }
         finally
         {
+            if (depth != 0 && PyTraceProduct.Enabled) PyTraceProduct.LeaveGenerator(depth);
             if (depth != 0) PyTraceback.PopTo(depth);
-            _context = _frame is null ? _contextRoot : PyErrors.ContextNode;
+            _context = _frame is null && _state is null ? _contextRoot : PyErrors.ContextNode;
             _contextRoot.Parent = null;
             PyErrors.ContextNode = caller;
             _running = false;
@@ -129,7 +189,7 @@ public sealed class PyGenerator : IPyIterator
         if (MoveNextCore(PyNone.Instance, out object? returnValue)) return Current();
         if (hasDefault) return defaultValue;
         // 必须在恢复过程的异常转换区外抛出，正常完成不属于 PEP 479 错误。
-        throw new PyStopIteration(returnValue);
+        throw PyTraceProduct.NativeFresh(new PyStopIteration(returnValue));
     }
 
     /// <summary>向暂停的 yield 表达式发送值，恢复到下一次产出或完成。</summary>
@@ -146,7 +206,8 @@ public sealed class PyGenerator : IPyIterator
     {
         if (_running) throw new PyValueError("generator already executing");
         PyBaseException error = NormalizeThrown(exception);
-        if (_frame is null) throw PyErrors.Prepare(error);
+        error.NativeTraceback?.Restart();
+        if (_frame is null && _state is null) throw PyErrors.Prepare(error);
         if (MoveNextCore(PyNone.Instance, out object? value, error)) return Current();
         throw new PyStopIteration(value);
     }
@@ -155,7 +216,7 @@ public sealed class PyGenerator : IPyIterator
     public object Close()
     {
         if (_running) throw new PyValueError("generator already executing");
-        if (_frame is null) return PyNone.Instance;
+        if (_frame is null && _state is null) return PyNone.Instance;
         if (!_started) { Finish(); return PyNone.Instance; }
         try
         {
@@ -163,7 +224,7 @@ public sealed class PyGenerator : IPyIterator
         }
         catch (PyGeneratorExit) { return PyNone.Instance; }
         // 此错误属于 close 协议，不是函数体错误，不能走 Finish 丢失暂停点。
-        throw new PyRuntimeError("generator ignored GeneratorExit");
+        throw new PyRuntimeError(IsCoroutine ? "coroutine ignored GeneratorExit" : "generator ignored GeneratorExit");
     }
 
     private static PyBaseException NormalizeThrown(object? exception)
@@ -172,7 +233,10 @@ public sealed class PyGenerator : IPyIterator
         {
             PyBaseException error => error,
             PyType { Name: "error" } => PyRegex.ConstructError([], [], []),
+            PyType { Name: "GetoptError" } => PyGetoptError.Construct([], [], []),
             PyType { Name: "JSONDecodeError" } => PyJsonModule.ConstructError([], [], []),
+            PyType type when PyOptParseExceptions.IsType(type.Name)
+                => PyOptParseExceptions.Construct(type.Name, [], [], []),
             PyType type when PyExceptionHierarchy.IsKnown(type.Name)
                 => PyExceptionTypes.Create(type.Name, string.Empty),
             PyClass cls when cls.IsSubclassOfBuiltin("BaseException") => cls.Invoke([], [], []),
@@ -214,8 +278,14 @@ public sealed class PyGenerator : IPyIterator
         return Next(null, false);
     }
 
-    private static long ReadState(object?[] frame)
+    private static long ReadState(object storage)
     {
+        if (storage is PyGeneratorState typed)
+        {
+            if (typed.PC < -1) throw new PyRuntimeError("invalid generator frame state");
+            return typed.PC;
+        }
+        var frame = (object?[])storage;
         if (frame.Length < 4 || frame[0] is not long state || state < -1)
             throw new PyRuntimeError("invalid generator frame state");
         return state;
@@ -226,7 +296,12 @@ public sealed class PyGenerator : IPyIterator
         // 清空引用槽，避免已耗尽对象继续保活局部变量、闭包和恢复委托。
         if (_frame is not null) Array.Clear(_frame);
         _frame = null;
+        _state?.Clear();
+        _state = null;
         _resume = null;
+        _resumeSum = null;
+        _origin = null;
+        NativeFrame = null;
         _current = null;
         _context = _contextRoot;
     }

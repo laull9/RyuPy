@@ -1,0 +1,504 @@
+#!/usr/bin/env python3
+"""CPython 3.12.13 严格零字节码内核原型构建与探针验证驱动（Linux/macOS 宿主）。
+
+所有上游源码下载、解压、构建、日志与探针产物均位于仓库外临时目录，默认执行结束后自动清理；
+仅当显式传入 `--keep` 时保留外部工作目录。严禁读取/改写用户缓存（~/.cache 等）或系统 Python，
+亦严禁以 PBS 预编译库代替本源码构建的内核。Windows MSVC/DLL 路径当前清楚标注为待验。
+"""
+from __future__ import annotations
+
+import argparse
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tempfile
+import urllib.request
+
+from transform import TARGET_VERSION, apply_anchors
+
+
+OFFICIAL_URL = f"https://www.python.org/ftp/python/{TARGET_VERSION}/Python-{TARGET_VERSION}.tar.xz"
+
+KERNEL_DIR = Path(__file__).resolve().parent
+REPO_ROOT = KERNEL_DIR.parent.parent
+PROBE_SRC = KERNEL_DIR / "probe" / "kernel_probe.c"
+
+
+class KernelBuildError(RuntimeError):
+    """内核获取、构建或探针验证失败。"""
+
+
+def ensure_outside_repo(path: Path) -> Path:
+    """强制确保所有上游源码、构建、日志与产物均在 RyuPy 仓库之外。"""
+    resolved = path.resolve()
+    repo_resolved = REPO_ROOT.resolve()
+    if resolved == repo_resolved or repo_resolved in resolved.parents:
+        raise KernelBuildError(f"工作目录禁止位于仓库内：{resolved}")
+    return resolved
+
+
+def acquire_source_tarball(workdir: Path, local_tarball: Path | None) -> Path:
+    """从官方主源或外部副本取得源码；版本与结构由后续精确源码锚点确认。"""
+    dest = workdir / f"Python-{TARGET_VERSION}.tar.xz"
+    if local_tarball is not None:
+        src = ensure_outside_repo(local_tarball)
+        if not src.is_file():
+            raise KernelBuildError(f"指定的源码压缩包不存在：{src}")
+        shutil.copy2(src, dest)
+    else:
+        print(f"[kernel] 下载官方主源 {OFFICIAL_URL} -> {dest}")
+        with urllib.request.urlopen(OFFICIAL_URL, timeout=120) as resp, dest.open("wb") as out:
+            shutil.copyfileobj(resp, out)
+
+    return dest
+
+
+def run_logged(
+    cmd: list[str],
+    *,
+    cwd: Path,
+    env: dict[str, str],
+    log_file: Path,
+    step: str,
+) -> None:
+    """在仓库外日志文件中记录子进程输出，失败时回显尾部日志并硬退出。"""
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+    with log_file.open("w", encoding="utf-8") as log:
+        proc = subprocess.run(
+            cmd,
+            cwd=cwd,
+            env=env,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            text=True,
+            check=False,
+            timeout=1800,
+        )
+    if proc.returncode != 0:
+        tail = "\n".join(log_file.read_text(encoding="utf-8", errors="replace").splitlines()[-40:])
+        raise KernelBuildError(
+            f"步骤 [{step}] 失败（exit={proc.returncode}），日志 {log_file}：\n{tail}"
+        )
+
+
+def host_library_names() -> tuple[str, list[str]]:
+    """按宿主平台返回动态库构建目标及需安装至 prefix/lib 的文件名列表。"""
+    if sys.platform == "darwin":
+        return "libpython3.12.dylib", ["libpython3.12.dylib"]
+    if sys.platform.startswith("linux"):
+        return "libpython3.12.so", ["libpython3.12.so.1.0", "libpython3.12.so"]
+    raise KernelBuildError(
+        f"当前平台 {sys.platform} 尚未接入（Windows MSVC/DLL 构建路径当前明确为待验）"
+    )
+
+
+def choose_compiler(env: dict[str, str]) -> str:
+    """优先尊重调用方 CC；macOS 默认使用 Apple Clang `/usr/bin/cc` 避免 SDK 错配。"""
+    if env.get("CC"):
+        return env["CC"]
+    if sys.platform == "darwin" and Path("/usr/bin/cc").exists():
+        return "/usr/bin/cc"
+    cc = shutil.which("cc") or shutil.which("gcc") or shutil.which("clang")
+    if not cc:
+        raise KernelBuildError("未找到可用的 C 编译器（cc/gcc/clang）")
+    return cc
+
+
+def build_and_verify(args: argparse.Namespace) -> None:
+    """执行完整内核获取、锚点变换、源码编译、符号核验与手写 C 探针测试。"""
+    if sys.platform not in ("darwin",) and not sys.platform.startswith("linux"):
+        raise KernelBuildError(
+            f"当前仅支持 Linux/macOS 宿主原型；平台 {sys.platform}（含 Windows）清楚标记为待验"
+        )
+
+    if args.workdir is not None:
+        base_dir = ensure_outside_repo(args.workdir)
+        base_dir.mkdir(parents=True, exist_ok=True)
+        workdir = ensure_outside_repo(Path(tempfile.mkdtemp(prefix="ryupy-kernel-312-", dir=base_dir)))
+    else:
+        workdir = ensure_outside_repo(Path(tempfile.mkdtemp(prefix="ryupy-kernel-312-")))
+
+    logs_dir = workdir / "logs"
+    src_parent = workdir / "src"
+    src_dir = src_parent / f"Python-{TARGET_VERSION}"
+    build_dir = workdir / "build"
+    prefix_dir = workdir / "prefix"
+
+    try:
+        tarball = acquire_source_tarball(workdir, args.source_tarball)
+        src_parent.mkdir(parents=True, exist_ok=True)
+        run_logged(
+            ["tar", "-xf", str(tarball), "-C", str(src_parent)],
+            cwd=workdir,
+            env=os.environ.copy(),
+            log_file=logs_dir / "extract.log",
+            step="解压官方源码",
+        )
+        counts = apply_anchors(src_dir, dry_run=False)
+        print(f"[kernel] 锚点精确变换完成：{counts}")
+        if args.transform_only:
+            print(f"[kernel] 已按 --transform-only 停止（未执行 configure/make）；目录：{src_dir}")
+            return
+
+        ldlibrary, install_libs = host_library_names()
+        build_dir.mkdir(parents=True, exist_ok=True)
+        (build_dir / "Modules").mkdir(parents=True, exist_ok=True)
+        # 通过 Setup.local 将 math 强制静态编入 libpython 的 PyImport_Inittab。
+        (build_dir / "Modules" / "Setup.local").write_text(
+            "*static*\nmath mathmodule.c\n", encoding="utf-8"
+        )
+
+        env = os.environ.copy()
+        cc = choose_compiler(env)
+        env["CC"] = cc
+        # 隔离环境变量，不让宿主的 PYTHON* 或缓存路径影响源码构建。
+        for key in list(env):
+            if key.startswith("PYTHON"):
+                del env[key]
+
+        configure_cmd = [
+            str(src_dir / "configure"),
+            f"--prefix={prefix_dir}",
+            "--enable-shared",
+            "--without-ensurepip",
+            "--disable-test-modules",
+        ]
+        print(f"[kernel] configure (CC={cc})...")
+        run_logged(configure_cmd, cwd=build_dir, env=env, log_file=logs_dir / "configure.log", step="configure")
+
+        jobs = str(args.jobs or os.cpu_count() or 4)
+        print(f"[kernel] make -j{jobs} {ldlibrary} ...")
+        run_logged(
+            ["make", f"-j{jobs}", ldlibrary],
+            cwd=build_dir,
+            env=env,
+            log_file=logs_dir / "make_libpython.log",
+            step=f"make {ldlibrary}",
+        )
+        run_logged(
+            ["make", "inclinstall"],
+            cwd=build_dir,
+            env=env,
+            log_file=logs_dir / "make_inclinstall.log",
+            step="make inclinstall",
+        )
+
+        lib_dir = prefix_dir / "lib"
+        lib_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src_dir / "LICENSE", prefix_dir / "LICENSE.Python.txt")
+        for lib_name in install_libs:
+            src_lib = build_dir / lib_name
+            dst_lib = lib_dir / lib_name
+            if src_lib.is_symlink():
+                if dst_lib.exists() or dst_lib.is_symlink():
+                    dst_lib.unlink()
+                dst_lib.symlink_to(os.readlink(src_lib))
+            elif src_lib.is_file():
+                shutil.copy2(src_lib, dst_lib)
+            else:
+                raise KernelBuildError(f"未产出预期动态库文件：{src_lib}")
+
+        # 确认交付前缀无任何 .py / .pyc / encodings 字节码载荷。
+        leaked_py = list(prefix_dir.rglob("*.py")) + list(prefix_dir.rglob("*.pyc"))
+        if leaked_py:
+            raise KernelBuildError(f"严格内核前缀意外包含 Python 脚本/字节码：{leaked_py[:5]}")
+
+        verify_binary_symbols(lib_dir / ldlibrary)
+
+        probe_bin = workdir / "kernel_probe"
+        include_dir = prefix_dir / "include" / "python3.12"
+        compile_cmd = [
+            cc,
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            f"-I{include_dir}",
+            str(PROBE_SRC),
+            f"-L{lib_dir}",
+            "-lpython3.12",
+            f"-Wl,-rpath,{lib_dir}",
+            "-lm",
+            "-o",
+            str(probe_bin),
+        ]
+        run_logged(compile_cmd, cwd=workdir, env=env, log_file=logs_dir / "probe_cc.log", step="编译 C 探针")
+
+        for mode in ("strict-clean", "strict-reject", "phase-counters", "reject-importlib"):
+            proc = subprocess.run(
+                [str(probe_bin), str(prefix_dir), mode],
+                cwd=workdir,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=30,
+            )
+            if proc.returncode != 0:
+                raise KernelBuildError(
+                    f"C 探针模式 [{mode}] 失败（exit={proc.returncode}）：\n"
+                    f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+                )
+            print(f"[probe:{mode}] {proc.stdout.strip()}")
+
+        # 单独的负例进程覆盖曾经崩溃的公开入口、PEP 523 分派与 throw 异常保留。
+        guard_bin = workdir / "import_guard_probe"
+        guard_command = compile_cmd.copy()
+        guard_command[guard_command.index(str(PROBE_SRC))] = str(KERNEL_DIR / "probe/import_guard_probe.c")
+        guard_command[-1] = str(guard_bin)
+        run_logged(guard_command, cwd=workdir, env=env,
+                   log_file=logs_dir / "guard_cc.log", step="编译内核拒绝边界探针")
+        for mode in ("magic", "exec-paths", "exec-object", "repr", "custom-eval", "throw-context"):
+            proc = subprocess.run([str(guard_bin), str(prefix_dir), mode], cwd=workdir, env=env,
+                                  capture_output=True, text=True, check=False, timeout=30)
+            if proc.returncode != 0:
+                raise KernelBuildError(f"拒绝边界探针 [{mode}] 失败：{proc.returncode}\n{proc.stdout}\n{proc.stderr}")
+            print(f"[guard:{mode}] {proc.stdout.strip()}")
+
+        # 纯 C UTF-8 CodecInfo 与 _io 标准流全覆盖探针。
+        for probe_name, probe_file, modes in (
+            ("stdio_codecs_probe", "probe/stdio_codecs_probe.c", ("codecs-utf8", "stdio-streams")),
+            ("stdio_edge_probe", "probe/stdio_edge_probe.c", ("stdio-closefd", "stdio-bad-fd", "stdio-bad-config")),
+        ):
+            bin_path = workdir / probe_name
+            cmd = compile_cmd.copy()
+            cmd[cmd.index(str(PROBE_SRC))] = str(KERNEL_DIR / probe_file)
+            cmd[-1] = str(bin_path)
+            run_logged(cmd, cwd=workdir, env=env, log_file=logs_dir / f"{probe_name}_cc.log",
+                       step=f"编译 {probe_name}")
+            for mode in modes:
+                proc = subprocess.run([str(bin_path), str(prefix_dir), mode], cwd=workdir, env=env,
+                                      capture_output=True, text=True, check=False, timeout=30)
+                if proc.returncode != 0:
+                    raise KernelBuildError(
+                        f"stdio/codecs 探针 [{mode}] 失败（exit={proc.returncode}）：\n"
+                        f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+                    )
+                print(f"[{probe_name}:{mode}] {proc.stdout.strip()}")
+
+        print(f"[kernel] 全部构建、符号核验与 15 项基础探针通过（前缀：{prefix_dir}）")
+
+        ext_dir = workdir / "ext_modules"
+        compile_c4_extensions(cc, include_dir, ext_dir, logs_dir, env)
+        run_c4_import_probes(cc, workdir, prefix_dir, include_dir, lib_dir, ext_dir, logs_dir, env)
+
+        if args.with_stock_diff:
+            run_stock_cpython_diff(
+                cc, workdir, tarball, ext_dir, logs_dir, env, jobs
+            )
+
+        print(f"[kernel] 全部构建、符号核验与 22 项 C 探针通过（前缀：{prefix_dir}）")
+    finally:
+        if args.keep:
+            print(f"[kernel] 已按 --keep 保留仓库外临时目录：{workdir}")
+        else:
+            shutil.rmtree(workdir, ignore_errors=True)
+            print(f"[kernel] 已自动清理仓库外临时目录：{workdir}")
+
+
+C4_EXT_SPECS = (
+    ("ext_sp_basic.so", "probe/ext/ext_basic.c", "ROLE_SP_BASIC"),
+    ("ext_sp_reinit.so", "probe/ext/ext_basic.c", "ROLE_SP_REINIT"),
+    ("ext_sp_state.so", "probe/ext/ext_basic.c", "ROLE_SP_STATE"),
+    ("ext_mp.so", "probe/ext/ext_basic.c", "ROLE_MP"),
+    ("ext_mp_custom.so", "probe/ext/ext_basic.c", "ROLE_MP_CUSTOM"),
+    ("ext_mp_retry.so", "probe/ext/ext_basic.c", "ROLE_MP_RETRY"),
+    ("ext_atexit.so", "probe/ext/ext_basic.c", "ROLE_ATEXIT"),
+    ("bad_nosym.so", "probe/ext/ext_bad_abi.c", "BAD_NOSYM"),
+    ("bad_null.so", "probe/ext/ext_bad_abi.c", "BAD_NULL"),
+    ("bad_unreported.so", "probe/ext/ext_bad_abi.c", "BAD_UNREPORTED"),
+    ("bad_type.so", "probe/ext/ext_bad_abi.c", "BAD_TYPE"),
+    ("bad_uninit_def.so", "probe/ext/ext_bad_abi.c", "BAD_UNINIT_DEF"),
+    ("bad_neg_size.so", "probe/ext/ext_bad_abi.c", "BAD_NEG_SIZE"),
+    ("cpkg/__init__.so", "probe/ext/ext_pkg.c", "ROLE_CPKG"),
+    ("cpkg/csub.so", "probe/ext/ext_pkg.c", "ROLE_CPKG_CSUB"),
+    ("cpkg/subpkg/__init__.so", "probe/ext/ext_pkg.c", "ROLE_CPKG_SUBPKG"),
+    ("cpkg/subpkg/leaf.so", "probe/ext/ext_pkg.c", "ROLE_CPKG_LEAF"),
+    ("cpkg/subpkg/sibling.so", "probe/ext/ext_pkg.c", "ROLE_CPKG_SIBLING"),
+    ("cpkg/broken_dep.so", "probe/ext/ext_pkg.c", "ROLE_CPKG_BROKEN"),
+    ("cil_pkg/c_sub.so", "probe/ext/ext_pkg.c", "ROLE_CIL_CSUB"),
+    ("mp_cycle_a.so", "probe/ext/ext_concurrent.c", "ROLE_CYCLE_A"),
+    ("mp_cycle_b.so", "probe/ext/ext_concurrent.c", "ROLE_CYCLE_B"),
+    ("mp_slow.so", "probe/ext/ext_concurrent.c", "ROLE_SLOW"),
+    ("mp_coord_a.so", "probe/ext/ext_concurrent.c", "ROLE_COORD_A"),
+    ("mp_coord_b.so", "probe/ext/ext_concurrent.c", "ROLE_COORD_B"),
+    ("sp_dl_a.so", "probe/ext/ext_concurrent.c", "ROLE_SP_DL_A"),
+    ("sp_dl_b.so", "probe/ext/ext_concurrent.c", "ROLE_SP_DL_B"),
+    ("mp_dl_a.so", "probe/ext/ext_concurrent.c", "ROLE_MP_DL_A"),
+    ("mp_dl_b.so", "probe/ext/ext_concurrent.c", "ROLE_MP_DL_B"),
+    ("ext_calls_cil.so", "probe/ext/ext_concurrent.c", "ROLE_CALLS_CIL"),
+)
+
+
+def compile_c4_extensions(
+    cc: str, include_dir: Path, ext_dir: Path, logs_dir: Path, env: dict[str, str]
+) -> None:
+    """将 C4-1 手写测试 C 扩展源码编译为真实平台 .so 动态模块。"""
+    shared_flags = (
+        ["-shared", "-undefined", "dynamic_lookup"]
+        if sys.platform == "darwin"
+        else ["-shared", "-fPIC"]
+    )
+    for rel_so, rel_src, role_macro in C4_EXT_SPECS:
+        out_so = ext_dir / rel_so
+        out_so.parent.mkdir(parents=True, exist_ok=True)
+        cmd = [
+            cc, "-Wall", "-Wextra", "-Werror", *shared_flags,
+            f"-I{include_dir}", f"-D{role_macro}",
+            str(KERNEL_DIR / rel_src), "-o", str(out_so),
+        ]
+        run_logged(
+            cmd, cwd=ext_dir, env=env,
+            log_file=logs_dir / f"ext_{role_macro.lower()}.log",
+            step=f"编译测试扩展 {rel_so}",
+        )
+    print(f"[kernel] 已编译 {len(C4_EXT_SPECS)} 个 C4-1 测试 .so 扩展至 {ext_dir}")
+
+
+def run_c4_import_probes(
+    cc: str, workdir: Path, prefix_dir: Path, include_dir: Path,
+    lib_dir: Path, ext_dir: Path, logs_dir: Path, env: dict[str, str]
+) -> None:
+    """编译并运行 ext_import_probe（5 模式）与 cil_import_probe（2 模式）。"""
+    probes = (
+        ("ext_import_probe", "probe/ext_import_probe.c", (
+            "ext-basic-spec", "ext-packages-fromlist", "ext-cycles-threads",
+            "ext-errors-bad-abi", "ext-atexit",
+        )),
+        ("cil_import_probe", "probe/cil_import_probe.c", (
+            "registry-negative", "cil-mixed-callbacks",
+        )),
+    )
+    for name, src_rel, modes in probes:
+        bin_path = workdir / name
+        cmd = [
+            cc, "-Wall", "-Wextra", "-Werror",
+            f"-I{include_dir}", str(KERNEL_DIR / src_rel),
+            f"-L{lib_dir}", "-lpython3.12", f"-Wl,-rpath,{lib_dir}",
+            "-lm", "-lpthread", "-o", str(bin_path),
+        ]
+        run_logged(cmd, cwd=workdir, env=env, log_file=logs_dir / f"{name}_cc.log", step=f"编译 {name}")
+        for mode in modes:
+            proc = subprocess.run(
+                [str(bin_path), str(prefix_dir), str(ext_dir), mode],
+                cwd=workdir, env=env, capture_output=True, text=True, check=False, timeout=30,
+            )
+            if proc.returncode != 0:
+                raise KernelBuildError(
+                    f"C4-1 探针 [{name}:{mode}] 失败（exit={proc.returncode}）：\n"
+                    f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+                )
+            print(f"[{name}:{mode}] {proc.stdout.strip()}")
+
+
+def run_stock_cpython_diff(
+    cc: str, workdir: Path, tarball: Path,
+    ext_dir: Path, logs_dir: Path, env: dict[str, str], jobs: str
+) -> None:
+    """使用同一官方源码包构建未修改 CPython 3.12.13，并运行同一套 stdio/C 扩展差分探针。"""
+    stock_root = workdir / "stock"
+    stock_src_parent = stock_root / "src"
+    stock_src = stock_src_parent / f"Python-{TARGET_VERSION}"
+    stock_build = stock_root / "build"
+    stock_prefix = stock_root / "prefix"
+    stock_src_parent.mkdir(parents=True, exist_ok=True)
+    stock_build.mkdir(parents=True, exist_ok=True)
+    (stock_build / "Modules").mkdir(parents=True, exist_ok=True)
+    # 对照探针不依赖 OpenSSL，禁用 _ssl/_hashlib 避免宿主 OpenSSL 4 头文件破坏 3.12 stock 编译。
+    (stock_build / "Modules" / "Setup.local").write_text(
+        "*disabled*\n_ssl _hashlib\n", encoding="utf-8"
+    )
+    run_logged(["tar", "-xf", str(tarball), "-C", str(stock_src_parent)],
+               cwd=stock_root, env=env, log_file=logs_dir / "stock_extract.log", step="解压未修改对照源码")
+    run_logged([str(stock_src / "configure"), f"--prefix={stock_prefix}", "--enable-shared",
+                "--without-ensurepip", "--disable-test-modules"],
+               cwd=stock_build, env=env, log_file=logs_dir / "stock_configure.log", step="stock configure")
+    run_logged(["make", f"-j{jobs}"], cwd=stock_build, env=env,
+               log_file=logs_dir / "stock_make.log", step="stock make")
+    run_logged(["make", "install"], cwd=stock_build, env=env,
+               log_file=logs_dir / "stock_install.log", step="stock install")
+
+    stock_inc = stock_prefix / "include" / "python3.12"
+    stock_lib = stock_prefix / "lib"
+    base_cmd = [
+        cc, "-Wall", "-Wextra", "-Werror", "-DRYUPY_STOCK_CPYTHON",
+        f"-I{stock_inc}", "", f"-L{stock_lib}", "-lpython3.12",
+        f"-Wl,-rpath,{stock_lib}", "-lm", "-lpthread", "-o", "",
+    ]
+    for pname, pfile, pmodes, need_ext in (
+        ("stock_stdio_codecs", "probe/stdio_codecs_probe.c", ("codecs-utf8", "stdio-streams"), False),
+        ("stock_stdio_edge", "probe/stdio_edge_probe.c", ("stdio-closefd", "stdio-bad-fd", "stdio-bad-config"), False),
+        ("stock_ext_import", "probe/ext_import_probe.c", (
+            "ext-basic-spec", "ext-packages-fromlist", "ext-cycles-threads", "ext-errors-bad-abi", "ext-atexit"
+        ), True),
+    ):
+        bin_path = stock_root / pname
+        cmd = base_cmd.copy()
+        cmd[6] = str(KERNEL_DIR / pfile)
+        cmd[-1] = str(bin_path)
+        run_logged(cmd, cwd=stock_root, env=env, log_file=logs_dir / f"{pname}_cc.log", step=f"编译 {pname}")
+        for mode in pmodes:
+            run_args = [str(bin_path), str(stock_prefix)] + ([str(ext_dir)] if need_ext else []) + [mode]
+            proc = subprocess.run(run_args, cwd=stock_root, env=env, capture_output=True, text=True, check=False, timeout=30)
+            if proc.returncode != 0:
+                raise KernelBuildError(f"stock 对照 [{pname}:{mode}] 失败：{proc.returncode}\n{proc.stdout}\n{proc.stderr}")
+            print(f"[stock:{pname}:{mode}] {proc.stdout.strip()}")
+
+
+def verify_binary_symbols(lib_path: Path) -> None:
+    """用 nm 检查目标动态库包含新增内核导出与 PyInit_math，且不含 frozen bootstrap 字节码符号。"""
+    nm_bin = shutil.which("nm")
+    if not nm_bin:
+        print("[kernel] 未找到 nm，跳过符号表附加核对")
+        return
+    proc = subprocess.run([nm_bin, "-g", str(lib_path)], capture_output=True, text=True, check=False)
+    if proc.returncode != 0:
+        raise KernelBuildError(f"nm 检查失败：{proc.stderr}")
+    symbols = proc.stdout
+    required = (
+        "rp_kernel_version",
+        "rp_kernel_set_phase",
+        "rp_kernel_set_strict_reject",
+        "rp_kernel_eval_entry_count",
+        "rp_kernel_import_register",
+        "rp_kernel_import_set_cil_callbacks",
+        "rp_kernel_import_freeze",
+        "rp_kernel_import_is_frozen",
+        "rp_kernel_import_entry_count",
+        "PyInit_math",
+    )
+    for sym in required:
+        if sym not in symbols:
+            raise KernelBuildError(f"源码构建内核 {lib_path} 缺少预期符号：{sym}")
+    proc_all = subprocess.run([nm_bin, str(lib_path)], capture_output=True, text=True, check=False)
+    if proc_all.returncode == 0:
+        for forbidden in ("_Py_M__importlib__bootstrap", "_Py_M__getpath"):
+            if forbidden in proc_all.stdout:
+                raise KernelBuildError(f"源码构建内核 {lib_path} 仍残留禁用 frozen 字节码符号：{forbidden}")
+    print(f"[kernel] 符号核验通过：{lib_path.name} 含内建 math 与内核开关，无 frozen bootstrap/getpath 载荷")
+
+
+def parse_args() -> argparse.Namespace:
+    """解析命令行参数。"""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--source-tarball", type=Path, help="仓库外已有的 Python-3.12.13.tar.xz 副本路径")
+    parser.add_argument("--workdir", type=Path, help="显式指定仓库外临时工作目录")
+    parser.add_argument("--jobs", type=int, help="并行 make 作业数")
+    parser.add_argument("--keep", action="store_true", help="保留仓库外构建目录与产物（默认自动清理）")
+    parser.add_argument("--transform-only", action="store_true", help="仅获取/解压并执行锚点变换，不运行 configure/make")
+    parser.add_argument("--with-stock-diff", action="store_true", help="同次构建未修改 CPython 3.12.13 并运行全部差分探针")
+    return parser.parse_args()
+
+
+def main() -> int:
+    try:
+        build_and_verify(parse_args())
+        return 0
+    except KernelBuildError as error:
+        print(f"错误：{error}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

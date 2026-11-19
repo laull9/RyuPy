@@ -52,14 +52,59 @@ pub const EXCEPTION_TYPE_NAMES: &[&str] = &[
     "StopAsyncIteration",
     "EOFError",
     "json.JSONDecodeError",
+    "zipfile.BadZipFile",
+    "getopt.GetoptError",
+    "optparse.OptParseError",
+    "optparse.OptionError",
+    "optparse.OptionConflictError",
+    "optparse.OptionValueError",
+    "optparse.BadOptionError",
+    "optparse.AmbiguousOptionError",
     "dataclasses.FrozenInstanceError",
     "re.error",
     "io.UnsupportedOperation",
+    "SyntaxError",
+    "xml.etree.ElementTree.ParseError",
+    "binascii.Error",
+    // 新异常只追加，保留既有异常 token 的编号与相对顺序。
+    "zlib.error",
+    "gzip.BadGzipFile",
+    "MemoryError",
+    "TimeoutError",
 ];
 
 /// `RyuPy.Runtime` 中的静态方法。新增条目时同步修改 C# 侧与 codegen 的引用表。
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum RuntimeFn {
+    /// 字段状态机载体及原生PC；控制对象只在编译器恢复入口内使用。
+    GeneratorSumTryConsume,
+    GeneratorSumRangeGuard,
+    GeneratorStateData,
+    GeneratorStateGetPC,
+    GeneratorStateSetPC,
+    /// 真实实例字典名称读取、写入与执行来源。
+    InstanceLoadName,
+    InstanceStoreName,
+    /// 显式frame的唯一globals删除；不读取或修改捕获的builtins。
+    InstanceDeleteName,
+    InstanceExecutionSource,
+    InstanceCaptureDefinitionContext,
+    /// 真实模块D的SETUP_ANNOTATIONS；缺键才建立目标域字典。
+    InstanceSetupAnnotations,
+    InstanceDefinitionModule,
+    InstanceClassGuard,
+    /// 类体/普通终结之后，词法class cell填充之前的冷能力检查。
+    InstanceClassCellGuard,
+    InstanceMakeClass,
+    /// 每次真实import消费前检查该frame捕获的导入函数。
+    InstanceImportGuard,
+    /// 真实捕获builtins中活读hook；模块D/D，普通函数D/None，返回任意Python值。
+    InstanceImportName,
+    /// 原生IMPORT_FROM：属性访问、权威sys.modules缓存回退及ImportError字段。
+    InstanceImportAttribute,
+    /// 两阶段运行期相对导入；仅显式实例能力可调用。
+    InstanceRelativeImport,
+    InstanceRelativeImportAttr,
     /// 数值背板仍是真list；读预检不触发用户协议，最终新鲜F64可不先装箱。
     NumericListCreate,
     NumericListAppendF64,
@@ -69,6 +114,7 @@ pub enum RuntimeFn {
     /// 仅同一冻结(list,index)的CanRead真边且无潜在写入后调用。
     NumericListReadCheckedF64,
     /// 无逃逸循环累加器：一次holder分配、受守卫数值累加、出口物化。
+    RecordsTryIncrementMaterialized,
     NumericAccumulatorCreate,
     NumericAccumulatorAdd,
     NumericAccumulatorValue,
@@ -102,6 +148,8 @@ pub enum RuntimeFn {
     DynBinary,
     /// `PyOps.Compare(int, object, object) -> bool`。
     DynCompare,
+    /// `PyOps.CompareValue(int, object, object) -> object`：保留富比较原始结果。
+    DynRichCompareValue,
     /// `PyOps.Unary(int, object)`。
     DynUnary,
     /// `PyOps.Truthy(object) -> bool`。
@@ -110,6 +158,8 @@ pub enum RuntimeFn {
     DynNone,
     /// `PyOps.FromDecimalString(string)`。
     DynFromDecimal,
+    /// 精确Unicode码点常量工厂；静态UTF32双单元输入，不重新解析Python源码。
+    UnicodeFromCodePoints,
     /// `PyOps.ToIntValue` / `ToFloatValue` / `AbsValue`。
     DynToInt,
     DynToFloat,
@@ -127,12 +177,45 @@ pub enum RuntimeFn {
     CastToStr,
     /// `PyErrors.EnterHandler(object) -> object`：进入 except 体，返回上一层当前异常。
     HandlerEnter,
+    /// 内部finally/匹配ambient保持真实传播，不建立新的异常接收边界。
+    HandlerEnterGuard,
     /// `PyErrors.LeaveHandler(object)`：离开 except 体，恢复上一层当前异常。
     HandlerLeave,
+    /// `PyErrors.MatchDynamicException(object, object) -> bool`：真实动态except目标校验与匹配。
+    ExceptionMatch,
     /// `PyErrors.Reraise() -> object`：裸 `raise`。
     Reraise,
     /// `PyErrors.PrepareRaise(object) -> object`：抛前准备（挂上下文 + 记栈帧）。
     RaisePrepare,
+    /// 源码显式raise开启新传播；真实接收与bare raise保持独立。
+    RaisePrepareExplicit,
+    /// 真实catch在弹帧前接收，深度是本激活的1基槽。
+    TracebackReceive,
+    /// 生成器物理catch按独立存储载体定位同一逻辑激活。
+    GeneratorTracebackReceive,
+    /// 合成上下文退出读取真实链头，跳过公开同名属性。
+    TracebackOf,
+    /// 动态except匹配后结束本次传播，不改变异常上下文token。
+    TracebackHandled,
+    /// 产品 V1 的源/动态分派/接收 ABI；整产物准入之前不得发射。
+    TraceV1Explicit,
+    TraceV1Park,
+    TraceV1Match,
+    TraceV1Abort,
+    TraceV1AllMiss,
+    TraceV1Handle,
+    TraceV1Forward,
+    TraceV1GeneratorCatch,
+    TraceV1GeneratorDepth,
+    /// 隔离S2a源raise入口：归一化后发行真实Explicit请求。
+    #[cfg(feature = "trace-adapter-test")]
+    TraceAdapterExplicit,
+    /// 隔离S2a静态handler：必须在恢复帧之前接收。
+    #[cfg(feature = "trace-adapter-test")]
+    TraceAdapterHandle,
+    /// 隔离S2a自动cleanup：同Q转发，不重复Begin。
+    #[cfg(feature = "trace-adapter-test")]
+    TraceAdapterForward,
     /// `PyRepr.StrValue(object) -> string`：`str(x)`。
     DynStr,
     /// `PyObject.TypeOf(object) -> object`：`type(x)`。
@@ -141,9 +224,11 @@ pub enum RuntimeFn {
     DynGetAttr,
     /// `PyOps.PrepareMethod(object, string) -> object`：实参暂停前绑定方法。
     PrepareMethod,
-    /// 实参前冻结actual module属性；非模块接收者原样返回，既有方法PIC保持。
+    /// `PyOps.ContextMethod(object, string) -> object`：按类型绑定上下文槽。
+    ContextMethod,
+    /// 历史ABI：有界接收者在实参前冻结属性目标，其余原样返回。
     CaptureModuleTarget,
-    /// actual PyModule判定；无用户回调。
+    /// 历史ABI：RequiresEarlyMethodCapture判据；不是Python模块类型判断，无用户回调。
     IsModule,
     /// 显式捕获标志与目标的数组调用；参数数组不可共享。
     CallCapturedMethod,
@@ -155,8 +240,19 @@ pub enum RuntimeFn {
     LoadName,
     /// `PyOps.CheckGlobalBound(bool, string) -> void`：静态槽读取前检查绑定位。
     CheckGlobalBound,
+    /// 删除专用存在性检查；与读取的builtin回退严格分离。
+    CheckModuleDelete,
+    CheckModuleDeleteValue,
+    /// 仅可删除且有真实builtin对象的名字使用此读取冷能力。
+    LoadDeletedModuleName,
     /// `PyTraceback.PushFrame(string, string) -> long`：压入栈帧并返回深度。
     TracePush,
+    /// `PyTraceback.PushFrameWithOrigin(string, string, object) -> long`。
+    TracePushWithOrigin,
+    /// `PyTraceback.CreateModuleExecutionSource(object) -> object`，每次模块执行新建。
+    ModuleExecutionSource,
+    /// `CreateModuleExecutionSourceWithCode(object source, object context) -> object`；旧ABI不变。
+    ModuleExecutionSourceWithCode,
     /// 与TracePush相同的递归深度检查，但不压入无回调叶快路的帧。
     TraceCheckDepth,
     /// `PyTraceback.SetLine(long)`：更新当前行号。
@@ -192,10 +288,16 @@ pub enum RuntimeFn {
     ReprValue,
     /// `PyOps.CallBuiltin(string, object[])`。
     DynBuiltin,
+    /// 普通函数locals：先完整绑定，再逐槽同步，不构造快照数组。
+    FunctionLocalsValidate,
+    FunctionLocalsEnsure,
+    FunctionLocalsSync,
     /// `PyOps.CallMethod(object, string, object[])`。
     CallMethod,
     /// `PyOps.ListAppend(list, item)`：星号字面量的增量构建。
     ListAppend,
+    /// 精确列表/整数守卫的完整False写入循环；失败返回CLR null。
+    GuardedListSetFalseLoop,
     /// `PyOps.SetAdd(object, object)` / `SetExtend(object, object)`：按求值顺序修改集合。
     SetAdd,
     SetExtend,
@@ -203,12 +305,21 @@ pub enum RuntimeFn {
     ListExtend,
     /// `PyOps.UnpackCheck(long, long, bool)`：解包数量不符时抛 ValueError（bool 表示有星号）。
     UnpackCheck,
+    /// `PyOps.UnpackSequence(object, long) -> object`：非星号解包并冻结为精确 tuple。
+    UnpackSequence,
+    /// `PyOps.UnpackEx(object, long, long) -> object`：星号解包冻结为前项、新 list、后项 tuple。
+    UnpackEx,
     /// `PyOps.IterStart(object) -> object`：建立迭代器。
     IterStart,
     /// `PyOps.IterNextOk(object) -> bool`：推进迭代器。
     IterNextOk,
     /// `PyOps.IterValue(object) -> object`：取当前元素。
     IterValue,
+    /// 精确enumerate立即解包：守卫后分别取得索引盒与底层当前值。
+    MakeComprehensionList,
+    IsEnumerateIterator,
+    EnumerateCurrentIndex,
+    EnumerateCurrentValue,
     /// `PyOps.ArraySet(object, long, object)`：写数组元素。
     ArraySet,
     /// `PyOps.ArrayGet(object, long) -> object`：读数组元素。
@@ -218,11 +329,24 @@ pub enum RuntimeFn {
     /// 内部异常分派完成，要求运行时重新进入resume而非暴露yield。
     GeneratorRetry,
     GeneratorDelegateStart,
+    /// 将编译器生成的独立状态机包装为不可普通迭代的协程。
+    CoroutineCreate,
+    /// 通过类型级 __await__ 建立委托，不进行解释执行。
+    CoroutineAwaitStart,
+    CoroutineEnterAwaitStart,
+    CoroutineExitAwaitStart,
+    /// 异步迭代的同步入口、每轮槽调用、受信耗尽匹配与专用await获取。
+    AsyncIterStart,
+    AsyncIterNext,
+    AsyncIterIsStop,
+    CoroutineNextAwaitStart,
     GeneratorDelegateStep,
     GeneratorDelegateCurrent,
     GeneratorDelegateResult,
     /// `PyOps.CallValue(object, object[], object[], object[]) -> object`：调用一等函数对象。
     CallValue,
+    /// 通用伴生体显式冷调用；真实函数弱键分派，不改普通CallValue热路。
+    CallValueGeneric,
     // ── 闭包 cell（M3.0）──
     /// `PyOps.CellNew() -> object`：创建 `object[1]`，槽位放「未赋值」哨兵。
     CellNew,
@@ -235,8 +359,30 @@ pub enum RuntimeFn {
     CellGetFree,
     /// `PyOps.TypeObject(string) -> object`：内建构造名作为值使用时的类型对象。
     TypeObject,
+    /// `PyOps.LoadDefaultBuiltin(string) -> object`：默认域真实字典冷读取，可抛错且不可缓存。
+    LoadDefaultBuiltin,
     BuiltinFunction,
+    /// `PyOps.FunctionModule(object, object)`：定义点写入已冻结的真实模块成员。
+    FunctionModule,
+    /// PyStockThinFunctions.LoadGlobal(object lease, string name)。
+    StockThinLoadGlobal,
+    /// 实际canonical函数的受信Python语义kind冷登记；只有显式inspect profile发射。
+    FunctionIntrospectionKind,
+    /// 读取真实函数实例的Defaults；只在成功的静态def发布处更新直调默认值槽。
+    FunctionDefaults,
+    /// 比较真实callee和已验证私有def锚点，并拒绝已观察/改写的默认值状态。
+    FunctionDefaultsUnobserved,
     FunctionMetadata,
+    /// 新词法类事务的固定ABI；Prepare只建namespace，Finish才得到类。
+    LexicalClassPrepare,
+    /// provider 三参数前言：先完成真实 prepare，再由 CIL 查询并初始化元数据。
+    ForeignClassPrepare,
+    LexicalClassFinish,
+    /// 类体或终结失败后清理外部构造事务；固定(object)->void，幂等且保留原异常。
+    ClassDefinitionAbort,
+    LexicalNamespaceContains,
+    LexicalNamespaceGet,
+    LexicalNamespaceSet,
     ClassNamespaceGet,
     /// 当前类自身原始字典是否包含名字，不执行描述符或继承查找。
     ClassNamespaceContains,
@@ -255,6 +401,8 @@ pub enum RuntimeFn {
     ValidateOrdinaryBase,
     /// 大字典逐对插入：先拒绝非精确标量键，不调用用户hash/eq。
     DictSetScalarKey,
+    /// `PyOps.DictUnpackMapping(object, object)`：字面量mapping-only合并。
+    DictUnpackMapping,
     ApplyDataclass,
     /// `PyOps.ArgError(int, string) -> object`：绑定失败时抛 `TypeError`（永不返回）。
     ArgError,
@@ -266,6 +414,10 @@ pub enum RuntimeFn {
     /// `PyOps.MakeClass(string, object[], object) -> object`：创建类对象。
     /// 第三个参数是异常类的工厂委托（普通类传 `null`）。
     MakeClass,
+    /// 普通MI族冷准备；仅配合类体后Finalize及延后公开合同。
+    PrepareOrdinaryMiClass,
+    /// 动态单基的延后发布准备；真实布局仍由运行时沿原单基规则验证。
+    PrepareRuntimeDerivedClass,
     /// `PyOps.SetAttr(object, string, object)`：实例 / 类属性写入。
     SetAttr,
     /// `PyOps.DelAttr(object, string)`：实例 / 类属性删除。
@@ -277,6 +429,10 @@ pub enum RuntimeFn {
     ImportModule,
     /// 读取已缓存模块的初始运行位置；不会触发import或用户属性协议。
     ModuleFile,
+    /// 本次导入元数据快照：(str, str) -> Dynamic。
+    ModuleMetadata,
     /// `PyModules.ImportAttr(string, string) -> object`：`from m import name` 的取值。
     ImportAttr,
+    /// 调用者显式context与实际零参callee；只在direct_globals能力下使用。
+    InstanceDirectGlobals,
 }

@@ -1,0 +1,17 @@
+# ryupy: pending
+# 独立保留空表有效用户hash次数旧债；历史混合稿保持原字节。
+# 空CLR容器可能省略comparer；CP即使空表也必须调用有效用户hash恰好一次。
+events = []
+class Key:
+    def __hash__(self):
+        events.append('hash')
+        return 1
+
+key = Key()
+assert key not in {}
+assert events == ['hash']
+print('empty-dict', events)
+events.clear()
+assert key not in set()
+assert events == ['hash']
+print('empty-set', events)

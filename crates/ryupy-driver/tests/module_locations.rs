@@ -1,25 +1,13 @@
 //! 真构建模块位置：两处__file__、可写对象身份、循环import及源目录资源，不用dump替代实际类型验收。
+#[path = "../src/test_temp.rs"]
+mod test_temp;
 use ryupy_driver::{BuildOptions, Session};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Command, Output};
 
-struct OwnedRoot(PathBuf);
-impl Drop for OwnedRoot {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
+struct OwnedRoot(test_temp::Root);
 fn root() -> OwnedRoot {
-    let unique = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let path = std::env::temp_dir().join(format!(
-        "ryupy-module-locations-{}-{unique}",
-        std::process::id()
-    ));
-    std::fs::create_dir(&path).unwrap();
-    OwnedRoot(path)
+    OwnedRoot(test_temp::Root::new("module-locations"))
 }
 fn python() -> std::ffi::OsString {
     let python = std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into());
@@ -159,8 +147,8 @@ fn actual_build_file_identity_cycles_and_unicode_source_work_outside_source_cwd(
     )
     .unwrap();
     for cwd in [&cwd_a, &cwd_b] {
-        let actual = ryupy_driver::dotnet::run_dll_with(
-            &artifacts.dll,
+        let actual = ryupy_driver::dotnet::run_executable_with(
+            artifacts.native_exe.as_ref().expect("应用必须有公开入口"),
             &ryupy_driver::dotnet::RunOptions {
                 cwd: Some(cwd.clone()),
                 ..Default::default()
@@ -173,8 +161,8 @@ fn actual_build_file_identity_cycles_and_unicode_source_work_outside_source_cwd(
     std::fs::write(source.join("left/data.txt"), "left-v2\n").unwrap();
     let changed = reference(&python, &input, &cwd_b);
     assert_ne!(changed.stdout, expected.stdout);
-    let actual = ryupy_driver::dotnet::run_dll_with(
-        &artifacts.dll,
+    let actual = ryupy_driver::dotnet::run_executable_with(
+        artifacts.native_exe.as_ref().expect("应用必须有公开入口"),
         &ryupy_driver::dotnet::RunOptions {
             cwd: Some(cwd_b),
             ..Default::default()

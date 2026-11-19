@@ -13,7 +13,11 @@ impl ExprBuilder<'_> {
             .unwrap_or(Operand::Const(Constant::Null));
         let args = vec![namespace, Operand::Const(Constant::Str(name.to_owned()))];
         let present = self.runtime_call(
-            RuntimeFn::ClassNamespaceContains,
+            if self.lexical_namespace {
+                RuntimeFn::LexicalNamespaceContains
+            } else {
+                RuntimeFn::ClassNamespaceContains
+            },
             args.clone(),
             MirType::Bool,
         );
@@ -27,7 +31,15 @@ impl ExprBuilder<'_> {
             else_: no,
         };
         *self.current_bb = yes;
-        let value = self.runtime_call(RuntimeFn::ClassNamespaceGet, args, MirType::Dynamic);
+        let value = self.runtime_call(
+            if self.lexical_namespace {
+                RuntimeFn::LexicalNamespaceGet
+            } else {
+                RuntimeFn::ClassNamespaceGet
+            },
+            args,
+            MirType::Dynamic,
+        );
         self.assign_value(dest, value, &ryupy_ty::Ty::Dynamic);
         self.blocks[*self.current_bb].terminator = Terminator::Goto(join);
         *self.current_bb = no;

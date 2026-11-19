@@ -118,6 +118,9 @@ impl Targets {
                 .collect::<Result<Vec<_>>>()?
                 .join("/");
             let metadata = plain_metadata(&path)?;
+            if crate::manifest_files::is_os_sidecar(&path, &metadata) {
+                continue;
+            }
             self.insert(
                 &logical,
                 if metadata.is_dir() {

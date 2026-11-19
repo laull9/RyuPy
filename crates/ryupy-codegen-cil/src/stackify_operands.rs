@@ -4,20 +4,23 @@ use dotnetdll::prelude::*;
 use rustc_hash::FxHashMap;
 use ryupy_mir::{Constant as MirConstant, LocalId, Operand};
 
-use crate::stackify::LowerCtx;
+use crate::stackify::{LowerCtx, ParamSlot};
 use crate::stackify_refs::RuntimeRefs;
 
 pub(crate) fn lower_operand(
     op: &Operand,
     ins: &mut Vec<Instruction>,
-    param_slots: &FxHashMap<LocalId, u16>,
+    param_slots: &FxHashMap<LocalId, ParamSlot>,
     local_slots: &FxHashMap<LocalId, u16>,
     refs: &RuntimeRefs,
 ) {
     match op {
         Operand::Local(loc) => {
-            if let Some(&arg_idx) = param_slots.get(loc) {
-                ins.push(Instruction::LoadArgument(arg_idx));
+            if let Some(slot) = param_slots.get(loc) {
+                ins.push(Instruction::LoadArgument(slot.index));
+                if let Some(read) = slot.read {
+                    ins.push(Instruction::call(read));
+                }
             } else if let Some(&local_idx) = local_slots.get(loc) {
                 ins.push(Instruction::LoadLocal(local_idx));
             }
@@ -57,6 +60,15 @@ pub(crate) fn lower_operand(
                 ins.push(Instruction::LoadConstantInt32(if *b { 1 } else { 0 }))
             }
             MirConstant::Str(s) => ins.push(Instruction::load_string(s)),
+            MirConstant::Unicode(points) => {
+                ins.push(Instruction::LoadString(
+                    points
+                        .iter()
+                        .flat_map(|point| [(*point >> 16) as u16, *point as u16])
+                        .collect(),
+                ));
+                ins.push(Instruction::call(refs.unicode_from_codepoints));
+            }
             MirConstant::BigInt(s) => {
                 ins.push(Instruction::load_string(s));
                 ins.push(Instruction::call(refs.dyn_from_decimal));

@@ -154,8 +154,8 @@ Template、Formatter、capwords 尚未实现；Unicode capwords 的独立 pendin
 | indent / tabs / whitespace | initial/subsequent_indent、expand_tabs、tabsize、replace_whitespace、drop_whitespace | 非字符串 indent 明确拒绝 |
 | 分词 / 长词 | break_long_words、break_on_hyphens | 固定 Unicode15 分类，不用宿主分类 |
 
-旗标当前要求真实 bool，width/tabsize 为声明范围的整数；自定义协议、非整数宽度、
-fix_sentence_endings、max_lines、非默认 placeholder 明确未支持，TextWrapper 等未导出。
+上表为原模块引擎的历史验收范围；后续普通可继承TextWrapper候选已接线，74项运行时专项通过，四个真实应用与正常完整门禁已通过，见[ADR0083](adr/0083-textwrapper-class.md)。
+根默认fix_sentence_endings、max_lines、float宽度与自定义分词/翻译表仍有明确边界；placeholder不消费时不再拒绝。动态hook与原始配置不由入口强制转换。
 独立状态机，不复制 CPython 实现或分词正则。固定 1200 组合及 87360 小字母表
 组合摘要、五项 C#（含长连字符线性扫描回归）、真实编译差分通过。源码区间减少词块字符串复制，但仍分配码点、
 边界与输出存储，不作未测量的性能承诺。精确边界与证据见
@@ -189,3 +189,73 @@ Required/NotRequired、前向引用、多继承等仍明确未支持，完整用
 Ellipsis 字面量与内建名字共用真实单例，type(Ellipsis)() 返回该单例；
 typing.Tuple[T, ...] 保留末位参数身份。名字重绑不能修改源码字面量；同名模块
 槽的有限回退见 [模块绑定](module-binding-state.md)。其它 typing 泛型能力不能据此推断可用。
+
+
+## html.escape（本地验收通过，未发布）
+
+`escape(s, quote=True)` 保三个基础替换后一次quote真值、可选两个引号替换；每次重新读取上次结果的replace，保str子类覆盖、普通动态对象与最终对象身份。完整参数绑定先于正文，exact CLR string每步直接Ordinal.Replace；其它输入真实动态调用，有额外冷检查和分配成本，未测性能。
+
+`unescape`、`entities`、`parser`不在本切，不能把模块可导入等同完整HTML库。bytes/bytearray的旧replace缺失及property真值/复杂descriptor边界保CP正例pending；不伪造错误或静默绕过覆盖。12项runtime及3应用CP/JIT、正常完整门禁994C#/228CP/202e2e+30原ignored已通过，详见[ADR0078](adr/0078-html-escape.md)。
+
+## str.format 模板候选
+
+位置/命名字段、属性/索引导航、!s/!r/!a、动态规格与escaped braces使用真实模板引擎，不使用eval或项目模式白名单。公共direct/saved/root/子类入口保普通覆盖与原receiver；最终值格式沿既有文本/整数及g/G有限域。累计47项专项与四应用分别通过（首轮2/4保留），完整门禁1458C#/228CP/202e2e+30原ignored通过，见[ADR0084](adr/0084-string-format-template.md)。format_map、string.Formatter及旧f-string统一不属于本切，历史项目分子不变。
+
+## types.MappingProxyType（有限候选，本地门禁通过）
+
+`types` 只新增真实 `MappingProxyType` 导出，不代表完整模块。类型名为 `mappingproxy`、
+定义模块为 `builtins`；构造保存原映射强引用，不转换成 dict 快照，不实现可写 dict 派生接口。
+类型导出、`type(proxy)` 与 `Enum.__members__` 使用同一真实类型；Enum 保留既有缓存代理身份。
+模块属性仍可重绑定，同名源码模块继续由真实模块解析及注册顺序处理，未提前导入缓存 types。
+
+| API/行为 | 本候选有限范围 |
+| --- | --- |
+| 构造与输入 | 一个位置参数或 `mapping=`；支持 dict、既有 defaultdict/Counter、普通类级 `__getitem__` 映射、字符串及嵌套 proxy；构造不执行用户读取协议 |
+| 只读与活性 | 下标、len/bool、成员查询；底层别名修改及值共享可见，代理禁止写删且没有 update/pop/clear 等 mutator；不是深冻结或副作用安全沙箱 |
+| 方法 | `get` 固定向底层传 key/default；keys/values/items/copy 每次查询并直返底层结果，保动态替换；精确 dict 提供活视图和浅 copy |
+| 迭代 | 普通 iter 槽与有限整数 getitem 回退；contains 逐项早停；公开用户 iterator 保原身份，内部适配不重复 iter；精确 dict 反向游标保结构版本 |
+| 哈希与显示 | Python 3.12 hash 逐次委托底层，dict 仍不可哈希；str/repr 保底层与嵌套代理层 |
+| 消费 | dict(proxy)、dict.update、defaultdict/Counter 更新和函数 `**proxy` 的有限冷路径；keys exact list 保活引用，其余 keys 先物化，再按次序读取 value；Counter 非空更新/减法走 items |
+| 运算 | proxy union 每侧解一层后真实槽分派；新增精确 dict union 保浅别名、右覆盖及顺序；proxy `\|=` 明确 TypeError。显式 `__eq__`/`__ne__` 保底层原结果及有限反射，不等于全局比较表达式已闭合 |
+| 类型边界 | Mapping 为真，MutableMapping/dict 为假；JSON 继续拒绝代理，不通过内部存储接口将其误编码成 dict |
+
+**未支持范围**：range 在 CPython 是合法输入，本候选明确 NotImplementedError，保留正确参考，
+不谎称它不是 mapping；其它未验收原生映射输入、迭代/运算中的 property 或任意 descriptor 槽、
+严格父子类型之间的反射优先级、内建派生运算与缺失的原生 dict 派生运算 fallback 仍明确未支持。
+方法委托支持底层已经具备的方法，不替底层补造缺失的 `__reversed__` 等方法。
+`MappingProxyType[K,V]`、完整类型描述符及其余 types API 不在本切。
+
+新 copy/update/kwargs/Counter 消费者及新精确 dict union 叶子仅接受列明的基本标量键
+（None、精确字符串、整数、bool、浮点）；其它键在这些新增路径明确 NotImplementedError。
+此限制不扩散到原有 dict 操作、`proxy[key]` 或 `proxy.copy()` 的真实底层委托，已发生的回调副作用不回滚。
+函数关键字重复在该键 getitem 前拒绝，非字符串键在有限合并完成后检查；但跨实参表达式与展开的交错
+仍受旧调用调度限制。字面量 `{**proxy}` 仍为 HIR E0100，正确 CP 正例保持 pending。
+
+全局 Compare/Equal 的 bool ABI 未改。显式比较槽返回非 bool 对象的身份不代表
+`proxy == other` 表达式已支持同样结果；相关 CP 正例保持 pending，不以强制真值转换冒充兼容。
+
+精确 dict 既有热路不改成通用接口。代理对象、方法绑定、迭代适配和必要 keys 物化有分配成本；
+kwargs 旧两个直接返回快路保留，既有展开慢路增加 O(k) 的 CLR 参数扫描，proxy 参与才进入冷合并。
+目标映射首次及外部结构变更后的安全键检查需要扫描，新 dict union 也预检键；未作性能测量，不声明零成本或提速。
+
+31项代理专项与3项旧Enum、四项公共源应用逐项及结构1项已通过，首失败及修复记录见 [ADR0086](adr/0086-mapping-proxy.md)。首次完整门禁1497C#/228CP/202e2e+30原ignored通过；不宣称新 tomli 项目入口、AOT 或性能通过，也不改写历史固定项目通过率。
+
+## codecs：BOM 常量有限候选
+
+仅提供十四个 BOM 名称、五个不可变 bytes 对象及真实运行端序别名；不代表完整 codecs。
+BOM_LE/BE 与 BOM32_LE/BE 是 UTF16 对象的别名，BOM64_LE/BE 是 UTF32 对象的别名。
+BOM/BOM_UTF16 与 BOM_UTF32 按运行机器端序选择；模块重绑定不联动其它别名或先前导入引用。
+同名源码继续沿真实模块解析处理。encode/decode/lookup、CodecInfo、registry、错误处理器、
+增量和流接口未交付，不提供占位，合法 CP 正例保 pending。首次四项运行时与两项CP/JIT差分通过，正常完整门禁1651C#/228CP/202e2e+30原ignored通过，
+具体合同、受控 CP 源码遮蔽条件与初始化成本见 [ADR0095](adr/0095-codecs-bom.md)。
+
+## textwrap.dedent（有限源码候选，未验收）
+
+新增dedent(text)普通绑定、raw str子类、ASCII space/tab与LF共同缩进，保无变化exact-str身份。
+最后替换读取同一初始re的当前sub，恰三位置实参并保返回/异常身份；无margin不读取re/sub。
+旧TextWrapper/wrap/fill仍用原共享字典，新四字段只归实际导入owner，失败重试不回填旧owner。
+首次规范native compile产生两真实Pattern；源码re、自定义compile/flags/backend状态只使新dedent NI，
+不拒绝旧wrap/fill。私有pattern/textwrap.re普通写入成功，但域外值在实际消费阶段NI。
+完整五compile/private代理/source-re正期待保pending，不能以导入成功或NI负门宣称支持。
+本地仅固定CP fixture自检，C#/JIT/Native及完整保护未跑；资源界限和具体清单见
+[ADR-0151](adr/0151-textwrap-dedent.md)及[专项页](textwrap-dedent.md)。

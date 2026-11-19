@@ -10,14 +10,23 @@
 //! - 降级判定用不动点迭代，且只降不升，保证收敛；
 //! - 标注只提供优化线索：实参类型不符不再报 `E0203`，而是运行时的 Python `TypeError`。
 
+mod annotation_types;
 mod call;
 mod check;
 mod check_attrs;
+mod check_comparison;
 mod check_stmts;
 mod default_modes;
+mod default_reflection_modes;
+#[cfg(test)]
+mod default_reflection_modes_tests;
+mod fallthrough;
 mod infer;
+mod module_metadata;
 mod module_vars;
+mod opaque;
 pub mod ops;
+mod runtime_function_modes;
 mod ty;
 
 pub use check::{check_module, type_ref_to_ty};
@@ -36,3 +45,34 @@ mod int_constructor_tests;
 
 #[cfg(test)]
 mod abs_constructor_tests;
+
+#[cfg(test)]
+mod float_constructor_tests;
+
+#[cfg(test)]
+mod opaque_tests;
+
+#[cfg(test)]
+mod str_object_call_tests;
+
+#[cfg(test)]
+mod module_function_binding_tests;
+
+#[cfg(test)]
+mod dynamic_except_tests;
+
+#[cfg(test)]
+mod function_locals_tests;
+
+mod initial_mode;
+#[cfg(test)]
+mod instance_globals_tests;
+
+#[cfg(test)]
+mod module_delete_tests;
+
+#[cfg(test)]
+mod ordinary_dynamic_tests;
+
+#[cfg(test)]
+mod fallthrough_tests;

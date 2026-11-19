@@ -1,0 +1,9 @@
+# 模块实例函数归属
+
+case清单选择subject实例模式，原Python源仍可由固定CPython执行。
+function_globals、closures、generator_owner、class_owner、builtins_capture
+已通过真实编译/JIT差分并转正，覆盖定义位置builtins重捕获与普通类方法。
+build_class_api保留完整pending源：class语句有限守卫不等于直接__build_class__调用协议。
+双实例与重复执行的完整生命周期另由内部宿主执行真实生成PE验收，不能用普通import例替代。
+eager_comprehension_builtins保留CP3.12完整pending源：急切list/set/dict推导式沿用frame builtins的协议尚未接入，选中模块前置E0100；genexpr仍是新函数捕获。
+genexpr_capture_phase真实差分已通过并转正，覆盖CP005捕获早于outer iterable与元素延迟执行。

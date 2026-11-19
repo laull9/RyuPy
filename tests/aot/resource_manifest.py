@@ -2,6 +2,7 @@
 from pathlib import PurePosixPath
 import re
 from manifest_files import ManifestError, relative_path
+from application_layout import canonical_artifacts
 
 PREFIX = '_internal/resources/v1/'
 
@@ -33,7 +34,7 @@ def native_basename(value):
     require(not any(c in '<>"|?*' for c in value), 'native非portable字符')
     stem = path_key(value.split('.')[0].rstrip(' '))
     require(not re.fullmatch(r'con|prn|aux|nul|conin\$|conout\$|clock\$|com[1-9¹²³]|lpt[1-9¹²³]', stem), 'native设备名')
-    require(path_key(value) not in ('_internal', 'ryupy-artifact.json', '.ryupy-artifact.json.tmp'), 'native保留名')
+    require(path_key(value) not in ('internal', '_internal', 'ryupy-artifact.json', '.ryupy-artifact.json.tmp'), 'native保留名')
     return value
 
 
@@ -57,8 +58,9 @@ def check_targets(artifacts, anchors):
     require(sum(entry.get('role') == 'native_executable' for entry in artifacts) <= 1, '重复native角色')
     for entry in artifacts:
         insert(entry['relative_path'], 'file', entry.get('role') == 'native_executable')
-    insert('ryupy-artifact.json', 'file')
-    insert('.ryupy-artifact.json.tmp', 'file')
+    prefix = 'internal/' if canonical_artifacts(artifacts) else ''
+    insert(prefix + 'ryupy-artifact.json', 'file')
+    insert(prefix + '.ryupy-artifact.json.tmp', 'file')
 
 
 def validate_resources(data):
@@ -69,6 +71,7 @@ def validate_resources(data):
     require(isinstance(locations, list) and len(locations) <= 256, '资源模块集合/预算非法')
     require(isinstance(resources, list) and len(resources) <= 1024, '资源集合/预算非法')
     selected = {}
+    prefix = 'internal/resources/v1/' if canonical_artifacts(data['artifacts']) else PREFIX
     for location in locations:
         shape(location, 'module_id module_name kind relative_file')
         identity = location['module_id']
@@ -77,11 +80,11 @@ def validate_resources(data):
         require(location['module_name'] == sources[identity]['module_name'], '资源模块名称不匹配')
         require(location['kind'] == 'executable_relative', '非AOT资源定位')
         relative = portable(location['relative_file'])
-        require(relative == PREFIX + sources[identity]['logical_source'], '虚拟锚点与实际模块来源不一致')
+        require(relative == prefix + sources[identity]['logical_source'], '虚拟锚点与实际模块来源不一致')
         selected[identity] = relative
     declared = {}
     for entry in data['artifacts']:
-        if path_key(entry['relative_path']).startswith(path_key(PREFIX)):
+        if path_key(entry['relative_path']).startswith(path_key(prefix)):
             require(entry['role'] == 'declared_resource', '保留资源树含未声明项')
         if entry['role'] == 'declared_resource':
             require(entry['relative_path'] not in declared, '重复资源artifact')
@@ -91,8 +94,9 @@ def validate_resources(data):
         shape(resource, 'relative_path size sha256 consumer_module_ids')
         path = portable(resource['relative_path'])
         integer(resource['size'])
-        digest_text(resource['sha256'])
-        require(path.startswith(PREFIX) and path not in seen, '资源目标未知/重复')
+        if resource['sha256'] or not canonical_artifacts(data['artifacts']):
+            digest_text(resource['sha256'])
+        require(path.startswith(prefix) and path not in seen, '资源目标未知/重复')
         seen.add(path)
         require(PurePosixPath(path).suffix.lower() not in ('.py', '.pyc', '.pyo'), '不部署Python源码/缓存')
         require(resource['size'] <= 16*1024*1024, '单资源超预算')

@@ -1,0 +1,28 @@
+# ryupy: pending
+# 唯一CP参考已核以下返回规则；本独立文件尚未执行，真实int子类布局不纳入本切。
+events = []
+class Integer(int):
+    def __int__(self):
+        events.append('int')
+        raise AssertionError('must not convert returned int subclass')
+    def __index__(self):
+        events.append('index')
+        raise AssertionError('must not invoke returned index')
+    def __hash__(self):
+        events.append('hash')
+        raise AssertionError('must not rehash returned integer')
+
+class Key:
+    def __init__(self, result):
+        self.result = result
+        self.calls = 0
+    def __hash__(self):
+        self.calls += 1
+        return self.result
+
+for value, expected in [(-1, -2), (2 ** 63 - 1, 2 ** 63 - 1), (-(2 ** 100), -549755813888)]:
+    result = Integer(value)
+    key = Key(result)
+    assert hash(key) == expected
+    assert key.result is result and key.calls == 1 and events == []
+print('hash-int-subclass-reference')

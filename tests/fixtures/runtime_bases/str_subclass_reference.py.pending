@@ -1,0 +1,9 @@
+# CP合法正参考：不把当前Ryu能力拒绝当作相同结果；仅CP参考，不计Ryu通过。
+Base = type('')
+class Text(Base):
+    pass
+value = Text('sample')
+assert type(value) is Text
+assert isinstance(value, str)
+assert value == 'sample'
+print('valid-str-subclass')

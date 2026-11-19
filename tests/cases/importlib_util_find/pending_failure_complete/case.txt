@@ -1,0 +1,3 @@
+entry = entry.py
+pending = true
+# 延期：module_from_spec/exec_module 与独立模块实例 ABI，本轮未开放。

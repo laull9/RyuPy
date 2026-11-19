@@ -33,15 +33,38 @@ impl ExprBuilder<'_> {
 impl ExprBuilder<'_> {
     /// yield-from是显式委托循环，终值与每次yield分开；异常转发由帧输入协议完成。
     pub(crate) fn build_yield_from(&mut self, expression: ExprId) -> Operand {
+        self.build_delegation(expression, RuntimeFn::GeneratorDelegateStart)
+    }
+
+    /// await 复用显式暂停CFG，但入口只接受 awaitable 协议。
+    pub(crate) fn build_await(
+        &mut self,
+        expression: ExprId,
+        context: ryupy_hir::AwaitContext,
+    ) -> Operand {
+        let start = match context {
+            ryupy_hir::AwaitContext::Expression => RuntimeFn::CoroutineAwaitStart,
+            ryupy_hir::AwaitContext::AsyncEnter => RuntimeFn::CoroutineEnterAwaitStart,
+            ryupy_hir::AwaitContext::AsyncExit => RuntimeFn::CoroutineExitAwaitStart,
+            ryupy_hir::AwaitContext::AsyncNext => RuntimeFn::CoroutineNextAwaitStart,
+        };
+        self.build_delegation(expression, start)
+    }
+
+    /// 合成with读取真正异常链，不能通过用户同名属性伪装第三个退出参数。
+    pub(crate) fn build_exception_traceback(&mut self, expression: ExprId) -> Operand {
+        let raw = self.build_expr(expression);
+        let ty = self.ty_of(expression);
+        let value = self.coerce(raw, &ty, &MirType::Dynamic);
+        self.runtime_call(RuntimeFn::TracebackOf, vec![value], MirType::Dynamic)
+    }
+
+    fn build_delegation(&mut self, expression: ExprId, start: RuntimeFn) -> Operand {
         use crate::mir::{Rvalue, Statement};
         let source = self.build_expr(expression);
         let ty = self.ty_of(expression);
         let source = self.coerce(source, &ty, &MirType::Dynamic);
-        let delegate = self.runtime_call(
-            RuntimeFn::GeneratorDelegateStart,
-            vec![source],
-            MirType::Dynamic,
-        );
+        let delegate = self.runtime_call(start, vec![source], MirType::Dynamic);
         let step = self.blocks.alloc(BasicBlock {
             stmts: vec![],
             terminator: Terminator::Unreachable,

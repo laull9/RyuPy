@@ -1,0 +1,59 @@
+# ryupy: pending
+"""CP真实正例：开放捕获参与状态不能直接透传.NET；不注册、不执行、不计支持。"""
+import re
+
+
+def snapshot(match):
+    if match is None:
+        return None
+    return {'group0': match.group(), 'groups': list(match.groups()),
+            'groupdict': match.groupdict(),
+            'spans': [list(match.span(i)) for i in range(match.re.groups + 1)]}
+
+
+CASES = [
+    ("(a(?(1)b|c))", [
+        ("ac", {"group0": "ac", "groupdict": {}, "groups": ["ac"], "spans": [[0, 2], [0, 2]]}),
+        ("ab", None),
+    ]),
+    (b'(a(?(1)b|c))', [
+        (b'ac', {"group0": b'ac', "groupdict": {}, "groups": [b'ac'], "spans": [[0, 2], [0, 2]]}),
+        (b'ab', None),
+    ]),
+    ("(?:x(a(?(1)b|c))){2}", [
+        ("xacxac", {"group0": "xacxac", "groupdict": {}, "groups": ["ac"], "spans": [[0, 6], [4, 6]]}),
+        ("xacxab", None),
+    ]),
+    (b'(?:x(a(?(1)b|c))){2}', [
+        (b'xacxac', {"group0": b'xacxac', "groupdict": {}, "groups": [b'ac'], "spans": [[0, 6], [4, 6]]}),
+        (b'xacxab', None),
+    ]),
+    ("(?:(a(?(1)b|c))d){2}", [
+        ("acdacd", {"group0": "acdacd", "groupdict": {}, "groups": ["ac"], "spans": [[0, 6], [3, 5]]}),
+        ("acdabd", None),
+    ]),
+    (b'(?:(a(?(1)b|c))d){2}', [
+        (b'acdacd', {"group0": b'acdacd', "groupdict": {}, "groups": [b'ac'], "spans": [[0, 6], [3, 5]]}),
+        (b'acdabd', None),
+    ]),
+    ("(a(?(1)b|c)){2}", [
+        ("acab", {"group0": "acab", "groupdict": {}, "groups": ["ab"], "spans": [[0, 4], [2, 4]]}),
+        ("acac", None),
+    ]),
+    (b'(a(?(1)b|c)){2}', [
+        (b'acab', {"group0": b'acab', "groupdict": {}, "groups": [b'ab'], "spans": [[0, 4], [2, 4]]}),
+        (b'acac', None),
+    ]),
+    ("(?:(?P<n>a(?(n)b|c))d){2}", [
+        ("acdacd", {"group0": "acdacd", "groupdict": {"n": "ac"}, "groups": ["ac"], "spans": [[0, 6], [3, 5]]}),
+        ("acdabd", None),
+    ]),
+    (b'(?:(?P<n>a(?(n)b|c))d){2}', [
+        (b'acdacd', {"group0": b'acdacd', "groupdict": {"n": b'ac'}, "groups": [b'ac'], "spans": [[0, 6], [3, 5]]}),
+        (b'acdabd', None),
+    ]),
+]
+for pattern, cases in CASES:
+    compiled = re.compile(pattern)
+    for subject, expected in cases:
+        assert snapshot(compiled.fullmatch(subject)) == expected

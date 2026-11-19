@@ -14,8 +14,8 @@ public static partial class PyEnum
         internal readonly PyDict Members = new();
         internal readonly PyDict Values = new();
         internal readonly PyList Unique = new();
-        internal readonly PyEnumMembers Proxy;
-        internal ClassInfo() => Proxy = new PyEnumMembers(Members);
+        internal readonly PyMappingProxy Proxy;
+        internal ClassInfo() => Proxy = (PyMappingProxy)PyMappingProxy.Create([Members], [], []);
     }
     private sealed record MemberInfo(string? Name, object? Value);
     private static readonly ConditionalWeakTable<PyClass, ClassInfo> Classes = new();

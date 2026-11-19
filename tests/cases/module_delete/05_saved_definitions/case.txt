@@ -1,0 +1,3 @@
+# 完整源等待真实 RyuPy PE 差分；CPython 成立不代表实现通过。
+entry = entry.py
+pending = true

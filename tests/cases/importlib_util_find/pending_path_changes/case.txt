@@ -1,0 +1,3 @@
+entry = entry.py
+pending = true
+# 延期：父包 __path__ 重绑定/原地修改及恢复，不伪造已编译闭世界的 None。

@@ -32,7 +32,7 @@ impl Facts {
             return;
         };
         self.kill(*dest);
-        let Some((_, declaration)) = f.body.locals.iter().find(|(id, _)| id == dest) else {
+        let Some(declaration) = crate::validate::local_decl(&f.body.locals, *dest) else {
             return;
         };
         if declaration.is_cell
@@ -124,7 +124,7 @@ pub(crate) fn validate(program: &Program, errors: &mut Vec<String>) {
                     } = value
                     {
                         let valid_dest = matches!(statement, Statement::Assign { dest, .. }
-                            if f.body.locals.iter().find(|(id, _)| id == dest).is_some_and(|(_, local)| local.ty == MirType::Dynamic));
+                            if crate::validate::local_decl(&f.body.locals, *dest).is_some_and(|local| local.ty == MirType::Dynamic));
                         if !valid_dest
                             || crate::validate::operand_type(program, f, flag)
                                 != Some(MirType::Bool)
@@ -225,3 +225,7 @@ pub(crate) fn fixed_abi(runtime: RuntimeFn) -> bool {
         RuntimeFn::IsModule | RuntimeFn::CaptureModuleTarget | RuntimeFn::CallCapturedMethod
     )
 }
+
+#[cfg(test)]
+#[path = "validate_module_pair_lookup_tests.rs"]
+mod lookup_tests;

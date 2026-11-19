@@ -229,3 +229,118 @@ fn ordinary_and_a_only_emission_have_no_resolver_reference() {
             .any(|item| item.role == "declared_native_body")
     );
 }
+
+/// 同一模块中同型函数必须得到各自可达方法，所有工厂成功后才发布导出槽。
+#[test]
+fn multi_export_pe_has_distinct_wrappers_and_one_registration() {
+    use ryupy_mir::{ExportGuard, GlobalDecl, GlobalStorage, MirType, ModuleExport};
+    let (mut program, first) = crate::fixed_binding_tests::fixture();
+    let mut bindings = vec![first.clone()];
+    for (name, symbol) in [
+        ("subtract", "demo_subtract"),
+        ("add_alias", "ryupy_demo_add_i32"),
+    ] {
+        let export = program.globals.alloc(GlobalDecl {
+            storage: GlobalStorage::LegacyStatic,
+            name: name.into(),
+            ty: MirType::Dynamic,
+        });
+        program.modules[first.module].exports.push(ModuleExport {
+            name: name.into(),
+            value: export,
+            guard: ExportGuard::ValueSentinel,
+        });
+        bindings.push(crate::fixed_bindings::FixedI32Binding {
+            export,
+            entry_point: symbol.into(),
+            ..first.clone()
+        });
+    }
+    let artifact = emit_with_report(&program, &options(), &bindings, &deployment()).unwrap();
+    let res = Resolution::parse(&artifact.bytes, ReadOptions::default()).unwrap();
+    let methods: Vec<_> = res
+        .type_definitions
+        .iter()
+        .flat_map(|t| &t.methods)
+        .collect();
+    assert_eq!(artifact.bindings.len(), 3);
+    let wrappers: std::collections::HashSet<_> =
+        artifact.bindings.iter().map(|b| &b.body.name).collect();
+    let natives: std::collections::HashSet<_> =
+        artifact.bindings.iter().map(|b| &b.native.name).collect();
+    assert_eq!(wrappers.len(), 3);
+    assert_eq!(natives.len(), 3);
+    assert_eq!(methods.iter().filter(|m| m.pinvoke.is_some()).count(), 3);
+    for (index, b) in artifact.bindings.iter().enumerate() {
+        assert_eq!(b.binding_id, format!("b{index}"));
+        assert_eq!(b.symbol, bindings[index].entry_point);
+        assert_eq!(b.export_id, bindings[index].export.into_raw().into_u32());
+        assert_eq!(
+            artifact
+                .report
+                .delegate_references
+                .iter()
+                .filter(|r| r.role == "declared_native_body" && r.target.as_ref() == Some(&b.body))
+                .count(),
+            1
+        );
+    }
+    let init = methods
+        .iter()
+        .find(|m| m.name == "__declared_init")
+        .unwrap()
+        .body
+        .as_ref()
+        .unwrap();
+    let last_factory = init
+        .instructions
+        .iter()
+        .rposition(|i| i.show(&res).contains("CreateI32Binary"))
+        .unwrap();
+    let first_publish = init
+        .instructions
+        .iter()
+        .position(|i| matches!(i, Instruction::StoreStaticField { .. }))
+        .unwrap();
+    assert!(last_factory < first_publish);
+    assert_eq!(
+        init.instructions
+            .iter()
+            .filter(|i| matches!(i, Instruction::StoreStaticField { .. }))
+            .count(),
+        3
+    );
+    let startup = methods
+        .iter()
+        .find(|m| m.name == "__init_functions")
+        .unwrap()
+        .body
+        .as_ref()
+        .unwrap();
+    for name in [
+        "EnsureDeclaredBindingAvailable",
+        "RegisterDeclaredBinding",
+        "PyNativeBindingLibrary.Register",
+    ] {
+        assert_eq!(
+            startup
+                .instructions
+                .iter()
+                .filter(|i| i.show(&res).contains(name))
+                .count(),
+            1,
+            "{name}"
+        );
+    }
+    // 重复全局槽、漏掉导出、跨库都必须在发射前拒绝。
+    let mut bad = bindings.clone();
+    bad[1].export = bad[0].export;
+    assert!(emit_with_report(&program, &options(), &bad, &deployment()).is_err());
+    assert!(emit_with_report(&program, &options(), &bindings[..2], &deployment()).is_err());
+    bad = bindings.clone();
+    bad[1].module_ref = "another_library".into();
+    assert!(emit_with_report(&program, &options(), &bad, &deployment()).is_err());
+    bad = bindings.clone();
+    bad[1].initializer = program.modules[program.entry].init;
+    assert!(emit_with_report(&program, &options(), &bad, &deployment()).is_err());
+}

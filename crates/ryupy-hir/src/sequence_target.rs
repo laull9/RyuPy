@@ -1,4 +1,4 @@
-//! 平坦序列解包目标降级；名字、属性、下标可作为普通或星号叶目标。
+//! 递归序列解包目标降级；每层独立校验星号，叶目标保持延迟求值。
 //! 只记录目标表达式，运行时在完整拆出本层值后按源码顺序求值与写入。
 
 use crate::hir::{Name, SequenceItem, SequenceTarget};
@@ -29,6 +29,12 @@ impl StmtLowerCtx<'_> {
             }
             has_star |= starred;
             let target = match leaf {
+                ast::Expr::Tuple(tuple) => {
+                    SequenceTarget::Sequence(self.lower_sequence_target(&tuple.elts, tuple.range)?)
+                }
+                ast::Expr::List(list) => {
+                    SequenceTarget::Sequence(self.lower_sequence_target(&list.elts, list.range)?)
+                }
                 ast::Expr::Name(name) => {
                     SequenceTarget::Binding(self.resolve_binding(&Name::from(name.id.as_str()))?)
                 }
@@ -42,12 +48,9 @@ impl StmtLowerCtx<'_> {
                 },
                 _ => {
                     self.diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(self.file, leaf.range()),
-                            "暂不支持嵌套的解包目标",
-                        )
-                        .with_code("E0100")
-                        .with_primary_label("当前支持平坦的变量、属性、下标及其星号目标"),
+                        Diagnostic::error(Span::new(self.file, leaf.range()), "不支持的解包目标")
+                            .with_code("E0100")
+                            .with_primary_label("序列、名字、属性或下标目标"),
                     );
                     return None;
                 }

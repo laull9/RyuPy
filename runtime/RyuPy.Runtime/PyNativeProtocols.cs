@@ -7,12 +7,15 @@ public interface IPyNativeCallable
     object? Invoke(object?[] args, string[] names, object?[] values);
 }
 
-/// <summary>原生非数据描述符：只用于明确实现的包装器，不开放任意Python descriptor协议。</summary>
+/// <summary>原生显式绑定描述符；数据描述符另加标记，不开放任意Python descriptor协议。</summary>
 public interface IPyNativeDescriptor
 {
     /// <summary>读取类或实例属性时绑定；类访问self为null，实例访问传实际接收者。</summary>
     object? Bind(PyClass owner, object? self);
 }
+
+/// <summary>原生数据描述符的有限分类；删除守卫不能把它当可被实例槽遮蔽的普通方法。</summary>
+public interface IPyNativeDataDescriptor : IPyNativeDescriptor { }
 
 /// <summary>原生dict派生包装的存储契约；转换复制条目而非把键迭代错误解释为键值对。</summary>
 public interface IPyNativeMapping

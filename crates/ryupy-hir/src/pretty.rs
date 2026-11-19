@@ -124,7 +124,12 @@ fn dump_stmt(
         StmtKind::ImportFrom {
             module: imported,
             names,
+            relative,
         } => {
+            let imported = relative
+                .as_ref()
+                .map(|(level, name)| format!("{}{name}", ".".repeat(*level as usize)))
+                .unwrap_or_else(|| imported.clone());
             let items = names
                 .iter()
                 .map(|(name, bind)| {
@@ -190,6 +195,9 @@ fn dump_stmt(
         StmtKind::Raise { value, cause } => {
             let _ = (value, cause);
             writeln!(out, "raise ...;").unwrap();
+        }
+        StmtKind::SetupAnnotations => {
+            writeln!(out, "{pad}setup_annotations").unwrap();
         }
         StmtKind::Pass => {
             writeln!(out, "{pad}pass").unwrap();
@@ -333,9 +341,13 @@ fn dump_stmt(
             }
             for &handler_id in handlers {
                 let handler = &body.handlers[handler_id];
-                let header = match &handler.types {
-                    None => "except:".to_string(),
-                    Some(types) => format!("except {}:", types.join(" | ")),
+                let header = if let Some(target) = handler.type_expr {
+                    format!("except dynamic {}:", dump_expr(module, body, target))
+                } else {
+                    match &handler.types {
+                        None => "except:".to_string(),
+                        Some(types) => format!("except {}:", types.join(" | ")),
+                    }
                 };
                 match handler.name {
                     Some(binding) => writeln!(
@@ -378,11 +390,20 @@ fn dump_list(module: &Module, body: &Body, items: &[ExprId]) -> String {
 pub(crate) fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String {
     let expr = &body.exprs[expr_id];
     match &expr.kind {
+        ExprKind::ClassFreeLocal(local) => format!("class_free({})", body.locals[*local].name),
+        ExprKind::ClassCellRead(class) => format!("class_cell({})", module.classes[*class].name),
         ExprKind::ClassLookup { name, fallback } => format!(
             "class_lookup({name}, {})",
             dump_expr(module, body, *fallback)
         ),
         ExprKind::ClassLocal(name) => format!("class_namespace.{name}"),
+        ExprKind::AsyncIteration { value, op } => {
+            format!("async_iter_{op:?}({})", dump_expr(module, body, *value))
+        }
+        ExprKind::ExceptionTraceback(value) => {
+            format!("traceback({})", dump_expr(module, body, *value))
+        }
+        ExprKind::Await { value, .. } => format!("await {}", dump_expr(module, body, *value)),
         ExprKind::YieldFrom(value) => format!("yield from {}", dump_expr(module, body, *value)),
         ExprKind::Yield(value) => format!(
             "(yield {})",
@@ -391,6 +412,7 @@ pub(crate) fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String
                 .unwrap_or_else(|| "None".to_owned())
         ),
         ExprKind::UnresolvedGlobal(name) => format!("<unresolved {name}>"),
+        ExprKind::ModuleMetadata(module, name) => format!("module_metadata({module}, {name})"),
         ExprKind::ModuleFile(name) => format!("module_file({name})"),
         ExprKind::Missing => "<missing>".to_string(),
         ExprKind::Literal(lit) => match lit {
@@ -399,6 +421,7 @@ pub(crate) fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String
             Literal::Float(v) => format!("{v:?}"),
             Literal::Bool(b) => (if *b { "True" } else { "False" }).to_string(),
             Literal::Str(s) => format!("{s:?}"),
+            Literal::Unicode(points) => format!("unicode_points {points:x?}"),
             Literal::None => "None".to_string(),
         },
         ExprKind::Local(loc_id) => body.locals[*loc_id].name.as_str().to_string(),
@@ -422,19 +445,8 @@ pub(crate) fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String
         ExprKind::List(items) => format!("[{}]", dump_list(module, body, items)),
         ExprKind::Tuple(items) => format!("({})", dump_list(module, body, items)),
         ExprKind::Set(items) => format!("{{{}}}", dump_list(module, body, items)),
-        ExprKind::Dict(pairs) => {
-            let parts: Vec<String> = pairs
-                .iter()
-                .map(|(k, v)| {
-                    format!(
-                        "{}: {}",
-                        dump_expr(module, body, *k),
-                        dump_expr(module, body, *v)
-                    )
-                })
-                .collect();
-            format!("{{{}}}", parts.join(", "))
-        }
+        ExprKind::Dict(pairs) => dict_unpack::dump_plain(module, body, pairs),
+        ExprKind::DictUnpack(items) => dict_unpack::dump(module, body, items),
         ExprKind::Bytes(bytes) => format!("b{:?}", bytes),
         ExprKind::Subscript { base, index } => {
             format!(
@@ -485,6 +497,9 @@ pub(crate) fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String
                 dump_expr(module, body, *rhs)
             )
         }
+        ExprKind::CompareChain { operands, ops } => {
+            format!("chain({}: {:?})", dump_list(module, body, operands), ops)
+        }
         ExprKind::BoolOp { op, lhs, rhs } => {
             format!(
                 "({} {op:?} {})",
@@ -513,12 +528,16 @@ pub(crate) fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String
                 .collect();
             format!("{callee_str}({})", args_str.join(", "))
         }
+        ExprKind::ContextMethod { base, name } => {
+            format!("context_method({}, {name})", dump_expr(module, body, *base))
+        }
         ExprKind::Attribute { base, name } => format!("{}.{name}", dump_expr(module, body, *base)),
         ExprKind::FString(parts) => {
             let inner: Vec<String> = parts
                 .iter()
                 .map(|part| match part {
                     crate::hir::FStringPart::Literal(text) => text.to_string(),
+                    crate::hir::FStringPart::Unicode(points) => format!("unicode{points:x?}"),
                     crate::hir::FStringPart::Value { value, .. } => {
                         format!("{{{}}}", dump_expr(module, body, *value))
                     }
@@ -549,6 +568,18 @@ fn sequence_target_name(
     target: &crate::hir::SequenceTarget,
 ) -> String {
     match target {
+        crate::hir::SequenceTarget::Sequence(items) => format!(
+            "({})",
+            items
+                .iter()
+                .map(|item| match item {
+                    crate::hir::SequenceItem::One(t) => sequence_target_name(module, body, t),
+                    crate::hir::SequenceItem::Rest(t) =>
+                        format!("*{}", sequence_target_name(module, body, t)),
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
         crate::hir::SequenceTarget::Binding(binding) => binding_name(module, body, *binding),
         crate::hir::SequenceTarget::Attribute { base, name } => {
             format!("{}.{}", dump_expr(module, body, *base), name)
@@ -560,3 +591,6 @@ fn sequence_target_name(
         ),
     }
 }
+
+#[path = "pretty_dict_unpack.rs"]
+mod dict_unpack;

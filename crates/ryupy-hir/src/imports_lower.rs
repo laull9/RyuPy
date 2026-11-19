@@ -42,11 +42,18 @@ impl StmtLowerCtx<'_> {
             }
             ast::Stmt::ImportFrom(from) => {
                 let level = from.level;
+                let relative = (self.global_scope.instance_globals && level != 0).then(|| {
+                    (
+                        level,
+                        from.module.as_ref().map_or("", |m| m.as_str()).to_owned(),
+                    )
+                });
                 let Some(module) = imports::absolute_module(
                     from.module.as_ref().map(|m| m.as_str()),
                     level,
                     self.package,
-                ) else {
+                )
+                .or_else(|| relative.as_ref().map(|(_, name)| name.clone())) else {
                     self.diagnostics.push(
                         Diagnostic::error(
                             Span::new(self.file, stmt.range()),
@@ -85,7 +92,11 @@ impl StmtLowerCtx<'_> {
                     return;
                 }
                 let id = self.body.stmts.alloc(Stmt {
-                    kind: StmtKind::ImportFrom { module, names },
+                    kind: StmtKind::ImportFrom {
+                        module,
+                        relative,
+                        names,
+                    },
                     range: stmt.range(),
                     line,
                 });

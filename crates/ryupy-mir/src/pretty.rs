@@ -208,6 +208,7 @@ fn format_operand(op: &Operand) -> String {
             Constant::I64(v) => format!("const {v}_i64"),
             Constant::F64(v) => format!("const {v}_f64"),
             Constant::Bool(b) => format!("const {b}"),
+            Constant::Unicode(points) => format!("unicode_points {points:x?}"),
             Constant::Str(s) => format!("const \"{s}\""),
             Constant::BigInt(s) => format!("const {s}_bigint"),
             Constant::None => "None".to_string(),
@@ -218,20 +219,43 @@ fn format_operand(op: &Operand) -> String {
 
 fn format_rvalue(rval: &Rvalue, program: &Program) -> String {
     match rval {
+        Rvalue::MakeStateGenerator {
+            resume,
+            payload,
+            initial_pc,
+            ..
+        } => format!(
+            "MakeStateGenerator({}, {}, pc={initial_pc})",
+            program.functions[*resume].name,
+            format_operand(payload)
+        ),
         Rvalue::Use(op) => format_operand(op),
         Rvalue::GeneratorDelegateStep { delegate } => {
             format!("DelegateStep({})", format_operand(delegate))
         }
-        Rvalue::MakeGenerator { resume, frame } => format!(
-            "MakeGenerator({}, {})",
+        Rvalue::MakeGenerator {
+            resume,
+            frame,
+            origin,
+        } => format!(
+            "MakeGenerator({}, {}, origin={})",
             program.functions[*resume].name,
             frame
                 .iter()
                 .map(format_operand)
                 .collect::<Vec<_>>()
-                .join(", ")
+                .join(", "),
+            origin
+                .as_ref()
+                .map(format_operand)
+                .unwrap_or_else(|| "unknown".to_owned())
         ),
+        Rvalue::MakeStockThinFunction {
+            func,
+            module_context,
+        } => format!("MakeStockThinFunction({func:?}; {module_context:?})"),
         Rvalue::MakeFunction {
+            instance_context,
             func,
             env,
             defaults,
@@ -252,7 +276,11 @@ fn format_rvalue(rval: &Rvalue, program: &Program) -> String {
                 .map(format_operand)
                 .collect::<Vec<_>>()
                 .join(", ");
-            format!("MakeFunction({name}; env=[{env_str}]; defaults=[{defaults_str}])")
+            let context = instance_context
+                .as_ref()
+                .map(|op| format!("; context={}", format_operand(op)))
+                .unwrap_or_default();
+            format!("MakeFunction({name}; env=[{env_str}]; defaults=[{defaults_str}]{context})")
         }
         Rvalue::Binary { op, lhs, rhs } => {
             format!("{:?}({}, {})", op, format_operand(lhs), format_operand(rhs))
@@ -354,6 +382,9 @@ fn format_rvalue(rval: &Rvalue, program: &Program) -> String {
                 .join(", ");
             let sep = if prefix_str.is_empty() { "" } else { ", " };
             format!("{callee:?}({prefix_str}{sep}[{args_str}])")
+        }
+        Rvalue::InstanceZeroCall { callee, frame } => {
+            format!("instance.zero_call({}, {frame:?})", format_operand(callee))
         }
         Rvalue::DynCallValue { callee, args } => {
             let args_str = args

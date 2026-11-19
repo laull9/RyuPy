@@ -29,6 +29,11 @@ p.x = 3.0
     let (hir, diags) = lower_module(
         &parsed,
         &ryupy_hir::ModuleInfo {
+            stock_thin_functions: false,
+            foreign_class_construction: false,
+            introspection_profile: false,
+            instance_capabilities: Default::default(),
+            instance_globals: false,
             resolve_file_at_runtime: false,
             name: "__main__".into(),
             package: String::new(),
@@ -63,6 +68,11 @@ v.x = 10
     let (hir, diags) = lower_module(
         &parsed,
         &ryupy_hir::ModuleInfo {
+            stock_thin_functions: false,
+            foreign_class_construction: false,
+            introspection_profile: false,
+            instance_capabilities: Default::default(),
+            instance_globals: false,
             resolve_file_at_runtime: false,
             name: "__main__".into(),
             package: String::new(),
@@ -88,6 +98,11 @@ fn check(src: &str) -> (crate::ModuleTypes, Vec<ryupy_base::Diagnostic>) {
     let (hir, diags) = lower_module(
         &parsed,
         &ryupy_hir::ModuleInfo {
+            stock_thin_functions: false,
+            foreign_class_construction: false,
+            introspection_profile: false,
+            instance_capabilities: Default::default(),
+            instance_globals: false,
             resolve_file_at_runtime: false,
             name: "__main__".into(),
             package: String::new(),

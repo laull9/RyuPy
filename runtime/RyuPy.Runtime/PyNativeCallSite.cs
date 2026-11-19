@@ -1,0 +1,38 @@
+// 原生边界冷读已证明的CIL调用来源；只返回实际instance环境，不从文件名/公开模块名重建globals。
+namespace RyuPy.Runtime;
+
+public static partial class PyTraceback
+{
+    /// <summary>0=无可信CIL现场，1=权威实例环境，2=Legacy静态槽，3=旧未知来源。不会执行用户协议。</summary>
+    public static int CompiledNativeCallSite(out object? globals, out string? file)
+    {
+        PyCallerSource source = CallerSource(1);
+        globals = null; file = null;
+        if (source.Code is null) return _depth == 0 ? 0 : 3;
+        file = source.Frame.File;
+        if (source.Globals is null) return 2;
+        globals = PyModuleNamespaceAccess.View(source.Globals);
+        return 1;
+    }
+
+    /// <summary>返回同一可信帧捕获的globals/builtins；仅provider调用冷路读取，不改变CIL调用热路。</summary>
+    public static int CompiledNativeCallSite(out object? globals, out object? builtins, out string? file)
+    {
+        PyCallerSource source = CallerSource(1);
+        globals = null; builtins = null; file = null;
+        if (source.Code is null) return _depth == 0 ? 0 : 3;
+        file = source.Frame.File;
+        if (source.Globals is null) return 2;
+        object? captured = source.Origin switch
+        {
+            PyFunction function => PyFunctionOwner.GetContext(function).Builtins,
+            ModuleExecutionSource module => module.Builtins,
+            _ => null,
+        };
+        // 老模块标记没有builtins证明，沿未知来源合同，不能冒领当前D中的晚绑定值。
+        if (captured is null) return 3;
+        globals = PyModuleNamespaceAccess.View(source.Globals);
+        builtins = PyModuleNamespaceAccess.View(captured);
+        return 1;
+    }
+}

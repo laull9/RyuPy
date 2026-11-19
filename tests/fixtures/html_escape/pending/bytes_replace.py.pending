@@ -1,0 +1,18 @@
+# ryupy: pending
+# CP真实错误正文：bytes/bytearray有replace但拒str实参；Ryu共享replace缺失另计旧债。
+from html import escape
+
+
+class NeverQuote:
+    def __bool__(self):
+        raise AssertionError('first replace must fail before quote')
+
+
+for value in [b'&', bytearray(b'&')]:
+    try:
+        escape(value, NeverQuote())
+    except TypeError as error:
+        assert str(error) == "a bytes-like object is required, not 'str'"
+        print(type(value).__name__, type(error).__name__, str(error))
+    else:
+        raise AssertionError('bytes replace must reject str arguments')

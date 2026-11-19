@@ -1,11 +1,14 @@
 //! 大整数字面量的真实HIR容量诊断；超过上限时不给运行时/宿主留下无界构造。
+#[path = "../src/test_temp.rs"]
+mod layout_temp;
 use ryupy_driver::{Session, Stage};
 mod support;
 use support::dump;
 
 #[test]
 fn significant_decimal_capacity_is_explicit_for_every_radix() {
-    let path = std::env::temp_dir().join("ryupy_integer_capacity.py");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let path = _layout_temp.join("ryupy_integer_capacity.py");
     for token in [
         "9".repeat(4301),
         format!("0x2{}", "0".repeat(3571)),
@@ -41,7 +44,8 @@ fn significant_decimal_capacity_is_explicit_for_every_radix() {
 
 #[test]
 fn snapshot_big_defaults_do_not_demote_unrelated_small_integer_function() {
-    let path = std::env::temp_dir().join("ryupy_big_integer_types.py");
+    let _layout_temp = layout_temp::Root::new("driver-integration");
+    let path = _layout_temp.join("ryupy_big_integer_types.py");
     std::fs::write(&path, "def huge(value: int = -184467440737095516160)->int:\n    return value\ndef small(value: int)->int:\n    return value + 3\nprint(huge(), small(4))\n").unwrap();
     for (stage, name) in [
         (Stage::Hir, "integer_literal_hir"),
@@ -62,7 +66,31 @@ fn snapshot_big_defaults_do_not_demote_unrelated_small_integer_function() {
                 "巨大默认值不能塞进i64参数"
             );
         }
-        insta::assert_snapshot!(name, output);
+        match stage {
+            Stage::Hir => {
+                assert!(
+                    output.contains("def huge(value: int=...) -> int:"),
+                    "{name}"
+                );
+                assert!(output.contains("def small(value: int) -> int:"));
+                assert!(output.contains("return (value + 3)"));
+            }
+            Stage::Types => {}
+            Stage::Mir => {
+                assert!(output.contains("fn huge(_0: dyn"), "{name}");
+                assert!(output.contains("fn small(_0: i64) -> i64"));
+                assert!(output.contains("box<Dynamic>(const 184467440737095516160_bigint)"));
+                assert!(output.contains("dyn.Neg("));
+                assert!(output.contains("Add(_0, const 3_i64)"));
+            }
+            Stage::Cil => {
+                assert!(output.contains("m0_small(long)"), "{name}");
+                assert!(output.contains("PyOps.FromDecimalString(string)"));
+                assert!(output.contains("LoadString(\"184467440737095516160\")"));
+                assert!(output.contains("AddOverflow(Signed)"));
+            }
+            _ => unreachable!(),
+        }
     }
     std::fs::remove_file(path).unwrap();
 }

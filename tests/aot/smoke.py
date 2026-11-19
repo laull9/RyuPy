@@ -12,12 +12,13 @@ import shutil
 import subprocess
 import tempfile
 import time
+from docker_image import IMAGE, prepare_image
 from manifest_verify import published_manifest, read_sdk_version, relocate_manifest, dependency_binaries
 
 
 MODES = {"all": [], "argv": ["argv", "", "a b", "中文", "--flag"],
          "exit": ["exit"], "error": ["error"]}
-IMAGE = "mcr.microsoft.com/dotnet/runtime-deps:10.0.14-noble"
+
 
 
 def traceback_signature(stderr):
@@ -176,14 +177,15 @@ def main():
         native = run.run(f"native-{mode}", [str(binary), *values], cwd=relocated, env=clean)
         compare(jit[mode], native, mode)
     docker = executable("docker")
+    image = prepare_image(run, docker, work)
     # 容器只挂载搬迁产物；镜像不包含 SDK/runtime/Python，运行时禁网。
     script = ('for tool in dotnet python python3 python3.12; do '
               'if command -v "$tool" >/dev/null 2>&1; then exit 97; fi; done; '
               'binary=$1; shift; exec "$binary" "$@"')
     for mode, values in MODES.items():
-        result = run.run(f"docker-{mode}", [docker, "run", "--rm", "--network", "none",
+        result = run.run(f"docker-{mode}", [docker, "run", "--pull=never", "--rm", "--network", "none",
                          "--read-only", "--mount", f"type=bind,src={relocated},dst=/app,readonly",
-                         "--workdir", "/app", "--entrypoint", "/bin/sh", IMAGE,
+                         "--workdir", "/app", "--entrypoint", "/bin/sh", image,
                          "-c", script, "aot-smoke", "/app/" + binary.name, *values], cwd=work, timeout=300)
         compare(jit[mode], result, mode)
     # 容器只挂裸exe目录；完整搬迁产物仍归档但不在此容器可见树中。
@@ -198,9 +200,9 @@ def main():
     single_record['clean_machine_without_runtime_tested'] = True
     try:
         for mode, values in MODES.items():
-            actual = run.run(f"single-docker-{mode}", [docker, "run", "--rm", "--network", "none",
+            actual = run.run(f"single-docker-{mode}", [docker, "run", "--pull=never", "--rm", "--network", "none",
                 "--read-only", "--mount", f"type=bind,src={single.parent},dst=/app,readonly",
-                "--workdir", "/app", "--entrypoint", "/bin/sh", IMAGE,
+                "--workdir", "/app", "--entrypoint", "/bin/sh", image,
                 "-c", script, "aot-single", "/app/" + single.name, *values], cwd=work, timeout=30)
             compare(jit[mode], actual, mode)
             single_record['mode_exits'][mode] = actual.returncode

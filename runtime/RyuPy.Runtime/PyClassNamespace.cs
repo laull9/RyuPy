@@ -9,6 +9,7 @@ public static partial class PyOps
     public static bool ClassNamespaceContains(object cls, string name)
     {
         if (cls is not PyClass target) throw new PyTypeError("class namespace target must be a class");
+        if (PyForeignClassConstruction.TryGet(target, out IPyForeignClassDefinition definition)) return definition.Contains(name);
         return target.Attributes.ContainsKey(name);
     }
 }

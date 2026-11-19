@@ -28,7 +28,10 @@ public static partial class Builtins
         PyTraceback.Reset();
         PyErrors.LeaveHandler(null);
         PyAtexit.RunExitFunctions();
-        return FlushForExit(exitCode);
+        int result = FlushForExit(exitCode);
+        // Reset 不是执行域关闭。退出刷新可在空 Python 栈建立新 source，直到这里才全部结束。
+        if (PyTraceProduct.Enabled) PyTraceProduct.Exit();
+        return result;
     }
 
     /// <summary>所有退出路径刷新标准流；失败转Python报告和退出码120，不从Main泄漏CLR异常。</summary>
@@ -38,6 +41,11 @@ public static partial class Builtins
         catch (System.Exception error)
         {
             PyBaseException python = error as PyBaseException ?? PyIO.FileSystemError(error);
+            if (PyTraceProduct.Enabled)
+            {
+                if (error is not PyBaseException) PyTraceProduct.NativeFresh(python);
+                PyTraceProduct.Terminal(python);
+            }
             // 报告走宿主stderr兜底，不能再次调用失败的用户flush形成递归。
             try { System.Console.Error.WriteLine("Exception ignored while flushing standard streams:");
                 System.Console.Error.Write(PyTraceback.Format(python)); System.Console.Error.Flush(); }

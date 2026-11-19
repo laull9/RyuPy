@@ -1,12 +1,42 @@
-# 标准库移植计划
+# 标准库 provider 与覆盖计划
 
-标准库在 Phase 3 单独交付，M3.4 系统/文件/路径与 M3.5 数值/JSON/正则已按 [系统 API 表](stdlib-system.md) / [数值 API 表](stdlib-numeric.md) 实现限定范围，M3.6 容器/函数工具/元数据限定范围见 [容器表](stdlib-collections.md)、[函数表](stdlib-functional.md)、[元数据表](stdlib-metadata.md)，不代表完整 dataclasses 或 typing。M3.7 已完成用户批准的有界逐 API 交付，已实现的有限范围见 [项目工具表](stdlib-project-tools.md)，未列能力不自动视为支持。模块能导入、API 能调用、项目测试通过分别记录。语言进度见 [roadmap.md](roadmap.md)，任务见 TODO 的 M3.4–M3.8。
+## 当前策略（2026-11-13）
+
+新增覆盖优先随包 CPython provider，停止以逐模块 C# 重写或逐库 C ABI 扩张兼容性。
+先让现有联合应用完整切换 provider，再以真实 NumPy 和固定应用扩大覆盖；原生模块
+保留维护、回归和性能对照。后续只对实测热点考虑 C# 替换，保留身份、别名、异常与
+副作用。统一架构与验收见 [cpython-provider.md](cpython-provider.md)。
+各 API 增加 provider、版本、平台与证据归属。CP1–CP3 尚待实施，现有 API 表继续描述
+原生实现的限定范围；下面旧移植批次保留历史，新增排期采用 CP 主线。
+
+## 既有原生实现与历史移植记录
+
+标准库在 Phase 3 单独交付，M3.4 系统/文件/路径与 M3.5 数值/JSON/正则已按 [系统 API 表](stdlib-system.md) / [数值 API 表](stdlib-numeric.md) 实现限定范围，M3.6 容器/函数工具/元数据限定范围见 [容器表](stdlib-collections.md)、[函数表](stdlib-functional.md)、[元数据表](stdlib-metadata.md)；完整 dataclasses 和 typing 仍待实现。M3.7 已完成用户批准的有界逐 API 交付，已实现的有限范围见 [项目工具表](stdlib-project-tools.md)，未列能力不自动视为支持。模块能导入、API 能调用、项目测试通过分别记录。语言进度见 [roadmap.md](roadmap.md)，任务见 TODO 的 M3.4–M3.8。
+
+## 标准库与应用联合打包
+
+catalog 标准库源码、声明式 C ABI 与显式包数据现在可以共同生成一个 NativeAOT 分发包。
+`build` 的 `.source-plan.json` 记录本次绑定 provider、源码闭包与运行时注册来源；
+运行时模块的注册事实在编译器构建期从全部 C# 源文件生成，逐 API 兼容性仍按各模块表验收。
+联合分发使用 schema9，自动源码位置与显式资源分别记录完整性。
+macOS arm64 已通过真实 CP/JIT/Native、缺资源失败保旧 dist、中文路径搬迁和空工具 PATH 验收。
+合同与复现见 [ADR0175](adr/0175-stdlib-binding-resource-distribution.md) 和
+[联合分发测试](../tests/aot/stdlib_distribution/README.md)。
 
 ## 项目驱动的基础内建
 
 `ord` / `chr` 直接调用已原生实现，独立于下方待做模块表：ord接受单码点str和单字节bytes/bytearray，
 chr接受整数/bool与一次`__index__`转换；代理项可往返。严格拒绝错误参数和关键字，区分C int溢出与Unicode范围错误。
-M3.3已接入一等内建函数值，ord/chr可保存/传参与调用，保持同名对象身份。这只描述基础内建；后续map等竖切已使wcwidth固定入口及九项指定上游场景通过，不代表整个标准库完成。
+M3.3已接入一等内建函数值，ord/chr可保存/传参与调用，保持同名对象身份。这只描述基础内建；后续map等竖切已使wcwidth固定入口及九项指定上游场景通过，完整标准库继续按下表推进。
+
+## 后续项目驱动的有限适配
+
+本地候选 `shutil` 仅公开真实 `copyfileobj` 和可重绑 `COPY_BUFSIZE`：复用普通read/write流协议，
+不自动关闭/刷新，不提供copy/copyfile/copymode/rmtree等路径复制。10项C#与4项实际CP/JIT
+差分及完整门禁通过，尚未发布；当前不增加项目通过数。范围及首失败见[ADR0058](adr/0058-shutil-copyfileobj.md)。
+
+本地候选 `zipfile` 仅提供真实 `is_zipfile` 尾记录识别与 `BadZipFile` 异常；
+不提供ZipFile/解压，不以True代表完整归档有效性。本地专项与完整门禁通过、未发布，见[ADR0059](adr/0059-zipfile-tail-identification.md)。
 
 ## 工作规模与实现路径
 
@@ -39,6 +69,54 @@ C# 重写 Python 对象、异常、参数绑定和系统 API 的适配层，连�
 
 每一行继续按单个 API 的竖切实施。若 `enum` 等依赖暂缓的类机制，应评估限定降级或桥接，不把受影响项目标成原生通过。
 
+## 原源复用与构建期探测
+
+版本化目录 `cpython-3.12.13-catalog-2` 已准入 `_markupbase`、`html`、
+`html.entities`、`html.parser` 和 `colorsys`；每个模块仍按自己的 API 用例验收。
+`colorsys` 复用 CPython 原源，六公开 API 已完成 55 行 CPython 差分和 macOS arm64
+NativeAOT 搬迁，覆盖往返、色相分支、无彩色、截断与参数错误。转换值比较至小数九位，
+自定义数值对象和完整上游测试继续待验。
+
+`ryupy probe <入口> --aot -I <源码根> -o <报告目录>` 仅读取和解析源码，输出
+`<入口>.source-plan.json`；普通源码构建也在编译图发现后输出同形报告。报告列出唯一 provider、
+真实来源、版本、依赖闭包、传递缺口和动态调用候选，保留用户源码搜索优先级。
+`queue` 只登记来源及依赖缺口，尚未准入；动态调用仍有静态盲区。
+
+默认发行构建现使用 `CatalogOnly`：静态导入自动选择已认证 catalog 模块，无需 pilot feature。
+普通用户模块的自动动态实例环境及动态提示收集仍受 `ordinary-dynamic-module-pilot` 控制；
+`ExplicitOnly` 继续关闭自动 catalog。同名、同字节用户文件保留用户来源。
+来源合同见 [ADR0174](adr/0174-versioned-source-catalog-probe.md)，默认准入见
+[ADR0179](adr/0179-default-catalog-stdlib.md)。
+
+## 常用应用标准库：已整合可用范围
+
+| 能力 | 已验收公开合同 | 实现与边界 |
+| --- | --- | --- |
+| 数据库 | sqlite3 连接/游标、参数化 SQL、executemany、fetch、事务、with、关闭与异常 | Microsoft.Data.Sqlite + SQLitePCLRaw；[逐 API 表](sqlite3-implementation.md) |
+| HTTP/TLS | urllib.parse URL/query/转义；Request/urlopen GET/POST/HEAD、headers/status/read/close、错误与重定向；默认 TLS 验证及可信 CA | .NET HttpClient/TLS；代理、cookie、auth handler、高级 SSL 尚待；[验收](validation/network-stdlib.md) |
+| 压缩 | zlib compress/decompress/adler32/crc32；gzip compress/decompress/open、追加、多成员、上下文关闭 | .NET 压缩流；累计解压 64 MiB，上述窗口范围与文件协议边界见[验收](validation/zlib-gzip.md) |
+| 编码 | Base64/urlsafe/Base16/Base32；binascii hex/unhex/base64/crc32 | 严格 bytes/ASCII/padding 参数合同；[ADR0178](adr/0178-binary-crypto-stdlib.md) |
+| 摘要认证 | hashlib SHA256/SHA512/SHA1/MD5，增量/复制；hmac 构造、增量、复制、digest、compare_digest | .NET IncrementalHash，固定算法范围；[ADR0178](adr/0178-binary-crypto-stdlib.md) |
+
+[跨模块应用](../tests/aot/stdlib_service/README.md) 已完成 HTTP→Base64→gzip→JSON→包资源→SQLite
+的 CP/JIT/NativeAOT 搬迁对照、参数化写入、事务回滚及缺库负例。JIT 随包携带托管依赖、
+版本合同和当前 RID 原生库；AOT 携带 SQLite 原生库与许可证。实机范围为 macOS arm64，
+Windows/Linux、无 SDK 目标机及完整模块公开 API 均继续单列验收。
+
+## 标准库底层能力与通用 C ABI
+
+C# provider 提供对象语义和系统适配，纯 Python 上层实现复用 catalog 原源。
+外部成熟 C 库通过声明式 ABI 接入：v3 已支持 13 类精确标量、void 返回，以及
+UTF-8/bytes 输入展开的地址与 `size_t` 长度。C# 负责严格编码、BigInteger 范围检查、
+缓冲快照和 pin 生命周期；编译器生成精确静态 PInvoke，NativeAOT 使用静态 archive 链接。
+同一程序通过 `as_file()` 读取包资源后调用 C 函数，已完成 macOS arm64 搬迁与清除
+Python 配置、工具 PATH 的执行验收。声明示例和错误合同见
+[ADR0173](adr/0173-declarative-cabi-signatures.md)、[专项验收](../tests/aot/binding_abi/README.md)。
+
+SQLite、OpenSSL 等沿用成熟库的实现；接入工作集中在公开 API、所有权、错误传播和部署。
+opaque handle 将采用完整 SafeHandle 创建/销毁合同；可写缓冲、原生分配返回、回调、
+多库依赖收集仍待实现。catalog 原源、native binding 与资源已联合准入，见 ADR0175；默认发行策略见 ADR0179。
+
 ## libpython 最小桥接，M3.8
 
 先记录 Python 的准确版本、动态库定位、标准库路径、解释器初始化和退出边界，再做常用标量、字符串、容器、可调用对象与异常转换。对象包装保留共享身份；跨堆引用和回调要有可释放的所有权，不能制造无法回收的强引用环。
@@ -56,3 +134,89 @@ C# 重写 Python 对象、异常、参数绑定和系统 API 的适配层，连�
 - 将模块登记到 Phase 2 的模块解析与运行时注册表，缺失 API 明确报错。
 - 跑对应项目入口与固定测试，列出传递依赖；导入成功不能替代这些测试。
 - 原生与桥接分开更新兼容性矩阵；新增差异进入 semantics.md 与 compatibility.md。
+
+本地开发候选 `optparse` 提供有限真实OptionParser/Option/Values、六异常、常用单值解析及默认帮助；
+不含OptionGroup/custom formatter/callback等完整长尾，当前差分6/6与完整门禁本地已验，尚未发布。
+范围见[ADR0060](adr/0060-optparse-common-options.md)，不能据导入成功增加项目通过数。
+
+本地候选 `getopt.getopt` 已提供有限真实短/长选项解析和GetoptError/error身份；当前21项C#、5项CP/JIT差分及正常完整门禁920C#/228CP/202e2e+30原ignored已验。仅确切list/tuple与str输入域，不含GNU或完整自定义协议，不据此增加项目通过数。见[ADR0075](adr/0075-getopt-local-exception-imports.md)。
+
+### TypeVar 有限基础
+
+真实 TypeVar 身份、核心属性、variance 及现有 typing 组合参数元数据见
+[ADR0110](adr/0110-typevar-foundation.md)。NamedTuple/TypedDict 注解保变量原身份。
+这不是 Generic 参数化继承、完整 typing 反射或 Markdown 入口通过；动态 bound helper、
+变量替换和超域 ForwardRef 语法继续明确未实现。
+
+### importlib.util 逐 API 有限支持
+
+提供有限真实find_spec(name, package=None)与已编译源码能力的module_from_spec/create_module/exec_module，不以模块名登记代替API实现。
+已编译源模块/包的发现与当前缓存读取见[发现合同](importlib-util.md)；固定版本CP事实、
+完整源差分与门禁范围见[ADR0122](adr/0122-importlib-util-find-spec.md)。
+公开编译loader首切见[ADR0129](adr/0129-public-module-from-spec.md)；sys.modules只准入[受限新模块别名](module-cache-alias-slice.md)。完整可写缓存、自定义finder和完整html.parser仍未完成。未发现域不能证明不存在，明确NI而不是假None。
+
+
+### xml.etree.ElementTree有限对象
+
+Element/SubElement、原值字段与attrib、append/insert/get/set/keys/items、整数/读slice、
+活children和有限iter；ElementTree/getroot、Comment/ProcessingInstruction/PI、精确文本
+QName及共享HTML_EMPTY已逐API验收。参考默认C加速对象，不是纯Python回退。
+TreeBuilder、tostring/XMLParser/ElementPath、clear/extend/remove和写删children仍未做；
+全反射与warning文件名也未对齐。范围/完整pending见[XML首切](xml-element-core-slice.md)。
+
+### collections.OrderedDict有限精确类型
+
+有限首切提供真实类型、标量键、双顺序、流式更新、move_to_end/popitem、
+活视图及正反游标、有限相等与浅copy/fromkeys。dict只读根和公开序消费者分别接线，
+根写入及未接通消费者明确NI；派生/用户hash键/union等不随导入开放。
+31完整合同22严格通过、9pending；正常make check通过2577 C#/900 Rust/631 CP/
+401 e2e、234 ignored，不等于远端发布。Markdown窄配置转缺NoReturn仍未过，默认
+find_spec NI独立。范围见[容器API表](stdlib-collections.md)和[合同与验收](ordered-dict-core-slice.md)，
+成本见[性能原报告](ordered-dict-performance.md)。
+
+## importlib.resources 文件系统 as_file
+
+`as_file(Path)` 已实现：返回原生生成器上下文，进入得到原 Path 对象，目录和不存在路径也可进入；退出保留文件并传播原异常。Path 协议及注册包资源两个 CP/JIT 差分用例通过，显式资源的 macOS arm64 NativeAOT 搬迁通过。
+
+公开 `args/kwds/func/gen/__dict__` 与保存的绑定方法身份有差分覆盖。zip、自定义 Traversable 解包、singledispatch 注册/反射仍待实现；前两项保留 pending。无 SDK 目标环境及 Linux/Windows 新合同待验。见 [ADR0170](adr/0170-filesystem-as-file-context.md) 与 [复现记录](notes/resources-as-file.md)。
+
+## importlib.resources 编译闭包候选补充
+
+ADR0146只为JIT显式literal files锚点可选发现空普通直接子包；资源API运行时行为、AOT显式include/resources和旧负域不变。`files`重绑仍实际调用，未知/非空/编码声明候选不强制编译。候选尚待原pyfiglet/通用Native与完整同HEAD验收，不计新API或项目通过。
+
+### 分发快照候选（ADR-0150，未验收）
+
+新增显式闭包metadata请求与普通import_module候选；EntryPoint/EntryPoints只承诺name/value/group/load、iter/len/bool、select(name/group)、字符串索引。尚待CP差分/JIT/AOT及保护门，不计标准库或项目通过；高级构造、比较/hash、动态finder、zip与未配置环境明确NI。
+
+修订002：未实现的version/files/requires/Distribution等高级API不公开，保持缺属性/from-import失败而非占位函数。无选项能import metadata但entry_points明确NI，不能将模块可导入当默认兼容。
+
+### `itertools.starmap`（sortedcontainers 索引构建依赖）
+
+原生逐行惰性解包调用；构造只取得外层迭代器，不提前验证 callable 或消费行。
+覆盖 tuple/list 行、空输入、可变源、非可迭代行和 callable 异常后的继续、用户游标
+非永久耗尽、`StopIteration.value` 及重入。复用已有参数调用与迭代协议，不声称
+pickle 状态、任意自定义 descriptor 或迭代器子类完整兼容。
+证据：`m3_6_itertools_starmap.py` 差分与 `PyStarMapTests`。
+仅此 API 通过不代表 sortedcontainers 项目已运行通过。
+
+### 版本位编码与当前线程身份
+
+`sys.hexversion` 与固定语言目标 `3.12.13 final 0` 一致；不冒充 CPython 的实现身份。
+`_thread.get_ident()` 返回当前实际 CLR 线程的非零身份，存活线程间不同，同线程稳定。
+身份数值与 CPython 或其他进程不做比较，也不表示 OS native id。参数会正常拒绝。
+仅提供此 API，不开放 Python 线程创建、锁或 GIL 控制。证据为
+`m3_7_thread_identity.py` 差分与 `PyThreadIdentityTests` 的宿主双线程测试。
+
+### collections.abc canonical类族（当前兼容竖切）
+
+18个导出均为真实普通类，保留直接父图和C3身份：Iterable、Iterator、Reversible、Generator、Sized、Container、Callable、Collection、Sequence、MutableSequence、Set、MutableSet、Mapping、MutableMapping、MappingView、KeysView、ItemsView、ValuesView。模块导出重绑不替换内部canonical身份；用户子类采用nominal判断，不自动继承根的结构注册。继承定义完成时冻结抽象集合；普通类拷贝抽象函数不会自动变ABC。
+
+提供Sequence/MutableSequence、Set/MutableSet、Mapping/MutableMapping常用mixins及live view。MappingView持有真实`_mapping`槽，空slots子类和实例字典遵循有限布局合同。原生生成器mixin仅提供iter/next与PEP479异常转换、耗尽终态；访问send/throw/close明确报NotImplementedError，不因显示为generator宣称完整控制协议。
+
+边界：动态ABCMeta/register/update_abstractmethods、手写抽象集合和自定义抽象标记尚不支持；已认证抽象方法标记被改写时明确拒绝。`Set._hash`需与frozenset散列统一后再开放。Generator根默认throw的traceback参数尚不支持。Sized不可订阅；collections.abc.Callable非法订阅参数报TypeError，合法形状目前明确NotImplementedError，不冒充typing.Callable缓存别名。其余有限PEP585订阅保留真实canonical origin。
+
+### 动态单基的延迟发布合同
+
+编译器对已冻结的动态单基值使用独立冷准备入口，基值不重复求值，已知Generic别名只在旧单基构造核心解析一次。实际普通MI族进入同一C3验证/终结；其它类型继续str/list/dict、typing IO/Generic等既有单基专用布局，不把它们转换成MI。类体、终结或装饰器失败时的旧绑定和类cell由编译链保持。旧MakeClass仍拒绝MI族基类，动态异常继承仍需要编译异常factory，native MI等原有限域不放开。
+
+运行时才识别出的MI继承要求`RuntimeFeature.IsDynamicCodeSupported`为真；NativeAOT及显式关闭动态码能力的JIT均明确报NotImplementedError。此限制只在真实MI分支消费，普通单基布局继续既有AOT能力；内部mode测试不能替代真实NativeAOT验收。

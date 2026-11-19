@@ -1,25 +1,61 @@
 //! 捕获调用异常后必须保留处理函数自身帧；正常返回才弹自身帧。
 use ryupy_driver::Session;
+
+#[path = "../src/test_temp.rs"]
+mod test_temp;
+
+const SOURCE: &str = "def original():\n    raise ValueError('old')\ndef caught():\n    try:\n        original()\n    except ValueError:\n        pass\n    raise RuntimeError('new')\ncaught()\n";
+
+// 纯Rust快照入口与真实运行回归分开；完整JIT断言仍由原测试独立执行。
 #[test]
-fn caught_call_does_not_remove_the_catching_function_frame() {
-    let root = ryupy_driver::runtime::workspace_root();
-    let path = std::env::temp_dir().join("ryupy_catch_current_frame.py");
-    std::fs::write(&path, "def original():\n    raise ValueError('old')\ndef caught():\n    try:\n        original()\n    except ValueError:\n        pass\n    raise RuntimeError('new')\ncaught()\n").unwrap();
+fn snapshot_catch_restores_current_frame() {
+    let root = test_temp::Root::new("catch-snapshot");
+    let path = root.join("ryupy_catch_current_frame.py");
+    std::fs::write(&path, SOURCE).unwrap();
     let mut session = Session::default();
     let mir = ryupy_driver::dump(&mut session, &path, ryupy_driver::Stage::Mir).unwrap();
-    insta::assert_snapshot!("catch_restores_current_frame_mir", mir);
+    let caught = mir
+        .split("fn caught(")
+        .nth(1)
+        .unwrap()
+        .split("fn main(")
+        .next()
+        .unwrap();
+    assert!(caught.contains("catch ValueError handler"));
+    assert!(caught.contains("catch io.UnsupportedOperation handler"));
+    // catch入口保留当前帧，仅回退到base+1；正常退出才移除自身帧。
+    let restore = caught.find("Add(_1, const 1_i64)").unwrap();
+    let pop = caught.find("RuntimeFn::TracePopTo(_5)").unwrap();
+    let enter = caught.find("RuntimeFn::HandlerEnter(_4)").unwrap();
+    assert!(restore < pop && pop < enter);
+    assert!(
+        caught.find("RuntimeFn::HandlerLeave").unwrap()
+            < caught.find("MakeException(const \"RuntimeError\"").unwrap()
+    );
+    assert!(caught.contains("RuntimeFn::TracePopTo(_1)"));
+}
+
+#[test]
+fn caught_call_does_not_remove_the_catching_function_frame() {
+    let root = test_temp::Root::new("catch-product");
+    let path = root.join("ryupy_catch_current_frame.py");
+    std::fs::write(&path, SOURCE).unwrap();
+    let mut session = Session::default();
     let artifact = ryupy_driver::build(
         &mut session,
         &ryupy_driver::BuildOptions {
             input: path.clone(),
-            out_dir: root.join("target/test_catch_current_frame"),
+            out_dir: root.join("product"),
             aot: false,
             search_paths: vec![],
         },
     )
     .unwrap();
-    let result = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
-    std::fs::remove_file(path).unwrap();
+    let result = ryupy_driver::dotnet::run_executable_with(
+        artifact.native_exe.as_ref().unwrap(),
+        &Default::default(),
+    )
+    .unwrap();
     let stderr = String::from_utf8_lossy(&result.stderr);
     assert_eq!(result.status.code(), Some(1), "{stderr}");
     assert!(

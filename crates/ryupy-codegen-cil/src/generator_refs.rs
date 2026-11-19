@@ -2,30 +2,101 @@
 
 use dotnetdll::prelude::*;
 
-pub(crate) fn build(
-    res: &mut Resolution<'static>,
-    runtime: AssemblyRefIndex,
-) -> (
-    MethodRefIndex,
-    MethodRefIndex,
-    MethodRefIndex,
-    MethodRefIndex,
-) {
-    let resume = res.push_type_reference(type_ref! { RyuPy.Runtime.PyResume in #runtime });
-    let generator = res.push_type_reference(type_ref! { RyuPy.Runtime.PyGenerator in #runtime });
-    let resume: MethodType = BaseType::class(resume).into();
-    let generator: MethodType = BaseType::class(generator).into();
-    let delegate_ctor =
-        res.push_method_reference(method_ref! { void @resume::.ctor(object, nint) });
-    let generator_ctor = res.push_method_reference(method_ref! {
-        void @generator::.ctor(@resume, object[], string, string)
-    });
-    let ops = res.push_type_reference(type_ref! { RyuPy.Runtime.PyOps in #runtime });
-    let ops: MethodType = BaseType::class(ops).into();
-    let input =
-        res.push_method_reference(method_ref! { static object @ops::GeneratorInput(object) });
-    let retry = res.push_method_reference(method_ref! { static object @ops::GeneratorRetry() });
-    (delegate_ctor, generator_ctor, input, retry)
+pub(crate) struct GeneratorRefs {
+    pub state_ctor: MethodRefIndex,
+    pub sum_state_ctor: MethodRefIndex,
+    pub sum_resume_ctor: MethodRefIndex,
+    pub sum_try_consume: MethodRefIndex,
+    pub sum_range_guard: MethodRefIndex,
+    pub state_data: MethodRefIndex,
+    pub state_pc: MethodRefIndex,
+    pub state_set_pc: MethodRefIndex,
+    pub resume_ctor: MethodRefIndex,
+    pub ctor: MethodRefIndex,
+    pub ctor_with_origin: MethodRefIndex,
+    pub input: MethodRefIndex,
+    pub retry: MethodRefIndex,
+    pub coroutine_create: MethodRefIndex,
+    pub coroutine_await_start: MethodRefIndex,
+    pub coroutine_enter_await_start: MethodRefIndex,
+    pub coroutine_exit_await_start: MethodRefIndex,
+    pub coroutine_next_await_start: MethodRefIndex,
+    pub async_iter_start: MethodRefIndex,
+    pub async_iter_next: MethodRefIndex,
+    pub async_iter_is_stop: MethodRefIndex,
+}
+
+impl GeneratorRefs {
+    pub(crate) fn build(res: &mut Resolution<'static>, runtime: AssemblyRefIndex) -> Self {
+        let resume = res.push_type_reference(type_ref! { RyuPy.Runtime.PyResume in #runtime });
+        let generator =
+            res.push_type_reference(type_ref! { RyuPy.Runtime.PyGenerator in #runtime });
+        let sum_resume =
+            res.push_type_reference(type_ref! { RyuPy.Runtime.PyResumeSumCompiled in #runtime });
+        let sum_resume: MethodType = BaseType::class(sum_resume).into();
+        let resume: MethodType = BaseType::class(resume).into();
+        let generator: MethodType = BaseType::class(generator).into();
+        let ops = res.push_type_reference(type_ref! { RyuPy.Runtime.PyOps in #runtime });
+        let ops: MethodType = BaseType::class(ops).into();
+        Self {
+            coroutine_next_await_start: res.push_method_reference(
+                method_ref! { static object @ops::CoroutineNextAwaitStart(object) },
+            ),
+            async_iter_start: res
+                .push_method_reference(method_ref! { static object @ops::AsyncIterStart(object) }),
+            async_iter_next: res
+                .push_method_reference(method_ref! { static object @ops::AsyncIterNext(object) }),
+            async_iter_is_stop: res
+                .push_method_reference(method_ref! { static object @ops::AsyncIterIsStop(object) }),
+            coroutine_enter_await_start: res.push_method_reference(
+                method_ref! { static object @ops::CoroutineEnterAwaitStart(object) },
+            ),
+            coroutine_exit_await_start: res.push_method_reference(
+                method_ref! { static object @ops::CoroutineExitAwaitStart(object) },
+            ),
+            coroutine_create: res
+                .push_method_reference(method_ref! { static object @ops::CoroutineCreate(object) }),
+            coroutine_await_start: res.push_method_reference(
+                method_ref! { static object @ops::CoroutineAwaitStart(object) },
+            ),
+            state_ctor: res.push_method_reference(method_ref! {
+                void @generator::.ctor(@resume, object, long, string, string, object)
+            }),
+            sum_state_ctor: res.push_method_reference(method_ref! {
+                void @generator::.ctor(@resume, object, long, string, string, object, @sum_resume)
+            }),
+            sum_resume_ctor: res
+                .push_method_reference(method_ref! { void @sum_resume::.ctor(object, nint) }),
+            sum_try_consume: res.push_method_reference(
+                method_ref! { static bool @ops::GeneratorSumTryConsume(object, object) },
+            ),
+            sum_range_guard: res.push_method_reference(
+                method_ref! { static bool @ops::GeneratorSumRangeGuard(object) },
+            ),
+            state_data: res.push_method_reference(
+                method_ref! { static object @ops::GeneratorStateData(object) },
+            ),
+            state_pc: res.push_method_reference(
+                method_ref! { static long @ops::GeneratorStateGetPC(object) },
+            ),
+            state_set_pc: res.push_method_reference(
+                method_ref! { static void @ops::GeneratorStateSetPC(object, long) },
+            ),
+            resume_ctor: res
+                .push_method_reference(method_ref! { void @resume::.ctor(object, nint) }),
+            // 无来源的手工MIR保留既有四参ABI，真实工厂显式传同一个owner引用。
+            ctor: res.push_method_reference(method_ref! {
+                void @generator::.ctor(@resume, object[], string, string)
+            }),
+            ctor_with_origin: res.push_method_reference(method_ref! {
+                void @generator::.ctor(@resume, object[], string, string, object)
+            }),
+            input: res.push_method_reference(method_ref! {
+                static object @ops::GeneratorInput(object)
+            }),
+            retry: res.push_method_reference(method_ref! { static object @ops::GeneratorRetry() }),
+        }
+    }
 }
 
 /// yield-from的四个静态协议入口，不在后端解释委托语义。

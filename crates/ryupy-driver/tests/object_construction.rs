@@ -72,7 +72,11 @@ fn execute(source: &str, filename: &str, reference: bool) -> (Option<Output>, Ou
         },
     )
     .unwrap();
-    let actual = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
+    let actual = ryupy_driver::dotnet::run_executable_with(
+        artifact.native_exe.as_ref().expect("应用必须有公开入口"),
+        &Default::default(),
+    )
+    .unwrap();
     (expected, actual)
 }
 

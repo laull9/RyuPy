@@ -1,0 +1,79 @@
+// 普通Host的关闭GC只回收不可达CLR owner：强别名仍活、用户析构可重入、原异常与atexit顺序保留。
+using RyuPy.CPython;
+using RyuPy.Runtime;
+using System.Runtime.CompilerServices;
+namespace RyuPy.CPython.Tests;
+internal static partial class ProgramLifecycle
+{
+    private static PythonObject? ordinaryAlias;
+    private static WeakReference ordinaryCloseWeak = null!;
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void PrepareOrdinaryAlias()
+    {
+        var main = host.Import("__main__");
+        var globals = (PythonObject)main.GetAttr("__dict__")!;
+        var probe = host.Import("native_scope_probe");
+        host.ExecuteWithCallCarrier(globals, "ordinary-alias.cs", () =>
+        {
+            ordinaryAlias = (PythonObject)NativeInvoke(probe, "facts")!;
+            ordinaryCloseWeak = new(ordinaryAlias);
+        });
+    }
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void VerifyOrdinaryAlias()
+    {
+        GC.Collect(); GC.WaitForPendingFinalizers(); host.DrainReferences();
+        Require(ordinaryAlias is { IsDisposed: false } && ordinaryCloseWeak.IsAlive, "强别名不能因GC或carrier结束退休");
+        Require(CarrierText(CarrierItem(ordinaryAlias, 2)) == "ordinary-alias.cs", "活frame别名仍可读来源");
+        Native.rp_carrier_stats(out long live, out _);
+        Require(live == 1, "真实frame别名保活capsule至其dealloc");
+    }
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void ForgetOrdinaryAlias() => ordinaryAlias = null;
+    private static object? OrdinaryFinalizerReentry(object?[] args)
+    {
+        Require(host.Statistics.State == "stopping", "析构发生在普通关闭Drain阶段");
+        Require(host.SystemAttribute("version") is not null, "用户析构重入真实CP调用");
+        Console.WriteLine("ORDINARY_FINALIZER_REENTRY"); return PyNone.Instance;
+    }
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void PrepareOrdinaryFinalizer()
+    {
+        var main = host.Import("__main__");
+        var globals = (PythonObject)main.GetAttr("__dict__")!;
+        main.SetAttr("managed_reenter", PyNativeFunctions.CreateVariadic("managed_reenter", OrdinaryFinalizerReentry));
+        host.ExecuteWithCallCarrier(globals, "ordinary-finalizer.cs", () => Run("""
+import atexit, sys
+events=[]
+def unraisable(error):
+ assert type(error.exc_value) is ValueError and error.exc_value.args==('ordinary-finalizer-original',)
+ events.append('unraisable')
+ print('ORDINARY_UNRAISABLE', str(error.exc_value), flush=True)
+sys.unraisablehook=unraisable
+class Victim:
+ def __del__(self):
+  events.append('del')
+  managed_reenter()
+  events.append('reentered')
+  raise ValueError('ordinary-finalizer-original')
+def exit_check():
+ assert events==['del','reentered','unraisable'], events
+ print('ORDINARY_ATEXIT_ORDER', ','.join(events), flush=True)
+atexit.register(exit_check)
+victim=Victim()
+"""));
+        object value = main.GetAttr("victim")!; ordinaryCloseWeak = new(value);
+        Run("del victim\n"); GC.KeepAlive(value);
+    }
+    private static int OrdinaryCloseCase(string config, bool finalizer)
+    {
+        Bootstrap.Start(config, ["ordinary-close-product"]); host = Bootstrap.Host;
+        if (finalizer) PrepareOrdinaryFinalizer();
+        else { PrepareOrdinaryAlias(); VerifyOrdinaryAlias(); ForgetOrdinaryAlias(); }
+        int result = Bootstrap.Finish(0);
+        Native.rp_carrier_stats(out long live, out _); Native.rp_code_origin_stats(out long records, out long active);
+        Require(!ordinaryCloseWeak.IsAlive, "自然关闭GC回收已不可达owned wrapper");
+        Require(result == 0 && live == 0 && records == 0 && active == 0, "普通关闭真实资源全部退账");
+        Console.WriteLine("PASS " + mode + " live=0 records=0 active=0"); return 0;
+    }
+}

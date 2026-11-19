@@ -1,0 +1,29 @@
+# ryupy: pending
+# 合法 CP3.12 长尾：普通模块锚点、真实辅助模块中的默认caller、旧package关键字警告。
+# 只保存原正期望，不将运行时明确NI改成通过，不纳入本切passed/ignored分母。
+import importlib.resources as resources
+import warnings
+import resource_anchor_helper
+import resource_anchor_helper.anchor
+
+ordinary = resource_anchor_helper.anchor
+explicit = resources.files(ordinary)
+assert explicit.joinpath('data.txt').read_text(encoding='utf-8') == 'resource-reference\n'
+assert resources.files('resource_anchor_helper.anchor') == explicit
+
+implicit = ordinary.default_files()
+none_anchor = ordinary.none_files()
+assert implicit == explicit
+assert none_anchor == explicit
+assert implicit.joinpath('data.txt').read_text(encoding='utf-8') == 'resource-reference\n'
+
+with warnings.catch_warnings(record=True) as records:
+    warnings.simplefilter('always')
+    legacy = resources.files(package=resource_anchor_helper)
+assert len(records) == 1
+assert records[0].category is DeprecationWarning
+assert legacy == resources.files(anchor=resource_anchor_helper)
+assert legacy.joinpath('data.txt').read_text(encoding='utf-8') == 'resource-reference\n'
+print('module-anchor', True)
+print('default-caller', True, True)
+print('legacy-package-warning', records[0].category.__name__)

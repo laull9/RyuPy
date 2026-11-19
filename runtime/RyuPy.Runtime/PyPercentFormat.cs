@@ -6,7 +6,7 @@ namespace RyuPy.Runtime;
 
 /// <summary>
 /// 单遍执行有限的 Python 字符串百分号格式，保留逐项转换副作用与参数消费次序。
-/// 不复用 CLR 复合格式，不将未实现的宽度或浮点格式悄悄近似处理。
+/// 十进制整数支持 ASCII flags/字面宽度；不将其它未实现规格悄悄近似处理。
 /// </summary>
 public static class PyPercentFormat
 {
@@ -21,11 +21,12 @@ public static class PyPercentFormat
         for (int i = 0; i < format.Length; i++)
         {
             char conversion = format[i];
-            if (conversion != '%') { output.Append(conversion); continue; }
+            if (conversion != '%') { CheckCapacity(output.Length, 1); output.Append(conversion); continue; }
             if (++i == format.Length) throw new PyValueError("incomplete format");
             conversion = format[i];
-            if (conversion == '%') { output.Append('%'); continue; }
-            object? value;
+            if (conversion == '%') { CheckCapacity(output.Length, 1); output.Append('%'); continue; }
+            object? value = null;
+            bool keyed = conversion == '(';
             if (conversion == '(')
             {
                 RequireMapping(mapping);
@@ -33,19 +34,22 @@ public static class PyPercentFormat
                 // 完整键先读取，再验证转换字符；缺键错误不能被后续格式错误盖住。
                 value = PyOps.GetItem(arguments, key);
                 used = count;
-                if (i == format.Length) throw new PyValueError("incomplete format");
-                conversion = format[i];
-                RejectUnsupportedSpecification(conversion);
             }
-            else
+            Specification specification = ReadSpecification(format, ref i);
+            conversion = format[i];
+            if (!keyed)
             {
-                RejectUnsupportedSpecification(conversion);
                 // 未知转换字符也先检查是否还有参数；不得整串预验证改变异常顺序。
                 if (used == count) throw new PyTypeError("not enough arguments for format string");
                 value = tuple is null ? arguments : tuple[used];
                 used++;
             }
-            output.Append(conversion switch
+            if (specification.Modified && (conversion is 'd' or 'i' or 'u'))
+            {
+                AppendDecimal(output, Decimal(value, conversion), specification);
+                continue;
+            }
+            string rendered = conversion switch
             {
                 's' => PyRepr.Str(value),
                 'r' => PyRepr.Repr(value),
@@ -54,7 +58,9 @@ public static class PyPercentFormat
                 'o' or 'x' or 'X' or 'e' or 'E' or 'f' or 'F' or 'g' or 'G' or 'c'
                     or 'h' or 'l' or 'L' => throw Unsupported(),
                 _ => throw InvalidConversion(format, i),
-            });
+            };
+            CheckCapacity(output.Length, rendered.Length);
+            output.Append(rendered);
         }
         if (used != count && !AllowsUnusedArgument(mapping))
             throw new PyTypeError("not all arguments converted during string formatting");
@@ -62,7 +68,73 @@ public static class PyPercentFormat
     }
 
     private static PyNotImplementedError Unsupported() => new(
-        "str percent formatting supports only %s, %r, %a, %d, %i, %u and %% without flags, width or precision");
+        "str percent formatting supports unmodified %s, %r, %a, %d, %i, %u and %%; flags and literal width only for %d, %i, %u");
+
+    // 独立于 StringBuilder.MaxCapacity 的最终字符串表示上限；不是人为工作量配额。
+    // 已核 .NET v10.0.14 System.Private.CoreLib/src/System/String.cs 的 MaxLength。
+    internal const int MaxLength = 0x3FFFFFDF;
+
+    /// <summary>纯计长守卫；先差值比较，避免合法 long.MaxValue 宽度与前缀相加回绕。</summary>
+    internal static void CheckCapacity(int currentLength, long additionalLength)
+    {
+        if (additionalLength > MaxLength - currentLength)
+            throw (PyNotImplementedError)PyErrors.PrepareRaise(new PyNotImplementedError(
+                "str percent formatting: result exceeds managed string capacity"));
+    }
+
+    private readonly record struct Specification(bool Modified, bool Left, bool Plus, bool Space, bool Zero, long Width);
+
+    // 只读当前字段；mapping 的完整键已先取值，位置参数则尚未消费。
+    private static Specification ReadSpecification(string format, ref int index)
+    {
+        int begin = index;
+        bool left = false, plus = false, space = false, zero = false;
+        while (index < format.Length)
+        {
+            switch (format[index])
+            {
+                case '-': left = true; break;
+                case '+': plus = true; break;
+                case ' ': space = true; break;
+                case '0': zero = true; break;
+                case '#': break; // 十进制 alternate flag 合法，但不增加前缀。
+                default: goto Width;
+            }
+            index++;
+        }
+    Width:
+        long width = 0;
+        while (index < format.Length && char.IsAsciiDigit(format[index]))
+        {
+            int digit = format[index++] - '0';
+            if (width > (long.MaxValue - digit) / 10) throw new PyValueError("width too big");
+            width = width * 10 + digit;
+        }
+        if (index == format.Length) throw new PyValueError("incomplete format");
+        bool modified = index != begin;
+        if (format[index] is '*' or '.' || (modified && (format[index] is 's' or 'r' or 'a')))
+            throw Unsupported();
+        return new Specification(modified, left, plus, space, zero, width);
+    }
+
+    // 原 Decimal 仅执行一次；操作结果文本而非 abs(long)，因此最小整数和大整数共享路径。
+    private static void AppendDecimal(StringBuilder output, string number, Specification specification)
+    {
+        bool negative = number[0] == '-';
+        char sign = negative ? '-' : specification.Plus ? '+' : specification.Space ? ' ' : '\0';
+        int digitsStart = negative ? 1 : 0;
+        int digitsLength = number.Length - digitsStart;
+        int numberLength = digitsLength + (sign == '\0' ? 0 : 1);
+        long fieldLength = Math.Max(specification.Width, numberLength);
+        // 数值转换及其异常先发生；不可表示的结果在任何填充分配之前明确拒绝。
+        CheckCapacity(output.Length, fieldLength);
+        int padding = (int)(fieldLength - numberLength);
+        if (!specification.Left && !specification.Zero) output.Append(' ', padding);
+        if (sign != '\0') output.Append(sign);
+        if (!specification.Left && specification.Zero) output.Append('0', padding);
+        output.Append(number, digitsStart, digitsLength);
+        if (specification.Left) output.Append(' ', padding);
+    }
 
     private static string Decimal(object? value, char conversion)
     {
@@ -98,12 +170,6 @@ public static class PyPercentFormat
         return (PyTypeError)PyErrors.PrepareRaise(error);
     }
 
-    private static void RejectUnsupportedSpecification(char conversion)
-    {
-        if (conversion is '*' or '.' or '#' or '-' or '+' or ' ' || char.IsAsciiDigit(conversion))
-            throw Unsupported();
-    }
-
     private static string ReadMappingKey(string format, ref int index)
     {
         int begin = ++index, depth = 1;
@@ -135,7 +201,7 @@ public static class PyPercentFormat
     {
         // 字符串和tuple不作为mapping参数；空tuple仍通过实际零参数计数自然成功。
         // 已知原生布局逐项登记，绝不通过调用用户getitem或遍历对象来探测。
-        if (value is PyDict or IPyNativeMapping or PyList or PyBytes or PyByteArray or PyRange or PyMemoryView) return true;
+        if (value is PyDict or PyDictInstance or IPyNativeMapping or PyList or PyBytes or PyByteArray or PyRange or PyMemoryView) return true;
         if (value is PyInstance instance) return instance.Class.TryLookup("__getitem__", out _, out _);
         if (value is PyBaseException exception && exception.PythonClass is not null)
             return exception.PythonClass.TryLookup("__getitem__", out _, out _);

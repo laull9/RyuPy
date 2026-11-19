@@ -1,0 +1,9 @@
+# ForEach本轮重建语义矩阵
+
+本目录全部源为2026-11-06新写，不是历史丢失提交恢复。manifest逐文件保存SHA256。
+每例都有独立完整entry.py与subject.py。候选模块保留普通函数，协议类和异常捕获放在入口。
+selection是待验证的结构预期，不是通过结果；实际plan与逐函数计数另存运行证据。
+required案例要求CPython成功且off/on原始stdout、stderr、退出状态一致。任何失败保留原流并汇总失败，不能仅以off/on相同计为CP通过。
+六项known-existing-boundary完整新源单独记录sys._getframe、settrace、tracebacklocals、严格右子类radd、用户__index__ range与asyncio。固定CP原输出及预期原生输出/单一编译诊断，任何额外偏差失败；不修复这些能力，不计CP通过。super和NoReturn不扩域。
+测试foreach_reconstructed_semantic_matrix直接纳入driver回归；运行前准备CPython3.12.13、构建后运行时及.NET。
+RYUPY_FOREACH_PYTHON或PYTHON必须明确指定CPython3.12.13；RYUPY_FOREACH_EVIDENCE_DIR指定证据父目录。每轮另建不可覆盖子目录，证据不自动删除。

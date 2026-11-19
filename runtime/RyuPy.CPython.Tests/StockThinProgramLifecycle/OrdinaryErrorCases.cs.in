@@ -1,0 +1,31 @@
+// 普通非thin程序错误关闭：同一CIL入口比较自然finalizer排空前后，持WeakReference而非强保异常。
+using RyuPy.CPython;
+using RyuPy.Runtime;
+using System.Runtime.CompilerServices;
+namespace RyuPy.CPython.Tests;
+internal static partial class ProgramLifecycle
+{
+    private static WeakReference ordinaryError = null!;
+    private static void OrdinaryFailureBody(object state) => throw new PyRuntimeError("ordinary-uncaught");
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static int ExecuteOrdinaryFailure()
+    {
+        try { PyModules.RunMain(); }
+        catch (PyBaseException error) { ordinaryError = new(error); PyTraceback.Report(error); return 1; }
+        throw new Exception("入口应抛错");
+    }
+    private static int OrdinaryErrorCase(string config, bool collect)
+    {
+        Bootstrap.Start(config, ["ordinary-error-product"]); host = Bootstrap.Host;
+        PyModules.RegisterStockModuleSourceLocated("__main__", "", "ordinary-cil-entry.cs", 1,
+            Path.GetFullPath("ordinary-cil-entry.cs"), false, OrdinaryFailureBody);
+        int requested = ExecuteOrdinaryFailure();
+        Console.WriteLine("ORDINARY_BEFORE weak=" + ordinaryError.IsAlive + " handles=" + host.Statistics.Handles);
+        if (collect) { GC.Collect(); GC.WaitForPendingFinalizers(); host.DrainReferences(); }
+        Console.WriteLine("ORDINARY_AFTER weak=" + ordinaryError.IsAlive + " handles=" + host.Statistics.Handles);
+        int result = Bootstrap.Finish(requested);
+        Native.rp_carrier_stats(out long live, out long calls); Native.rp_code_origin_stats(out long records, out long active);
+        Console.WriteLine($"ORDINARY_EXIT result={result} native={live} calls={calls} records={records} active={active}");
+        return result == requested && live == 0 && records == 0 && active == 0 ? 0 : 2;
+    }
+}

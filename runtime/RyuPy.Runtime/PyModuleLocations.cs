@@ -8,7 +8,7 @@ namespace RyuPy.Runtime;
 /// <summary>编译器显式位置模式的冷路径，不执行导入、不搜索资源或回退到源码目录。</summary>
 public static class PyModuleLocations
 {
-    /// <summary>0=旧诊断位置，1=源码绝对位置，2=真实 NativeAOT 可执行文件相对位置。</summary>
+    /// <summary>0=旧诊断位置，1=源码绝对位置，2=NativeAOT位置，3=随包编译源码位置。</summary>
     public static string Resolve(long kind, string value) =>
         ResolveForPlatform(kind, value, RuntimeFeature.IsDynamicCodeSupported, Environment.ProcessPath);
 
@@ -21,12 +21,25 @@ public static class PyModuleLocations
             if (!Path.IsPathFullyQualified(value)) throw new PyRuntimeError("source module location is not absolute");
             return value;
         }
+        if (kind == 3) return ResolveBundle(value, AppContext.BaseDirectory);
         if (kind != 2) throw new PyRuntimeError("unknown compiled module location kind");
         // 普通 dotnet/JIT 进程不能拿 dotnet 宿主目录冒充 NativeAOT 应用目录。
         if (dynamicCodeSupported) throw new PyNotImplementedError("executable-relative module locations require NativeAOT");
-        if (value.Length > 1024 || !value.StartsWith("_internal/resources/v1/", StringComparison.Ordinal)
-            || value.Contains('\\') || value.Contains(':'))
+        if (value.Length > 1024 || !value.StartsWith("_internal/resources/v1/", StringComparison.Ordinal))
             throw new PyRuntimeError("invalid executable-relative module location");
+        ValidatePortableComponents(value);
+        if (processPath is null || !Path.IsPathFullyQualified(processPath))
+            throw new PyNotImplementedError("actual NativeAOT executable path is unavailable");
+        string directory = Path.GetDirectoryName(processPath)
+            ?? throw new PyRuntimeError("NativeAOT executable has no directory");
+        var layout = PyApplicationLayout.ResolveForDirectory(directory);
+        return Path.GetFullPath(Path.Combine(layout.DependencyRoot,
+            PyApplicationLayout.MapLegacyRelative(value, layout).Replace('/', Path.DirectorySeparatorChar)));
+    }
+
+    // 两种布局与 driver 共用 portable ASCII 合同；允许目录含空格及横线，但不接受跨平台别名。
+    private static void ValidatePortableComponents(string value)
+    {
         foreach (string part in value.Split('/'))
         {
             if (part.Length == 0 || part.Length > 255 || part is "." or ".." || part.EndsWith('.') || part.EndsWith(' '))
@@ -37,14 +50,21 @@ public static class PyModuleLocations
                     || stem.StartsWith("LPT", StringComparison.Ordinal)) && stem[3] >= '1' && stem[3] <= '9'))
                 throw new PyRuntimeError("reserved module location component");
             foreach (char c in part)
-                if (c > 127 || char.IsControl(c) || "<>\"|?*".Contains(c))
+                if (c > 127 || char.IsControl(c) || "\\:<>\"|?*".Contains(c))
                     throw new PyRuntimeError("invalid module location character");
         }
-        if (processPath is null || !Path.IsPathFullyQualified(processPath))
-            throw new PyNotImplementedError("actual NativeAOT executable path is unavailable");
-        string directory = Path.GetDirectoryName(processPath)
-            ?? throw new PyRuntimeError("NativeAOT executable has no directory");
-        return Path.GetFullPath(Path.Combine(directory, value.Replace('/', Path.DirectorySeparatorChar)));
+    }
+
+    /// <summary>只接受编译器冻结的随包源码树；不加入 CPython 的模块搜索域。</summary>
+    public static string ResolveBundle(string value, string directory)
+    {
+        if (value.Length > 1024 || !value.StartsWith("python/ryupy_compiled/", StringComparison.Ordinal))
+            throw new PyRuntimeError("invalid bundled module location");
+        ValidatePortableComponents(value);
+        if (!Path.IsPathFullyQualified(directory))
+            throw new PyRuntimeError("bundle directory is not absolute");
+        var layout = PyApplicationLayout.ResolveForDirectory(directory);
+        return Path.GetFullPath(Path.Combine(layout.DependencyRoot, value.Replace('/', Path.DirectorySeparatorChar)));
     }
 }
 
@@ -54,8 +74,10 @@ public static partial class PyModules
     public static void RegisterLocated(string name, string package, string diagnosticFile, long locationKind,
         string locationValue, bool fileBackedByGlobal, PyModuleInit init, PyModuleGet get, PyModuleSet set)
     {
+        EnsureRegistrationAvoidsCacheAliases(name);
         string resolved = PyModuleLocations.Resolve(locationKind, locationKind == 0 ? diagnosticFile : locationValue);
         Registry[name] = new Registration(package, diagnosticFile, init, get, set, resolved, fileBackedByGlobal);
+        PyProvider.Current?.Registered(name);
     }
 
     /// <summary>模块入口专用：返回已缓存对象的初始位置，不读取可变属性，也不触发导入。</summary>

@@ -1,0 +1,11 @@
+"""原有未实现域的CP正例，不借bytes首切扩大syntax/split/locale声明。"""
+import re
+
+assert re.fullmatch(br'(a)\1', b'aA', re.I).group() == b'aA'
+assert re.fullmatch(b'(?i:a)b', b'Ab').group() == b'Ab'
+assert re.search(b'(?<=a)b', b'ab').group() == b'b'
+assert re.findall(br'\w+', b'Az_09', re.L) == [b'Az_09']
+assert re.compile(br'\w+', re.L).flags == re.L
+assert re.split(b'(,)', b'a,b') == [b'a', b',', b'b']
+assert re.compile(b'(,)?;').split(b'a;b,;c') == [b'a', None, b'b', b',', b'c']
+print('pending.syntax-split', re.split(b'(,)', b'a,b'))

@@ -9,6 +9,8 @@ public class PyContextManagerTests
     private static object Create(Func<PyGenerator> factory)
     {
         var function = PyNativeFunctions.Create("resource", [], [], 0, _ => factory());
+        // 合成生成器函数有测试预定名，但没有真实源码行号。
+        PyObject.SetAttr(function, "__qualname__", "resource");
         object? decorated = PyFunctoolsTests.Invoke(PyContextLib.CreateAttributes()["contextmanager"], [function]);
         return PyFunctoolsTests.Invoke(decorated, [])!;
     }
@@ -89,6 +91,7 @@ public class PyContextManagerTests
             PyOps.GeneratorInput(frame); exits++; frame[0] = -1L; return null;
         }));
         var function = PyNativeFunctions.Create("body", ["x"], [null], 1, a => a[0]);
+        PyObject.SetAttr(function, "__qualname__", "body");
         object? wrapper = PyFunctoolsTests.Invoke(context, [function]);
         Assert.Equal(1L, PyFunctoolsTests.Invoke(wrapper, [1L]));
         Assert.Equal(2L, PyFunctoolsTests.Invoke(wrapper, [2L]));

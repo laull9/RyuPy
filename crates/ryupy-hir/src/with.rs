@@ -8,15 +8,16 @@
 //!
 //! ```text
 //! mgr = ctx
-//! exit = mgr.__exit__          # CPython 同样在 __enter__ 之前取出
-//! value = mgr.__enter__()
-//! x = value
+//! enter = context_method(mgr, "__enter__")
+//! exit = context_method(mgr, "__exit__")
+//! value = enter()
 //! handled = False
 //! try:
+//!     x = value
 //!     body
 //! except BaseException as exc:
 //!     handled = True
-//!     if not exit(type(exc), exc, None):
+//!     if not exit(type(exc), exc, traceback_of(exc)):
 //!         raise
 //! finally:
 //!     if not handled:
@@ -49,20 +50,22 @@ impl StmtLowerCtx<'_> {
     /// `with` 会展开成多条语句 + 一个 `try`，而 [`Self::lower_stmt`] 的约定是返回
     /// 单条语句，因此用 `if True:` 把多条语句串在一起；条件恒真，MIR 会直接走 then 分支。
     pub(crate) fn lower_with(&mut self, with_stmt: &ast::StmtWith) -> Option<StmtId> {
-        if with_stmt.is_async {
+        if with_stmt.is_async && !cfg!(feature = "native-coroutines") {
             self.diagnostics.push(
                 Diagnostic::error(
                     Span::new(self.file, with_stmt.range),
                     "暂不支持 `async with`",
                 )
                 .with_code("E0100")
+                // 此产生点是合法async with的明确支持域拒绝，不包含未知/type/MIR错误。
+                .with_deferred_failure(ryupy_base::diagnostic::DeferredFailure::SupportBoundary)
                 .with_primary_label("目前只支持同步上下文管理器"),
             );
             return None;
         }
 
         let body = self.lower_suite(&with_stmt.body);
-        let expanded = self.lower_with_items(&with_stmt.items, body);
+        let expanded = self.lower_with_items(&with_stmt.items, body, with_stmt.is_async);
         let cond = self.alloc_with_expr(ExprKind::Literal(Literal::Bool(true)), with_stmt.range);
         Some(self.body.stmts.alloc(Stmt {
             kind: StmtKind::If {
@@ -76,39 +79,46 @@ impl StmtLowerCtx<'_> {
     }
 
     /// 递归展开多个上下文项：第一个包住其余项，形成「先进入、后退出」的嵌套。
-    fn lower_with_items(&mut self, items: &[ast::WithItem], body: Vec<StmtId>) -> Vec<StmtId> {
+    fn lower_with_items(
+        &mut self,
+        items: &[ast::WithItem],
+        body: Vec<StmtId>,
+        is_async: bool,
+    ) -> Vec<StmtId> {
         let Some(first) = items.first() else {
             return body;
         };
         let range = first.context_expr.range();
         let mut out = Vec::new();
 
-        // 1) 先把上下文表达式求值一次，再读取 `__exit__` 与调用 `__enter__`。
+        // 1) 上下文求值一次，依次绑定类型的 enter/exit，再调用 enter。
         //    求值顺序与 CPython 一致，异常时不会重复求值上下文表达式。
         let mgr = self.alloc_with_temp("mgr", range);
         let context = self.lower_expr(&first.context_expr);
         out.push(self.push_assign_local(mgr, context, range));
 
+        let enter = self.alloc_with_temp("enter", range);
+        let mgr_for_enter = self.local_expr(mgr, range);
+        let enter_attr = self.alloc_with_expr(
+            ExprKind::ContextMethod {
+                base: mgr_for_enter,
+                name: Name::from(if is_async { "__aenter__" } else { "__enter__" }),
+            },
+            range,
+        );
+        out.push(self.push_assign_local(enter, enter_attr, range));
         let exit = self.alloc_with_temp("exit", range);
         let mgr_for_exit = self.local_expr(mgr, range);
         let exit_attr = self.alloc_with_expr(
-            ExprKind::Attribute {
+            ExprKind::ContextMethod {
                 base: mgr_for_exit,
-                name: Name::from("__exit__"),
+                name: Name::from(if is_async { "__aexit__" } else { "__exit__" }),
             },
             range,
         );
         out.push(self.push_assign_local(exit, exit_attr, range));
-
         let value = self.alloc_with_temp("value", range);
-        let mgr_for_enter = self.local_expr(mgr, range);
-        let enter_attr = self.alloc_with_expr(
-            ExprKind::Attribute {
-                base: mgr_for_enter,
-                name: Name::from("__enter__"),
-            },
-            range,
-        );
+        let enter_attr = self.local_expr(enter, range);
         let enter_call = self.alloc_with_expr(
             ExprKind::Call {
                 callee: enter_attr,
@@ -116,12 +126,9 @@ impl StmtLowerCtx<'_> {
             },
             range,
         );
+        let enter_call =
+            self.with_await(enter_call, is_async, crate::AwaitContext::AsyncEnter, range);
         out.push(self.push_assign_local(value, enter_call, range));
-
-        // 2) `as x`：目标在进入成功后绑定。模块顶层的 x 是模块变量，函数内是局部变量。
-        if let Some(target) = &first.optional_vars {
-            self.lower_with_target(target, value, &mut out, range);
-        }
 
         // 3) `handled` 标记：区分「异常路径已经调用过 __exit__」与「正常退出」。
         let handled = self.alloc_with_temp("handled", range);
@@ -129,7 +136,12 @@ impl StmtLowerCtx<'_> {
         out.push(self.push_assign_local(handled, false_expr, range));
 
         // 4) 对应 body：剩余上下文项嵌套在 try 体里。
-        let inner = self.lower_with_items(&items[1..], body);
+        // 进入成功后，as 赋值也属于受保护体；失败必须调用已经绑定的 exit。
+        let mut inner = Vec::new();
+        if let Some(target) = &first.optional_vars {
+            self.lower_with_target(target, value, &mut inner, range);
+        }
+        inner.extend(self.lower_with_items(&items[1..], body, is_async));
 
         // 5) 异常分支：handled = True；if not exit(type(exc), exc, None): raise
         let exc = self.alloc_with_temp("exc", range);
@@ -139,7 +151,8 @@ impl StmtLowerCtx<'_> {
 
         let exc_type = self.call_builtin_type(exc, range);
         let exc_value = self.local_expr(exc, range);
-        let none_arg = self.none_expr(range);
+        let exc_for_tb = self.local_expr(exc, range);
+        let none_arg = self.alloc_with_expr(ExprKind::ExceptionTraceback(exc_for_tb), range);
         let exit_for_handler = self.local_expr(exit, range);
         let exit_call = self.alloc_with_expr(
             ExprKind::Call {
@@ -152,6 +165,7 @@ impl StmtLowerCtx<'_> {
             },
             range,
         );
+        let exit_call = self.with_await(exit_call, is_async, crate::AwaitContext::AsyncExit, range);
         let not_exit = self.alloc_with_expr(
             ExprKind::Unary {
                 op: UnaryOp::Not,
@@ -179,14 +193,17 @@ impl StmtLowerCtx<'_> {
         handler_body.push(suppress_check);
 
         let handler = self.body.handlers.alloc(Handler {
+            semantics: crate::HandlerSemantics::SynthesizedWith,
             types: Some(vec!["BaseException".to_owned()]),
+            type_expr: None,
+            type_line: 0,
             name: Some(Binding::Local(exc)),
             body: handler_body,
             range,
         });
 
         // 6) finally：没有走过异常分支时调用 exit(None, None, None)。
-        let finalbody = vec![self.build_with_normal_exit(handled, exit, range)];
+        let finalbody = vec![self.build_with_normal_exit(handled, exit, range, is_async)];
 
         let try_stmt = self.body.stmts.alloc(Stmt {
             kind: StmtKind::Try {
@@ -208,6 +225,7 @@ impl StmtLowerCtx<'_> {
         handled: LocalId,
         exit: LocalId,
         range: ryupy_base::TextRange,
+        is_async: bool,
     ) -> StmtId {
         let handled_value = self.local_expr(handled, range);
         let not_handled = self.alloc_with_expr(
@@ -232,6 +250,7 @@ impl StmtLowerCtx<'_> {
             },
             range,
         );
+        let exit_call = self.with_await(exit_call, is_async, crate::AwaitContext::AsyncExit, range);
         let call_stmt = self.body.stmts.alloc(Stmt {
             kind: StmtKind::Expr(exit_call),
             range,
@@ -246,6 +265,21 @@ impl StmtLowerCtx<'_> {
             range,
             line: self.line_of(range.start().to_usize()),
         })
+    }
+
+    /// 同步清理保持普通调用；异步 enter/exit 保留专用 await 错误上下文。
+    fn with_await(
+        &mut self,
+        value: crate::hir::ExprId,
+        is_async: bool,
+        context: crate::AwaitContext,
+        range: ryupy_base::TextRange,
+    ) -> crate::hir::ExprId {
+        if is_async {
+            self.alloc_with_expr(ExprKind::Await { value, context }, range)
+        } else {
+            value
+        }
     }
 
     /// 把 `as` 目标绑定到 `__enter__` 的返回值。
@@ -306,6 +340,22 @@ impl StmtLowerCtx<'_> {
                         list.range,
                     ));
                 }
+            }
+            ast::Expr::Attribute(attribute) => {
+                let target = AssignTarget::Attribute {
+                    base: self.lower_expr(&attribute.value),
+                    name: Name::from(attribute.attr.as_str()),
+                };
+                let value = self.local_expr(value, range);
+                out.push(self.push_assign_target(target, value, range));
+            }
+            ast::Expr::Subscript(subscript) => {
+                let target = AssignTarget::Subscript {
+                    base: self.lower_expr(&subscript.value),
+                    index: self.lower_subscript_index(&subscript.slice),
+                };
+                let value = self.local_expr(value, range);
+                out.push(self.push_assign_target(target, value, range));
             }
             other => {
                 self.diagnostics.push(
@@ -389,5 +439,95 @@ impl StmtLowerCtx<'_> {
         range: ryupy_base::TextRange,
     ) -> StmtId {
         self.push_assign_target(AssignTarget::Local(local), value, range)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::*;
+
+    fn lower(source: &str) -> Module {
+        let mut db = ryupy_base::SourceDb::default();
+        let file = db.add("with_protection.py", source);
+        let (parsed, errors) = ryupy_syntax::parse(file, source);
+        assert!(errors.is_empty(), "{errors:?}");
+        let (module, errors) = lower_module(&parsed, &ModuleInfo::default(), source);
+        assert!(errors.is_empty(), "{errors:?}");
+        module
+    }
+    fn assert_target_protected(module: &Module) {
+        let function = module
+            .functions
+            .iter()
+            .find(|(_, function)| function.name.as_str() == "f")
+            .unwrap()
+            .1;
+        assert!(function.body.stmts.iter().any(|(_, statement)| {
+            let StmtKind::Try { body, handlers, .. } = &statement.kind else {
+                return false;
+            };
+            !handlers.is_empty()
+                && body.first().is_some_and(|first| {
+                    matches!(
+                        function.body.stmts[*first].kind,
+                        StmtKind::Assign {
+                            target: AssignTarget::Sequence(_),
+                            ..
+                        }
+                    )
+                })
+        }));
+    }
+    #[test]
+    fn synchronous_with_target_binding_is_inside_cleanup_protection() {
+        assert_target_protected(&lower(
+            "def f(cm):\n    with cm as (left, right):\n        pass\n",
+        ));
+        lower("def f(cm, obj):\n    with cm as obj.value:\n        pass\n");
+    }
+    #[cfg(feature = "native-coroutines")]
+    #[test]
+    fn asynchronous_with_has_contextual_awaits_and_protected_target() {
+        let module = lower("async def f(cm):\n    async with cm as (left, right):\n        pass\n");
+        assert_target_protected(&module);
+        let function = module
+            .functions
+            .iter()
+            .find(|(_, function)| function.is_coroutine)
+            .unwrap()
+            .1;
+        let contexts: Vec<_> = function
+            .body
+            .exprs
+            .iter()
+            .filter_map(|(_, expression)| {
+                if let ExprKind::Await { context, .. } = expression.kind {
+                    Some(context)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(
+            contexts
+                .iter()
+                .filter(|context| **context == AwaitContext::AsyncEnter)
+                .count(),
+            1
+        );
+        assert_eq!(
+            contexts
+                .iter()
+                .filter(|context| **context == AwaitContext::AsyncExit)
+                .count(),
+            2
+        );
+        assert!(
+            function
+                .body
+                .exprs
+                .iter()
+                .any(|(_, expression)| matches!(expression.kind, ExprKind::ExceptionTraceback(_)))
+        );
     }
 }

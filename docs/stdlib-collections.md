@@ -49,6 +49,42 @@
 - repr 优先按计数降序展示；不可排序时使用插入顺序。copy 浅复制；不可哈希。
 - 未开放完整富比较、Python 层继承、通用第三方 Mapping 桥接（不静默把未知 items 映射当计数序列）、pickle 等；不能据此宣称完整 Counter 兼容。
 
+### OrderedDict（有限精确原生类型）
+
+真实类型、dict/object祖先及Mapping/MutableMapping；只支持精确标量键，不是dict别名。
+
+| API | 当前行为与边界 |
+| --- | --- |
+| 构造、re-init、update | mapping逐next/getitem/提交，pairs只N+1解包；保原异常和成功前缀，kwargs最后写；re-init不清空 |
+| 下标、len/bool/in、get/pop/setdefault/clear | 有限标量键与真实值别名；不可hash与暂缓键分开，用户hash键不偷偷执行 |
+| move_to_end、popitem | last走truth，回调后查当前状态；首尾均摊O(1)，no-op不失效；空move未知key在repr前NI，缺None的move为空KeyError.args |
+| keys/values/items、正反向迭代 | 真实活视图；覆盖活读，无next-key先结束；结构变异一次RuntimeError后永久耗尽 |
+| eq/ne、copy、fromkeys、repr | OD先raw内容再链序，对dict忽略顺序；浅copy独立链共享值，fromkeys共享default；CP3.12字典式repr保环 |
+| dict根与消费者 | 只读根看raw，dict.copy/构造/update/**看OD公开序；根写入和union写前NI |
+| 未开放 | Python派生/任意属性、非标量键、union/GenericAlias、完整视图集合协议、view.mapping、pickle/weakref、copy模块、foreign非bool比较；JSON/Counter/defaultdict等未接通消费者明确NI |
+
+最终003隔离全C#2577/2577与31完整合同22严格通过/9pending；正常完整门禁
+2577 C#/900 Rust/631 CP/401 e2e通过、234 ignored，不等于远端发布。
+未知空keyNI、原13异常setter债不能算CP通过；独立19真实raise-from和
+None move相位已完整通过。原Markdown仍未通过。普通dict新增比较分派与所有不利
+样本见[性能报告](ordered-dict-performance.md)；精确范围与验收见
+[合同](ordered-dict-core-slice.md)及[ADR0133](adr/0133-ordered-dict-core.md)。
+
+### namedtuple（本地候选，有限范围）
+
+`namedtuple(typename, field_names, *, rename=False, defaults=None, module=None)` 已有真实工厂/类型，不是导入占位。50项C#及五组CP/JIT首次通过；正常完整门禁首次通过（982C#、228CP基线、202e2e+30原ignored），尚未公开发布或重新验tabulate。
+
+- ASCII名字/关键字/重复与rename校验，普通自定义iterable、str转换、truth副作用及defaults引用保持；fields逐项转换，名称错误在defaults消费之前。
+- 新类独立身份、tuple/object祖先与readonly字段；位置/关键字构造及右对齐defaults，_fields/__match_args__、_field_defaults独立字典和稳定类元数据。
+- 普通tuple混合比较/hash/键、len/bool/迭代/下标/切片/拼接/重复、格式/JSON等代表值协议；转换结果按对应规则回plain tuple。字段可遮蔽count/index，方法属性先于参数求值读取。
+- _make完整消费、_replace按原闭包与实际receiver、_asdict/getnewargs/repr；普通helper支持跨生成类self。显式__new__及_make.__func__仅允许原定义类，复杂跨cls布局不假成功。
+- 默认module用真实当前来源；显式非None值不调用bool/str、不查来源。Static未知来源明确NI，不把结构检查当运行成功。
+- 类整体冻结、__dict__、用户继承、dataclass修改、copy/deepcopy、duck helper、factory实例方法绑定及高级反射明确NI。tuple.index start/stop与部分原错误消息不在本切修复。
+- 非ASCII/NFKC名与部分str子类输入保明确边界；普通__str__返回精确str可用。typename str子类仍按原intern类型边界报错，rename真分支对字段str子类动态验证NI。
+- 不使用全局永久字符串intern；只保证schema内名字/metadata稳定，跨类名字is原CP期待保pending。hint协议照常校验但不按巨大值预分配，CP资源失败时点不等价。
+
+实现与成本、原始参考和暂缓项见 [ADR0077](adr/0077-namedtuple-layout.md)。该API的局部通过不改变历史5/20项目统计，也不代表完整collections或AOT验收。
+
 ## collections.abc
 
 导出有限类型：`Iterable`、`Iterator`、`Generator`、`Sized`、`Container`、`Collection`、
@@ -58,7 +94,7 @@
 - Iterable/Sized/Iterator 等结构检查只看类型成员；不调用用户 iter、len、contains，不消费输入。
 - `__iter__ = None` 不算可迭代协议；只有 `__getitem__` 的旧式序列后备不会自动成为 Iterable。
 - Sequence/Mapping 等采用已知内建/原生类型范围，不把任意同名方法集合误判成注册的 ABC。
-- `Hashable` 暂不导出：既有用户类尚未完整保存创建时的隐式 `__hash__ = None` 槽，不能用当前 `__eq__` 属性存在性猜测。正向与动态修改用例保留在 `m3_6_hashable_pending.py`，不把本切新增的范围误判算成原验收完成。
+- `Hashable` 暂不导出：普通类创建期隐式 `__hash__ = None` 的有限候选见 ADR0066；ABC 的结构判断、正负缓存及动态变更边界未随之完成，不能用内部容器预筛或尝试 hash 的结果冒充。正向与动态修改用例继续保留 `m3_6_hashable_pending.py`。
 - 不开放 `register`、虚拟子类注册、ABC mixin 实现、Python 类直接继承原生 ABC。
 - 类型参数订阅仅由有限 typing 元数据接口处理，不提供完整运行时类型检查或反射。
 

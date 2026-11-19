@@ -120,7 +120,7 @@ public static partial class PyPic
         }
         else if (a is string left && b is string right && baseOp == PyOps.Add && Enabled)
         {
-            return string.Concat(left, right);
+            return PyUnicodePoints.Concat(left, right);
         }
         return PyOps.Binary(op, a, b);
     }
@@ -199,7 +199,7 @@ public static partial class PyPic
         public object? Target;
     }
 
-    private static readonly CallEntry[] CallEntries = new CallEntry[MaxSites * EntriesPerSite];
+    private static readonly PagedEntries<CallEntry> CallEntries = new(MaxSites * EntriesPerSite);
 
     /// <summary>每个调用点复用的位置实参数组（只含实参，不含 self）。</summary>
     private static readonly object?[][] ArgScratch = new object?[MaxSites][];

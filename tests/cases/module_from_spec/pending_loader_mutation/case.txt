@@ -1,0 +1,4 @@
+entry = entry.py
+pending = true
+instance_module = subject
+# 手动CLI配置，当前runner不支持：include_module = replacement

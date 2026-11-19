@@ -1,0 +1,2 @@
+expect_exit = 1
+expect_exception = ValueError: lexical class body failure

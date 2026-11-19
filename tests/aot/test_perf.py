@@ -1,4 +1,5 @@
 """性能工具轻自测：统计负例与Linux超时清理，不构建或运行RyuPy基准。"""
+import errno
 import json
 import os
 from pathlib import Path
@@ -6,9 +7,60 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 
 from perf_runner import Runner
 from perf_schema import FIELDS, output, stats
+
+
+def descendant_running(proc):
+    """单次读取避免 exists/read 竞态；只把内核报告的消失或僵尸算作退出。"""
+    try:
+        text = proc.read_text()
+    except OSError as error:
+        if error.errno in (errno.ENOENT, errno.ESRCH):
+            return False
+        raise
+    state = text.rsplit(') ', 1)[1].split()[0]
+    return state != 'Z'
+
+
+def wait_descendant_stopped(proc):
+    for _ in range(100):
+        if not descendant_running(proc):
+            return
+        time.sleep(0.01)
+    raise AssertionError('本组孙进程仍在运行')
+
+
+class ProcStateTests(unittest.TestCase):
+    def test_disappearance_and_zombie(self):
+        proc = Path('/proc/not-a-real-test-pid/stat')
+        for code in (errno.ENOENT, errno.ESRCH):
+            with patch.object(Path, 'read_text', side_effect=OSError(code, 'gone')):
+                self.assertFalse(descendant_running(proc))
+        with patch.object(Path, 'read_text', return_value='123 (name) Z 1'):
+            self.assertFalse(descendant_running(proc))
+
+    def test_alive_exhausts_original_bound(self):
+        for state in ('R', 'S'):
+            with patch.object(Path, 'read_text', return_value=f'123 (name) {state} 1') as read:
+                with patch('time.sleep') as sleep:
+                    with self.assertRaisesRegex(AssertionError, '仍在运行'):
+                        wait_descendant_stopped(Path('/unused'))
+                    self.assertEqual(read.call_count, 100)
+                    self.assertEqual(sleep.call_count, 100)
+                    sleep.assert_called_with(0.01)
+
+    def test_other_errors_and_malformed_stat_propagate(self):
+        for code in (errno.EACCES, errno.EPERM, errno.EIO):
+            with patch.object(Path, 'read_text', side_effect=OSError(code, 'error')):
+                with self.assertRaises(OSError) as caught:
+                    descendant_running(Path('/unused'))
+                self.assertEqual(caught.exception.errno, code)
+        with patch.object(Path, 'read_text', return_value='malformed'):
+            with self.assertRaises(IndexError):
+                descendant_running(Path('/unused'))
 
 
 class SchemaTests(unittest.TestCase):
@@ -81,13 +133,7 @@ class RunnerTests(unittest.TestCase):
             self.assertGreater(status['maxrss_bytes'], 0)
             child = int((case / 'stdout').read_text())
             # 被init尚未回收的僵尸不是运行进程；不能为了断言再杀不属于本组的PID。
-            for _ in range(100):
-                proc = Path(f'/proc/{child}/stat')
-                if not proc.exists() or proc.read_text().split(') ', 1)[1].startswith('Z '):
-                    break
-                time.sleep(0.01)
-            else:
-                self.fail('本组孙进程仍在运行')
+            wait_descendant_stopped(Path(f'/proc/{child}/stat'))
 
 
 if __name__ == '__main__':

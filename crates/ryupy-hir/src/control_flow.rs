@@ -59,6 +59,20 @@ impl StmtLowerCtx<'_> {
     /// 3. 迭代对象必须是 `range(...)` 调用，参数数量在 1 到 3 之间；
     /// 4. 循环体在 `loop_depth + 1` 上下文中降级，以支持内部 `break` / `continue` 校验。
     pub(crate) fn lower_for(&mut self, for_stmt: &ast::StmtFor) -> Option<StmtKind> {
+        if for_stmt.is_async {
+            if cfg!(feature = "native-coroutines") {
+                return self.lower_async_for(for_stmt);
+            }
+            self.diagnostics.push(
+                Diagnostic::error(
+                    Span::new(self.file, for_stmt.range),
+                    "async for 尚未接入原生协程状态机",
+                )
+                .with_code("E0100")
+                .with_deferred_failure(ryupy_base::diagnostic::DeferredFailure::SupportBoundary),
+            );
+            return None;
+        }
         // `else` 不属于循环体：`break` 在其中非法，因此按当前 loop_depth 降级
         let orelse = self.lower_suite(&for_stmt.orelse);
         // 循环目标：单个名字直接使用；`a, b` / `a, *rest` 这样的序列目标
@@ -102,8 +116,15 @@ impl StmtLowerCtx<'_> {
                 } else {
                     false
                 };
-                if !is_range {
-                    // 非 range 的可迭代对象：走通用迭代协议（M2.3 容器图）
+                if !is_range
+                    || self.global_scope.instance_globals
+                    || self
+                        .global_scope
+                        .deleted_names
+                        .contains(&Name::from("range"))
+                {
+                    // 非range或公开绑定可删除时走真实调用，避免删除前、回退后或重绑后
+                    // 仍仅按名称拼写绕过绑定；无删除的默认程序保留原生计数循环。
                     let iter = self.lower_expr(&for_stmt.iter);
                     self.loop_depth += 1;
                     let mut body = self.lower_suite(&for_stmt.body);

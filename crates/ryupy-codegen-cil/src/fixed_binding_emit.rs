@@ -1,4 +1,4 @@
-//! 固定绑定的机械CIL：转换在受保护调用之前，窄loader catch之后仅BoxInt物化。
+//! 声明绑定的机械 CIL：旧版数值路径保持稳定，v3 委托静态 ABI 发射器。
 use dotnetdll::prelude::*;
 use ryupy_mir::LinkedProgram;
 
@@ -6,15 +6,90 @@ use crate::fixed_binding_refs::BindingRefs;
 use crate::fixed_bindings::FixedI32Binding;
 use crate::stackify::RuntimeRefs;
 
-pub(crate) fn initializer(
+/// 先构造全部一等函数，再发布所有槽；创建失败时不会留下部分可见导出。
+pub(crate) fn initializer<'a>(
+    res: &mut Resolution<'static>,
+    class: TypeIndex,
+    program: &LinkedProgram,
+    bindings: &'a [FixedI32Binding],
+    refs: &BindingRefs,
+    runtime: &RuntimeRefs,
+) -> (
+    body::Method,
+    Vec<(&'a FixedI32Binding, MethodIndex, MethodIndex)>,
+) {
+    let mut methods = Vec::new();
+    let mut instructions = Vec::new();
+    for (index, binding) in bindings.iter().enumerate() {
+        let (creation, wrapper, native) = function(res, class, program, binding, refs, runtime);
+        methods.push((binding, wrapper, native));
+        instructions.extend(creation);
+        if bindings.len() == 1 {
+            instructions.push(Instruction::StoreStaticField {
+                volatile: false,
+                param0: runtime.global_fields[&binding.export].into(),
+            });
+        } else {
+            instructions.push(Instruction::StoreLocal(index as u16));
+        }
+    }
+    if bindings.len() > 1 {
+        for (index, binding) in bindings.iter().enumerate() {
+            instructions.extend([
+                Instruction::LoadLocal(index as u16),
+                Instruction::StoreStaticField {
+                    volatile: false,
+                    param0: runtime.global_fields[&binding.export].into(),
+                },
+            ]);
+        }
+    }
+    instructions.push(Instruction::Return);
+    let mut init = if bindings.len() == 1 {
+        body::Method::new(instructions)
+    } else {
+        body::Method::with_locals(
+            vec![LocalVariable::new(ctype! { object }); bindings.len()],
+            instructions,
+        )
+    };
+    init.header.maximum_stack_size = if bindings.iter().any(|binding| binding.signature.is_some()) {
+        4
+    } else {
+        3
+    };
+    (init, methods)
+}
+
+fn function(
     res: &mut Resolution<'static>,
     class: TypeIndex,
     program: &LinkedProgram,
     binding: &FixedI32Binding,
     refs: &BindingRefs,
     runtime: &RuntimeRefs,
-) -> (body::Method, MethodIndex, MethodIndex) {
-    let export_name = &program.modules[binding.module].exports[0].name;
+) -> (Vec<Instruction>, MethodIndex, MethodIndex) {
+    let module = &program.modules[binding.module];
+    let export_name = &module
+        .exports
+        .iter()
+        .find(|e| e.value == binding.export)
+        .expect("validated export global")
+        .name;
+    if let Some(signature) = &binding.signature {
+        return crate::native_abi_emit::function(res, class, binding, signature, export_name, refs);
+    }
+    // 同型方法须使用唯一名称，否则ILC/元数据消费者无法区分签名相同的多个导出。
+    let method_name = |kind: &str| {
+        if module.exports.len() == 1 {
+            format!("__fixed_i32_{kind}")
+        } else {
+            format!(
+                "__fixed_i32_{kind}_{}",
+                binding.export.into_raw().into_u32()
+            )
+        }
+    };
     let scope = res.push_module_reference(ExternalModuleReference::new(binding.module_ref.clone()));
     let mut import = PInvoke::new(scope, binding.entry_point.clone());
     import.no_mangle = true;
@@ -24,7 +99,7 @@ pub(crate) fn initializer(
     let mut method = Method::new(
         Accessibility::Private,
         msig! { static long (int, int) },
-        "__fixed_i32_native",
+        method_name("native"),
         None,
     );
     method.pinvoke = Some(import);
@@ -95,23 +170,17 @@ pub(crate) fn initializer(
         Method::new(
             Accessibility::Private,
             msig! { static object (object[]) },
-            "__fixed_i32_body",
+            method_name("body"),
             Some(wrapper_body),
         ),
     );
-    // 构造过程没有公开写；工厂成功返回真实PyFunction后才发布唯一动态槽。
-    let mut init = body::Method::new(vec![
+    // 仅构造函数对象；公开槽写入由整个模块初始化器统一安排。
+    let creation = vec![
         Instruction::load_string(export_name),
         Instruction::LoadNull,
         Instruction::LoadMethodPointer(MethodSource::User(UserMethod::Definition(wrapper))),
         Instruction::NewObject(UserMethod::Reference(refs.delegate_ctor)),
         Instruction::call(refs.create),
-        Instruction::StoreStaticField {
-            volatile: false,
-            param0: runtime.global_fields[&binding.export].into(),
-        },
-        Instruction::Return,
-    ]);
-    init.header.maximum_stack_size = 3;
-    (init, wrapper, native)
+    ];
+    (creation, wrapper, native)
 }

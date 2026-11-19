@@ -57,7 +57,7 @@ impl FunctionBuilder<'_> {
     }
     /// 导入调用可在写入前抛错，不能把成功路径的标记传播到 except 路径。
     /// 先前已赋值的局部失败时保留旧值；新导入局部保守保留运行时未绑定检查。
-    fn store_import_binding(&mut self, binding: Binding, value: Operand) {
+    pub(crate) fn store_import_binding(&mut self, binding: Binding, value: Operand) {
         let fresh = match binding {
             Binding::Local(local) if !self.assigned_locals.contains(&local) => Some(local),
             _ => None,
@@ -77,7 +77,9 @@ impl FunctionBuilder<'_> {
         let hir_body = &self.hir.functions[self.current_hir_fn].body;
         let stmt = &hir_body.stmts[stmt_id];
         let line = stmt.line;
-        self.emit_line(line);
+        if line != 0 {
+            self.emit_line(line);
+        }
         match &stmt.kind {
             StmtKind::Yield(value) => {
                 let value = match value {
@@ -112,12 +114,31 @@ impl FunctionBuilder<'_> {
                 let module = module.clone();
                 let bind = *bind;
                 let bind_root = *bind_root;
-                self.build_import(&module, bind, bind_root);
+                if self.hir.info.instance_capabilities.provider_namespace {
+                    self.build_provider_import(&module, bind, bind_root);
+                } else {
+                    self.guard_instance_import();
+                    self.build_import(&module, bind, bind_root);
+                }
             }
-            StmtKind::ImportFrom { module, names } => {
+            StmtKind::ImportFrom {
+                module,
+                relative,
+                names,
+            } => {
                 let module = module.clone();
                 let names = names.clone();
-                self.build_import_from(&module, &names);
+                if self.hir.info.instance_capabilities.provider_namespace {
+                    let (level, name) = relative
+                        .as_ref()
+                        .map_or((0, module.as_str()), |(level, raw)| (*level, raw.as_str()));
+                    self.build_provider_import_from(name, level, &names);
+                } else if let Some((level, raw)) = relative {
+                    self.build_relative_import(*level, raw, &names);
+                } else {
+                    self.guard_instance_import();
+                    self.build_import_from(&module, &names);
+                }
             }
             StmtKind::Assign { target, value } => match target {
                 AssignTarget::Subscript { base, index } => {
@@ -157,10 +178,21 @@ impl FunctionBuilder<'_> {
                             }));
                         }
                         AssignTarget::ModuleVar(var) => {
-                            let gid = self.module_vars[var];
-                            let to = self.globals[gid].ty.clone();
-                            let value = self.expr_builder().coerce(val_op, &val_ty, &to);
-                            self.push_stmt(Statement::SetGlobal { dest: gid, value });
+                            if self.module_state.is_some() {
+                                let value =
+                                    self.expr_builder()
+                                        .coerce(val_op, &val_ty, &MirType::Dynamic);
+                                self.store_binding(
+                                    Binding::ModuleVar(*var),
+                                    value,
+                                    &MirType::Dynamic,
+                                );
+                            } else {
+                                let gid = self.module_vars[var];
+                                let to = self.globals[gid].ty.clone();
+                                let value = self.expr_builder().coerce(val_op, &val_ty, &to);
+                                self.push_stmt(Statement::SetGlobal { dest: gid, value });
+                            }
                         }
                         AssignTarget::Attribute { base, name } => {
                             let base_ty = self.expr_builder().ty_of(*base);
@@ -257,6 +289,14 @@ impl FunctionBuilder<'_> {
                 self.current_bb = join_bb;
             }
             StmtKind::While { cond, body, orelse } => {
+                let assigned_before = self
+                    .types
+                    .is_dynamic(self.current_hir_fn)
+                    .then(|| self.assigned_locals.clone());
+                if let Some(before) = &assigned_before {
+                    // 回边可能经过del/except清理：下一轮的条件与正文首读也必须检查真实槽。
+                    self.restore_loop_assignments(before, &[body]);
+                }
                 let cond_bb = self.new_block();
                 let body_bb = self.new_block();
                 let else_bb = self.new_block();
@@ -287,6 +327,9 @@ impl FunctionBuilder<'_> {
                 }
 
                 // else 体
+                if let Some(before) = &assigned_before {
+                    self.restore_loop_assignments(before, &[body]);
+                }
                 self.current_bb = else_bb;
                 for &s in orelse {
                     self.build_stmt(s);
@@ -295,6 +338,9 @@ impl FunctionBuilder<'_> {
                     self.terminate_current(Terminator::Goto(exit_bb));
                 }
                 self.current_bb = exit_bb;
+                if let Some(before) = &assigned_before {
+                    self.restore_loop_assignments(before, &[body, orelse]);
+                }
             }
             StmtKind::Break => {
                 let (_, break_bb) = *self
@@ -312,9 +358,31 @@ impl FunctionBuilder<'_> {
                 self.route_jump(continue_bb);
             }
             StmtKind::FunctionDefaults(fn_id) => {
-                self.emit_function_defaults(*fn_id);
+                // 普通顶层def也在执行点创建新对象；保留静态名称/调用模式，不借装饰节点降级。
+                let value = self.create_function(*fn_id);
                 if let Some(&global) = self.fn_globals.get(fn_id) {
-                    self.emit_function_metadata(*fn_id, Operand::Global(global));
+                    // 只有定义完成后才替换直调默认值；失败的新定义不能污染旧公开函数。
+                    if let Some(defaults) = self.fn_defaults.get(fn_id).copied().flatten() {
+                        let fresh = self.expr_builder().runtime_call(
+                            RuntimeFn::FunctionDefaults,
+                            vec![value.clone()],
+                            MirType::Dynamic,
+                        );
+                        self.push_stmt(Statement::SetGlobal {
+                            dest: defaults,
+                            value: fresh,
+                        });
+                    }
+                    if let Some(&source) = self.fn_sources.get(fn_id) {
+                        self.push_stmt(Statement::SetGlobal {
+                            dest: source,
+                            value: value.clone(),
+                        });
+                    }
+                    self.push_stmt(Statement::SetGlobal {
+                        dest: global,
+                        value,
+                    });
                 }
             }
             StmtKind::NestedDef { func, target } => {
@@ -353,10 +421,19 @@ impl FunctionBuilder<'_> {
                         let raw = self.expr_builder().build_expr(*expr);
                         let boxed = self.expr_builder().coerce(raw, &ty, &MirType::Dynamic);
                         let dest = self.alloc_temp(MirType::Dynamic);
+                        #[cfg(not(feature = "trace-adapter-test"))]
+                        let prepare = RuntimeFn::RaisePrepareExplicit;
+                        #[cfg(feature = "trace-adapter-test")]
+                        let prepare = RuntimeFn::TraceAdapterExplicit;
+                        let prepare = if self.trace_product {
+                            RuntimeFn::TraceV1Explicit
+                        } else {
+                            prepare
+                        };
                         self.push_stmt(Statement::Assign {
                             dest,
                             value: Rvalue::Call {
-                                callee: Callee::Runtime(RuntimeFn::RaisePrepare),
+                                callee: Callee::Runtime(prepare),
                                 args: vec![boxed],
                             },
                         });
@@ -399,6 +476,22 @@ impl FunctionBuilder<'_> {
             }
             StmtKind::ClassDef(cls_id) => {
                 self.build_class_def(*cls_id);
+            }
+            StmtKind::SetupAnnotations => {
+                if let Some(context) = self.module_state {
+                    self.push_stmt(Statement::Eval(Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::InstanceSetupAnnotations),
+                        args: vec![Operand::Local(context)],
+                    }));
+                } else {
+                    self.diagnostics.push(
+                        ryupy_base::Diagnostic::error(
+                            ryupy_base::Span::new(self.hir.file, stmt.range),
+                            "SETUP_ANNOTATIONS缺少实例模块执行context",
+                        )
+                        .with_code("E0200"),
+                    );
+                }
             }
             StmtKind::Pass => {}
         }

@@ -4,7 +4,7 @@ use crate::check::FunctionChecker;
 use crate::infer::InferTy;
 use crate::ty::Ty;
 use ryupy_base::{Diagnostic, Span};
-use ryupy_hir::{AssignTarget, ExprId, StmtKind};
+use ryupy_hir::{AssignTarget, ExprId, ExprKind, StmtKind};
 
 impl FunctionChecker<'_> {
     /// 默认值与装饰器都属于定义位置的外层表达式 arena。
@@ -16,6 +16,40 @@ impl FunctionChecker<'_> {
         }
         for (_, annotation) in &self.module.functions[func].annotation_values {
             self.check_expr(*annotation);
+        }
+    }
+
+    /// 递归检查各层叶目标；嵌套绑定与平坦解包采用相同动态槽合同。
+    fn check_sequence_targets(&mut self, items: &[ryupy_hir::SequenceItem]) {
+        use ryupy_hir::{Binding, SequenceItem, SequenceTarget};
+        for item in items {
+            let target = match item {
+                SequenceItem::One(t) | SequenceItem::Rest(t) => t,
+            };
+            match target {
+                SequenceTarget::Sequence(children) => self.check_sequence_targets(children),
+                SequenceTarget::Attribute { base, .. } => {
+                    self.check_expr(*base);
+                }
+                SequenceTarget::Subscript { base, index } => {
+                    self.check_expr(*base);
+                    self.check_expr(*index);
+                }
+                SequenceTarget::Binding(Binding::Local(local)) => {
+                    let inferred = self.local_vars[*local].clone();
+                    if self
+                        .infer
+                        .unify(&inferred, &InferTy::Known(Ty::Dynamic))
+                        .is_err()
+                    {
+                        self.soft_demote = true;
+                        self.infer.force(&inferred, Ty::Dynamic);
+                    }
+                }
+                SequenceTarget::Binding(Binding::Free(_) | Binding::ModuleVar(_)) => {
+                    self.soft_demote = true
+                }
+            }
         }
     }
 
@@ -64,6 +98,7 @@ impl FunctionChecker<'_> {
                             && !val_ty.is_dynamic()
                             && declared != Ty::Error
                             && val_ty != Ty::Error
+                            && declared != Ty::OpaqueStr
                             && declared != val_ty;
                         if mismatch {
                             self.soft_demote = true;
@@ -75,39 +110,7 @@ impl FunctionChecker<'_> {
                         self.soft_demote = true;
                     }
                     AssignTarget::Sequence(items) => {
-                        for item in items {
-                            let target = match item {
-                                ryupy_hir::SequenceItem::One(target)
-                                | ryupy_hir::SequenceItem::Rest(target) => target,
-                            };
-                            let binding = match target {
-                                ryupy_hir::SequenceTarget::Binding(binding) => *binding,
-                                ryupy_hir::SequenceTarget::Attribute { base, .. } => {
-                                    self.check_expr(*base);
-                                    continue;
-                                }
-                                ryupy_hir::SequenceTarget::Subscript { base, index } => {
-                                    self.check_expr(*base);
-                                    self.check_expr(*index);
-                                    continue;
-                                }
-                            };
-                            match binding {
-                                ryupy_hir::Binding::Free(_) => self.soft_demote = true,
-                                ryupy_hir::Binding::Local(local) => {
-                                    let loc_infer = self.local_vars[local].clone();
-                                    if self
-                                        .infer
-                                        .unify(&loc_infer, &InferTy::Known(Ty::Dynamic))
-                                        .is_err()
-                                    {
-                                        self.soft_demote = true;
-                                        self.infer.force(&loc_infer, Ty::Dynamic);
-                                    }
-                                }
-                                ryupy_hir::Binding::ModuleVar(_) => self.soft_demote = true,
-                            }
-                        }
+                        self.check_sequence_targets(items);
                         self.soft_demote = true;
                     }
                     AssignTarget::Attribute { base, name } => {
@@ -144,7 +147,7 @@ impl FunctionChecker<'_> {
                     self.soft_demote = true;
                 }
             }
-            StmtKind::Pass => {}
+            StmtKind::Pass | StmtKind::SetupAnnotations => {}
             StmtKind::If { cond, then_, else_ } => {
                 self.check_cond(*cond);
                 for &s in then_ {
@@ -177,7 +180,9 @@ impl FunctionChecker<'_> {
                         let var_infer = self.local_vars[*local].clone();
                         let _ = self.infer.unify(&var_infer, &InferTy::Known(Ty::Dynamic));
                     }
-                    ryupy_hir::Binding::ModuleVar(_) => {}
+                    ryupy_hir::Binding::ModuleVar(var) => {
+                        self.soft_demote |= self.module_vars.get(*var) == Some(&Ty::OpaqueStr);
+                    }
                 }
                 self.soft_demote = true;
                 for &s in body {
@@ -214,7 +219,9 @@ impl FunctionChecker<'_> {
                             .unify(&var_ty, &crate::infer::InferTy::Known(Ty::Int));
                     }
                     // 模块级循环变量槽位类型由模块变量推导决定，这里不再约束。
-                    ryupy_hir::Binding::ModuleVar(_) => {}
+                    ryupy_hir::Binding::ModuleVar(var) => {
+                        self.soft_demote |= self.module_vars.get(*var) == Some(&Ty::OpaqueStr);
+                    }
                 }
 
                 for &s in body {
@@ -238,7 +245,10 @@ impl FunctionChecker<'_> {
             StmtKind::FunctionDefaults(_) => {}
             StmtKind::Delete(targets) => {
                 for &target in targets {
-                    self.check_expr(target);
+                    // 删除模块绑定不读取其值；未知槽或Dynamic槽不能因此拖main整体降级。
+                    if !matches!(self.func.body.exprs[target].kind, ExprKind::ModuleVar(_)) {
+                        self.check_expr(target);
+                    }
                 }
             }
             StmtKind::Raise { value, cause } => {
@@ -259,10 +269,13 @@ impl FunctionChecker<'_> {
                     self.check_stmt(s);
                 }
                 for &handler_id in handlers {
-                    let (name, handler_body) = {
+                    let (name, type_expr, handler_body) = {
                         let handler = &self.func.body.handlers[handler_id];
-                        (handler.name, handler.body.clone())
+                        (handler.name, handler.type_expr, handler.body.clone())
                     };
+                    if let Some(target) = type_expr {
+                        self.check_expr(target);
+                    }
                     // 异常对象是动态值：`as e` 的局部变量按 Dynamic 处理，
                     // 同时让整函数降级——异常对象上的属性（`args` / `__cause__`）
                     // 需要 M2.5 的属性协议，静态槽位放不下。

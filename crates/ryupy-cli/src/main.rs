@@ -5,83 +5,10 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use anyhow::Result;
-use clap::{Parser, Subcommand, ValueEnum};
-use ryupy_driver::{BuildOptions, HasErrors, Session, Stage, dotnet};
-
-#[derive(Parser)]
-#[command(name = "ryupy", version, about = "Python → .NET CIL 编译器")]
-struct Cli {
-    /// 实验：将受守卫循环累加展开成直接 CIL（不保证更快；默认使用 holder）
-    #[arg(long, global = true)]
-    experimental_direct_accumulator: bool,
-    /// 实验：受守卫纯叶调用内联（默认关闭，不保证更快）
-    #[arg(long, global = true)]
-    experimental_leaf_inline: bool,
-    /// 诊断：保SLP守卫/物化，以标量运算作为packed SIMD的公平控制组
-    #[arg(long, global = true, conflicts_with = "experimental_packed_slp")]
-    diagnostic_scalar_slp: bool,
-    /// 实验：真正packed两lane SLP（相对同守卫标量未获净收益，默认关闭）
-    #[arg(long, global = true, conflicts_with = "diagnostic_scalar_slp")]
-    experimental_packed_slp: bool,
-    #[command(subcommand)]
-    command: Command,
-}
-
-#[derive(Subcommand)]
-enum Command {
-    /// 编译为 .dll（加 --aot 生成原生可执行文件）
-    Build {
-        input: PathBuf,
-        /// 输出根；AOT默认源目录下<文件名>.build/.dist，JIT默认__pycache__/<文件名>/
-        #[arg(short, long)]
-        out_dir: Option<PathBuf>,
-        #[arg(long)]
-        aot: bool,
-        /// 显式资源清单（仅 AOT；目标相对路径首切限 ASCII）
-        #[arg(long, requires = "aot")]
-        resources: Option<PathBuf>,
-        /// 显式固定签名 C ABI 声明，首切不能与资源组合
-        #[arg(long, conflicts_with = "resources")]
-        native_binding: Option<PathBuf>,
-        /// 额外的模块搜索根（可重复；入口文件所在目录始终最优先）
-        #[arg(short = 'I', long = "search-path")]
-        search_paths: Vec<PathBuf>,
-    },
-    /// 编译并立即用 dotnet 运行
-    Run {
-        input: PathBuf,
-        /// 额外的模块搜索根（可重复；入口文件所在目录始终最优先）
-        #[arg(short = 'I', long = "search-path")]
-        search_paths: Vec<PathBuf>,
-    },
-    /// 打印某一阶段的中间表示
-    Dump {
-        input: PathBuf,
-        #[arg(long, value_enum, default_value_t = EmitArg::Hir)]
-        emit: EmitArg,
-    },
-}
-
-#[derive(Clone, Copy, ValueEnum)]
-enum EmitArg {
-    Ast,
-    Hir,
-    Types,
-    Mir,
-    Cil,
-}
-
-impl From<EmitArg> for Stage {
-    fn from(e: EmitArg) -> Self {
-        match e {
-            EmitArg::Ast => Stage::Ast,
-            EmitArg::Hir => Stage::Hir,
-            EmitArg::Types => Stage::Types,
-            EmitArg::Mir => Stage::Mir,
-            EmitArg::Cil => Stage::Cil,
-        }
-    }
-}
+use clap::Parser;
+mod args;
+use args::{Cli, Command};
+use ryupy_driver::{BuildOptions, HasErrors, Session, dotnet};
 
 fn default_out_dir(input: &std::path::Path) -> PathBuf {
     let dir = input.parent().unwrap_or_else(|| std::path::Path::new("."));
@@ -92,15 +19,48 @@ fn default_out_dir(input: &std::path::Path) -> PathBuf {
 }
 
 fn main() -> ExitCode {
-    let cli = Cli::parse();
+    let mut cli = Cli::parse();
+    if cli.licenses {
+        print!("{}", ryupy_driver::runtime_licenses());
+        return ExitCode::SUCCESS;
+    }
+    if cli.help_advanced {
+        return match args::print_advanced_help() {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(error) => {
+                eprintln!("error: {error:#}");
+                ExitCode::FAILURE
+            }
+        };
+    }
+    let command = match cli.take_command() {
+        Ok(command) => command,
+        Err(error) => {
+            eprintln!("error: {error:#}");
+            return ExitCode::FAILURE;
+        }
+    };
     let mut sess = Session {
+        distribution_metadata: cli.distribution_metadata,
+        cpython_provider: cli.cpython_provider,
+        cpython_native_components: cli.cpython_native_components,
+        bundle_data: cli.bundle_data,
+        cpython_modules: cli.cpython_modules,
+        cpython_entry: cli.cpython_entry,
+        cpython_dynamic_modules: cli.cpython_dynamic_modules,
+        trace_product_v1: cli.trace_product_v1,
+        instance_modules: cli.instance_modules,
+        instance_direct_globals: cli.instance_direct_globals,
         experimental_direct_accumulator: cli.experimental_direct_accumulator,
+        experimental_records_increment: cli.experimental_records_increment,
         experimental_leaf_inline: cli.experimental_leaf_inline,
+        experimental_stock_thin_functions: cli.experimental_stock_thin_functions,
+        experimental_stock_module_namespaces: cli.experimental_stock_module_namespaces,
         diagnostic_scalar_slp: cli.diagnostic_scalar_slp,
         experimental_packed_slp: cli.experimental_packed_slp,
         ..Session::default()
     };
-    let result = run(cli.command, &mut sess);
+    let result = run(command, &mut sess);
 
     if !sess.diagnostics.is_empty() {
         eprint!(
@@ -110,7 +70,16 @@ fn main() -> ExitCode {
     }
     match result {
         Ok(code) => code,
-        Err(e) if e.is::<HasErrors>() => ExitCode::FAILURE,
+        Err(e) if e.is::<HasErrors>() => {
+            // 语义诊断已单独渲染；保留发布事务附加的诊断目录等context，不能吞掉可操作路径。
+            let mut causes = e.chain().peekable();
+            while let Some(context) = causes.next() {
+                if causes.peek().is_some() {
+                    eprintln!("{context}");
+                }
+            }
+            ExitCode::FAILURE
+        }
         Err(e) => {
             eprintln!("error: {e:#}");
             ExitCode::FAILURE
@@ -120,14 +89,47 @@ fn main() -> ExitCode {
 
 fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
     match command {
-        Command::Build {
+        Command::Probe {
             input,
             out_dir,
+            search_paths,
             aot,
+        } => {
+            let out_dir = out_dir.unwrap_or_else(|| default_out_dir(&input).join("probe"));
+            let report = ryupy_driver::probe_sources(
+                sess,
+                &BuildOptions {
+                    input,
+                    out_dir,
+                    search_paths,
+                    aot,
+                },
+            )?;
+            println!("{report}");
+            Ok(ExitCode::SUCCESS)
+        }
+        Command::Build {
+            input,
+            diagnostic_stages,
+            out_dir,
+            aot,
+            onefile,
+            macos_app,
             resources,
             native_binding,
             search_paths,
+            include_modules,
         } => {
+            sess.trace_entry = ryupy_driver::TraceEntry::StandaloneMain;
+            sess.diagnostic_stages = diagnostic_stages;
+            sess.include_modules = include_modules;
+            if macos_app.is_some() && !cfg!(target_os = "macos") {
+                anyhow::bail!("--mode app 仅支持在 macOS 上本机构建");
+            }
+            let aot = aot || onefile;
+            if aot {
+                dotnet::require_sdk()?;
+            }
             let out_dir = out_dir.unwrap_or_else(|| {
                 if aot {
                     input
@@ -139,25 +141,46 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
                     default_out_dir(&input)
                 }
             });
-            let artifacts = ryupy_driver::build_configured(
+            let options = BuildOptions {
+                input,
+                out_dir,
+                aot,
+                search_paths,
+            };
+            if let Some(name) = macos_app {
+                let bundle = ryupy_driver::build_macos_app(sess, &options, &name)?;
+                eprintln!("已生成 {}", bundle.display());
+                return Ok(ExitCode::SUCCESS);
+            }
+            let build = if onefile {
+                ryupy_driver::build_onefile
+            } else {
+                ryupy_driver::build_configured
+            };
+            let artifacts = build(
                 sess,
-                &BuildOptions {
-                    input,
-                    out_dir,
-                    aot,
-                    search_paths,
-                },
+                &options,
                 resources.as_deref(),
                 native_binding.as_deref(),
             )?;
-            eprintln!("已生成 {}", artifacts.dll.display());
             if let Some(exe) = artifacts.native_exe {
+                eprintln!("CIL 中间产物：{}", artifacts.dll.display());
                 eprintln!("已生成 {}", exe.display());
+            } else {
+                eprintln!("已生成 {}", artifacts.dll.display());
             }
-            if let Some(manifest) = artifacts.manifest {
+            if sess.diagnostic_stages
+                && let Some(manifest) = artifacts.manifest
+            {
                 eprintln!(
                     "{}：{}",
-                    if aot { "AOT 清单" } else { "产物清单" },
+                    if onefile {
+                        "内嵌 standalone 清单"
+                    } else if aot {
+                        "AOT 清单"
+                    } else {
+                        "产物清单"
+                    },
                     manifest.display()
                 );
             }
@@ -165,8 +188,14 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
         }
         Command::Run {
             input,
+            diagnostic_stages,
             search_paths,
+            include_modules,
         } => {
+            dotnet::require_runtime()?;
+            sess.trace_entry = ryupy_driver::TraceEntry::StandaloneMain;
+            sess.diagnostic_stages = diagnostic_stages;
+            sess.include_modules = include_modules;
             let out_dir = default_out_dir(&input);
             let artifacts = ryupy_driver::build(
                 sess,
@@ -177,16 +206,26 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
                     search_paths,
                 },
             )?;
-            let status = std::process::Command::new(dotnet::dotnet_exe())
-                .arg(&artifacts.dll)
-                .status()?;
-            Ok(if status.success() {
-                ExitCode::SUCCESS
+            // 公开run与交付使用同一apphost；继承终端stdin/stdout，保留真实退出码。
+            let mut command = if let Some(executable) = artifacts.native_exe {
+                std::process::Command::new(executable)
             } else {
-                ExitCode::FAILURE
-            })
+                let mut command = std::process::Command::new(dotnet::dotnet_exe());
+                command.arg(&artifacts.dll);
+                command
+            };
+            let status = command.status()?;
+            Ok(ExitCode::from(status.code().unwrap_or(1) as u8))
         }
         Command::Dump { input, emit } => {
+            if !sess.cpython_modules.is_empty()
+                || sess.cpython_entry
+                || !sess.cpython_dynamic_modules.is_empty()
+            {
+                anyhow::bail!(
+                    "dump 不支持 --cpython-module / --cpython-entry / --cpython-dynamic-module"
+                );
+            }
             print!("{}", ryupy_driver::dump(sess, &input, emit.into())?);
             Ok(ExitCode::SUCCESS)
         }
@@ -196,6 +235,34 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn stock_thin_flag_is_explicit_for_every_command() {
+        for command in ["build", "run", "dump"] {
+            let default = Cli::try_parse_from(["ryupy", command, "input.py"]).unwrap();
+            assert!(!default.experimental_stock_thin_functions);
+            for args in [
+                vec![
+                    "ryupy",
+                    "--experimental-stock-thin-functions",
+                    command,
+                    "input.py",
+                ],
+                vec![
+                    "ryupy",
+                    command,
+                    "input.py",
+                    "--experimental-stock-thin-functions",
+                ],
+            ] {
+                assert!(
+                    Cli::try_parse_from(args)
+                        .unwrap()
+                        .experimental_stock_thin_functions
+                );
+            }
+        }
+    }
 
     #[test]
     fn direct_accumulator_is_explicit_for_every_command() {
@@ -322,6 +389,121 @@ mod packed_slp_flag_tests {
                     "--diagnostic-scalar-slp",
                 ])
                 .is_err()
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod include_module_tests {
+    use super::*;
+    #[test]
+    fn resources_and_binding_compose_only_with_aot() {
+        let args = [
+            "ryupy",
+            "build",
+            "app.py",
+            "--resources",
+            "resources.json",
+            "--native-binding",
+            "binding.json",
+        ];
+        assert!(Cli::try_parse_from(args).is_err());
+        assert!(Cli::try_parse_from(args.into_iter().chain(["--aot"])).is_ok());
+        assert!(Cli::try_parse_from(args.into_iter().chain(["--onefile"])).is_ok());
+        assert!(Cli::try_parse_from(args.into_iter().chain(["--aot", "--onefile"])).is_ok());
+    }
+    #[test]
+    fn include_module_is_repeatable_for_build_and_run() {
+        for command in ["build", "run"] {
+            let cli = Cli::try_parse_from([
+                "ryupy",
+                command,
+                "main.py",
+                "--include-module",
+                "pkg.fonts",
+                "--include-module",
+                "other",
+            ])
+            .unwrap();
+            let names = match cli.command.unwrap() {
+                Command::Build {
+                    include_modules, ..
+                }
+                | Command::Run {
+                    include_modules, ..
+                } => include_modules,
+                _ => panic!("build/run expected"),
+            };
+            assert_eq!(names, ["pkg.fonts", "other"]);
+        }
+    }
+    #[test]
+    fn include_does_not_enable_dump_or_jit_resource_copy() {
+        assert!(
+            Cli::try_parse_from(["ryupy", "dump", "main.py", "--include-module", "pkg"]).is_err()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "ryupy",
+                "build",
+                "main.py",
+                "--include-module",
+                "pkg",
+                "--resources",
+                "data.json"
+            ])
+            .is_err()
+        );
+    }
+}
+
+#[cfg(test)]
+mod instance_module_tests {
+    use super::*;
+    #[test]
+    fn instance_module_is_explicit_repeatable_and_separate_from_include() {
+        let cli = Cli::try_parse_from([
+            "ryupy",
+            "run",
+            "main.py",
+            "--instance-module",
+            "a",
+            "--instance-module",
+            "b",
+            "--include-module",
+            "c",
+        ])
+        .unwrap();
+        assert_eq!(cli.instance_modules, ["a", "b"]);
+        let Command::Run {
+            include_modules, ..
+        } = cli.command.unwrap()
+        else {
+            panic!("run");
+        };
+        assert_eq!(include_modules, ["c"]);
+    }
+}
+
+#[cfg(test)]
+mod records_flag_tests {
+    use super::*;
+    #[test]
+    fn records_flag_is_explicit_and_false_by_default() {
+        for command in ["build", "run", "dump"] {
+            let default = Cli::try_parse_from(["ryupy", command, "input.py"]).unwrap();
+            assert!(!default.experimental_records_increment);
+            let selected = Cli::try_parse_from([
+                "ryupy",
+                command,
+                "input.py",
+                "--experimental-records-increment",
+            ])
+            .unwrap();
+            assert!(selected.experimental_records_increment);
+            assert!(
+                !selected.experimental_direct_accumulator && !selected.experimental_leaf_inline
             );
         }
     }

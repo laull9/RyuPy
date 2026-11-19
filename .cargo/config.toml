@@ -1,0 +1,3 @@
+# Windows编译器自身静态链接C运行时，单文件CLI无需旁置VC运行库。
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

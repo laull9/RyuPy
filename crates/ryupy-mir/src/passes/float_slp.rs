@@ -124,9 +124,11 @@ fn eligible(f: &Function) -> bool {
                     matches!(
                         s,
                         Statement::Assign {
-                            value: Rvalue::MakeGenerator { .. },
+                            value: Rvalue::MakeGenerator { .. } | Rvalue::MakeStateGenerator { .. },
                             ..
-                        } | Statement::Eval(Rvalue::MakeGenerator { .. })
+                        } | Statement::Eval(
+                            Rvalue::MakeGenerator { .. } | Rvalue::MakeStateGenerator { .. }
+                        )
                     )
                 })
         })

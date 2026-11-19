@@ -56,7 +56,7 @@ public sealed class PyBytes
 }
 
 /// <summary>Python <c>bytearray</c>：可变字节序列。</summary>
-public sealed class PyByteArray
+public sealed partial class PyByteArray
 {
     /// <summary>字节内容。</summary>
     public List<byte> Bytes { get; }
@@ -265,12 +265,15 @@ public static class PyEncoding
         string normalized = encoding.ToLowerInvariant().Replace("-", "").Replace("_", "");
         return normalized switch
         {
-            "utf8" or "u8" or "" => new UTF8Encoding(false, true).GetBytes(text),
+            "utf8" or "u8" or "" => EncodeUtf8(text),
             "ascii" or "usascii" => Encoding.ASCII.GetBytes(text),
             "latin1" or "iso88591" => Encoding.Latin1.GetBytes(text),
             _ => throw new PyLookupError($"unknown encoding: {encoding}"),
         };
     }
+
+    private static byte[] EncodeUtf8(string text)
+    { PyUnicodePoints.ValidateUtf8(text); return new UTF8Encoding(false, true).GetBytes(text); }
 
     /// <summary>把任意序列转成字节数组。</summary>
     /// <param name="value">bytes / bytearray / 整数序列。</param>

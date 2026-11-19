@@ -14,7 +14,7 @@ namespace RyuPy.Runtime;
 /// 三个分量在**使用**时才换算成具体下标（CPython 也是这样），因此构造时不校验类型，
 /// 只有真的取下标时才可能抛 <c>TypeError</c> / <c>ValueError</c>。
 /// </remarks>
-public sealed class PySlice
+public sealed partial class PySlice
 {
     /// <summary>起点；<c>None</c> 表示省略。</summary>
     public object? Start { get; }
@@ -95,11 +95,14 @@ public sealed class PySlice
         long count;
         if (step > 0)
         {
-            count = stop > start ? (stop - start + step - 1) / step : 0;
+            // 先减一再除，避免较大步长在向上取整的加法中溢出。
+            count = stop > start ? 1 + (stop - start - 1) / step : 0;
         }
         else
         {
-            count = start > stop ? (start - stop - step - 1) / (-step) : 0;
+            // long.MinValue 不能取负；其跨度比任意合法序列都大，非空窗口只能选一项。
+            count = start <= stop ? 0 : step == long.MinValue ? 1
+                : 1 + (start - stop - 1) / (-step);
         }
         return (start, stop, step, count);
     }
@@ -139,7 +142,11 @@ public sealed partial class PyList
     public PyList() => _items = new List<object?>();
 
     /// <summary>元素个数。</summary>
-    public int Count => _items is { } items ? items.Count : _numeric!.Count;
+    public int Count
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _items is { } items ? items.Count : _numeric is { } slots ? slots.Count : _booleans!.Count;
+    }
 
     /// <summary>按 Python 下标规则取元素。</summary>
     /// <param name="index">下标（支持负数）。</param>
@@ -147,21 +154,35 @@ public sealed partial class PyList
     public object? GetItem(long index)
     {
         var items = _items;
-        if (items is null) return ReadNumeric(index);
-        int count = items.Count;
-        long position = index < 0 ? index + count : index;
-        if ((ulong)position >= (ulong)count) return ListIndexError();
-        return items[(int)position];
+        if (items is not null)
+        {
+            int count = items.Count;
+            long position = index < 0 ? index + count : index;
+            if ((ulong)position >= (ulong)count) return ListIndexError();
+            return items[(int)position];
+        }
+        return GetItemSlow(index);
     }
 
     /// <summary>按 Python 下标规则写元素。</summary>
     /// <param name="index">下标（支持负数）。</param>
     /// <param name="value">新值。</param>
-    public void SetItem(long index, object? value) => Items[(int)Normalize(index)] = value;
+    public void SetItem(long index, object? value)
+    {
+        if (_booleans is not null) { SetBooleanItem(index, value); return; }
+        Items[(int)Normalize(index)] = value;
+    }
 
     /// <summary>按 Python 下标规则删除元素。</summary>
     /// <param name="index">下标（支持负数）。</param>
-    public void DelItem(long index) => Items.RemoveAt((int)Normalize(index));
+    public void DelItem(long index)
+    {
+        // 删除没有返回值，不观察元素；先校验下标，再移动完整槽及其原盒引用。
+        int position = (int)Normalize(index);
+        if (_numeric is { } numeric) numeric.RemoveAt(position);
+        else if (_booleans is { } booleans) booleans.RemoveAt(position);
+        else Items.RemoveAt(position);
+    }
 
     /// <summary>按下标取元素，自动区分整数下标与切片。</summary>
     /// <param name="key">整数或 <see cref="PySlice"/>。</param>
@@ -201,13 +222,15 @@ public sealed partial class PyList
     public PyList GetSlice(PySlice slice)
     {
         var (start, _, step, count) = slice.Indices(Count);
-        var result = new List<object?>((int)count);
+        // 结果包装独占新建背板；直接填入，避免公共IEnumerable构造器再次复制。
+        // 源Items访问仍保留原物化时点；空切片不观察或物化源，元素引用不重建。
+        var result = new PyList((int)count);
         long index = start;
         for (long i = 0; i < count; i++, index += step)
         {
-            result.Add(Items[(int)index]);
+            result._items!.Add(Items[(int)index]);
         }
-        return new PyList(result);
+        return result;
     }
 
     /// <summary>按步长 1 的切片赋值：可改变列表长度。</summary>
@@ -216,10 +239,11 @@ public sealed partial class PyList
     public void SetSlice(PySlice slice, object? value)
     {
         object?[] replacement = PyOps.ToSequence(value);
-        var (start, stop, step, count) = slice.Indices(Count);
+        var (start, _, step, count) = slice.Indices(Count);
         if (step == 1)
         {
-            Items.RemoveRange((int)start, (int)(stop - start));
+            // 正步空区间仍是插入点，不能向 CLR 传负删除长度。
+            Items.RemoveRange((int)start, (int)count);
             Items.InsertRange((int)start, replacement);
             return;
         }
@@ -241,15 +265,18 @@ public sealed partial class PyList
     /// <param name="slice">切片。</param>
     public void DelSlice(PySlice slice)
     {
-        var (start, stop, step, count) = slice.Indices(Count);
+        var (start, _, step, count) = slice.Indices(Count);
         if (step == 1)
         {
-            Items.RemoveRange((int)start, (int)(stop - start));
+            // 正步空区间仍是插入点，不能向 CLR 传负删除长度。
+            Items.RemoveRange((int)start, (int)count);
             return;
         }
-        // 从后往前删，避免下标漂移
-        long index = start + (count - 1) * step;
-        for (long i = 0; i < count; i++, index -= step)
+        // 始终按原始下标降序删除；负步切片本来已是降序，不能再反转。
+        if (count == 0) return;
+        long index = step > 0 ? start + (count - 1) * step : start;
+        long stride = step > 0 ? -step : step;
+        for (long i = 0; i < count; i++, index += stride)
         {
             Items.RemoveAt((int)index);
         }
@@ -261,39 +288,50 @@ public sealed partial class PyList
     public void Append(object? value)
     {
         if (_items is { } items) items.Add(value);
-        else AppendNumeric(value);
+        else AppendNonItems(value);
     }
 
     /// <summary><c>extend(x)</c>。</summary>
     /// <param name="value">可迭代对象。</param>
-    public void Extend(object? value) => Items.AddRange(PyOps.ToSequence(value));
+    public void Extend(object? value) => PyOps.ExtendList(this, value);
 
     /// <summary><c>insert(i, x)</c>。</summary>
     /// <param name="index">插入位置。</param>
     /// <param name="value">元素。</param>
     public void Insert(long index, object? value)
     {
-        int position = index < 0
-            ? Math.Max(0, Items.Count + (int)index)
-            : (int)Math.Min(index, Items.Count);
-        Items.Insert(position, value);
+        // 必须先在long范围内归一化再窄化；负大下标先转int会回绕到错误位置。
+        int count = Count;
+        int position = (int)(index < 0
+            ? Math.Max(0L, index + count)
+            : Math.Min(index, (long)count));
+        // 仅尾插没有槽移位；头/中插保留原物化路径，避免重复移位退化。
+        if (_numeric is { } numeric && position == count && value is double number)
+            numeric.Add(PyNumericSlot.Existing(value, number));
+        else Items.Insert(position, value);
     }
 
     /// <summary><c>pop([i])</c>。</summary>
     /// <param name="index">下标，默认末尾。</param>
     public object? Pop(long index = -1)
     {
-        if (Items.Count == 0)
+        // 回调已完成；范围校验不访问 Items，失败时保留数值背板。
+        int count = Count;
+        if (count == 0)
         {
-            throw new PyIndexError("pop from empty list");
+            throw (PyBaseException)PyErrors.PrepareRaise(new PyIndexError("pop from empty list"));
         }
-        int position = index < 0 ? Items.Count + (int)index : (int)index;
-        if (position < 0 || position >= Items.Count)
+        long position = index < 0 ? index + count : index;
+        if ((ulong)position >= (ulong)count)
         {
-            throw new PyIndexError("pop index out of range");
+            throw (PyBaseException)PyErrors.PrepareRaise(new PyIndexError("pop index out of range"));
         }
-        object? value = Items[position];
-        Items.RemoveAt(position);
+        // 先证明位置合法再窄化；数值背板仅观察被移除槽，保留其原盒身份。
+        if (_booleans is { } booleans) return PopBoolean(booleans, (int)position);
+        if (_numeric is not null) return PopNumeric((int)position);
+        var items = Items;
+        object? value = items[(int)position];
+        items.RemoveAt((int)position);
         return value;
     }
 
@@ -329,13 +367,19 @@ public sealed partial class PyList
     public bool Contains(object? value) => IndexOf(value) >= 0;
 
     /// <summary><c>clear()</c>。</summary>
-    public void Clear() => Items.Clear();
+    public void Clear() { if (_booleans is { } b) b.Clear(); else Items.Clear(); }
 
     /// <summary><c>reverse()</c>。</summary>
-    public void Reverse() => Items.Reverse();
+    public void Reverse()
+    {
+        // 连同缓存的原盒一起移动槽，保留身份、NaN位模式和延迟物化状态。
+        if (_booleans is { } b) b.Reverse();
+        else if (_numeric is { } n) n.Reverse();
+        else Items.Reverse();
+    }
 
     /// <summary><c>copy()</c>：浅拷贝。</summary>
-    public PyList Copy() => new(Items);
+    public PyList Copy() => _booleans is { } b ? new(new List<bool>(b)) : new(Items);
 
     private long Normalize(long index)
     {
@@ -396,6 +440,17 @@ public sealed class PySet
     /// <summary>元素个数。</summary>
     public int Count => Items.Count;
 
+    /// <summary>非空 clear 的代次；仅供快照迭代器识别清空后恢复原大小的边界。</summary>
+    internal long ClearEpoch { get; private set; }
+
+    /// <summary>原地清空，不重新哈希元素；空 clear 不制造迭代状态变化。</summary>
+    public void Clear()
+    {
+        bool changed = Count != 0;
+        Items.Clear();
+        if (changed) ClearEpoch = unchecked(ClearEpoch + 1);
+    }
+
     /// <summary>加入元素。</summary>
     /// <param name="value">元素。</param>
     public void Add(object? value) => Items.Add(Normalize(value));
@@ -404,6 +459,7 @@ public sealed class PySet
     /// <param name="value">元素。</param>
     public void Remove(object? value)
     {
+        if (value is PyInstance instance && Count == 0) PyHash.RequireOrdinaryHashable(instance);
         if (!Items.Remove(Normalize(value)))
         {
             throw PyKeyError.ForKey(value);
@@ -412,11 +468,19 @@ public sealed class PySet
 
     /// <summary>删除元素；缺失不报错。</summary>
     /// <param name="value">元素。</param>
-    public void Discard(object? value) => Items.Remove(Normalize(value));
+    public void Discard(object? value)
+    {
+        if (value is PyInstance instance && Count == 0) PyHash.RequireOrdinaryHashable(instance);
+        Items.Remove(Normalize(value));
+    }
 
     /// <summary>包含判断。</summary>
     /// <param name="value">元素。</param>
-    public bool Contains(object? value) => Items.Contains(Normalize(value));
+    public bool Contains(object? value)
+    {
+        if (value is PyInstance instance && Count == 0) PyHash.RequireOrdinaryHashable(instance);
+        return Items.Contains(Normalize(value));
+    }
 
     /// <summary>并集。</summary>
     /// <param name="other">另一个集合。</param>
@@ -490,6 +554,13 @@ public sealed class PyFrozenSet
 
     /// <summary>元素个数。</summary>
     public int Count => Items.Count;
+
+    // 与可变set共享None槽准入；精确标量只做一次类型排除，不读类或分配包装。
+    internal bool Contains(object? value)
+    {
+        if (value is PyInstance instance && Count == 0) PyHash.RequireOrdinaryHashable(instance);
+        return Items.Contains(value ?? PyNone.Instance);
+    }
 
     /// <summary>元素集合相等的判断。</summary>
     /// <param name="other">另一个集合。</param>

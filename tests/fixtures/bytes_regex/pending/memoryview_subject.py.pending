@@ -1,0 +1,26 @@
+"""CP真实正例：view自身导出、release次序与Match原view；当前CopyBuffer不构成支持。"""
+import re
+
+subject = bytearray(b'ab')
+view = memoryview(subject)
+iterator = re.finditer(b'.', view)
+try:
+    view.release()
+except BufferError as error:
+    assert str(error) == 'memoryview has 1 exported buffer'
+else:
+    raise AssertionError('active iterator must block view release')
+first = next(iterator)
+subject[1] = 90
+assert [(m.group(), m.span()) for m in iterator] == [(b'Z', (1, 2))]
+assert first.string is view
+view.release()
+try:
+    first.group()
+except TypeError as error:
+    assert str(error) == "expected string or bytes-like object, got 'memoryview'"
+else:
+    raise AssertionError('Match must reread original released view')
+subject.append(88)
+assert subject == bytearray(b'aZX')
+print('pending.memoryview', subject)

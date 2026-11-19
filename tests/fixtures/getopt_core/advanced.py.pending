@@ -1,0 +1,25 @@
+# ryupy: pending
+# 合法CP长尾独立保留；不由getopt_core driver收集，不补入本轮通过数。
+# GNU、一般输入协议、args重赋值、用户派生另立合同；警告显示不在当前保证内。
+import getopt
+
+print('gnu', getopt.gnu_getopt(['first', '-a'], 'a'))
+print('iterable-longopts', getopt.getopt(['--alpha'], '', iter(['alpha'])))
+
+
+class Arguments(list):
+    pass
+
+
+print('subclass-args', getopt.getopt(Arguments(['-a', 'rest']), 'a'))
+error = getopt.GetoptError('message')
+error.args = ('rewritten',)
+print('rewritten-args', error.args, error.msg, str(error))
+
+
+class Derived(getopt.GetoptError):
+    pass
+
+
+child = Derived('child')
+print('derived', isinstance(child, getopt.GetoptError), child.args)

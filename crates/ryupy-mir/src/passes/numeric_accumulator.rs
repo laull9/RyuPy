@@ -24,7 +24,7 @@ impl MirPass for DirectNumericAccumulator {
     }
 }
 fn run(function: &mut Function, direct: bool) {
-    // 合成resume没有signature；工厂含MakeGenerator。首版也不处理闭包函数或任何EH。
+    // 合成resume没有signature；工厂含MakeGenerator。拒绝闭包/EH及全函数locals观察ABI。
     if !function.body.regions.is_empty()
         || function.signature_global.is_none()
         || function.env.is_some()
@@ -34,9 +34,28 @@ fn run(function: &mut Function, direct: bool) {
                     matches!(
                         statement,
                         Statement::Assign {
-                            value: Rvalue::MakeGenerator { .. },
+                            value: Rvalue::MakeGenerator { .. } | Rvalue::MakeStateGenerator { .. },
                             ..
-                        } | Statement::Eval(Rvalue::MakeGenerator { .. })
+                        } | Statement::Eval(
+                            Rvalue::MakeGenerator { .. } | Rvalue::MakeStateGenerator { .. }
+                        ) | Statement::Assign {
+                            value: Rvalue::Call {
+                                callee: Callee::Runtime(
+                                    RuntimeFn::FunctionLocalsValidate
+                                        | RuntimeFn::FunctionLocalsEnsure
+                                        | RuntimeFn::FunctionLocalsSync,
+                                ),
+                                ..
+                            },
+                            ..
+                        } | Statement::Eval(Rvalue::Call {
+                            callee: Callee::Runtime(
+                                RuntimeFn::FunctionLocalsValidate
+                                    | RuntimeFn::FunctionLocalsEnsure
+                                    | RuntimeFn::FunctionLocalsSync,
+                            ),
+                            ..
+                        })
                     )
                 })
         })

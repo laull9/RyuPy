@@ -1,0 +1,56 @@
+# ryupy: pending
+# CP合法行为保留为真实正例；首切RyuPy明确拒绝，不把NI假装成CP结果。
+from collections import namedtuple
+from copy import copy, deepcopy
+from dataclasses import dataclass
+
+Record = namedtuple('Record', 'left right', module='fixture.pending')
+shared = []
+value = Record(1, shared)
+shallow = copy(value)
+deep = deepcopy(value)
+assert type(shallow) is Record and shallow is not value and shallow.right is shared
+assert type(deep) is Record and deep is not value and deep == value
+assert deep.right is not shared
+print('copy-identity', type(shallow) is Record, shallow is not value,
+      shallow.right is shared, type(deep) is Record, deep.right is not shared)
+
+Record.extra = 7
+assert value.extra == 7
+del Record.extra
+assert not hasattr(value, 'extra')
+Record._fields = ('public_left', 'public_right')
+assert list(value._asdict()) == ['public_left', 'public_right']
+assert value._asdict()['public_right'] is shared
+events = []
+
+
+def make_hook(values):
+    captured = list(values)
+    events.append(captured)
+    return captured
+
+
+Record._make = staticmethod(make_hook)
+replaced = value._replace(left=9)
+assert replaced == [9, shared] and replaced is events[0]
+assert replaced[1] is shared
+print('dynamic-helpers', list(value._asdict()), replaced, replaced is events[0])
+
+Base = namedtuple('Base', 'x', module='fixture.pending')
+
+
+class Child(Base):
+    def double(self):
+        return self.x * 2
+
+
+child = Child(4)
+assert type(child) is Child and isinstance(child, Base) and isinstance(child, tuple)
+assert child.double() == 8 and type(child._replace(x=5)) is Child
+print('user-subclass', child.double(), type(child._replace(x=5)) is Child)
+
+Decorated = namedtuple('Decorated', 'x', module='fixture.pending')
+assert dataclass(Decorated) is Decorated
+assert '__dataclass_fields__' in Decorated.__dict__
+print('dataclass-mutation', '__dataclass_fields__' in Decorated.__dict__)

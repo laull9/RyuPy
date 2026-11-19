@@ -1,0 +1,158 @@
+"""I3：无 own slots/hook 的真实普通派生、覆盖/property、上下文顺序与名义检查。"""
+import io
+from typing import IO, BinaryIO, TextIO
+
+class BareIO(IO):
+    pass
+
+class Annotated(IO):
+    value: int
+    def __init__(self, value):
+        self.value = value
+
+class MemoryBinary(BinaryIO):
+    def __init__(self, value=b'ab'):
+        self.value = value
+        self.events = []
+        self.ended = False
+    def read(self, n=-1):
+        self.events.append(('read', n))
+        assert super().read(n) is None
+        return self.value if n == -1 else self.value[:n]
+    def write(self, s):
+        self.events.append(('write', s))
+        assert super().write(s) is None
+        return len(s)
+    def __enter__(self):
+        self.events.append(('enter',))
+        return self
+    def __exit__(self, kind, value, traceback):
+        self.events.append(('exit', kind is ValueError, str(value), traceback is not None))
+        self.ended = True
+        return None
+
+class Second(MemoryBinary):
+    pass
+
+class MemoryText(TextIO):
+    def __init__(self):
+        self._label = 'initial'
+        self.events = []
+    def read(self, n=-1):
+        return 'text'
+    @property
+    def encoding(self):
+        return 'utf-8'
+    @property
+    def name(self):
+        return self._label
+    @name.setter
+    def name(self, value):
+        self.events.append(('set', value))
+        self._label = value
+    @name.deleter
+    def name(self):
+        self.events.append(('delete',))
+        del self._label
+
+bare = BareIO()
+bare.extra = 1
+assert bare.extra == 1 and bare.read() is None
+annotated = Annotated(9)
+assert annotated.value == 9 and annotated.read() is None
+annotated.value = 10
+assert annotated.value == 10 and isinstance(annotated, IO)
+second = Second()
+assert type(second) is Second and isinstance(second, MemoryBinary)
+assert isinstance(second, BinaryIO) and isinstance(second, IO)
+assert issubclass(Second, MemoryBinary) and issubclass(Second, BinaryIO)
+assert Second.__base__ is MemoryBinary and Second.__bases__ == (MemoryBinary,)
+assert Second.__bases__ is Second.__bases__
+text = MemoryText()
+assert text.read() == 'text' and text.encoding == 'utf-8'
+text.name = 'changed'
+assert text.name == 'changed'
+del text.name
+assert text.events == [('set', 'changed'), ('delete',)] and not hasattr(text, '_label')
+print('I3.ordinary', bare.extra, annotated.value, text.events)
+
+# 保存原生继承方法后再覆盖；旧绑定和新读取各自保持真实目标。
+class Late(BinaryIO):
+    pass
+
+late = Late()
+saved = late.read
+assert saved.__self__ is late and saved.__func__ is IO.read
+def replacement(self, n=-1):
+    return ('new', n)
+Late.read = replacement
+assert late.read(2) == ('new', 2) and saved(2) is None
+assert saved.__self__ is late and saved.__func__ is IO.read
+del Late.read
+assert late.read(2) is None
+print('I3.late-binding', True)
+
+root_events = []
+for cls in (IO, BinaryIO, TextIO):
+    with cls() as value:
+        assert value is None
+        root_events.append(('normal', cls.__name__))
+    marker = ValueError('root context')
+    try:
+        with cls() as value:
+            assert value is None
+            raise marker
+    except ValueError as caught:
+        assert caught is marker
+        root_events.append(('raised', cls.__name__))
+    else:
+        raise AssertionError('root swallowed exception')
+assert len(root_events) == 6
+print('I3.root-context', root_events)
+
+normal = MemoryBinary()
+with normal as value:
+    assert value is normal and value.read(1) == b'a' and value.write(b'x') == 1
+    value.events.append(('body',))
+assert normal.ended is True
+assert normal.events == [('enter',), ('read', 1), ('write', b'x'),
+                         ('body',), ('exit', False, 'None', False)]
+print('I3.override-normal', normal.events)
+
+raised = Second()
+marker = ValueError('override context')
+try:
+    with raised as value:
+        assert value is raised
+        value.events.append(('body',))
+        raise marker
+except ValueError as caught:
+    assert caught is marker
+else:
+    raise AssertionError('override swallowed exception')
+assert raised.ended is True
+assert raised.events == [('enter',), ('body',), ('exit', True, 'override context', True)]
+print('I3.override-error', raised.events)
+
+class Duck:
+    def read(self):
+        return b'x'
+    def write(self, value):
+        return len(value)
+
+# 同模块字面量不能替代真实基类身份；同名异类在跨模块应用中覆盖。
+class Unrelated:
+    pass
+Unrelated.__module__ = 'typing'
+for cls in (IO, BinaryIO, TextIO):
+    assert isinstance(cls(), cls) and isinstance(cls(), object)
+    assert issubclass(cls, object)
+    assert not isinstance(Duck(), cls) and not issubclass(Duck, cls)
+    assert not isinstance(Unrelated(), cls) and not issubclass(Unrelated, cls)
+    assert not isinstance(io.BytesIO(), cls) and not isinstance(io.StringIO(), cls)
+    assert not issubclass(io.BytesIO, cls) and not issubclass(io.StringIO, cls)
+    assert not issubclass(int, cls) and not issubclass(object, cls)
+assert not isinstance(BinaryIO(), TextIO) and not isinstance(TextIO(), BinaryIO)
+assert not issubclass(BinaryIO, TextIO) and not issubclass(TextIO, BinaryIO)
+print('I3.nominal', True)
+print('I3.complete', True)

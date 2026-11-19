@@ -1,0 +1,48 @@
+{
+  "schema_version": 2,
+  "catalog_version": "cpython-3.12.13-catalog-2",
+  "python_reference": "3.12.13",
+  "complete_stdlib": false,
+  "license": "PSF-2.0; LICENSE.txt",
+  "modules": {
+    "_markupbase": {
+      "origin": "CI42932089715/inputs/stdlib/_markupbase.py",
+      "source_version": "锁定证据原字节，上游 tag 未核实",
+      "admission": "source_catalog",
+      "api_status": "既有 HTML 闭包用例；完整 API 未完成"
+    },
+    "html": {
+      "origin": "CI42932089715/inputs/stdlib/html/__init__.py",
+      "source_version": "锁定证据原字节，上游 tag 未核实",
+      "admission": "dependency_only",
+      "api_status": "直接导入保留 C# provider；源码仅随已选闭包进入"
+    },
+    "html.entities": {
+      "origin": "CI42932089715/inputs/stdlib/html/entities.py",
+      "source_version": "锁定证据原字节，上游 tag 未核实",
+      "admission": "source_catalog",
+      "api_status": "既有 HTML 闭包用例；完整 API 未完成"
+    },
+    "html.parser": {
+      "origin": "CI42932089715/inputs/stdlib/html/parser.py",
+      "source_version": "锁定证据原字节，上游 tag 未核实",
+      "admission": "source_catalog",
+      "api_status": "既有 HTMLParser 用例；完整 API 未完成"
+    },
+    "colorsys": {
+      "origin": "https://github.com/python/cpython/blob/v3.12.13/Lib/colorsys.py",
+      "source_version": "CPython v3.12.13",
+      "admission": "source_catalog",
+      "api_status": "六个公开 API 的 CPython 差分与 macOS arm64 AOT 搬迁验收",
+      "tested_apis": ["rgb_to_yiq", "yiq_to_rgb", "rgb_to_hls", "hls_to_rgb", "rgb_to_hsv", "hsv_to_rgb"],
+      "evidence": "tests/e2e/phase3/fixtures/catalog_colorsys_api.py",
+      "platforms": ["osx-arm64"]
+    },
+    "queue": {
+      "origin": "https://github.com/python/cpython/blob/v3.12.13/Lib/queue.py",
+      "source_version": "CPython v3.12.13",
+      "admission": "detected_only",
+      "api_status": "未接入；静态源码展示 threading、heapq、_queue 等依赖缺口；线程语义与 API 验收未完成"
+    }
+  }
+}

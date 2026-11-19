@@ -7,8 +7,8 @@ namespace RyuPy.Runtime;
 /// Python <c>range</c> 对象：惰性、可重复迭代。
 /// </summary>
 /// <remarks>
-/// 编译产物里的 <c>for i in range(...)</c> 会被改写成计数循环，不经过这里；
-/// 本类只服务 `range(...)` 作为**值**出现的场合（`list(range(5))`、传给函数、`reversed` 等）。
+/// 普通数值函数的 <c>for i in range(...)</c> 使用计数循环；通用伴生体复用本对象迭代。
+/// 本类也服务 `range(...)` 作为**值**出现的场合（`list(range(5))`、传给函数、`reversed` 等）。
 /// </remarks>
 public sealed class PyRange
 {
@@ -86,6 +86,19 @@ public sealed class PyRangeIter : IPyIterator
         return inRange;
     }
 
+    // 仅私有收集器读取；Int128避免宽range计数溢出，预留上限限制提前分配。
+    internal int RemainingCapacity()
+    {
+        if (_done) return 0;
+        Int128 step = _range.Step;
+        Int128 first = _started ? (Int128)_current + step : _range.Start;
+        Int128 span = step > 0 ? (Int128)_range.Stop - first : first - _range.Stop;
+        if (span <= 0) return 0;
+        Int128 stride = step > 0 ? step : -step;
+        Int128 count = (span + stride - 1) / stride;
+        return (int)Int128.Min(count, 65536);
+    }
+
     /// <inheritdoc/>
     public object? Current() => _current;
 }
@@ -115,7 +128,10 @@ public sealed class PyEnumerateIter : IPyIterator
     }
 
     /// <inheritdoc/>
-    public object? Current() => new PyTuple([_index - 1, _inner.Current()]);
+    public object? Current() => new PyTuple([CurrentIndex(), CurrentValue()]);
+    // 两分量保持原Current的装箱与求值规则；仅精确游标快路和本类调用。
+    internal object CurrentIndex() => _index - 1;
+    internal object? CurrentValue() => _inner.Current();
 }
 
 /// <summary>`zip(...)` 的迭代器：任一输入耗尽即结束。</summary>
@@ -189,7 +205,7 @@ public sealed class PyReversedIter : IPyIterator
 /// <summary>迭代相关的运行时工具。</summary>
 public static partial class PyOps
 {
-    /// <summary>把迭代器剩余元素全部取出（`list(it)`、`sum(it)` 等共用）。</summary>
+    /// <summary>把迭代器剩余元素全部取出（`list(it)` 等容器构造共用）。</summary>
     internal static object?[] DrainIterator(IPyIterator iterator)
     {
         var items = new List<object?>();

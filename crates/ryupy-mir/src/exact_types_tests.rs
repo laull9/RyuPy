@@ -50,12 +50,20 @@ pub(super) fn sample() -> (Program, [BlockId; 3], [LocalId; 3]) {
     };
     let mut functions = Arena::default();
     let func = functions.alloc(Function {
+        core: Default::default(),
+        is_comprehension: false,
+        module_state: None,
+        instance_capabilities: Default::default(),
+        module_state_source: None,
         name: "exact".into(),
         codegen_name: "exact".into(),
         source_file: "exact.py".into(),
+        definition: None,
         params: vec![subject],
         ret: MirType::I64,
         body: Body {
+            direct_globals_contracts: Vec::new(),
+            source_handler_contracts: Vec::new(),
             locals,
             blocks,
             entry,
@@ -67,6 +75,7 @@ pub(super) fn sample() -> (Program, [BlockId; 3], [LocalId; 3]) {
         defaults_global: None,
         signature_global: None,
         env: None,
+        dynamic_origin: None,
     });
     (
         Program {

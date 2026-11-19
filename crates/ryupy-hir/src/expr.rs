@@ -7,7 +7,7 @@
 //!    - 模块级读取保留共享槽身份；真正未知名字在模块降级结束后登记，运行时检查绑定。
 //! 2. **运算符与去糖**：
 //!    - 二元与一元算符：映射为 [`BinOp`] 与 [`UnaryOp`]；
-//!    - 链式比较（`a < b < c`）：去糖展开为二元短路逻辑 `(a < b) and (b < c)`；
+//!    - 链式比较（`a < b < c`）：保留操作数顺序，MIR 负责单次求值与短路；
 //!    - 多元布尔逻辑（`a and b and c`）：展开为左结合的二元 [`BoolOp`] 树；
 //!    - 条件表达式（`then_ if cond else else_`）：降级为 [`IfExp`]。
 //! 3. **健壮性**：
@@ -17,10 +17,8 @@ use rustc_hash::FxHashMap;
 use ryupy_base::{Diagnostic, FileId, Ranged, Span, TextRange};
 use ryupy_syntax::ast;
 
-use crate::hir::{
-    Body, BoolOp, Expr, ExprId, ExprKind, FuncId, Literal, ModuleVarId, Name, UnaryOp,
-};
-use crate::operator::{map_bin_op, map_bool_op, map_cmp_op, map_unary_op};
+use crate::hir::{Body, Expr, ExprId, ExprKind, FuncId, Literal, ModuleVarId, Name, UnaryOp};
+use crate::operator::{map_bin_op, map_bool_op, map_unary_op};
 use crate::scope::{FunctionScope, GlobalScope, Resolution, resolve_builtin};
 
 pub struct ExprLowerCtx<'a> {
@@ -47,6 +45,10 @@ impl<'a> ExprLowerCtx<'a> {
     pub fn lower_expr(&mut self, expr: &ast::Expr) -> ExprId {
         let range = expr.range();
         let kind = match expr {
+            ast::Expr::Await(value) if cfg!(feature = "native-coroutines") => ExprKind::Await {
+                value: self.lower_expr(&value.value),
+                context: crate::AwaitContext::Expression,
+            },
             ast::Expr::Yield(value) => {
                 if self.allow_yield {
                     ExprKind::Yield(value.value.as_deref().map(|value| self.lower_expr(value)))
@@ -119,7 +121,13 @@ impl<'a> ExprLowerCtx<'a> {
                 ExprKind::Builtin(crate::hir::Builtin::Dynamic("Ellipsis"))
             }
             ast::Expr::NoneLiteral(_) => ExprKind::Literal(Literal::None),
-            ast::Expr::StringLiteral(s) => ExprKind::Literal(Literal::Str(s.value.to_str().into())),
+            ast::Expr::StringLiteral(s) => ExprKind::Literal(
+                ryupy_syntax::string_codepoints(&s.value, &self.global_scope.source_text)
+                    .map_or_else(
+                        || Literal::Str(s.value.to_str().into()),
+                        |points| Literal::Unicode(points.into_boxed_slice()),
+                    ),
+            ),
             ast::Expr::Name(name_expr) => self.lower_name(name_expr),
             ast::Expr::BinOp(bin) => {
                 if let Some(op) = map_bin_op(bin.op) {
@@ -193,6 +201,7 @@ impl<'a> ExprLowerCtx<'a> {
                 let index = self.lower_subscript_index(&sub.slice);
                 ExprKind::Subscript { base, index }
             }
+            ast::Expr::Slice(_) => return self.lower_subscript_index(expr),
             ast::Expr::Starred(starred) => {
                 let inner = self.lower_expr(&starred.value);
                 ExprKind::Starred(inner)
@@ -208,7 +217,9 @@ impl<'a> ExprLowerCtx<'a> {
             }
         };
 
-        self.body.exprs.alloc(Expr { kind, range })
+        let id = self.body.exprs.alloc(Expr { kind, range });
+        crate::direct_globals::record(self.body, expr, id);
+        id
     }
 
     /// 容器字面量的元素列表，保留 `*x` 星号标记。
@@ -220,17 +231,23 @@ impl<'a> ExprLowerCtx<'a> {
     fn lower_dict(&mut self, dict: &ast::ExprDict) -> ExprKind {
         // >17项的动态键交给MIR逐对插入的精确标量守卫；用户键仍明确运行时拒绝。
         // 不能按类型标注猜测键安全，也不删除未执行分支中的整个字典表达式。
+        if dict.items.iter().any(|item| item.key.is_none()) {
+            let mut items = Vec::new();
+            for item in &dict.items {
+                items.push(if let Some(key) = &item.key {
+                    let key = self.lower_expr(key);
+                    let value = self.lower_expr(&item.value);
+                    crate::DictItem::Pair(key, value)
+                } else {
+                    crate::DictItem::Unpack(self.lower_expr(&item.value))
+                });
+            }
+            return ExprKind::DictUnpack(items);
+        }
         let mut pairs = Vec::new();
         for item in &dict.items {
             let Some(key) = &item.key else {
-                self.diagnostics.push(
-                    Diagnostic::error(
-                        Span::new(self.file, item.value.range()),
-                        "暂不支持在字典字面量里使用 `**`",
-                    )
-                    .with_code("E0100")
-                    .with_primary_label("不支持字典解包"),
-                );
+                // 已在上方按是否含解包分支；错误恢复仍继续，绝不panic。
                 continue;
             };
             let key_id = self.lower_expr(key);
@@ -300,12 +317,15 @@ impl<'a> ExprLowerCtx<'a> {
         ExprKind::Lambda(func_id)
     }
 
-    fn lower_name(&mut self, name_expr: &ast::ExprName) -> ExprKind {
+    pub(crate) fn lower_name(&mut self, name_expr: &ast::ExprName) -> ExprKind {
         let name = Name::from(name_expr.id.as_str());
+        if let Some(kind) = self.lower_lexical_name(name_expr) {
+            return kind;
+        }
         if let Some(scope) = self.class_names
-            && scope.contains(&name)
+            && (scope.contains(&name) || scope.prepared_namespace)
         {
-            if scope.definite(&name) {
+            if scope.definite(&name) && !scope.prepared_namespace {
                 return ExprKind::ClassLocal(name);
             }
             let saved = self.class_names.take();
@@ -343,6 +363,13 @@ impl<'a> ExprLowerCtx<'a> {
         {
             return ExprKind::ModuleVar(var);
         }
+        if self.global_scope.instance_globals && !self.func_scope.locals.contains_key(&name) {
+            // 包括内建在内的所有源码名字，都服从当前实例的读写与回退。
+            return self.module_vars.get(&name).map_or_else(
+                || ExprKind::UnresolvedGlobal(name.clone()),
+                |&var| ExprKind::ModuleVar(var),
+            );
+        }
         // LEGB 查找顺序：Local → 顶层函数/类 → 模块变量 → Builtin。
         if let Some(&loc_id) = self.func_scope.locals.get(&name) {
             ExprKind::Local(loc_id)
@@ -372,75 +399,6 @@ impl<'a> ExprLowerCtx<'a> {
         }
     }
 
-    fn lower_compare(&mut self, cmp: &ast::ExprCompare) -> ExprKind {
-        if cmp.ops.is_empty() || cmp.operands.len() < 2 {
-            return ExprKind::Missing;
-        }
-
-        // 简单二元比较：a < b
-        if cmp.ops.len() == 1 {
-            let op = match map_cmp_op(cmp.ops[0]) {
-                Some(o) => o,
-                None => {
-                    self.diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(self.file, cmp.range()),
-                            "暂不支持该比较运算符",
-                        )
-                        .with_code("E0100")
-                        .with_primary_label("暂不支持的比较操作"),
-                    );
-                    return ExprKind::Missing;
-                }
-            };
-            let lhs = self.lower_expr(&cmp.operands[0]);
-            let rhs = self.lower_expr(&cmp.operands[1]);
-            return ExprKind::Compare { op, lhs, rhs };
-        }
-
-        // 链式比较去糖：a < b < c => (a < b) and (b < c)
-        // 注意：中间表达式求值在没有副作用时可安全复制
-        let mut sub_comparisons = Vec::new();
-        for (i, op_raw) in cmp.ops.iter().enumerate() {
-            let op = match map_cmp_op(*op_raw) {
-                Some(o) => o,
-                None => {
-                    self.diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(self.file, cmp.range()),
-                            "暂不支持该比较运算符",
-                        )
-                        .with_code("E0100")
-                        .with_primary_label("暂不支持的比较操作"),
-                    );
-                    return ExprKind::Missing;
-                }
-            };
-            let lhs = self.lower_expr(&cmp.operands[i]);
-            let rhs = self.lower_expr(&cmp.operands[i + 1]);
-            let pair_cmp = self.body.exprs.alloc(Expr {
-                kind: ExprKind::Compare { op, lhs, rhs },
-                range: cmp.range(),
-            });
-            sub_comparisons.push(pair_cmp);
-        }
-
-        // 用 and 连接各个比较分量
-        let mut result = sub_comparisons[0];
-        for &next_cmp in &sub_comparisons[1..] {
-            result = self.body.exprs.alloc(Expr {
-                kind: ExprKind::BoolOp {
-                    op: BoolOp::And,
-                    lhs: result,
-                    rhs: next_cmp,
-                },
-                range: cmp.range(),
-            });
-        }
-
-        self.body.exprs[result].kind.clone()
-    }
-
     fn lower_bool_op(&mut self, b: &ast::ExprBoolOp) -> ExprKind {
         let op = map_bool_op(b.op);
         if b.values.is_empty() {
@@ -461,60 +419,6 @@ impl<'a> ExprLowerCtx<'a> {
             });
         }
         self.body.exprs[cur].kind.clone()
-    }
-
-    /// f-string → 字面量 / 插值段序列。
-    ///
-    /// 格式说明符本身也可以包含插值（`f"{x:{width}}"`），这需要运行时构造规格字符串；
-    /// 当前只支持纯字面量的规格，遇到嵌套插值报诊断。
-    fn lower_fstring(&mut self, fstring: &ast::ExprFString) -> ExprKind {
-        use crate::hir::FStringPart;
-
-        let mut parts = Vec::new();
-        for element in fstring.value.elements() {
-            match element {
-                ast::InterpolatedStringElement::Literal(literal) => {
-                    parts.push(FStringPart::Literal(literal.value.clone()));
-                }
-                ast::InterpolatedStringElement::Interpolation(item) => {
-                    let value = self.lower_expr(&item.expression);
-                    let spec = match &item.format_spec {
-                        None => None,
-                        Some(spec) => {
-                            let mut text = String::new();
-                            let mut ok = true;
-                            for part in spec.elements.iter() {
-                                match part {
-                                    ast::InterpolatedStringElement::Literal(literal) => {
-                                        text.push_str(&literal.value);
-                                    }
-                                    ast::InterpolatedStringElement::Interpolation(_) => {
-                                        ok = false;
-                                    }
-                                }
-                            }
-                            if !ok {
-                                self.diagnostics.push(
-                                    Diagnostic::error(
-                                        Span::new(self.file, spec.range),
-                                        "f-string 的格式说明符暂不支持嵌套插值",
-                                    )
-                                    .with_code("E0100")
-                                    .with_primary_label("不支持嵌套插值"),
-                                );
-                            }
-                            Some(text.into_boxed_str())
-                        }
-                    };
-                    parts.push(FStringPart::Value {
-                        value,
-                        conversion: item.conversion.to_byte().unwrap_or(0),
-                        spec,
-                    });
-                }
-            }
-        }
-        ExprKind::FString(parts)
     }
 
     /// 调用实参完整保留四种形态：位置、`*args`、关键字、`**kwargs`。

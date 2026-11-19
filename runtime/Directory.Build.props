@@ -1,0 +1,6 @@
+<!-- 托管开发工具与测试以 .NET 10 为最低目标，允许已安装的正式主版本向上运行。 -->
+<Project>
+  <PropertyGroup>
+    <RollForward>Major</RollForward>
+  </PropertyGroup>
+</Project>

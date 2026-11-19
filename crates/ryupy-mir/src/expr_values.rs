@@ -51,6 +51,14 @@ impl<'a> ExprBuilder<'a> {
                     Operand::Const(Constant::Str(s.to_string()))
                 }
             }
+            Literal::Unicode(points) => {
+                let value = Constant::Unicode(points.to_vec());
+                if self.is_dynamic_context() {
+                    self.boxed_const(value)
+                } else {
+                    Operand::Const(value)
+                }
+            }
             Literal::None => {
                 // None 在所有路径上都用运行时的 None 单例（装箱 object）表示：
                 // 静态路径没有 `Unit` 值，占位 0 会把 `print(None)` 写成 0，
@@ -80,7 +88,7 @@ impl<'a> ExprBuilder<'a> {
             Constant::BigInt(_) => MirType::Dynamic,
             Constant::F64(_) => MirType::F64,
             Constant::Bool(_) => MirType::Bool,
-            Constant::Str(_) => MirType::Str,
+            Constant::Str(_) | Constant::Unicode(_) => MirType::Str,
             Constant::None | Constant::Null => {
                 return self.runtime_call(RuntimeFn::DynNone, Vec::new(), MirType::Dynamic);
             }
@@ -175,7 +183,7 @@ impl<'a> ExprBuilder<'a> {
                 crate::mir::Constant::I64(_) => MirType::I64,
                 crate::mir::Constant::F64(_) => MirType::F64,
                 crate::mir::Constant::Bool(_) => MirType::Bool,
-                crate::mir::Constant::Str(_) => MirType::Str,
+                crate::mir::Constant::Str(_) | Constant::Unicode(_) => MirType::Str,
                 crate::mir::Constant::Null | crate::mir::Constant::None => MirType::Dynamic,
                 crate::mir::Constant::BigInt(_) => MirType::Dynamic,
             }),

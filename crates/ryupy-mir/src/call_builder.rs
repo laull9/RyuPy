@@ -47,6 +47,11 @@ impl ExprBuilder<'_> {
         call_expr: ExprId,
     ) -> Operand {
         let call_ty = self.ty_of(call_expr);
+        if args.is_empty()
+            && let Some(result) = self.direct_globals_call(call_expr, callee)
+        {
+            return self.coerce(result, &Ty::Dynamic, &ty_to_mir(&call_ty));
+        }
         let callee_kind = self.hir.functions[self.current_hir_fn].body.exprs[callee]
             .kind
             .clone();
@@ -70,6 +75,9 @@ impl ExprBuilder<'_> {
     // ───────────────────────── 用户函数 ─────────────────────────
 
     fn build_user_call(&mut self, fn_id: FuncId, args: &[CallArg], call_ty: &Ty) -> Operand {
+        if self.types.generic.is_some() {
+            return self.call_published_function(fn_id, args, call_ty);
+        }
         let has_star = args
             .iter()
             .any(|arg| matches!(arg, CallArg::Starred(_) | CallArg::DoubleStarred(_)));
@@ -77,22 +85,19 @@ impl ExprBuilder<'_> {
         // 名字绑定规则），参数与返回值在 MIR 签名里都是 `dyn`，实参装箱后直接 `call`，
         // 省掉实参数组、PIC、`PyFunction.Invoke` 与 thunk。只有 `*` / `**` 或编译期绑定
         // 不成立时才走运行时 binder。
-        if has_star {
-            let Some(global) = self.fn_globals.get(&fn_id).copied() else {
-                return self.none_value();
-            };
-            let result = self.call_value(Operand::Global(global), args);
-            return self.coerce(result, &Ty::Dynamic, &ty_to_mir(call_ty));
+        let dynamic = self.types.mode(fn_id) == ryupy_ty::FuncMode::Dynamic;
+        if has_star || (dynamic && !self.fn_sources.contains_key(&fn_id)) {
+            return self.call_published_function(fn_id, args, call_ty);
         }
-
         let Some(plan) = self.plan_binding(fn_id, args) else {
-            // 绑定会失败：交给运行时，得到带准确消息的 TypeError
-            let global = self.fn_globals[&fn_id];
-            let result = self.call_value(Operand::Global(global), args);
-            return self.coerce(result, &Ty::Dynamic, &ty_to_mir(call_ty));
+            return self.call_defaults_or_published(fn_id, args, call_ty);
         };
-
-        let call_args = self.build_static_arguments(fn_id, args, &plan);
+        // 冻结的是实际函数引用；参数副作用之后仍从此对象取defaults和Module。
+        let origin = self.capture_direct_origin(fn_id);
+        let mut call_args = self.build_static_arguments(fn_id, args, &plan, origin.as_ref());
+        if let Some(origin) = origin {
+            call_args.push(origin);
+        }
         let mir_fn = self.fn_map[&fn_id];
         let ret_ty = self.types.sigs[fn_id].ret.clone();
         let call = Rvalue::Call {
@@ -178,11 +183,12 @@ impl ExprBuilder<'_> {
             }
         }
 
-        // 缺少必需参数同样交给运行时（错误消息需要参数名与种类）
+        // 省略参数由当前函数对象绑定：默认tuple/dict可经任意别名修改或删除，
+        // 定义期的默认值不能证明本次调用仍有默认值。完整实参继续保留直调。
         for (index, param) in params.iter().enumerate() {
             let is_variadic =
                 matches!(param.kind, ParamKind::VarPositional | ParamKind::VarKeyword);
-            if !is_variadic && assigned[index].is_none() && param.default.is_none() {
+            if !is_variadic && assigned[index].is_none() {
                 return None;
             }
         }
@@ -196,6 +202,7 @@ impl ExprBuilder<'_> {
         fn_id: FuncId,
         args: &[CallArg],
         plan: &BindPlan,
+        origin: Option<&Operand>,
     ) -> Vec<Operand> {
         // 先按源码顺序求值全部实参（Python 的求值顺序），再分配
         let mut values: Vec<(Operand, Ty)> = Vec::with_capacity(args.len());
@@ -227,7 +234,16 @@ impl ExprBuilder<'_> {
             }
         }
 
-        let defaults_global = self.fn_defaults.get(&fn_id).copied().flatten();
+        let needs_defaults = func
+            .params
+            .iter()
+            .enumerate()
+            .any(|(index, param)| param.default.is_some() && plan.assigned[index].is_none());
+        let defaults = if needs_defaults {
+            self.direct_function_defaults(fn_id, origin)
+        } else {
+            None
+        };
         let mut call_args = Vec::with_capacity(func.params.len());
         for (index, param) in func.params.iter().enumerate() {
             match param.kind {
@@ -254,12 +270,12 @@ impl ExprBuilder<'_> {
                     if let Some(arg_index) = plan.assigned[index] {
                         let (op, ty) = values[arg_index].clone();
                         call_args.push(self.coerce(op, &ty, &expected));
-                    } else if let Some(global) = defaults_global {
-                        // 默认值在模块初始化时写进静态数组，这里只读取（保持对象身份）
+                    } else if let Some(defaults) = &defaults {
+                        // 默认值数组仅由成功定义发布，读取保持其中对象身份。
                         let raw = self.runtime_call(
                             RuntimeFn::ArrayGet,
                             vec![
-                                Operand::Global(global),
+                                defaults.clone(),
                                 Operand::Const(Constant::I64(index as i64)),
                             ],
                             MirType::Dynamic,
@@ -276,59 +292,6 @@ impl ExprBuilder<'_> {
     }
 
     // ───────────────────────── 运行时调用 ─────────────────────────
-
-    /// 生成一次 `PyOps.CallValue(callable, args, kwNames, kwValues)`。
-    ///
-    /// 纯位置、参数不超过 3 个时改用 [`Rvalue::DynCallValue`]：codegen 会走
-    /// `PyPic.CallValueN`，运行时复用调用点上的参数数组。
-    pub(crate) fn call_value(&mut self, callable: Operand, args: &[CallArg]) -> Operand {
-        // 一等全局对象必须先读取，实参回调可能重绑槽；不改变源码Func的静态直调路径。
-        let callable = if matches!(callable, Operand::Global(_)) {
-            let saved = self.alloc_temp(MirType::Dynamic);
-            self.push_stmt(Statement::Assign {
-                dest: saved,
-                value: Rvalue::Use(callable),
-            });
-            Operand::Local(saved)
-        } else {
-            callable
-        };
-        if is_small_positional_call(args) {
-            let values: Vec<Operand> = args
-                .iter()
-                .map(|arg| {
-                    let expr = arg.expr();
-                    let op = self.build_expr(expr);
-                    let ty = self.ty_of(expr);
-                    self.coerce(op, &ty, &MirType::Dynamic)
-                })
-                .collect();
-            let dest = self.alloc_temp(MirType::Dynamic);
-            self.push_stmt(Statement::Assign {
-                dest,
-                value: Rvalue::DynCallValue {
-                    callee: callable,
-                    args: values,
-                },
-            });
-            return Operand::Local(dest);
-        }
-        let (positional, kw_names, kw_values) = self.build_call_arrays(args);
-        let dest = self.alloc_temp(MirType::Dynamic);
-        self.push_stmt(Statement::Assign {
-            dest,
-            value: Rvalue::Call {
-                callee: Callee::Runtime(RuntimeFn::CallValue),
-                args: vec![
-                    callable,
-                    Operand::Array(positional),
-                    Operand::Array(kw_names),
-                    Operand::Array(kw_values),
-                ],
-            },
-        });
-        Operand::Local(dest)
-    }
 
     /// 把实参拆成 `(位置值, 关键字名, 关键字值)` 三个数组。
     ///
@@ -366,7 +329,8 @@ impl ExprBuilder<'_> {
                 CallArg::Positional(expr) => {
                     let op = self.build_expr(*expr);
                     let ty = self.ty_of(*expr);
-                    positional.push(self.coerce(op, &ty, &MirType::Dynamic));
+                    let value = self.coerce(op, &ty, &MirType::Dynamic);
+                    positional.push(self.freeze_generic_argument(value));
                 }
                 CallArg::Starred(expr) => {
                     let op = self.build_expr(*expr);
@@ -395,13 +359,15 @@ impl ExprBuilder<'_> {
                     let op = self.build_expr(*expr);
                     let ty = self.ty_of(*expr);
                     kw_names.push(Operand::Const(Constant::Str(name.as_str().to_owned())));
-                    kw_values.push(self.coerce(op, &ty, &MirType::Dynamic));
+                    let value = self.coerce(op, &ty, &MirType::Dynamic);
+                    kw_values.push(self.freeze_generic_argument(value));
                 }
                 CallArg::DoubleStarred(expr) => {
                     let op = self.build_expr(*expr);
                     let ty = self.ty_of(*expr);
                     kw_names.push(Operand::Const(Constant::None));
-                    kw_values.push(self.coerce(op, &ty, &MirType::Dynamic));
+                    let value = self.coerce(op, &ty, &MirType::Dynamic);
+                    kw_values.push(self.freeze_generic_argument(value));
                 }
             }
         }
@@ -417,6 +383,9 @@ impl ExprBuilder<'_> {
         args: &[CallArg],
         call_ty: &Ty,
     ) -> Operand {
+        if let Some(direct) = self.try_build_private_comp_append(base, &name, args, call_ty) {
+            return direct;
+        }
         let obj_op = self.build_expr(base);
         let obj_ty = self.ty_of(base);
         let obj = self.coerce(obj_op, &obj_ty, &MirType::Dynamic);
