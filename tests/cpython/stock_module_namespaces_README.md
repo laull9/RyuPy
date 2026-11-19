@@ -47,3 +47,7 @@ Name/tuple/属性目标重绑、as局部删除、getter异常越过同级、嵌�
 字典，不引入业务委派。覆盖大字典不变边界、双向覆盖与删除重插、小字典中原键身份及
 子容器别名，并保留缺键异常前已经写入的数据。降复杂度设计见
 [ADR-0243](../../docs/adr/0243-linear-synchronized-dictionary-deltas.md)。
+
+`deferred_callbacks` 使用真实 `json` 和 `operator` 驱动未读槽、异常、返回别名、
+闭包存活及关键字/变长回退；固定 3.12.13／3.13.3 的 JIT 和目录 AOT 搬迁通过。
+完整 Qt 构造回归和借用边界见 [ADR-0244](../../docs/adr/0244-deferred-provider-callback-arguments.md)。

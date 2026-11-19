@@ -744,9 +744,11 @@ Phase 2 优先动态核心、容器、普通类、异常、模块与 `with`；Ph
 保留求值顺序、异常传播、可变别名、普通对象身份和容器行为的优化可默认采用。低影响偏差经 ADR 接受并公开登记后，也可选高性能默认实现。固定宽度整数、可观察的值拷贝、浮点重排等影响常用结果的扩展由用户显式选择；这些扩展目前尚未实现。refcount 与 GC 时机属于已接受架构边界，不代表其它差异也可省略。
 
 原生扩展回调的临时包装还有可观察的类型边界：提早持有构造阶段的包装，可能使扩展在
-完成构造后继续返回旧包装。实际 Cocoa 菜单回归保留
-[`explorerpro_qt_wrapper_probe.py`](../tests/general_projects/github_large/explorerpro_qt_wrapper_probe.py)
-为待验输入；不视为可接受的返回类型偏差，也不以强制 GC 替代回调借用与逃逸合同。
+完成构造后继续返回旧包装。显式 stock 模块命名空间现在对合格的固定位置回调按读物化；
+未读的槽不增加引用，逃逸值使用通常的 owned 生命周期。实际
+[Cocoa 菜单回归](../tests/general_projects/github_large/explorerpro_qt_wrapper_probe.py)
+已通过三种发布搬迁；读取后的对象仍不承诺即时析构，旧 ABI、关键字与变长调用保持原行为。
+见 [ADR-0244](adr/0244-deferred-provider-callback-arguments.md)。
 
 动态运算 / 方法调用使用**有界 PIC**（[ADR-0012](adr/0012-bounded-dynamic-pic.md)）：每个调用点最多四条形状，全局站点数有上限；未命中完整走通用路径。类属性替换、实例属性增删会让方法缓存失效，模块属性不缓存。`RYUPY_PIC=0` 可整体关闭，用于 A/B 对照。
 

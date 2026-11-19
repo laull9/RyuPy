@@ -1,31 +1,16 @@
 //! 捕获调用异常后必须保留处理函数自身帧；正常返回才弹自身帧。
 use ryupy_driver::Session;
 
-const SOURCE: &str = "def original():\n    raise ValueError('old')\ndef caught():\n    try:\n        original()\n    except ValueError:\n        pass\n    raise RuntimeError('new')\ncaught()\n";
+#[path = "../src/test_temp.rs"]
+mod test_temp;
 
-struct TempRoot(std::path::PathBuf);
-impl TempRoot {
-    fn new() -> Self {
-        let stamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let path = std::env::temp_dir().join(format!("ryupy-catch-{}-{stamp}", std::process::id()));
-        std::fs::create_dir(&path).unwrap();
-        Self(path)
-    }
-}
-impl Drop for TempRoot {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
+const SOURCE: &str = "def original():\n    raise ValueError('old')\ndef caught():\n    try:\n        original()\n    except ValueError:\n        pass\n    raise RuntimeError('new')\ncaught()\n";
 
 // 纯Rust快照入口与真实运行回归分开；完整JIT断言仍由原测试独立执行。
 #[test]
 fn snapshot_catch_restores_current_frame() {
-    let root = TempRoot::new();
-    let path = root.0.join("ryupy_catch_current_frame.py");
+    let root = test_temp::Root::new("catch-snapshot");
+    let path = root.join("ryupy_catch_current_frame.py");
     std::fs::write(&path, SOURCE).unwrap();
     let mut session = Session::default();
     let mir = ryupy_driver::dump(&mut session, &path, ryupy_driver::Stage::Mir).unwrap();
@@ -52,15 +37,15 @@ fn snapshot_catch_restores_current_frame() {
 
 #[test]
 fn caught_call_does_not_remove_the_catching_function_frame() {
-    let root = TempRoot::new();
-    let path = root.0.join("ryupy_catch_current_frame.py");
+    let root = test_temp::Root::new("catch-product");
+    let path = root.join("ryupy_catch_current_frame.py");
     std::fs::write(&path, SOURCE).unwrap();
     let mut session = Session::default();
     let artifact = ryupy_driver::build(
         &mut session,
         &ryupy_driver::BuildOptions {
             input: path.clone(),
-            out_dir: root.0.join("product"),
+            out_dir: root.join("product"),
             aot: false,
             search_paths: vec![],
         },

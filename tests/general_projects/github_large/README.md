@@ -330,8 +330,8 @@ Python frame，得到NULL。证据
 与 OneFile 各一次均在窗口构造报
 `AttributeError: 'PySide6.QtWidgets.QWidget' object has no attribute 'addSeparator'`
 （`explorerpro-products/` 下的 `20261119T001648.245885Z/`、`20261119T002100.889303Z/`、
-`20261119T002341.044731Z/`、`20261119T002712.756145Z/`），不能记为通过。最小
-`explorerpro_qt_wrapper_probe.py` 保留待验：只安装事件过滤器然后构造原 Qt 菜单；
+`20261119T002341.044731Z/`、`20261119T002712.756145Z/`），不能记为通过。当时的最小
+`explorerpro_qt_wrapper_probe.py` 只安装事件过滤器然后构造原 Qt 菜单；
 同次 CPython 通过，搬迁 JIT 在 `isinstance(bar, QMenuBar)` 明确失败
 （`explorerpro-products/20261119T002738.391743Z/`）。独立 CPython 对照中不持有构造回调参数时
 五轮均返回 `QMenuBar`，显式保留该参数时
@@ -339,3 +339,26 @@ Python frame，得到NULL。证据
 
 本资源与桥接切片 `make check` 通过：3484 项 Runtime、353 项 driver 单测及 514 项
 编译端到端通过；既有跳过保留。
+
+### 2026-11-19 ExplorerPro 隔离业务三形态搬迁通过
+
+[ADR-0244](../../../docs/adr/0244-deferred-provider-callback-arguments.md) 修复未读原生回调
+参数的包装寿命：不禁用原事件过滤器，不按类型名分流，不强制 GC。最小 Cocoa 回归三形态通过，
+包含未读参数不改变菜单类型、已保存参数身份不变且可在回调退出后使用。
+原业务初次复跑已完成窗口、导航、预览和索引，但关闭审计遍历整个 CPython 堆时超时。
+审计仍检查同一批 GC 跟踪对象和同样的有效性/存活条件，只把线程类型筛选留在所属域；
+固定原版运行中另比对了筛选结果的顺序及身份。
+
+下列目录均相对于 `~/.cache/ryupy/validation/explorerpro-products/`：
+
+| 产品 | 最小菜单回归 | 原对象隔离业务 |
+| --- | --- | --- |
+| JIT | `20261119T004142.040590Z/` | `20261119T004812.869870Z/` |
+| 目录 NativeAOT | `20261119T004323.700438Z/` | `20261119T005115.789386Z/` |
+| OneFile | `20261119T004608.447696Z/` | `20261119T005129.700659Z/` |
+
+原对象隔离业务三臂均删除源码、venv 和构建目录，禁止访问缓存，使用同次 CPython 3.12.13
+作对照。PySide6/Qt 6.9.2 下原窗口可见且暴露，Unicode 导航/文本预览、SQLite FTS5
+搜索、版本/翻译/图标、窗口关闭全部通过；最终 Qt 和 Python 线程列表均为空，三臂退出码为 0，
+无本地业务委派。重跑上文产品命令时加 `--stock-module-namespaces`，分别指定三种 `--mode`。
+固定原入口的构建结果独立保留；默认用户配置、完整业务矩阵、Windows/Linux 和性能尚未验收。

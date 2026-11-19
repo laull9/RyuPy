@@ -65,10 +65,7 @@ public sealed partial class CPythonHost
             object? result;
             switch (op)
             {
-                case 1:
-                    object?[] args = host.ReadTuple(a);
-                    (string[] names, object?[] values) = host.ReadKeywords(b);
-                    result = PyOps.CallValue(target, args, names, values); break;
+                case 1: result = host.InvokeCallback(target, a, b); break;
                 case 2: result = host.InspectAttribute(target, name); break;
                 case 3: host.SetInspectAttribute(target, name, a); result = PyNone.Instance; break;
                 case 4: PyObject.DelAttr(target, name); result = PyNone.Instance; break;

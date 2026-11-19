@@ -5,9 +5,15 @@ use ryupy_mir::{FnId, InstanceStateSource, LinkedProgram};
 
 pub(crate) struct OwnedFunctionRefs {
     pub create: MethodRefIndex,
+    pub deferred: Option<DeferredCallbackRefs>,
     pub delegate_ctor: MethodRefIndex,
     delegate_type: MemberType,
     pub delegates: FxHashMap<FnId, FieldIndex>,
+}
+
+pub(crate) struct DeferredCallbackRefs {
+    pub create: MethodRefIndex,
+    pub read: MethodRefIndex,
 }
 
 impl OwnedFunctionRefs {
@@ -34,8 +40,23 @@ impl OwnedFunctionRefs {
         let signature =
             res.push_type_reference(type_ref! { RyuPy.Runtime.PySignature in #runtime });
         let signature: MethodType = BaseType::class(signature).into();
+        let deferred = program
+            .functions
+            .iter()
+            .any(|(_, function)| function.uses_deferred_callback_arguments())
+            .then(|| {
+                let argument = res.push_type_reference(
+                    type_ref! { RyuPy.Runtime.PyDeferredCallbackArgument in #runtime },
+                );
+                let argument: MethodType = BaseType::class(argument).into();
+                DeferredCallbackRefs {
+                    create: res.push_method_reference(method_ref! { static @function @instances::CreateOwnedFunctionWithDeferredArguments(object, string, @signature, @delegate, object[], bool, object[]) }),
+                    read: res.push_method_reference(method_ref! { static object @argument::Read(object) }),
+                }
+            });
         Some(Self {
             create: res.push_method_reference(method_ref! { static @function @instances::CreateOwnedFunction(object, string, @signature, @delegate, object[], bool, object[]) }),
+            deferred,
             delegate_ctor: res.push_method_reference(method_ref! { void @delegate::.ctor(object, nint) }),
             delegate_type,
             delegates: FxHashMap::default(),

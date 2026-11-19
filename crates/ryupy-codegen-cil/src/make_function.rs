@@ -68,13 +68,17 @@ pub(crate) fn emit(
         lower_object_array(env, ins, ctx);
     }
     if instance_context.is_some() {
-        ins.push(Instruction::call(
-            ctx.runtime_refs
-                .owned_functions
-                .as_ref()
-                .expect("已验证实例函数ABI")
-                .create,
-        ));
+        let owned = ctx
+            .runtime_refs
+            .owned_functions
+            .as_ref()
+            .expect("已验证实例函数ABI");
+        let create = if nested.uses_deferred_callback_arguments() {
+            owned.deferred.as_ref().expect("已登记回调参数 ABI").create
+        } else {
+            owned.create
+        };
+        ins.push(Instruction::call(create));
     } else {
         ins.push(Instruction::NewObject(UserMethod::Reference(
             ctx.runtime_refs.py_function_ctor_env,

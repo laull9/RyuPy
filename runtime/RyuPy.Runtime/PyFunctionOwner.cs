@@ -7,9 +7,10 @@ public delegate object? PyOwnedCall(object context, PyFunction self, object?[] a
     string[] kwNames, object?[] kwValues);
 
 // 只有显式实例factory分配此载体；共享代码委托不反向持有实例。
-internal sealed class PyFunctionOwner(PyModuleExecutionContext context, PyOwnedCall body)
+internal sealed class PyFunctionOwner(PyModuleExecutionContext context, PyOwnedCall body, bool deferredArguments)
 {
     internal readonly PyModuleExecutionContext Context = context;
+    internal readonly bool DeferredArguments = deferredArguments;
     private readonly PyOwnedCall _body = body;
 
     internal object? Invoke(PyFunction self, object?[] args, string[] kwNames, object?[] kwValues) =>
@@ -42,7 +43,15 @@ public static partial class PyModuleInstances
     public static PyFunction CreateOwnedFunction(object capturedContext, string name, PySignature signature,
         PyOwnedCall body, object?[] defaults, bool usesSuper, object?[]? cells)
     {
-        var owner = new PyFunctionOwner(Context(capturedContext), body);
+        var owner = new PyFunctionOwner(Context(capturedContext), body, false);
+        return new PyFunction(name, signature, owner.Invoke, defaults, usesSuper, cells);
+    }
+
+    /// <summary>只用于参数读取已发射物化指令的同步回调入口，保持既有函数对象和签名 ABI。</summary>
+    public static PyFunction CreateOwnedFunctionWithDeferredArguments(object capturedContext, string name,
+        PySignature signature, PyOwnedCall body, object?[] defaults, bool usesSuper, object?[]? cells)
+    {
+        var owner = new PyFunctionOwner(Context(capturedContext), body, true);
         return new PyFunction(name, signature, owner.Invoke, defaults, usesSuper, cells);
     }
 

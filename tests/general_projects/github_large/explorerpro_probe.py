@@ -3,8 +3,9 @@
 全部 monkeypatch 集中在业务对象创建前：Path.home、Qt 配置/驱动根、云发现、
 剪贴板拒绝和导航根防线。UI、SQLite、预览、线程实现保持原版，退出检查原清理结果。
 """
-import json
+import builtins
 import gc
+import json
 from pathlib import Path
 import sqlite3
 import sys
@@ -143,10 +144,13 @@ def run():
         shutdown_capacity_executor()
         assert QThreadPool.globalInstance().waitForDone(5000)
         QTest.qWait(200)
+        phase('thread-audit')
         import shiboken6
         # 检查所有可达 QThread 包装，包括没有 QApplication 父对象的业务 worker。
-        alive = [obj.objectName() for obj in gc.get_objects()
-                 if isinstance(obj, QThread) and shiboken6.isValid(obj)
+        # 类型筛选留在堆所属域，只把匹配的线程包装跨桥交给同一存活检查。
+        threads = builtins.filter(QThread.__instancecheck__, gc.get_objects())
+        alive = [obj.objectName() for obj in threads
+                 if shiboken6.isValid(obj)
                  and obj != QThread.currentThread() and obj.isRunning()]
         python_threads = [t.name for t in threading.enumerate() if t is not threading.main_thread()]
         if alive or python_threads:

@@ -25,6 +25,43 @@ public class PyFunctionOwnerTests
     private static object? Invoke(PyFunction function) => function.Invoke([], [], []);
     private static PyDict Dict(PyModule module) => Assert.IsType<PyDict>(module.GetAttr("__dict__"));
 
+    private sealed class TestArgument(object? value) : PyDeferredCallbackArgument
+    {
+        internal int Reads { get; private set; }
+        protected override object? Materialize() { Reads++; return value; }
+    }
+
+    [Fact]
+    public void DeferredReadPreservesOwnedValueAndCachesEvenNull()
+    {
+        var expected = new PyList([]);
+        Assert.Same(expected, PyDeferredCallbackArgument.Read(expected));
+        var argument = new TestArgument(expected);
+        Assert.Equal(0, argument.Reads);
+        Assert.Same(expected, PyDeferredCallbackArgument.Read(argument));
+        Assert.Same(expected, PyDeferredCallbackArgument.Read(argument));
+        Assert.Equal(1, argument.Reads);
+        var absent = new TestArgument(null);
+        Assert.Null(PyDeferredCallbackArgument.Read(absent));
+        Assert.Null(PyDeferredCallbackArgument.Read(absent));
+        Assert.Equal(1, absent.Reads);
+    }
+
+    [Fact]
+    public void OnlyMarkedOwnedFunctionsWithFixedPositionalSignatureAcceptBorrowedArguments()
+    {
+        object? context = null;
+        var module = Module(state => context = state);
+        PyModuleInstances.Execute(module);
+        Assert.False(PyDeferredCallbackArgument.Accepts(Function(context!)));
+        var fixedSignature = PySignature.Create("f", ["value"], ["pos"], ["0"]);
+        Assert.True(PyDeferredCallbackArgument.Accepts(PyModuleInstances.CreateOwnedFunctionWithDeferredArguments(
+            context!, "f", fixedSignature, Read, [], false, null)));
+        var variadic = PySignature.Create("f", ["items"], ["varpos"], ["0"]);
+        Assert.False(PyDeferredCallbackArgument.Accepts(PyModuleInstances.CreateOwnedFunctionWithDeferredArguments(
+            context!, "f", variadic, Read, [], false, null)));
+    }
+
     [Fact]
     public void GlobalsAndBuiltinsAreRealObjectsAndOldFunctionsKeepCapturedBuiltins()
     {

@@ -94,9 +94,9 @@ CreateSuper 历史 Object 返回公共 ABI 已恢复，真实 `5d36db1e` 的 184
   JIT/NativeAOT搬迁、三负例、六组边界及FastAPI/SanBudget各一项真实NativeAOT回归通过。
 - [~] **大型项目适配**：FBA 固定原入口重跑仍以 E0100 拒绝实例模块 `async def`。
   ExplorerPro 已越过实例 dataclass，显式 stock profile 的完整原入口通过 JIT、目录
-  NativeAOT 和 OneFile 构建；随包数据两布局三形态 6/6 搬迁通过（ADR-0242）。实际 Cocoa
-  业务探针已加载版本、翻译和图标；首次显示超时及随后定位的临时包装类型错误分别登记。
-  两项目完整运行与搬迁未通过。
+  NativeAOT 和 OneFile 构建；随包数据两布局三形态 6/6 搬迁通过（ADR-0242）。原对象隔离
+  Cocoa 业务在三形态删除输入搬迁通过：窗口显示、Unicode 导航/预览、SQLite 搜索和线程关闭。
+  不等同默认用户配置、其余业务流程或其他平台通过；FBA 尚未运行 RyuPy 业务。
   见[大型项目验收](tests/general_projects/github_large/README.md)。
 - [ ] **FBA 异步入口下一竖切**：先让 stock 实例模块的真实 CIL 协程被 CPython
   `asyncio` 任务驱动，并验证定义点上下文、取消回传和清理；再接 FastAPI 路由的协程识别
@@ -104,10 +104,9 @@ CreateSuper 历史 Object 返回公共 ABI 已恢复，真实 `5d36db1e` 的 184
 - [x] **同步字典快照成本**（ADR-0243）：去掉每次同步的二次键扫描，保身份、顺序、
   双向覆盖和异常写回。两版 JIT/AOT 四个搬迁产品通过；原译文目录 15 次非命中查询的
   四轮 JIT 中位数 2.945→0.145 秒。全窗结果与此局部收益分列。
-- [ ] **外部回调构造期临时包装**：ExplorerPro 的优化后三形态均出现 `QWidget` 缺少
-  `addSeparator`。最小 Cocoa 输入复现派生类型丢失；在原 CPython 中，若事件过滤器保留
-  构造时的参数，`menuBar()` 同样得到 QWidget。推进通用非逃逸参数的按需物化与借用期，
-  不强制 GC、不按 Qt 类型名特判；须验证逃逸参数继续持有真实对象，先转正最小门再重跑业务。
+- [x] **外部回调构造期未读包装**（ADR-0244）：限定 stock 实例位置回调按读物化，
+  保真实接收者和逃逸对象，不强制 GC、不按 Qt 类型名特判。通用两版四个搬迁产品及
+  Cocoa JIT/AOT/OneFile 最小门通过；三形态原对象隔离业务与关闭也已单独复验通过。
 - [x] **通用共享分发与静态接口导出子合同（2026-11-17）**：多owner、实际原生导出、pyi目录
   与固定C ABI机器合同；独立命名/布局的JIT/AOT/OneFile删除输入搬迁通过。
   禁止第三方库名特判，允许有依据并经测试的ABI推导，后续C++调用推导逐合同扩围。

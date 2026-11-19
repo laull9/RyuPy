@@ -7,6 +7,15 @@ use ryupy_mir::{
 
 #[test]
 fn owned_thunk_excludes_context_from_binding_and_passes_hidden_arguments() {
+    check_owned_thunk(false);
+}
+
+#[test]
+fn provider_callback_load_materializes_only_the_real_parameter() {
+    check_owned_thunk(true);
+}
+
+fn check_owned_thunk(provider_namespace: bool) {
     let mut program = program();
     let mut locals = Default::default();
     let arg = local(&mut locals, MirType::Dynamic);
@@ -22,6 +31,7 @@ fn owned_thunk_excludes_context_from_binding_and_passes_hidden_arguments() {
     core.env = Some(env);
     core.module_state = Some(context);
     core.module_state_source = Some(ryupy_mir::InstanceStateSource::FunctionParameter);
+    core.instance_capabilities.provider_namespace = provider_namespace;
     core.dynamic_origin = Some(DynamicFunctionOrigin {
         owner,
         source_global: None,
@@ -95,10 +105,15 @@ fn owned_thunk_excludes_context_from_binding_and_passes_hidden_arguments() {
         .collect();
     let main = methods.iter().find(|m| m.name == "__main__").unwrap();
     let main_ins = &main.body.as_ref().unwrap().instructions;
+    let factory = if provider_namespace {
+        "CreateOwnedFunctionWithDeferredArguments"
+    } else {
+        "CreateOwnedFunction"
+    };
     assert_eq!(
         main_ins
             .iter()
-            .filter(|i| i.show(&res).contains("CreateOwnedFunction("))
+            .filter(|i| i.show(&res).contains(&format!("{factory}(")))
             .count(),
         2
     );
@@ -141,7 +156,7 @@ fn owned_thunk_excludes_context_from_binding_and_passes_hidden_arguments() {
     let create = res
         .method_references
         .iter()
-        .find(|m| m.name == "CreateOwnedFunction")
+        .find(|m| m.name == factory)
         .unwrap();
     assert_eq!(create.signature.parameters.len(), 7);
     assert!(
@@ -163,6 +178,32 @@ fn owned_thunk_excludes_context_from_binding_and_passes_hidden_arguments() {
         assert!(ins[i - 3].show(&res).contains("get_Env"));
         assert!(matches!(ins[i - 4], Instruction::LoadArgument(1)));
     }
+    let core = &methods
+        .iter()
+        .find(|m| m.name == "owned_core")
+        .unwrap()
+        .body
+        .as_ref()
+        .unwrap()
+        .instructions;
+    let argument_read = |instruction: &Instruction| {
+        let text = instruction.show(&res);
+        text.contains("PyDeferredCallbackArgument") && text.contains("Read(")
+    };
+    let read_points: Vec<_> = core
+        .windows(2)
+        .filter(|pair| argument_read(&pair[1]))
+        .collect();
+    assert_eq!(
+        read_points.len(),
+        usize::from(provider_namespace),
+        "{:?}",
+        core.iter().map(|op| op.show(&res)).collect::<Vec<_>>()
+    );
+    if let Some(pair) = read_points.first() {
+        assert_eq!(pair[0], Instruction::LoadArgument(0));
+    }
+    assert!(!ins.iter().any(argument_read));
 }
 
 #[test]
