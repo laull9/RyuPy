@@ -82,7 +82,7 @@
       "entry": "src/main.py",
       "start": "python src/main.py",
       "pytest": "python -m pytest tests",
-      "first_blocker": "2026-11-19复验：显式stock-module-namespaces完整原入口三形态构建通过；同步成本降低后，JIT与目录AOT隔离Cocoa业务的窗口构造复现Qt临时包装类型错误",
+      "first_blocker": "2026-11-19复验：显式stock-module-namespaces完整原入口三形态构建通过；同步成本降低后，三形态的隔离Cocoa业务均在窗口构造复现Qt临时包装类型错误",
       "ownership": {
         "cil_target": [
           "src",
@@ -144,6 +144,7 @@
         "profile": "--experimental-stock-module-namespaces + Cocoa/SQLite组件选择 + --bundle-data",
         "jit": "~/.cache/ryupy/validation/explorerpro-products/20261119T002100.889303Z",
         "standalone": "~/.cache/ryupy/validation/explorerpro-products/20261119T002341.044731Z",
+        "onefile": "~/.cache/ryupy/validation/explorerpro-products/20261119T002712.756145Z",
         "runtime": "qt-temporary-wrapper-type",
         "relocation": "failed"
       }

@@ -327,10 +327,10 @@ Python frame，得到NULL。证据
 
 同步字典现按引用线性比较（[ADR-0243](../../../docs/adr/0243-linear-synchronized-dictionary-deltas.md)）。
 四轮配对的 JIT 热态中位数 2.945→0.145 秒。优化后原业务 JIT 两次、目录 NativeAOT
-一次在窗口构造报
+与 OneFile 各一次均在窗口构造报
 `AttributeError: 'PySide6.QtWidgets.QWidget' object has no attribute 'addSeparator'`
 （`explorerpro-products/` 下的 `20261119T001648.245885Z/`、`20261119T002100.889303Z/`、
-`20261119T002341.044731Z/`），不能记为通过。最小
+`20261119T002341.044731Z/`、`20261119T002712.756145Z/`），不能记为通过。最小
 `explorerpro_qt_wrapper_probe.py` 保留待验：只安装事件过滤器然后构造原 Qt 菜单；
 同次 CPython 通过，搬迁 JIT 在 `isinstance(bar, QMenuBar)` 明确失败
 （`explorerpro-products/20261119T002738.391743Z/`）。独立 CPython 对照中不持有构造回调参数时
