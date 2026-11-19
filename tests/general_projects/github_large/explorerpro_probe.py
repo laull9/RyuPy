@@ -14,6 +14,16 @@ import time
 import traceback
 
 profile, evidence = map(lambda p: Path(p).resolve(), sys.argv[1:3])
+
+
+def startup_phase(name):
+    """记录真实单调时钟，给外部驱动拆分进程启动与窗口创建时间。"""
+    now = time.monotonic_ns()
+    with (evidence / 'startup.tsv').open('a', encoding='utf-8') as stream:
+        stream.write(f'{name}\t{now}\n')
+
+
+startup_phase('entry')
 source = Path.cwd()
 assert sys.version_info[:3] == (3, 12, 13)
 assert profile.is_dir() and profile != Path('/Users/laull')
@@ -24,6 +34,7 @@ from PySide6.QtCore import (QDir, QFileInfo, QSettings, QStandardPaths, QThread,
                             QThreadPool, QTimer, QCoreApplication, QEvent, qVersion)
 from PySide6.QtWidgets import QApplication
 from PySide6.QtTest import QTest
+startup_phase('qt-imports')
 
 # macOS QStandardPaths 不完全服从 HOME；明确覆盖业务使用的路径解析。
 def private_location(location):
@@ -53,6 +64,7 @@ def private_navigate(self, path):
 FileBrowser.navigate_to = private_navigate
 
 app = QApplication([])
+startup_phase('qapplication')
 assert app.platformName() == 'cocoa', app.platformName()
 app.setApplicationName('ExplorerPro')
 app.setOrganizationName('ExplorerPro')
@@ -71,12 +83,14 @@ settings.set('privacy', 'enable_clipboard_monitor', False)
 settings.set('index', 'auto_index', False)
 settings.set('index', 'index_on_startup', False)
 settings.save()
+startup_phase('application-import-start')
 from main import (configure_application_language, install_qt_translations,
                   install_runtime_translation, load_app_icon, set_application_version)
 from core.gui_gc import install_gui_gc
 from core.ui_translator import uninstall_ui_translator
 from gui.sidebar.drive_capacity import shutdown_capacity_executor
 from app import ExplorerProApp
+startup_phase('application-import-end')
 translator = configure_application_language()
 assert translator.get_language() == 'en' and translator.t('Abbrechen') == 'Cancel'
 install_qt_translations(app, translator.get_language())
@@ -99,15 +113,19 @@ def run():
     global window
     try:
         phase('construct')
+        startup_phase('construct')
         window = ExplorerProApp()
         icon = load_app_icon()
         assert not icon.isNull(), '随包应用图标未加载'
         window.setWindowIcon(icon)
         phase('show')
+        startup_phase('show')
         window.show()
         phase('expose')
+        startup_phase('show-returned')
         assert QTest.qWaitForWindowExposed(window, 10000)
         assert window.isVisible() and window.windowHandle().isExposed()
+        startup_phase('visible')
         QTest.qWait(1500)  # 覆盖上游 800ms 根预加载定时器。
         phase('navigate')
         window.file_browser.navigate_to(str(fixtures))

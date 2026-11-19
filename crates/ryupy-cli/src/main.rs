@@ -114,6 +114,7 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
             out_dir,
             aot,
             onefile,
+            macos_app,
             resources,
             native_binding,
             search_paths,
@@ -122,6 +123,9 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
             sess.trace_entry = ryupy_driver::TraceEntry::StandaloneMain;
             sess.diagnostic_stages = diagnostic_stages;
             sess.include_modules = include_modules;
+            if macos_app.is_some() && !cfg!(target_os = "macos") {
+                anyhow::bail!("--mode app 仅支持在 macOS 上本机构建");
+            }
             let aot = aot || onefile;
             if aot {
                 dotnet::require_sdk()?;
@@ -137,6 +141,17 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
                     default_out_dir(&input)
                 }
             });
+            let options = BuildOptions {
+                input,
+                out_dir,
+                aot,
+                search_paths,
+            };
+            if let Some(name) = macos_app {
+                let bundle = ryupy_driver::build_macos_app(sess, &options, &name)?;
+                eprintln!("已生成 {}", bundle.display());
+                return Ok(ExitCode::SUCCESS);
+            }
             let build = if onefile {
                 ryupy_driver::build_onefile
             } else {
@@ -144,12 +159,7 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
             };
             let artifacts = build(
                 sess,
-                &BuildOptions {
-                    input,
-                    out_dir,
-                    aot,
-                    search_paths,
-                },
+                &options,
                 resources.as_deref(),
                 native_binding.as_deref(),
             )?;

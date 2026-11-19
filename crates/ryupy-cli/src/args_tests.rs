@@ -2,6 +2,30 @@
 use super::*;
 
 #[test]
+fn app_mode_has_a_name_and_keeps_legacy_build_shape() {
+    let mut cli = Cli::try_parse_from([
+        "ryupy",
+        "main.py",
+        "--mode",
+        "app",
+        "--app-name",
+        "桌面 应用",
+    ])
+    .unwrap();
+    assert!(matches!(cli.take_command().unwrap(), Command::Build {
+        aot: true, onefile: false, macos_app: Some(name), ..
+    } if name == "桌面 应用"));
+    let mut default = Cli::try_parse_from(["ryupy", "entry.py", "--mode", "app"]).unwrap();
+    assert!(matches!(default.take_command().unwrap(), Command::Build {
+        macos_app: Some(name), ..
+    } if name == "entry"));
+    let mut wrong =
+        Cli::try_parse_from(["ryupy", "main.py", "--mode", "jit", "--app-name", "Example"])
+            .unwrap();
+    assert!(wrong.take_command().is_err());
+}
+
+#[test]
 fn project_entry_selects_onefile_and_automatic_environment() {
     for arguments in [
         vec!["ryupy", "main.py"],

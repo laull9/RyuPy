@@ -55,6 +55,9 @@ pub use trace_product::TraceEntry;
 
 use std::path::{Path, PathBuf};
 
+mod macos_app;
+pub use macos_app::build_macos_app;
+
 use anyhow::{Context, Result, bail};
 use ryupy_base::FileId;
 

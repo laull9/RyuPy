@@ -27,11 +27,20 @@ def main():
     parser.add_argument('--python', type=Path, required=True, help='已准备原锁定依赖的 CPython 3.12.13 venv')
     parser.add_argument('--ryupy', type=Path, required=True)
     parser.add_argument('--cache', type=Path, default=CACHE)
-    parser.add_argument('--mode', choices=['jit', 'standalone', 'onefile'], action='append')
+    parser.add_argument('--mode', choices=['jit', 'standalone', 'onefile', 'app'], action='append')
+    parser.add_argument('--keep-app', type=Path, help='将单次 .app 构建保留到仓外的新 .app 路径，不启动应用')
     parser.add_argument('--stock-module-namespaces', action='store_true')
     parser.add_argument('--native-components', type=Path, help='显式原生组件来源/许可/ABI声明')
     parser.add_argument('--evidence', type=Path, default=Path.home() / '.cache/ryupy/validation/github-large-build')
     args = parser.parse_args()
+    retained = None
+    if args.keep_app:
+        if args.mode != ['app']:
+            parser.error('--keep-app 需要且只接受一次 --mode app')
+        requested = args.keep_app.expanduser().absolute()
+        retained = requested.parent.resolve() / requested.name
+        if retained.suffix != '.app' or retained.is_relative_to(REPO) or os.path.lexists(retained):
+            parser.error('--keep-app 必须是仓库外不存在的 .app 路径')
     cache, cli = args.cache.expanduser().resolve(), args.ryupy.resolve(strict=True)
     python = args.python.expanduser().absolute()
     assert (python.parent.parent / 'pyvenv.cfg').is_file(), '必须提供独立依赖 venv，保留解释器符号链接路径'
@@ -63,6 +72,11 @@ def main():
         bundle = bundle_manifest(tree, work / 'bundle-data.json') if args.project == 'explorerpro' else None
         for mode in args.mode or ['jit']:
             command = [str(cli), str(tree / project['entry']), '--mode', mode, '-o', str(work / mode)]
+            stem = Path(project['entry']).stem
+            if mode == 'app':
+                name = 'ExplorerPro' if args.project == 'explorerpro' else stem
+                command.extend(['--app-name', name])
+                bundle_path = work / mode / (name + '.app')
             if args.stock_module_namespaces:
                 command.append('--experimental-stock-module-namespaces')
             if args.native_components:
@@ -80,13 +94,18 @@ def main():
                 except subprocess.TimeoutExpired:
                     code = 124
             if code == 0:
-                selected_report = provider_data(work / mode, Path(project['entry']).stem, mode) / 'cpython-provider.json'
+                data = bundle_path / 'Contents/MacOS/internal' if mode == 'app' else provider_data(work / mode, stem, mode)
+                selected_report = data / 'cpython-provider.json'
                 shutil.copy2(selected_report, evidence / (mode + '-provider.json'))
+                if mode == 'app' and retained:
+                    shutil.copytree(bundle_path, retained)
             rows = (evidence / (mode + '-build.log')).read_text(errors='replace').splitlines()
             first = next((line for line in rows if '[E' in line or line.startswith('error:')), '')
             item = {'project': args.project, 'mode': mode, 'build_exit': code,
                     'first_diagnostic': first, 'runtime': 'not-run', 'relocation': 'not-run',
                     'business_delegations': [], 'stock_module_namespaces': args.stock_module_namespaces, 'requested_cil_roots': project['ownership']['cil_target']}
+            if code == 0 and mode == 'app' and retained:
+                item['retained_app'] = str(retained)
             results.append(item)
             print(json.dumps(item, ensure_ascii=False), flush=True)
     (evidence / 'results.json').write_text(json.dumps(results, ensure_ascii=False, indent=2) + '\n')

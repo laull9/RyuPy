@@ -178,25 +178,7 @@ public sealed partial class CPythonHost
             return;
         }
         var dict = (PyDict)transfer.Value;
-        nint keys = Check(Native.rp_op(19, transfer.Owner.Pointer)); nint tuple = 0;
-        (object? Key, object? Value)[] entries;
-        try
-        {
-            tuple = Check(Native.rp_op(26, keys));
-            int count = checked((int)Native.rp_length(tuple)); ThrowIfError();
-            entries = new (object?, object?)[count];
-            for (int i = 0; i < count; i++)
-            {
-                nint key = Check(Native.rp_op(18, tuple, n: i));
-                try
-                {
-                    object? managedKey = FromBorrowed(key); RequireTransferKey(managedKey);
-                    entries[i] = (managedKey, FromOwned(Native.rp_op(6, transfer.Owner.Pointer, key)));
-                }
-                finally { Native.rp_decref(key); }
-            }
-        }
-        finally { Native.rp_decref(tuple); Native.rp_decref(keys); }
+        var entries = ReadDictSnapshot(transfer.Owner.Pointer);
         (object? Key, object? Value)[] current = [.. dict.Entries()];
         if (!SameEntries(current, entries))
         {
