@@ -67,6 +67,9 @@ public sealed class PyCoroutine : PyNativeObject
     }
     internal void ReleaseAwait() => _awaiting = false;
 
+    /// <summary>外部执行域显式 __await__ 使用同一个协程状态，且不把协程当作普通迭代器。</summary>
+    public PyCoroutineIterator ForeignAwaitIterator() => AwaitIterator(false);
+
     /// <inheritdoc/>
     public override object? GetAttr(string name) => name switch
     {
@@ -83,9 +86,17 @@ public sealed class PyCoroutine : PyNativeObject
 }
 
 /// <summary>__await__ 的独立迭代器，将 send/throw/close 转发到同一个协程状态。</summary>
-internal sealed class PyCoroutineIterator(PyCoroutine owner, bool acquired) : PyNativeObject, IPyIterator
+public sealed class PyCoroutineIterator : PyNativeObject, IPyIterator
 {
+    private readonly PyCoroutine owner;
+    private readonly bool acquired;
     private object? _current;
+
+    internal PyCoroutineIterator(PyCoroutine owner, bool acquired)
+    {
+        this.owner = owner;
+        this.acquired = acquired;
+    }
     /// <inheritdoc/>
     public override string TypeName => "coroutine_wrapper";
 
@@ -99,7 +110,21 @@ internal sealed class PyCoroutineIterator(PyCoroutine owner, bool acquired) : Py
             throw;
         }
     }
-    private object? Next() => Forward(() => owner.Send(PyNone.Instance));
+    /// <summary>推进一次，完成时保留 StopIteration.value。</summary>
+    public object? Next() => Send(PyNone.Instance);
+
+    /// <summary>转发发送值；完成或异常解除本次 await 占用。</summary>
+    public object? Send(object? value) => Forward(() => owner.Send(value));
+
+    /// <summary>把原异常注入同一协程。</summary>
+    public object? Throw(object? error) => Forward(() => owner.Throw(error));
+
+    /// <summary>确定结束已挂起的对端并解除占用。</summary>
+    public object Close()
+    {
+        try { return owner.Close(); }
+        finally { if (acquired) owner.ReleaseAwait(); }
+    }
     // builtin next 必须保留本次 StopIteration.value，MoveNext 只适合普通 for 消费。
     internal object? Next(object? defaultValue, bool hasDefault)
     {
@@ -120,14 +145,10 @@ internal sealed class PyCoroutineIterator(PyCoroutine owner, bool acquired) : Py
         "__iter__" => PyNativeFunctions.Create(name, [], [], 0, _ => this),
         "__next__" => PyNativeFunctions.Create(name, [], [], 0, _ => Next()),
         "send" => PyNativeFunctions.Create(name, ["value"], [null], 1,
-            a => Forward(() => owner.Send(a[0])), ["posonly"]),
+         a => Send(a[0]), ["posonly"]),
         "throw" => PyNativeFunctions.Create(name, ["exception"], [null], 1,
-            a => Forward(() => owner.Throw(a[0])), ["posonly"]),
-        "close" => PyNativeFunctions.Create(name, [], [], 0, _ =>
-        {
-            try { return owner.Close(); }
-            finally { if (acquired) owner.ReleaseAwait(); }
-        }),
+         a => Throw(a[0]), ["posonly"]),
+        "close" => PyNativeFunctions.Create(name, [], [], 0, _ => Close()),
         _ => throw Missing(name),
     };
 }

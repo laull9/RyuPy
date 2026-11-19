@@ -1786,8 +1786,11 @@ __await__，返回对象必须已经是迭代器，保留委托终值、send/thr
 方法绑定和混合星号实参快照；双星号映射与 await 混合的调用继续明确拒绝。
 
 async with 与 async for 的后续实现见下节；异步生成器/推导式、零参 super 跨暂停上下文继续明确拒绝。
-当前范围为原生普通动态域，显式 Instance 和 CPython awaitable 跨域协议留待后续；
-事件循环、IO、任务取消、contextvars、协程反射字段及未 await 析构警告尚未接入。
+纯原生域仍没有完整调度、IO、contextvars 或未 await 析构告警。显式 feature 与 stock
+实例模块同时启用时，[ADR-0245](adr/0245-stock-cil-coroutine-task-bridge.md) 已验证由原版
+CPython 事件循环、Task 和 Future 驱动 CIL 协程，覆盖定义点状态、contextvars、取消与清理。
+跨域协程使用真实 await 协议槽，但不等同于精确 `types.CoroutineType`；`cr_*` 和函数协程
+反射继续待验。模块级捕获外部 Task 错误后的 carrier 回收仍有独立待验输入。
 候选 Runtime 没有 CPython ABI 依赖，既有产品 3.9–3.15 版本范围保持。
 固定 3.12.13 是同次差分配置；本机 3.9.25/3.12.13/3.13.3 三组源码输出一致。
 本切已通过 macOS arm64 JIT 差分与 cleanup 原生 AOT 删除输入/构建目录后的中文空格搬迁。

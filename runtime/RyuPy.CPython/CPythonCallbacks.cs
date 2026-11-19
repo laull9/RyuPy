@@ -86,6 +86,7 @@ public sealed partial class CPythonHost
                     result = iterator.Current(); break;
                 case 14: result = PyHash.Of(target); break;
                 case 24: result = host.InvokeDescriptorSetName(target, a, b); break;
+                case 31 or 32 or 33 or 34: result = host.ResumeCoroutineProxy(target, op, a); break;
                 case 15:
                     int comparison = number switch { 0 => PyOps.Lt, 1 => PyOps.Le, 2 => PyOps.Eq, 3 => PyOps.Ne, 4 => PyOps.Gt, 5 => PyOps.Ge, _ => throw new PyRuntimeError("unknown comparison") };
                     object? compared = host.FromBorrowed(a);

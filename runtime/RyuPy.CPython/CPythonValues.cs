@@ -165,7 +165,12 @@ public sealed partial class CPythonHost
         {
             bool descriptor = HasSetName(value);
             ValidateSetNameDescriptor(value);
-            pointer = Check(descriptor ? Native.rp_managed_descriptor(identity) : Native.rp_managed(identity));
+            pointer = Check(value switch
+            {
+                PyCoroutine => CoroutineNative.rp_managed_coroutine(identity, 0),
+                PyCoroutineIterator => CoroutineNative.rp_managed_coroutine(identity, 1),
+                _ => descriptor ? Native.rp_managed_descriptor(identity) : Native.rp_managed(identity)
+            });
         }
         catch { Roots.TryRemove(identity, out _); ReleaseStockProgramProxy(identity); throw; }
         reverse.Add(value, new ManagedReference(identity, pointer));

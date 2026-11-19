@@ -79,6 +79,7 @@ internal sealed class PyGeneratorDelegation
 
     private object? Next()
     {
+        if (_iterator is IPyForeignAwaitIterator foreign) return foreign.NextValue();
         if (_target is PyGenerator generator) return generator.Next(null, false);
         if (_target is PyInstance instance)
         {

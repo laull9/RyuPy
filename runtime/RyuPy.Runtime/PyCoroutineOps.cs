@@ -22,7 +22,14 @@ public static partial class PyOps
         }
         object? iterator;
         bool found;
-        if (asyncNext && AsyncClass(source) is not null)
+        if (source is IPyForeignAwaitable foreign)
+        {
+            var awaiter = foreign.GetAwaitIterator();
+            if (awaiter is not null) return new PyGeneratorDelegation(awaiter, awaiter.Target);
+            found = false;
+            iterator = null;
+        }
+        else if (asyncNext && AsyncClass(source) is not null)
         {
             found = TryAsyncMethod(source, "__await__", out object? method);
             iterator = found ? CallValue(method, [], [], []) : null;

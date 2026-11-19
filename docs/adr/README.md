@@ -144,3 +144,4 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 - [0242：声明与编译源码相邻的随包应用数据](0242-declared-provider-application-data.md)（两布局三形态搬迁通过，完整应用另验）
 - [0243：同步字典的线性快照比较](0243-linear-synchronized-dictionary-deltas.md)（双版定向产品与原翻译子链配对，完整应用另验）
 - [0244：外部回调未读参数按需物化](0244-deferred-provider-callback-arguments.md)（显式 stock 回调 ABI，转正范围见验收）
+- [0245：由原版 asyncio 驱动 stock 实例模块的 CIL 协程](0245-stock-cil-coroutine-task-bridge.md)（显式候选，FBA 完整业务另验）

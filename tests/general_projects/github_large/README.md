@@ -362,3 +362,12 @@ Python frame，得到NULL。证据
 搜索、版本/翻译/图标、窗口关闭全部通过；最终 Qt 和 Python 线程列表均为空，三臂退出码为 0，
 无本地业务委派。重跑上文产品命令时加 `--stock-module-namespaces`，分别指定三种 `--mode`。
 固定原入口的构建结果独立保留；默认用户配置、完整业务矩阵、Windows/Linux 和性能尚未验收。
+
+### 2026-11-19 FBA 异步候选复验
+
+用 `cargo build -p ryupy-cli --features native-coroutines` 构建候选 CLI，再以原入口、
+固定原锁定环境、`--stock-module-namespaces` 复跑；没有委派本地模块。FBA 越过原
+`auth.py:18`，新首诊断为 `backend/common/lifespan.py:9` 的 PEP 695 类型别名；
+泛型类/函数作用域和 class import 也分别被拒绝。证据：
+`github-large-build/fba-20261119T005919.709330Z/`。没有运行 FBA 业务或交付搬迁。
+独立真实 asyncio 两版六产品的通过范围见 [ADR-0245](../../../docs/adr/0245-stock-cil-coroutine-task-bridge.md)。

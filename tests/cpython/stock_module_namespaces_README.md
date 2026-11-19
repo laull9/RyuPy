@@ -51,3 +51,9 @@ Name/tuple/属性目标重绑、as局部删除、getter异常越过同级、嵌�
 `deferred_callbacks` 使用真实 `json` 和 `operator` 驱动未读槽、异常、返回别名、
 闭包存活及关键字/变长回退；固定 3.12.13／3.13.3 的 JIT 和目录 AOT 搬迁通过。
 完整 Qt 构造回归和借用边界见 [ADR-0244](../../docs/adr/0244-deferred-provider-callback-arguments.md)。
+
+`asyncio_tasks` 是显式候选：先 `cargo build -p ryupy-cli --features native-coroutines`，
+然后用本驱动 `--case asyncio_tasks` 单独运行。两版的 JIT 与目录 AOT 都使用真实原版
+`asyncio.Task` 与 Future；另外加 `--mode onefile` 验收单文件发布。
+搬迁、取消、定义点状态和精确反射的边界见
+[ADR-0245](../../docs/adr/0245-stock-cil-coroutine-task-bridge.md)。

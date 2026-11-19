@@ -74,7 +74,7 @@ Python 动态类与函数优先表示为运行时对象和元数据，操作由�
 | C0 | 执行入口、ABI 消费者、启动/关闭链、严格内核选型与基线冻结 | 完成 |
 | C1 | object/super helper 移除；原生方法显式候选；两阶段类构造、prepared mapping、重入身份与失败清理；原生 finder/loader 与真实描述符类型 | 进行中；默认 wrapper 与旧源码安装 ABI 保留，完整 PEP451 两阶段模块事务待接入 |
 | C2 | 实时默认值；通用 CIL 伴生核心；原生签名反射与三个真实框架消费者 JIT/AOT 搬迁 | 进行中；字符串/延迟注解、完整 code/frame、原复杂项目闭包及源码/资源根分离继续待办 |
-| C3 | 默认关闭的 coroutine/await、async with、async for 与有限真实 traceback 视图 | 进行中；完整调度、IO、异步生成器及跨域 awaitable 继续待办 |
+| C3 | 默认关闭的 coroutine/await、async with、async for 与有限真实 traceback 视图 | 进行中；stock Task/Future 跨域首切通过，完整调度、IO 和异步生成器继续待办 |
 | C4 | 原版兼容产品与独立严格内核各有证据；严格原型 22 内核探针和 10 stock 对照通过 | 进行中；主线转向 stock 模块事务、胶水清单与完整业务闭包；严格 Host 源码候选未完成实跑验收 |
 | C5 | 保留现有兼容默认与候选隔离 | 待办；默认晋升与旧执行路径退出分别验收 |
 

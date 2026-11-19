@@ -98,7 +98,10 @@ impl<'a> Visitor<'a> for Check {
         let saved = crate::module_deletions::DeleteScope::enter(statement)
             .map(|scope| std::mem::replace(&mut self.scope, scope));
         match statement {
-            ast::Stmt::FunctionDef(def) if def.is_async => {
+            ast::Stmt::FunctionDef(def)
+                if def.is_async
+                    && (!self.provider_namespace || !cfg!(feature = "native-coroutines")) =>
+            {
                 self.reject(statement.range(), "异步函数")
             }
             ast::Stmt::FunctionDef(def) if def.type_params.is_some() => {

@@ -92,15 +92,17 @@ CreateSuper 历史 Object 返回公共 ABI 已恢复，真实 `5d36db1e` 的 184
   503 e2e通过；长循环RSS与正式耗时分列，见[第四轮验收](docs/cil-execution-fourth-slices-validation.md)。
 - [x] **可选依赖通用收集**：词法ImportError保护、必需优先与已装无metadata拒绝；四项
   JIT/NativeAOT搬迁、三负例、六组边界及FastAPI/SanBudget各一项真实NativeAOT回归通过。
-- [~] **大型项目适配**：FBA 固定原入口重跑仍以 E0100 拒绝实例模块 `async def`。
+- [~] **大型项目适配**：FBA 固定原入口以异步候选重跑，首项 E0100 移至
+  `backend/common/lifespan.py:9` 的 PEP 695 类型别名。
   ExplorerPro 已越过实例 dataclass，显式 stock profile 的完整原入口通过 JIT、目录
   NativeAOT 和 OneFile 构建；随包数据两布局三形态 6/6 搬迁通过（ADR-0242）。原对象隔离
   Cocoa 业务在三形态删除输入搬迁通过：窗口显示、Unicode 导航/预览、SQLite 搜索和线程关闭。
   不等同默认用户配置、其余业务流程或其他平台通过；FBA 尚未运行 RyuPy 业务。
   见[大型项目验收](tests/general_projects/github_large/README.md)。
-- [ ] **FBA 异步入口下一竖切**：先让 stock 实例模块的真实 CIL 协程被 CPython
-  `asyncio` 任务驱动，并验证定义点上下文、取消回传和清理；再接 FastAPI 路由的协程识别
-  与签名，不能只移除编译拒绝或委派原业务。
+- [x] **FBA 异步入口首切**（ADR-0245）：真实 CPython `asyncio` 直接驱动 stock
+  实例模块的 CIL 协程；两版 JIT/目录 AOT/OneFile 验收返回身份、定义点上下文、取消及清理。
+- [ ] **FBA 后续语义与框架门**：优先按原诊断实现 PEP 695 类型别名的惰性作用域；
+  泛型类/函数及 class import 分切。FastAPI 路由的协程识别与签名另以原框架运行验证。
 - [x] **同步字典快照成本**（ADR-0243）：去掉每次同步的二次键扫描，保身份、顺序、
   双向覆盖和异常写回。两版 JIT/AOT 四个搬迁产品通过；原译文目录 15 次非命中查询的
   四轮 JIT 中位数 2.945→0.145 秒。全窗结果与此局部收益分列。

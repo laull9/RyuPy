@@ -227,6 +227,7 @@ static PyMethodDef bridge_methods[] = {
 };
 static PyType_Spec managed_spec = {"ryupy.ManagedObject", sizeof(Managed), 0, Py_TPFLAGS_DEFAULT, managed_slots};
 #include "managed_descriptor.h"
+#include "managed_coroutine.h"
 
 static int fail_status(PyStatus status) {
     if (!PyStatus_Exception(status)) return 0;
@@ -309,6 +310,7 @@ API int rp_stop(void) {
     native_import_hooks_clear();
     rp_namespace_stop();
     Py_CLEAR(native_method_type); Py_CLEAR(native_static_method_type); Py_CLEAR(managed_descriptor_type);
+    Py_CLEAR(managed_coroutine_type); Py_CLEAR(managed_await_iterator_type);
     int result = Py_FinalizeEx();
     rp_reference_closed = 1; rp_thin_program_closed();
     inspect_bridge_closed_aliases();
@@ -322,14 +324,6 @@ API void rp_decref(PyObject *value) {
 }
 API void rp_reference_stats(long long *post) { *post = rp_post_finalize_decrefs; }
 API PyObject *rp_incref(PyObject *value) { return Py_NewRef(value); }
-API PyObject *rp_managed(intptr_t identity) {
-    Managed *self = PyObject_New(Managed, managed_type);
-    if (!self) return NULL;
-    self->identity = identity; return (PyObject *)self;
-}
-API intptr_t rp_identity(PyObject *value) {
-    return Py_IS_TYPE(value, managed_type) || is_managed_descriptor(value) ? ((Managed *)value)->identity : 0;
-}
 API PyObject *rp_none(void) { return Py_NewRef(Py_None); }
 API int rp_is_none(PyObject *value) { return Py_IsNone(value); }
 API PyObject *rp_int(int64_t value) { return PyLong_FromLongLong(value); }

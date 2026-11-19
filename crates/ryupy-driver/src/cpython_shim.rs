@@ -93,6 +93,10 @@ pub(super) fn build(
                 include_str!("../../../runtime/RyuPy.CPython/native/managed_descriptor.h"),
             ),
             (
+                "managed_coroutine.h",
+                include_str!("../../../runtime/RyuPy.CPython/native/managed_coroutine.h"),
+            ),
+            (
                 "import_hooks.h",
                 include_str!("../../../runtime/RyuPy.CPython/native/import_hooks.h"),
             ),
