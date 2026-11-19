@@ -127,7 +127,10 @@ mod tests {
         let cls = module.classes.iter().next().unwrap().1;
         assert!(!cls.is_dataclass);
         assert!(cls.has_annotations);
-        assert!(matches!(cls.decorators.as_slice(), [crate::Decorator::Expr(_)]));
+        assert!(matches!(
+            cls.decorators.as_slice(),
+            [crate::Decorator::Expr(_)]
+        ));
         assert!(
             lower(source, false)
                 .1

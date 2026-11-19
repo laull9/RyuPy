@@ -18,6 +18,8 @@ pub struct Session {
     pub cpython_provider: Option<PathBuf>,
     /// 显式原生组件来源、许可证与ABI声明；不自动加载宿主开发库。
     pub cpython_native_components: Option<PathBuf>,
+    /// 显式随包非 Python 应用数据清单（JIT / NativeAOT / OneFile 共用）。
+    pub bundle_data: Option<PathBuf>,
     #[doc(hidden)]
     pub cpython_provider_state: crate::CPythonProviderState,
     /// 显式委派给随包 CPython 解释执行的本地整模块/包名列表（顶层名）；禁止静默回退。

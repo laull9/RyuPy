@@ -9,7 +9,8 @@ public interface IPyForeignObject : IPyNativeCallable
 {
     /// <summary>真实类型对象。</summary>
     object ForeignType { get; }
-    /// <summary>普通kind执行显式转换；exact_int、exact_float、exact_bool、exact_str、exact_bytes只读精确内建值，拒绝子类且不调用用户转换钩子。</summary>
+    /// <summary>普通 kind 执行显式转换；str 只读真实字符串及其子类的载荷，不调转换钩子，非字符串抛 TypeError。
+    /// exact_int、exact_float、exact_bool、exact_str、exact_bytes 只读精确内建值，拒绝子类且不调用用户转换钩子。</summary>
     object ReadScalar(string kind);
     /// <summary>下标读取。</summary>
     object? Item(object? key);

@@ -77,33 +77,49 @@ from core.ui_translator import uninstall_ui_translator
 from gui.sidebar.drive_capacity import shutdown_capacity_executor
 from app import ExplorerProApp
 translator = configure_application_language()
+assert translator.get_language() == 'en' and translator.t('Abbrechen') == 'Cancel'
 install_qt_translations(app, translator.get_language())
 install_runtime_translation(app, translator)
 set_application_version(app)
+assert app.applicationVersion() == '1.0.9'
 collector = install_gui_gc(app)
 window = None
 failure = []
+
+
+def phase(name):
+    """单独记录事件循环进度；超时时不依靠 stdout 或 Python traceback 找卡点。"""
+    with (evidence / 'phases.log').open('a', encoding='utf-8') as stream:
+        stream.write(name + '\n')
 
 
 def run():
     """通过真正 app.exec 的定时回调推进事件循环，并检验原控件和数据库。"""
     global window
     try:
+        phase('construct')
         window = ExplorerProApp()
-        window.setWindowIcon(load_app_icon())
+        icon = load_app_icon()
+        assert not icon.isNull(), '随包应用图标未加载'
+        window.setWindowIcon(icon)
+        phase('show')
         window.show()
+        phase('expose')
         assert QTest.qWaitForWindowExposed(window, 10000)
         assert window.isVisible() and window.windowHandle().isExposed()
         QTest.qWait(1500)  # 覆盖上游 800ms 根预加载定时器。
+        phase('navigate')
         window.file_browser.navigate_to(str(fixtures))
         deadline = time.monotonic() + 10
         while window.file_browser.current_path != str(fixtures) and time.monotonic() < deadline:
             QTest.qWait(50)
         assert window.file_browser.current_path == str(fixtures)
+        phase('preview')
         window.preview_panel.show_preview(str(text))
         QTest.qWait(300)
         assert 'Äpfel' in window.preview_panel.text_preview.toPlainText()
         assert Path(window.file_index.db_path).resolve().is_relative_to(profile)
+        phase('index')
         assert window.file_index.index_file(str(text), calculate_hash=False)
         assert any(row['path'] == str(text) for row in window.file_index.search('Überblick'))
         with sqlite3.connect(window.file_index.db_path) as database:
@@ -113,11 +129,13 @@ def run():
         print(json.dumps({'platform': app.platformName(), 'visible': True, 'exposed': True,
                           'pyside': pyside_version, 'qt': qVersion(), 'navigation': True,
                           'unicode_preview': True, 'sqlite_index_search': True,
+                          'version': app.applicationVersion(), 'translations': True, 'icon': True,
                           'clipboard_accessed': False, 'settings': str(settings._config_path)},
                          ensure_ascii=False), flush=True)
     except BaseException:
         failure.append(traceback.format_exc())
     finally:
+        phase('close')
         if window is not None:
             window.close()
         shutdown_capacity_executor()
@@ -137,6 +155,7 @@ def run():
         collector.close()
         print(json.dumps({'window_closed': window is not None and not window.isVisible(),
                           'qt_threads': alive, 'python_threads': python_threads}), flush=True)
+        phase('quit')
         app.quit()
 
 

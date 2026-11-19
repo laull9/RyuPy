@@ -244,6 +244,19 @@ pub(crate) fn validate_layout_artifact_path(path: &str) -> Result<()> {
     paths::portable(path)
 }
 
+/// 文件目标不能互相覆盖、充当目录或在大小写不敏感文件系统上混名。
+pub(crate) fn validate_unique_layout_artifact_paths<'a>(
+    files: impl IntoIterator<Item = &'a str>,
+) -> Result<()> {
+    let mut targets = Targets::default();
+    for file in files {
+        targets
+            .insert(file, Kind::Published)
+            .with_context(|| format!("目标 {file}"))?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 #[path = "resources_combined_tests.rs"]
 mod combined_tests;

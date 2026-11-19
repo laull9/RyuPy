@@ -28,6 +28,7 @@ fn base_session(root: &Path, delegated: Vec<String>, entry: bool) -> Session {
             local_payloads: vec![],
             entry_script: None,
             compiled_sources: Vec::new(),
+            bundle_data: Default::default(),
         },
         bridge: root.to_path_buf(),
         shim: root.join("shim"),

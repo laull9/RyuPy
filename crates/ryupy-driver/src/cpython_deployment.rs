@@ -165,6 +165,7 @@ pub(super) fn stage(plan: &Plan, output: &Path) -> Result<()> {
         "dependency_collection": plan.dependency_report,
         "interface_catalog": crate::interface_catalog::analyze(plan, output, &files)?,
         "payloads": plan.payloads.iter().map(|payload| &payload.destination).collect::<Vec<_>>(),
+        "bundle_data": plan.delegation.bundle_data.destinations().collect::<Vec<_>>(),
         "managed_bundle": {"source": "single_bridge_output", "symbols": "embedded_portable_pdb"},
         "system_dependencies": native::system_dependencies(),
         // 证书属于宿主数据依赖；固定PBS首发使用OpenSSL的系统默认路径。

@@ -220,15 +220,10 @@ pub(super) fn compile_linked_traced(
         let bundled_location = if !is_delegated_entry
             && let Some(provider) = sess.cpython_provider_state.plan.as_mut()
         {
-            let relative = format!(
-                "ryupy_compiled/{}{}",
-                module.name.replace('.', "/"),
-                if module.kind == modules::SourceKind::Package {
-                    "/__init__.py"
-                } else {
-                    ".py"
-                }
-            );
+            let relative = bundled_sources::bundled_relative_path(
+                provider.delegation.bundle_data.layout_root(),
+                module,
+            )?;
             provider.delegation.compiled_sources.push(
                 cpython_provider::delegation::DelegatedEntry {
                     source: module.resolved_source_path.clone(),

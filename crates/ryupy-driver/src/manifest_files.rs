@@ -84,7 +84,7 @@ pub(crate) fn digest_file(path: &Path, logical: &str, role: &str) -> Result<File
     })
 }
 
-fn unchanged(a: &Metadata, b: &Metadata) -> Result<bool> {
+pub(crate) fn unchanged(a: &Metadata, b: &Metadata) -> Result<bool> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::MetadataExt;

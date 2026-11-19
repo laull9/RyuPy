@@ -16,6 +16,7 @@ import subprocess
 import traceback
 
 from inspect_sources import CACHE, CATALOG, REPO, analyze
+from explorerpro_data import DATA, bundle_manifest
 import tempfile
 import sys
 
@@ -36,13 +37,19 @@ def execute(command, cwd, env, evidence, label, timeout=900):
                                    stderr=stderr_log, start_new_session=True)
         try:
             process.wait(timeout=timeout)
-        except BaseException:
-            os.killpg(process.pid, signal.SIGTERM)
+        except BaseException as error:
             try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                os.killpg(process.pid, signal.SIGKILL)
-                process.wait(timeout=5)
+                if label == 'product' and isinstance(error, subprocess.TimeoutExpired):
+                    with (evidence / 'product-sample.log').open('wb') as diagnostic:
+                        subprocess.run(['/usr/bin/sample', str(process.pid), '2'], timeout=10,
+                                       stdout=diagnostic, stderr=subprocess.STDOUT, check=False)
+            finally:
+                os.killpg(process.pid, signal.SIGTERM)
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    os.killpg(process.pid, signal.SIGKILL)
+                    process.wait(timeout=5)
             raise
     stdout, stderr = stdout_path.read_bytes(), stderr_path.read_bytes()
     (evidence / (label + '-exit.json')).write_text(json.dumps({'exit': process.returncode}))
@@ -63,8 +70,21 @@ def normalize(data, profile):
         rb'\1<TIMING>\2', data)
 
 
+def relocated_command(executable, cache, original_venv, evidence, cwd, env):
+    """先验证原缓存和依赖确实不可读，再给实际产品进程继承同一沙箱。"""
+    sandbox = ['/usr/bin/sandbox-exec',
+               '-D', f'UPSTREAM={cache}', '-D', f'VENV={original_venv.resolve()}',
+               '-p', '(version 1) (allow default) '
+                     '(deny file-read* (subpath (param "UPSTREAM")) (subpath (param "VENV")))']
+    for label, path in [('upstream', cache), ('venv', original_venv.resolve())]:
+        blocked = execute([*sandbox, '/usr/bin/stat', path], cwd, dict(env, LC_ALL='C'), evidence, f'denied-{label}')
+        assert blocked.returncode == 1 and b'Operation not permitted' in blocked.stderr, blocked
+    return [*sandbox, executable]
+
+
 def product(args, project, evidence):
-    source = args.cache.expanduser().resolve() / project['repo'].replace('/', '--')
+    cache = args.cache.expanduser().resolve()
+    source = cache / project['repo'].replace('/', '--')
     analyze(project, source)
     original_python = args.python.expanduser().absolute()
     original_venv = original_python.parent.parent
@@ -106,6 +126,9 @@ def product(args, project, evidence):
             return {'mode': args.mode, 'oracle': 'pass', 'product': 'not-run'}
         output = work / 'output'
         extra = ['--experimental-stock-module-namespaces'] if args.stock_module_namespaces else []
+        full_probe = args.probe_entry.resolve() == (HERE / 'explorerpro_probe.py').resolve()
+        if full_probe:
+            extra.extend(['--bundle-data', bundle_manifest(tree, inputs / 'bundle-data.json')])
         if args.native_components:
             original = args.native_components.expanduser().resolve()
             declaration = json.loads(original.read_text())
@@ -133,6 +156,8 @@ def product(args, project, evidence):
         report = json.loads(report_path.read_text())
         assert report['delegated_local_modules'] == [], report['delegated_local_modules']
         assert report['entry_provider'] == 'ryupy_compiled_source', report['entry_provider']
+        if full_probe:
+            assert set(report['bundle_data']) == {'ryupy_compiled/' + path for path in DATA}, report['bundle_data']
         if args.stock_module_namespaces:
             decisions = report['dependency_collection']['module_namespaces']['modules']
             assert decisions and all(d['compiled'] and d['provider_namespace'] and d['execution'] == 'InstanceGlobals' for d in decisions), decisions
@@ -152,7 +177,7 @@ def product(args, project, evidence):
         cwd.mkdir()
         polluted = dict(runtime_env('product'), PATH=str(empty_path),
                         PYTHONHOME='/missing-python', PYTHONPATH='/missing-site')
-        command = [relocated / executable.name]
+        command = relocated_command(relocated / executable.name, cache, original_venv, evidence, cwd, polluted)
         actual = checked(execute([*command, profiles['product'], evidence / 'product'], cwd,
                                  polluted, evidence, 'product', timeout=150), '搬迁Cocoa原业务')
         assert normalize(actual.stdout, profiles['product']) == normalize(oracle.stdout, profiles['oracle'])

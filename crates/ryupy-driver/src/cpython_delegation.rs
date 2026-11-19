@@ -14,6 +14,8 @@ pub(crate) struct DelegationPlan {
     pub entry_script: Option<DelegatedEntry>,
     /// 编译源码只作为 __file__ / inspect 的随包数据，不加入解释器搜索路径。
     pub compiled_sources: Vec<DelegatedEntry>,
+    /// 显式随包非 Python 数据文件（部署于 `python/ryupy_compiled/` 下，不加入搜索路径）。
+    pub bundle_data: super::bundle_data::BundleData,
 }
 
 /// 单个被委派的本地模块或整包目录载荷。
@@ -215,6 +217,7 @@ pub(crate) fn resolve_plan(
         local_payloads,
         entry_script,
         compiled_sources: Vec::new(),
+        bundle_data: Default::default(),
     })
 }
 
@@ -224,6 +227,7 @@ pub(crate) fn stage(
     plan: &DelegationPlan,
     python_dir: &Path,
 ) -> Result<(Option<String>, Option<String>)> {
+    plan.bundle_data.validate_targets(&plan.compiled_sources)?;
     for source in &plan.compiled_sources {
         let target = python_dir.join(&source.destination);
         std::fs::create_dir_all(target.parent().context("编译源码缺少目标目录")?)?;
@@ -234,6 +238,7 @@ pub(crate) fn stage(
             .canonicalize()?;
         copy_delegated_tree(&source.source, &target, &boundary, &mut Vec::new())?;
     }
+    plan.bundle_data.stage(python_dir)?;
     let search_path = if !plan.local_payloads.is_empty() {
         let delegated_root = python_dir.join("ryupy_delegated");
         ensure!(

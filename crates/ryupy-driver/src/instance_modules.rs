@@ -98,15 +98,10 @@ impl ValidatedAot {
     ) -> Result<()> {
         let bundled = match (location, sess.cpython_provider_state.plan.as_ref()) {
             (ryupy_mir::ModuleLocation::BundleRelative(value), Some(provider)) => {
-                let expected = format!(
-                    "ryupy_compiled/{}{}",
-                    source.name.replace('.', "/"),
-                    if source.kind == SourceKind::Package {
-                        "/__init__.py"
-                    } else {
-                        ".py"
-                    }
-                );
+                let expected = crate::bundled_sources::bundled_relative_path(
+                    provider.delegation.bundle_data.layout_root(),
+                    source,
+                )?;
                 value == &format!("python/{expected}")
                     && provider.delegation.compiled_sources.iter().any(|entry| {
                         entry.source == source.resolved_source_path && entry.destination == expected

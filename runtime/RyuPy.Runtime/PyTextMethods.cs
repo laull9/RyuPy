@@ -158,14 +158,41 @@ public static partial class PyOps
         var parts = new string[items.Length];
         for (int i = 0; i < items.Length; i++)
         {
-            parts[i] = items[i] is string s
-                ? s : items[i] is PyStringInstance subtext ? subtext.Value
-                : throw new PyTypeError("sequence item: expected str instance");
+            parts[i] = TryAsText(items[i], out string text)
+                ? text
+                : throw new PyTypeError($"sequence item {i}: expected str instance, {PyRepr.TypeName(items[i])} found");
         }
         return PyUnicodePoints.Join(separator, parts);
     }
 
     private static string AsText(object? value) =>
-        value is string text ? text : value is PyStringInstance subtext ? subtext.Value
-        : throw new PyTypeError($"expected str, got '{PyRepr.TypeName(value)}'");
+        TryAsText(value, out string text)
+            ? text
+            : throw new PyTypeError($"expected str, got '{PyRepr.TypeName(value)}'");
+
+    private static bool TryAsText(object? value, out string text)
+    {
+        switch (value)
+        {
+            case string exact:
+                text = exact;
+                return true;
+            case PyStringInstance subtext:
+                text = subtext.Value;
+                return true;
+        }
+        // 读真实 Unicode 载荷；isinstance 可触发 __class__，而 str() 可触发 __str__。
+        var foreign = value as IPyForeignObject ?? (value as PyInstance)?.ForeignInstance;
+        if (foreign is not null)
+        {
+            try
+            {
+                text = (string)foreign.ReadScalar("str");
+                return true;
+            }
+            catch (PyTypeError) { /* 外部域拒绝非字符串载荷，由调用方给出当前操作的错误。 */ }
+        }
+        text = null!;
+        return false;
+    }
 }

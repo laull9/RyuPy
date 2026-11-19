@@ -299,3 +299,31 @@ Python frame，得到NULL。证据
 `~/.cache/ryupy/validation/explorerpro-products/20261117T095900.521068Z/`
 包含同次CP成功结果、构建/实际运行命令、完整双流、官方固定源码与原生崩溃栈。
 保留空argv和原业务调用形态；通用C API现场修复后继续原业务JIT/AOT/OneFile搬迁门。
+
+### 2026-11-19 固定项目复验
+
+- fba `dd391ee5`：固定 CPython 3.12.13 和原锁定依赖，stock profile 完整原入口 JIT
+  仍在 `backend/app/admin/api/v1/auth/auth.py:18` 报 E0100（实例模块异步函数）。
+  未执行 RyuPy 业务。构建证据 `github-large-build/fba-20261118T234943.997860Z/`。
+- ExplorerPro `f4f65982`：实例 dataclass 已越过。显式 stock profile、原 `src/main.py`、
+  明确选择 Cocoa/SQLite 的原生插件闭包，JIT、目录 NativeAOT 和 OneFile 完整构建通过，
+  无本地业务委派；构建证据 `github-large-build/explorerpro-20261118T235604.187877Z/`。
+  OneFile 证据单独位于 `github-large-build/explorerpro-20261119T000120.321711Z/`。
+  这不改变默认闭包缺 Mimer 依赖的旧结论，也不等于运行原入口。
+- `--bundle-data` 按 [ADR-0242](../../../docs/adr/0242-declared-provider-application-data.md)
+  部署原版本、翻译及图标；两套独立布局的 JIT、目录 AOT、OneFile 资源搬迁 6/6 通过。
+  Cocoa 薄驱动另断言原 `applicationVersion`、实际英译和非空 `QIcon`。
+- 真 Cocoa CPython 隔离业务通过；stock JIT 和目录 AOT 隔离探针删除源码、venv、构建目录后启动，
+  原缓存和原 venv 通过沙箱拒绝读取。产品已加载资源并进入 `window.show()`，但 150 秒未返回；
+  样本主线程位于 Qt 显示事件 → 原应用事件过滤器 → CPython/CIL 回调链。尚未确定根因，
+  避免绕过原过滤器来记作通过。仓外 `~/.cache/ryupy/validation/explorerpro-products/`
+  下的 JIT `20261118T235604.188134Z/` 和目录 AOT `20261119T000149.020378Z/`
+  保存完整证据。原生方法候选不能直接替换默认方法桥：原 Qt 信号连接在 Shiboken
+  `PepCode_Get` 崩溃，未启用候选。
+- 原 translator 与原 1185 项目录可以离开 Qt 重现慢速：热态 15 次非命中翻译在
+  stock JIT 用时 4.37 秒，同次 CPython 为约 14 微秒。单次诊断采样显示
+  `CPythonHost.PushContainer`／`PullContainer` 在同步字典上反复扫描键；先降低该成本，
+  再复验整个窗口，不能把非配对的诊断时点当成发布性能数据。
+
+本资源与桥接切片 `make check` 通过：3484 项 Runtime、353 项 driver 单测及 514 项
+编译端到端通过；既有跳过保留。

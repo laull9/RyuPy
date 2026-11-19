@@ -70,6 +70,7 @@ mod stock_thin;
 pub use source_probe::probe_sources;
 mod application_layout;
 mod application_native_relocate;
+mod bundled_sources;
 mod jit_apphost;
 mod source_deployment;
 pub use session::Session;

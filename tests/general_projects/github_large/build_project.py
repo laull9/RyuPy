@@ -15,6 +15,7 @@ import tempfile
 import sys
 
 from inspect_sources import CACHE, CATALOG, REPO, analyze
+from explorerpro_data import bundle_manifest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / 'tests/cpython'))
 from support import provider_data
@@ -59,12 +60,15 @@ def main():
         assert not work.is_relative_to(REPO)
         tree = work / 'source'
         shutil.copytree(source, tree, ignore=shutil.ignore_patterns('.git', '.venv', '__pycache__'))
+        bundle = bundle_manifest(tree, work / 'bundle-data.json') if args.project == 'explorerpro' else None
         for mode in args.mode or ['jit']:
             command = [str(cli), str(tree / project['entry']), '--mode', mode, '-o', str(work / mode)]
             if args.stock_module_namespaces:
                 command.append('--experimental-stock-module-namespaces')
             if args.native_components:
                 command.extend(['--cpython-native-components', str(args.native_components.expanduser().resolve())])
+            if bundle:
+                command.extend(['--bundle-data', str(bundle)])
             for root in project['import_roots']:
                 command.extend(['-I', str(tree / root)])
             (evidence / (mode + '-command.json')).write_text(json.dumps(command, ensure_ascii=False) + '\n')

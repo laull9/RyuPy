@@ -44,6 +44,7 @@ fn main() -> ExitCode {
         distribution_metadata: cli.distribution_metadata,
         cpython_provider: cli.cpython_provider,
         cpython_native_components: cli.cpython_native_components,
+        bundle_data: cli.bundle_data,
         cpython_modules: cli.cpython_modules,
         cpython_entry: cli.cpython_entry,
         cpython_dynamic_modules: cli.cpython_dynamic_modules,

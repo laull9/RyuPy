@@ -46,6 +46,18 @@ public sealed class PyApplicationLayoutTests : IDisposable
             PyModuleLocations.ResolveForPlatform(2, "_internal/resources/v1/module.py", false, Path.Combine(root, "entry")));
         Assert.Equal(Path.Combine(dependencies, "python", "ryupy_compiled", "module.py"),
             PyModuleLocations.ResolveBundle("python/ryupy_compiled/module.py", root));
+        Assert.Equal(Path.Combine(dependencies, "python", "ryupy_compiled", "nested source-dir", "module.py"),
+            PyModuleLocations.ResolveBundle("python/ryupy_compiled/nested source-dir/module.py", root));
+    }
+    [Theory]
+    [InlineData("../module.py")]
+    [InlineData("dir\\module.py")]
+    [InlineData("LPT1/module.py")]
+    [InlineData("dir./module.py")]
+    [InlineData("dir/file.py:stream")]
+    public void BundledModulesRejectNonPortableComponents(string relative)
+    {
+        Assert.Throws<PyRuntimeError>(() => PyModuleLocations.ResolveBundle("python/ryupy_compiled/" + relative, root));
     }
     [Fact]
     public void MarkerOutsideTwoCandidatesDoesNotGrantLayout()

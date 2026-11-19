@@ -158,4 +158,38 @@ public sealed class PyStringObjectConversionTests
         Assert.Same(error, Assert.Throws<PyValueError>(() => Text(cls, "raw"))); Assert.Equal(1, calls);
         cls.SetAttr("__init__", Method("init", _ => 1L)); Assert.Throws<PyTypeError>(() => Text(cls, "raw"));
     }
+
+    [Fact]
+    public void JoinAndTextOptionsAcceptForeignStrInstances()
+    {
+        var foreignText = new StubForeignScalar(PyType.Get("str"), "from-foreign");
+        var nonText = new StubForeignScalar(PyType.Get("int"), null);
+        Assert.Equal("a|from-foreign", PyOps.CallMethod("|", "join", [new object?[] { "a", foreignText }], [], []));
+        var error = Assert.Throws<PyTypeError>(() => PyOps.CallMethod("|", "join", [new object?[] { "a", nonText }], [], []));
+        Assert.Contains("sequence item 1: expected str instance", error.Message);
+        Assert.Equal("from-foreign", PyOps.CallMethod("x", "replace", ["x", foreignText], [], []));
+    }
+
+    private sealed class StubForeignScalar(object type, string? text) : IPyForeignObject
+    {
+        public object ForeignType => type;
+        public bool IsExceptionClass => false;
+        public object ReadScalar(string kind) => kind == "str" && text is not null ? text : throw new PyTypeError(kind);
+        public object? Item(object? key) => throw new NotSupportedException();
+        public void WriteItem(object? key, object? value, bool deleting) => throw new NotSupportedException();
+        public IPyIterator Iterate() => throw new NotSupportedException();
+        public long Length() => text?.Length ?? 0;
+        public bool Truth() => text is { Length: > 0 };
+        public long Hash() => text?.GetHashCode() ?? 0;
+        public object Binary(int operation, object? other, bool reverse) => throw new NotSupportedException();
+        public bool Compare(int operation, object? other, bool reverse) => throw new NotSupportedException();
+        public object RichCompare(int operation, object? other, bool reverse) => throw new NotSupportedException();
+        public object Unary(int operation) => throw new NotSupportedException();
+        public bool IsInstanceOf(object targetType) => throw new InvalidOperationException("字符串载荷读取不能调用 isinstance");
+        public bool Accepts(object? value) => false;
+        public bool MatchesException(PyBaseException error) => false;
+        public PyStackFrame[] TracebackFrames() => [];
+        public void SynchronizeException(PyBaseException error, bool write) { }
+        public object? Invoke(object?[] args, string[] names, object?[] values) => throw new NotSupportedException();
+    }
 }

@@ -21,6 +21,9 @@ pub(super) struct Cli {
     /// 显式原生组件来源、许可证与ABI清单（需CPython provider）
     #[arg(long, global = true, conflicts_with = "native")]
     pub(super) cpython_native_components: Option<PathBuf>,
+    /// 显式随包非 Python 应用数据清单（部署到随包编译源码根，JIT/AOT/OneFile 共用）
+    #[arg(long, global = true, conflicts_with = "native")]
+    pub(super) bundle_data: Option<PathBuf>,
     /// 显式封闭分发快照请求（JIT/AOT）；不改变sys.path
     #[arg(long, global = true, hide = true)]
     pub(super) distribution_metadata: Option<PathBuf>,

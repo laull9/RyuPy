@@ -18,7 +18,7 @@
       "entry": "backend/main.py",
       "start": "python -m uvicorn backend.main:app --host 127.0.0.1 --port <私有端口>",
       "pytest": "python -m pytest backend/app/admin/tests/api_v1/test_auth.py",
-      "first_blocker": "2026-11-17显式stock-module-namespaces完整原入口JIT构建：已越过PEP695与模块globals，当前E0100拒绝实例模块异步函数；原入口运行与AOT尚待验收",
+      "first_blocker": "2026-11-19复验：显式stock-module-namespaces完整原入口JIT仍以E0100拒绝实例模块异步函数；原入口运行与AOT尚待验收",
       "ownership": {
         "cil_target": [
           "backend"
@@ -59,7 +59,7 @@
       },
       "latest_cil_build": {
         "profile": "--experimental-stock-module-namespaces",
-        "evidence": "~/.cache/ryupy/validation/github-large-build/fba-20261117T140445.762989Z",
+        "evidence": "~/.cache/ryupy/validation/github-large-build/fba-20261118T234943.997860Z",
         "mode": "jit",
         "build_exit": 1,
         "runtime": "not-run",
@@ -82,7 +82,7 @@
       "entry": "src/main.py",
       "start": "python src/main.py",
       "pytest": "python -m pytest tests",
-      "first_blocker": "2026-11-17显式stock-module-namespaces完整原入口JIT构建：已越过生成器except，当前实例dataclass合同E0100；独立最小Cocoa产品已搬迁通过",
+      "first_blocker": "2026-11-19复验：显式stock-module-namespaces完整原入口三形态构建通过；JIT与目录AOT隔离Cocoa原业务搬迁后在window.show()超时",
       "ownership": {
         "cil_target": [
           "src",
@@ -107,8 +107,8 @@
         "onefile",
         "删除私有输入后搬迁"
       ],
-      "status": "CPython真实Cocoa原业务基线重复通过；旧兼容profile完整入口JIT构建曾通过。新stock profile完整入口停在实例dataclass；独立最小Cocoa JIT/AOT/OneFile产品搬迁显示通过，持续交互CP/JIT/目录AOT通过，OneFile心跳停顿待定位。",
-      "frontend_blocker": "新stock profile在services/archive_service.py:36/65拒绝实例dataclass；原QApplication([])缺原生frame问题已由通用C API载体修复，原完整业务运行继续开发。",
+      "status": "CPython真实Cocoa隔离原业务基线重复通过；显式stock profile完整原入口JIT、目录AOT、OneFile构建通过，无本地业务委派。真实Cocoa隔离业务首次显示超时，完整项目运行与搬迁尚未验收。独立最小窗口通过不计为项目通过。",
+      "frontend_blocker": "实例dataclass已越过。三形态构建使用显式Cocoa/SQLite插件选择，不改变默认全插件闭包的缺客户端约束。",
       "cpython_baseline": {
         "driver": "baseline.py --project explorerpro",
         "evidence": "~/.cache/ryupy/validation/adr0208-20261117/github-large/explorerpro-20261117T070122.463120Z",
@@ -131,12 +131,21 @@
         ]
       },
       "latest_cil_build": {
-        "profile": "--experimental-stock-module-namespaces",
-        "evidence": "~/.cache/ryupy/validation/github-large-build/explorerpro-20261117T121625.619196Z",
+        "profile": "--experimental-stock-module-namespaces + Cocoa/SQLite组件选择 + --bundle-data",
+        "evidence": "~/.cache/ryupy/validation/github-large-build/explorerpro-20261118T235604.187877Z",
+        "onefile_evidence": "~/.cache/ryupy/validation/github-large-build/explorerpro-20261119T000120.321711Z",
         "mode": "jit",
-        "build_exit": 1,
+        "other_passed_build_modes": ["standalone", "onefile"],
+        "build_exit": 0,
         "runtime": "not-run",
         "relocation": "not-run"
+      },
+      "latest_cil_probe": {
+        "profile": "--experimental-stock-module-namespaces + Cocoa/SQLite组件选择 + --bundle-data",
+        "jit": "~/.cache/ryupy/validation/explorerpro-products/20261118T235604.188134Z",
+        "standalone": "~/.cache/ryupy/validation/explorerpro-products/20261119T000149.020378Z",
+        "runtime": "timeout-show",
+        "relocation": "failed"
       }
     },
     {
